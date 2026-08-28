@@ -137,6 +137,9 @@ export class InventoryComponent implements OnInit, OnDestroy {
     // (cdkDragMoved) only fires for our own items, so an item coming from the shared bag or an
     // equipment slot left dropTargetSlotIdx null: no hover highlight, and the drop fell back to
     // CDK's currentIndex — meaningless in a sparse padded grid, so the item landed anywhere.
+    this.zone.runOutsideAngular(() =>
+      window.addEventListener('mousedown', this.onRightMouseDown, true));
+
     this.zone.runOutsideAngular(() => {
       this.pointerSub = this.dragRegistry.pointerMove.subscribe(event => {
         const point = event instanceof MouseEvent ? event : event.touches[0] ?? event.changedTouches[0];
@@ -157,7 +160,36 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pointerSub?.unsubscribe();
+    window.removeEventListener('mousedown', this.onRightMouseDown, true);
   }
+
+  /**
+   * Right-click during a drag drops a single unit into the slot under the pointer. Captured on
+   * window so no card underneath sees the click; only the grid knows which slot that is and
+   * whether it can take the item, so the decision lives here rather than in the shared overlay.
+   */
+  private readonly onRightMouseDown = (event: MouseEvent): void => {
+    if (event.button !== 2 || !this.dragSplit.isDragging()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    const slot = this.dropTargetSlotIdx;
+    if (slot === null) return;
+    const source = this.dragSourceSlotIdx;
+    const dragged = source === null ? null : this.paddedSlots[source];
+    if (!dragged) return;
+
+    // Only into an empty slot or onto more of the same thing.
+    const existing = this.paddedSlots[slot];
+    const pending = this.dragSplit.parkedAt(slot);
+    if (existing && !canMerge(existing, dragged) && pending === 0) return;
+    if (slot === source) return; // that is just the leftover
+
+    this.zone.run(() => {
+      if (this.dragSplit.parkOne(slot)) this.cdr.markForCheck();
+    });
+  };
 
   /**
    * Which padded slot is under the pointer. Runs outside Angular; only a real change is pushed
@@ -435,11 +467,33 @@ getCurrencyWeight(): number {
     this.dropTargetSlotIdx = null;
 
     const total = this.dragSplit.total();
+    const parked = new Map(this.dragSplit.parked());
     const carried = this.dragSplit.finishDrag();
+
+    if (src === null) return;
+
+    // Units right-clicked into other slots land even if the drag itself goes nowhere.
+    if (parked.size) {
+      const padded = [...this.paddedSlots];
+      const source = padded[src];
+      if (source) {
+        this.distributeParked(padded, source, parked);
+        // Whatever is still on the cursor goes to the drop slot, the remainder stays behind.
+        const leftover = total - carried - [...parked.values()].reduce((a, b) => a + b, 0);
+        const landed = tgt !== null && tgt !== src && carried > 0
+          && this.addUnits(padded, tgt, source, carried);
+        padded[src] = leftover + (landed ? 0 : carried) > 0
+          ? withAmount(source, leftover + (landed ? 0 : carried))
+          : null;
+        if (!padded[src]) this.unfoldedItems.delete(src);
+        this.commitSlots(padded);
+      }
+      return;
+    }
 
     // A drop outside our own grid (equipment, the shared bag) leaves no slot under the pointer,
     // and that is the only guard needed: the receiving container does its own work.
-    if (src === null || tgt === null || src === tgt) return;
+    if (tgt === null || src === tgt) return;
 
     const padded = [...this.paddedSlots];
 
@@ -498,7 +552,7 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     const entry = event.item.data as PartyStashEntry | null;
     // The split menu may have reduced how much of the pile is being taken. Read it here:
     // the split state is cleared on the next tick.
-    const carried = this.dragSplit.isSplit() ? this.dragSplit.taken() : undefined;
+    const carried = this.dragSplit.isSplit() ? this.dragSplit.carried() : undefined;
     if (entry?.entryId) void this.takeFromPartyStash(entry, targetSlot, carried);
     return;
   }
@@ -586,6 +640,26 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
       ? withAmount(target, stackAmount(target) + carried)
       : withAmount(source, carried);
     padded[src] = withAmount(source, total - carried);
+    return true;
+  }
+
+  /** Write the right-clicked units into their slots. */
+  private distributeParked(
+    padded: (ItemBlock | null)[], source: ItemBlock, parked: Map<number, number>,
+  ): void {
+    for (const [slot, count] of parked) this.addUnits(padded, slot, source, count);
+  }
+
+  /** Add `count` units of `source` to a slot. False when the slot holds something else. */
+  private addUnits(
+    padded: (ItemBlock | null)[], slot: number, source: ItemBlock, count: number,
+  ): boolean {
+    while (padded.length <= slot) padded.push(null);
+    const existing = padded[slot];
+    if (existing && !canMerge(existing, source)) return false;
+    padded[slot] = existing
+      ? withAmount(existing, stackAmount(existing) + count)
+      : withAmount(source, count);
     return true;
   }
 

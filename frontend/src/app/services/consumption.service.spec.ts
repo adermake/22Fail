@@ -68,12 +68,18 @@ describe('ConsumptionService', () => {
     rest = TestBed.inject(RestService);
   });
 
-  it('recognises potions, consumables and scripted items alike', () => {
+  it('recognises potions and Verbrauchsgegenstände', () => {
     expect(isConsumable(item({ itemType: 'potion', script: 'applyStatus("fx_kraft", 6)' }))).toBe(true);
     expect(isConsumable(item({ itemType: 'consumable' }))).toBe(true);
-    expect(isConsumable(item({ itemType: 'other', script: 'gainResource(health, 1)' }))).toBe(true);
     expect(isConsumable(item({ itemType: 'weapon' }))).toBe(false);
     expect(isConsumable(null)).toBe(false);
+  });
+
+  it('does not treat "carries a script" as "edible"', () => {
+    // An amulet that mends you overnight and a Kochzutat both have onRest blocks. Neither is
+    // something you can drink, and both used to pass as consumable.
+    expect(isConsumable(item({ itemType: 'other', script: 'onRest { gainResource(health, 5) }' }))).toBe(false);
+    expect(isConsumable(item({ itemType: 'cooking-ingredient', script: 'onRest { gainResource(health, 5) }' }))).toBe(false);
   });
 
   it('applies a scripted potion immediately', () => {

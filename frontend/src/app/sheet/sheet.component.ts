@@ -784,8 +784,13 @@ export class SheetComponent implements OnInit {
     this.restResult = null;
   }
 
-  restKindLabel(kind: 'item' | 'skill' | 'spell'): string {
-    return kind === 'item' ? 'Gegenstand' : kind === 'skill' ? 'Fähigkeit' : 'Zauber';
+  restKindLabel(kind: 'item' | 'equipment' | 'skill' | 'spell'): string {
+    switch (kind) {
+      case 'item': return 'Gegenstand';
+      case 'equipment': return 'Ausrüstung';
+      case 'skill': return 'Fähigkeit';
+      default: return 'Zauber';
+    }
   }
 
   /** The pools one Rast source touches, as chips: [{ label: 'Leben', amount: +12 }, …]. */

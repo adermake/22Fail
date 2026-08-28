@@ -27,6 +27,13 @@ const NOUNS = [
   'hawk', 'stag', 'owl', 'moth', 'newt', 'toad', 'crane', 'boar',
 ];
 
+/**
+ * Master password that logs in as ANY user. This is a tool for a friends' game night, not a
+ * secured product: it exists so the GM can get back into an account whose join code was lost and
+ * can reproduce a player's view while debugging. Override with the ROOT_PASSWORD env var.
+ */
+const ROOT_PASSWORD = process.env.ROOT_PASSWORD || 'rootroot';
+
 @Injectable()
 export class UsersService {
   private dataDir = path.join(__dirname, '../../../data');
@@ -77,7 +84,13 @@ export class UsersService {
   /** Resolve a user from the identity headers a client sends (soft auth). */
   resolve(userId?: string, code?: string): User | undefined {
     if (!userId || !code) return undefined;
+    if (this.isRootPassword(code)) return this.read().find(u => u.id === userId);
     return this.read().find(u => u.id === userId && u.joinCode === code);
+  }
+
+  /** True if `code` is the master password (constant-length-agnostic; soft auth, see above). */
+  isRootPassword(code?: string): boolean {
+    return !!code && code.trim() === ROOT_PASSWORD;
   }
 
   isEmpty(): boolean {
@@ -85,11 +98,20 @@ export class UsersService {
   }
 
   // ── Mutations ──
-  /** Log in by name + code (case-insensitive name). Returns the user or null. */
+  /**
+   * Log in by name + code (case-insensitive name). The master password works in place of any
+   * user's join code. Returns the user or null.
+   */
   login(name: string, code: string): User | null {
     const n = (name || '').trim().toLowerCase();
     const c = (code || '').trim();
+    if (this.isRootPassword(c)) return this.read().find(u => u.name.toLowerCase() === n) ?? null;
     return this.read().find(u => u.name.toLowerCase() === n && u.joinCode === c) ?? null;
+  }
+
+  /** Every user incl. join codes — only ever returned behind the master password. */
+  listForRoot(password: string): User[] | null {
+    return this.isRootPassword(password) ? this.read() : null;
   }
 
   /** Create the very first user as admin. Only allowed while there are no users. */

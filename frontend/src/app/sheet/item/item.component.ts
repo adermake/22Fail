@@ -143,6 +143,7 @@ export class ItemComponent implements OnChanges {
       case 'weapon': return 'i-effektivity';
       case 'armor': return 'i-stability';
       case 'potion': return 'i-brewing';
+      case 'cooking-ingredient': return 'i-item';
       case 'consumable': return 'i-brewing';
       case 'raw-material': return 'i-item';
       case 'ingredient': return 'i-item';
@@ -156,6 +157,7 @@ export class ItemComponent implements OnChanges {
       case 'weapon': return 'Waffe';
       case 'armor': return 'Rüstung';
       case 'potion': return 'Trank';
+      case 'cooking-ingredient': return 'Kochzutat';
       case 'consumable': return 'Verbrauchsgegenstand';
       case 'raw-material': return 'Rohmaterial';
       case 'ingredient': return 'Wirkstoff';

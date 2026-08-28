@@ -62,6 +62,10 @@
              (cdkDragMoved)="onDragMoved($event)"
              (cdkDragEnded)="onDragEnded($event)">
 
+          @if (dragSplit.parkedAt(i); as pending) {
+            <div class="parked-badge" title="Wird hier abgelegt">+{{ pending }}</div>
+          }
+
           @if (isItemUnfolded(i)) {
             <!-- Origin chip: click = switch expansion tab; double-click = fold; cdkDragHandle = only drag from chip -->
             <div class="origin-chip"
@@ -102,14 +106,21 @@
               <!-- How many units are actually on the cursor right now. -->
               @if (dragSplit.total() > 1) {
                 <span class="drag-chip-amount" [class.split]="dragSplit.isSplit()">
-                  &times;{{ dragSplit.taken() }}
+                  &times;{{ dragSplit.carried() }}
                 </span>
               }
             </div>
           </ng-template>
 
-          <!-- Invisible placeholder keeps grid cell stable -->
-          <div class="drag-placeholder-wrapper" *cdkDragPlaceholder></div>
+          <!-- Placeholder keeps the grid cell stable, and shows what stays behind. -->
+          <div class="drag-placeholder-wrapper" *cdkDragPlaceholder>
+            @if (dragSplit.leftover() > 0) {
+              <div class="leftover-ghost" title="Bleibt in diesem Feld">
+                <span class="leftover-name">{{ slot.name }}</span>
+                <span class="leftover-amount">{{ dragSplit.leftover() }}</span>
+              </div>
+            }
+          </div>
         </div>
       } @else {
         <!-- Empty slot: always visible as a slot background -->
@@ -118,6 +129,9 @@
              [attr.data-slot-idx]="i"
              [style.grid-column]="(i % 4) + 1"
              [style.grid-row]="getItemGridRow(i)">
+          @if (dragSplit.parkedAt(i); as pending) {
+            <div class="parked-badge" title="Wird hier abgelegt">+{{ pending }}</div>
+          }
         </div>
       }
     }

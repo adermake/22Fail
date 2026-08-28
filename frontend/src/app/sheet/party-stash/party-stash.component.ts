@@ -67,7 +67,7 @@ export class PartyStashComponent implements OnInit {
     const item = event.item.data as ItemBlock | null;
     if (!item) return;
     // How much of the pile the split menu left on the cursor (all of it, unless it was split).
-    const carried = this.dragSplit.isSplit() ? this.dragSplit.taken() : stackAmount(item);
+    const carried = this.dragSplit.isSplit() ? this.dragSplit.carried() : stackAmount(item);
     await this.give(item, carried);
   }
 

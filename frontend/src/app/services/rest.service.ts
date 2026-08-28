@@ -4,12 +4,13 @@ import { SkillBlock } from '../model/skill-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import { FormulaType } from '../model/formula-type.enum';
 import { hasRestBlock, REST_TRIGGER } from '../scripting/interpreter';
+import { isItemEquipped } from '../utils/equip-slot.utils';
 import { MacroExecutorService } from './macro-executor.service';
 import { TrueStatsService } from './true-stats.service';
 
 /** One thing that reacts to resting. */
 export interface RestSource {
-  kind: 'item' | 'skill' | 'spell';
+  kind: 'item' | 'equipment' | 'skill' | 'spell';
   name: string;
   script: string;
 }
@@ -58,6 +59,8 @@ export interface RestOutcome {
  *
  * What reacts to a Rast:
  *  - every consumed item still in the queue,
+ *  - every EQUIPPED item with an `onRest` block (an amulet that mends you overnight is not a
+ *    consumable and is never used up — it simply works because you are wearing it),
  *  - passive skills and active skills the player currently has switched on,
  *  - spells that are currently sustained.
  */
@@ -90,6 +93,11 @@ export class RestService {
       const script = entry.item?.script;
       if (script && hasRestBlock(script)) {
         out.push({ kind: 'item', name: entry.item.name, script });
+      }
+    }
+    for (const item of sheet.equipment ?? []) {
+      if (item?.script && hasRestBlock(item.script) && isItemEquipped(item)) {
+        out.push({ kind: 'equipment', name: item.name, script: item.script });
       }
     }
     for (const skill of sheet.skills ?? []) {

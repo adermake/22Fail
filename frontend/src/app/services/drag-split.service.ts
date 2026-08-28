@@ -1,70 +1,57 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { ItemBlock } from '../model/item-block.model';
-import { splitHalf, stackAmount } from '../utils/item-stack.util';
+import { stackAmount } from '../utils/item-stack.util';
 
 /**
- * Splitting a stack WHILE dragging it.
+ * Splitting a stack WHILE dragging it — no modes, no menus.
  *
- * Items move by left-drag and nothing else. Hold the right button during a drag and this opens
- * over the item: type a number Blender-style, or sweep the pointer across a radial menu of
- * operations (half, double, +1, -1). Whatever count is set when you let go is what gets dropped;
- * the remainder goes back to the slot the drag started from.
+ *   type a number   that many come with you, the rest stays behind
+ *   right click     drop a single unit into the slot under the pointer
  *
- * The state lives in a service because three components take part: the grid that starts the drag,
- * the overlay that draws the menu, and whichever drop target finishes the move.
+ * Three counts always add up to the size of the pile you picked up:
+ *
+ *   carried   still on the cursor, dropped wherever you release
+ *   parked    already placed elsewhere by right-clicking, one at a time
+ *   leftover  going back to the slot it came from, shown there in yellow while you drag
+ *
+ * Nothing is written to the sheet until the drag ends; the leftover badge is a preview. Writing
+ * mid-drag would re-render the grid underneath Angular CDK while it is holding one of its rows.
  */
-export interface DragSplitOperation {
-  id: 'half' | 'double' | 'plus' | 'minus';
-  /** The big symbol in the ring. */
-  label: string;
-  /** The small word under it. */
-  name: string;
-  hint: string;
-}
-
-/** Clockwise from the top: +1, ×2, −1, ½ — adding on the right, taking away on the left. */
-export const DRAG_SPLIT_OPERATIONS: DragSplitOperation[] = [
-  { id: 'plus',   label: '+1', name: 'Eins',   hint: 'Eines mehr mitnehmen (Shift: schnell)' },
-  { id: 'double', label: '×2', name: 'Doppelt', hint: 'Doppelt so viele mitnehmen (Shift: schnell)' },
-  { id: 'minus',  label: '−1', name: 'Eins',   hint: 'Eines weniger mitnehmen (Shift: schnell)' },
-  { id: 'half',   label: '½',  name: 'Hälfte', hint: 'Die Hälfte mitnehmen (Shift: schnell)' },
-];
-
 @Injectable({ providedIn: 'root' })
 export class DragSplitService {
-  /** Units in the pile being dragged. 0 when no drag is running. */
+  /** Units in the pile that was picked up. 0 when no drag is running. */
   readonly total = signal(0);
-  /** Units currently being carried — the rest stays behind. */
-  readonly taken = signal(0);
-  /** Whether the dragged item can be split at all. */
+  /** Units still on the cursor. */
+  readonly carried = signal(0);
+  /** Units right-clicked into other slots, as slot index → count. */
+  readonly parked = signal<ReadonlyMap<number, number>>(new Map());
+  /** Whether this pile can be split at all. */
   readonly splittable = signal(false);
-  /** The radial menu is visible while the right button is held. */
-  readonly menuOpen = signal(false);
-  /** Where the menu was opened, in viewport coordinates. */
-  readonly menuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  /** A drag is in progress. */
+  readonly isDragging = computed(() => this.total() > 0);
+  /** Units already placed elsewhere during this drag. */
+  readonly parkedCount = computed(
+    () => [...this.parked().values()].reduce((sum, n) => sum + n, 0),
+  );
+  /** Units that will go back to the slot the drag started from. */
+  readonly leftover = computed(
+    () => Math.max(0, this.total() - this.carried() - this.parkedCount()),
+  );
+  /** True once the whole pile is no longer coming along. */
+  readonly isSplit = computed(() => this.isDragging() && this.carried() < this.total());
+  /** A number has been typed during this drag (drives the count badge's highlight). */
+  readonly typed = signal(false);
 
   private clearTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /** A drag is in progress (whether or not the menu is open). */
-  readonly isDragging = computed(() => this.total() > 0);
-  /** True once the carried amount is less than the whole pile. */
-  readonly isSplit = computed(() => this.isDragging() && this.taken() < this.total());
-
-  // Which operations would change anything right now. A greyed-out option is one the
-  // pile cannot support — doubling 7 of 10, or taking one off a single unit.
-  readonly canHalf = computed(() => this.splittable() && this.taken() > 1);
-  readonly canDouble = computed(() => this.splittable() && this.taken() * 2 <= this.total());
-  readonly canPlus = computed(() => this.splittable() && this.taken() < this.total());
-  readonly canMinus = computed(() => this.splittable() && this.taken() > 1);
 
   /** Start tracking a drag. */
   begin(item: ItemBlock | null | undefined): void {
     this.reset(); // cancels any pending cleanup from the previous drag
     const units = stackAmount(item);
     this.total.set(units);
-    this.taken.set(units);
+    this.carried.set(units);
     this.splittable.set(!!item?.stackable && units > 1);
-    this.menuOpen.set(false);
   }
 
   /**
@@ -77,8 +64,7 @@ export class DragSplitService {
    * the shared bag handed over all of it.
    */
   finishDrag(): number {
-    const carried = this.taken();
-    this.menuOpen.set(false);
+    const carried = this.carried();
     this.clearTimer ??= setTimeout(() => this.reset(), 0);
     return carried;
   }
@@ -87,70 +73,40 @@ export class DragSplitService {
   reset(): void {
     if (this.clearTimer) { clearTimeout(this.clearTimer); this.clearTimer = null; }
     this.total.set(0);
-    this.taken.set(0);
+    this.carried.set(0);
+    this.parked.set(new Map());
     this.splittable.set(false);
-    this.menuOpen.set(false);
+    this.typed.set(false);
   }
 
   /**
-   * Radius the ring needs around the cursor, so the menu can be kept fully on screen. Opening
-   * it near an edge otherwise pushed half the options out of view.
+   * Take a typed count along. Clamped to what is actually still available: a pile of ten with
+   * three already parked can carry at most seven.
    */
-  static readonly RING_MARGIN = 220;
-
-  openMenu(x: number, y: number): void {
-    if (!this.isDragging()) return;
-    const margin = DragSplitService.RING_MARGIN;
-    const clamp = (value: number, size: number) => size < margin * 2
-      ? size / 2
-      : Math.max(margin, Math.min(size - margin, value));
-    this.menuPosition.set({
-      x: clamp(x, window.innerWidth),
-      y: clamp(y, window.innerHeight),
-    });
-    this.menuOpen.set(true);
-  }
-
-  closeMenu(): void { this.menuOpen.set(false); }
-
-  /** Set the carried count directly (the typed number). Clamped into the pile. */
-  setTaken(value: number): void {
+  setCarried(value: number): void {
     if (!this.isDragging()) return;
     const n = Math.floor(Number(value));
     if (!Number.isFinite(n)) return;
-    this.taken.set(Math.max(1, Math.min(this.total(), n)));
+    const max = this.total() - this.parkedCount();
+    this.carried.set(Math.max(0, Math.min(max, n)));
   }
 
-  /** Run one operation. Returns false when it was not possible, so the UI can say so. */
-  apply(op: DragSplitOperation['id']): boolean {
-    switch (op) {
-      case 'half':
-        if (!this.canHalf()) return false;
-        // Halving keeps the larger half, the same way picking half of a pile does.
-        this.taken.set(splitHalf(this.taken()).taken);
-        return true;
-      case 'double':
-        if (!this.canDouble()) return false;
-        this.taken.set(this.taken() * 2);
-        return true;
-      case 'plus':
-        if (!this.canPlus()) return false;
-        this.taken.set(this.taken() + 1);
-        return true;
-      case 'minus':
-        if (!this.canMinus()) return false;
-        this.taken.set(this.taken() - 1);
-        return true;
-    }
+  /** Note that the count came from the keyboard (for the badge's highlight). */
+  markTyped(): void { this.typed.set(true); }
+
+  /**
+   * Right click: put one unit into `slot`. Returns false when there is nothing left on the
+   * cursor to place. The unit is only recorded here — the drop commits it.
+   */
+  parkOne(slot: number): boolean {
+    if (!this.isDragging() || this.carried() < 1) return false;
+    const next = new Map(this.parked());
+    next.set(slot, (next.get(slot) ?? 0) + 1);
+    this.parked.set(next);
+    this.carried.set(this.carried() - 1);
+    return true;
   }
 
-  /** Is this operation currently possible? */
-  can(op: DragSplitOperation['id']): boolean {
-    switch (op) {
-      case 'half':   return this.canHalf();
-      case 'double': return this.canDouble();
-      case 'plus':   return this.canPlus();
-      case 'minus':  return this.canMinus();
-    }
-  }
+  /** Units destined for one slot, for the pending badge on it. */
+  parkedAt(slot: number): number { return this.parked().get(slot) ?? 0; }
 }

@@ -7,7 +7,10 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
-import { COOKED_MARK, dividePortions, isCookable, mergeConsumableScripts } from '../../utils/cooking.util';
+import {
+  COOKED_MARK, CookingRoll, cookingMultiplier, dividePortions, isCookable, mergeConsumableScripts,
+  rollCookingQuality, scaleRestValues,
+} from '../../utils/cooking.util';
 
 /** One ingredient picked for the pot, with the inventory slot it came from. */
 interface CookEntry {
@@ -38,6 +41,8 @@ export class CookingComponent {
 
   mealName = '';
   portions = 1;
+  /** Result of the Kochprobe for the meal just cooked, shown until the pot is used again. */
+  lastRoll: CookingRoll | null = null;
   /** Inventory slots currently in the pot. */
   picked: number[] = [];
 
@@ -72,6 +77,26 @@ export class CookingComponent {
     return dividePortions(mergeConsumableScripts(this.pot.map(e => e.item)), this.portions);
   }
 
+  // ── Kochprobe ──────────────────────────────────────────────────────────────
+
+  /** The character's kitchen bonus, persisted on the sheet. */
+  get cookingBonus(): number { return this.sheet.cookingBonus ?? 0; }
+
+  setCookingBonus(value: number): void {
+    const bonus = Math.floor(Number(value) || 0);
+    this.sheet.cookingBonus = bonus;
+    this.patch.emit({ path: 'cookingBonus', value: bonus });
+    this.cdr.markForCheck();
+  }
+
+  /** What the worst and best possible rolls would multiply by, for the hint line. */
+  get rollRange(): { min: number; max: number } {
+    return {
+      min: cookingMultiplier(1, this.cookingBonus).multiplier,
+      max: cookingMultiplier(20, this.cookingBonus).multiplier,
+    };
+  }
+
   get canCook(): boolean {
     return this.pot.length > 0 && this.portions >= 1 && !!this.mealName.trim();
   }
@@ -92,7 +117,10 @@ export class CookingComponent {
     meal.itemType = 'consumable';
     meal.description = `Gekocht aus: ${ingredients.map(e => e.item.name).join(', ')}\n`
       + `${this.portions} Portion(en) — Wirkung je Portion geteilt.`;
-    meal.script = this.resultScript;
+    // How well it turned out: (1d20 + 5 + X) / 10 scales everything the meal restores.
+    const roll = rollCookingQuality(this.cookingBonus);
+    this.lastRoll = roll;
+    meal.script = scaleRestValues(this.resultScript, roll.multiplier);
     meal.stackable = true;
     meal.amount = this.portions;
     meal.weight = Math.round(

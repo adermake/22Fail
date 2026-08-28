@@ -119,13 +119,19 @@ const ACCENTS = ['accent', 'health', 'energy', 'mana'] as const;
 
 const card: ContainerDirective = {
   name: 'card',
-  render: (attrs) => {
+  render: (attrs, env) => {
+    // `accent=` picks one of the four semantic theme colours; `color=` takes any palette name or
+    // hex and wins over it. Both end up as --rb-card-color, which the CSS already threads through
+    // the border, the hover glow and the title.
     const accent = oneOf(attrs['accent'], ACCENTS, 'accent');
+    const custom = safeColor(attrs['color']);
+    if (attrs['color'] && !custom) env.warnings.push(`Unbekannte Farbe "{color=${attrs['color']}}"`);
+    const style = custom ? ` style="--rb-card-color:${custom}"` : '';
     const title = attrs['title'];
     const id = attrs['id'] || (title ? `card-${slugify(title)}` : '');
     return {
       open:
-        `<article class="rb-card rb-card--${accent}"${id ? ` id="${esc(id)}"` : ''}>` +
+        `<article class="rb-card rb-card--${accent}"${id ? ` id="${esc(id)}"` : ''}${style}>` +
         (title ? `<h4 class="rb-card-title">${iconSpan(attrs['icon'])}${esc(title)}</h4>` : '') +
         `<div class="rb-card-body">`,
       close: `</div></article>`,

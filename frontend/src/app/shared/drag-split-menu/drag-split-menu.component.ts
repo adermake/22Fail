@@ -1,27 +1,21 @@
 import {
-  ChangeDetectionStrategy, Component, HostListener, NgZone, OnDestroy, OnInit, inject, signal,
+  ChangeDetectionStrategy, Component, NgZone, OnDestroy, OnInit, inject, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DRAG_SPLIT_OPERATIONS, DragSplitOperation, DragSplitService } from '../../services/drag-split.service';
+import { DragSplitService } from '../../services/drag-split.service';
 import { playSplitTick } from '../sound/split-audio';
 
 /**
- * The radial split menu, toggled with the right button during a drag.
+ * Keyboard and right-button handling for a drag in progress, plus a small count badge at the
+ * cursor.
  *
- * Tap right to enter split mode, tap right again to leave it — holding the button down the whole
- * time was tiring, and there is nothing about the interaction that needs a held button.
+ * There is no mode to enter and nothing to hold down: while a stack is being dragged, typing a
+ * number sets how many come along, and each right-click drops a single unit into the slot under
+ * the pointer. The grid draws the rest — the leftover badge on the source slot and the pending
+ * badges on slots that have received units.
  *
- * Design notes, all of them learned the hard way:
- *  - While it is open the rest of the page is behind a scrim and cannot be hovered or clicked.
- *    Dragging a stack across the sheet used to light up every card it passed over.
- *  - The right button belongs entirely to this menu for as long as a drag is running. Every
- *    right-button event is caught in the CAPTURE phase, so no card underneath ever sees it and
- *    the browser's own context menu never appears.
- *  - Sweeping onto an option runs it once and locks it until the pointer leaves. Holding Shift
- *    repeats it instead, for getting from 200 to 12 without sixty separate sweeps.
- *  - Dropping the item while the menu is still open just works: the slot under the pointer is
- *    found beneath the scrim, and the drag ending closes the menu.
- *  - Just type. Digits go into the count wherever the pointer happens to be.
+ * The right button is claimed in the CAPTURE phase for the duration of a drag, so no card
+ * underneath opens its own menu and the browser's never appears.
  */
 @Component({
   selector: 'app-drag-split-menu',
@@ -29,244 +23,157 @@ import { playSplitTick } from '../sound/split-audio';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (split.menuOpen()) {
-      <!-- Everything behind the menu is inert while splitting. -->
-      <div class="dsm-scrim" [class.closing]="closing()"></div>
-
-      <div class="dsm" [class.closing]="closing()"
-           [style.left.px]="split.menuPosition().x"
-           [style.top.px]="split.menuPosition().y">
-
-        <div class="dsm-core" [class.bump]="bump()">
-          <span class="dsm-count">{{ split.taken() }}</span>
-          <span class="dsm-total">von {{ split.total() }}</span>
-          @if (typing()) { <span class="dsm-typed">Eingabe</span> }
-        </div>
-
-        @for (op of operations; track op.id; let i = $index) {
-          <button class="dsm-op"
-                  [class.dsm-used]="used() === op.id"
-                  [class.dsm-fired]="fired() === op.id"
-                  [class.dsm-impossible]="!split.can(op.id)"
-                  [class.dsm-repeating]="repeatOp === op.id"
-                  [style.--angle]="angleFor(i)"
-                  [disabled]="!split.can(op.id)"
-                  [title]="op.hint"
-                  (mouseenter)="onSweep(op)"
-                  (mouseleave)="onLeave(op)">
-            <span class="dsm-op-label">{{ op.label }}</span>
-            <span class="dsm-op-name">{{ op.name }}</span>
-          </button>
+    @if (split.isDragging() && split.splittable()) {
+      <div class="dsb" [style.transform]="badgeTransform()">
+        <span class="dsb-count" [class.typed]="split.typed()" [class.bump]="bump()">
+          {{ split.carried() }}
+        </span>
+        <span class="dsb-of">von {{ split.total() }}</span>
+        @if (split.leftover() > 0) {
+          <span class="dsb-left">{{ split.leftover() }} bleibt</span>
         }
-
-        <span class="dsm-hint">Zahl tippen · Shift = schnell · Rechtsklick = fertig</span>
+        <span class="dsb-hint">Zahl tippen · Rechtsklick legt eines ab</span>
       </div>
     }
   `,
   styles: [`
-    .dsm-scrim {
-      position: fixed; inset: 0;
-      z-index: 13400;
-      background: rgba(3, 6, 15, 0.62);
-      backdrop-filter: blur(1.5px);
-      animation: dsm-fade-in 0.12s ease-out;
-    }
-    .dsm-scrim.closing { animation: dsm-fade-out 0.16s ease-in forwards; }
-    @keyframes dsm-fade-in  { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes dsm-fade-out { from { opacity: 1; } to { opacity: 0; } }
-
-    .dsm {
+    .dsb {
       position: fixed;
-      z-index: 13500;
-      width: 0; height: 0;
-      animation: dsm-in 0.14s cubic-bezier(0.2, 1.4, 0.5, 1);
-    }
-    .dsm.closing { animation: dsm-out 0.16s ease-in forwards; }
-    @keyframes dsm-in  { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
-    @keyframes dsm-out { from { opacity: 1; } to { opacity: 0; transform: scale(0.92); } }
-
-    /* ── The count in the middle ── */
-    .dsm-core {
-      position: absolute; left: 0; top: 0;
-      transform: translate(-50%, -50%);
-      display: flex; flex-direction: column; align-items: center;
-      min-width: 108px;
-      padding: 12px 18px;
-      background: var(--card, #1a1f2e);
-      border: 2px solid var(--accent, #8b5cf6);
-      border-radius: 14px;
-      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.7), 0 0 30px rgba(139, 92, 246, 0.28);
-    }
-    .dsm-core.bump { animation: dsm-bump 0.22s cubic-bezier(0.2, 1.6, 0.4, 1); }
-    @keyframes dsm-bump {
-      0%   { transform: translate(-50%, -50%) scale(1); }
-      45%  { transform: translate(-50%, -50%) scale(1.18); }
-      100% { transform: translate(-50%, -50%) scale(1); }
-    }
-    .dsm-count {
-      color: #fff; font-size: 2rem; font-weight: 800; line-height: 1;
-      font-variant-numeric: tabular-nums;
-      text-shadow: 0 0 18px rgba(167, 139, 250, 0.75);
-    }
-    .dsm-total { margin-top: 3px; color: var(--muted, #9ca3af); font-size: 0.72rem; }
-    .dsm-typed {
-      margin-top: 3px; padding: 0 7px;
-      background: rgba(139, 92, 246, 0.28);
-      border-radius: 7px;
-      color: #ddd6fe; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
-    }
-
-    /* ── The ring of operations ── */
-    .dsm-op {
-      position: absolute; left: 0; top: 0;
-      width: 96px; height: 96px;
-      margin: -48px 0 0 -48px;
-      /* Big spread: the ring sits well clear of the item you are dragging. */
-      transform: rotate(var(--angle)) translate(168px) rotate(calc(-1 * var(--angle)));
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-      background: var(--card, #1a1f2e);
-      border: 2px solid var(--border, #4a5568);
-      border-radius: 50%;
-      color: #e5e7eb;
-      font-size: 1.5rem; font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-      transition: background 0.1s, border-color 0.1s, color 0.1s, opacity 0.1s;
-    }
-    .dsm-op-name {
-      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.05em;
-      text-transform: uppercase; color: var(--muted, #9ca3af);
-    }
-    .dsm-op:hover:not(:disabled) {
-      background: rgba(139, 92, 246, 0.42);
-      border-color: var(--accent, #8b5cf6);
-      color: #fff;
-      transform: rotate(var(--angle)) translate(168px) rotate(calc(-1 * var(--angle))) scale(1.08);
-    }
-
-    /* Just fired — a bright pulse so you SEE the operation land. */
-    .dsm-fired { animation: dsm-fire 0.34s ease-out; }
-    @keyframes dsm-fire {
-      0%   { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.95), 0 8px 24px rgba(0,0,0,0.55);
-             background: rgba(196, 181, 253, 0.9); border-color: #fff; color: #1a1f2e; }
-      100% { box-shadow: 0 0 0 26px rgba(167, 139, 250, 0), 0 8px 24px rgba(0,0,0,0.55); }
-    }
-
-    /* Already run on this sweep — leave and come back to run it again. */
-    .dsm-used { opacity: 0.4; border-style: dashed; color: var(--muted, #9ca3af); }
-    .dsm-used .dsm-op-name::after { content: ' ✓'; }
-
-    /* Repeating under Shift. */
-    .dsm-repeating { border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.28); }
-
-    /* The pile cannot support it at all. */
-    .dsm-impossible {
-      opacity: 0.16;
-      cursor: not-allowed;
-      border-color: #374151;
-      color: #4b5563;
-      box-shadow: none;
-    }
-    .dsm-impossible:hover { transform: rotate(var(--angle)) translate(168px) rotate(calc(-1 * var(--angle))); }
-
-    .dsm-hint {
-      position: absolute; left: 0; top: 0;
-      transform: translate(-50%, 214px);
+      left: 0; top: 0;
+      z-index: 13450;
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px;
+      background: rgba(10, 14, 25, 0.95);
+      border: 1px solid var(--accent, #8b5cf6);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
       white-space: nowrap;
-      padding: 5px 12px;
-      background: rgba(3, 6, 15, 0.82);
-      border-radius: 9px;
-      color: var(--muted, #9ca3af);
-      font-size: 0.72rem;
+      will-change: transform;
+    }
+    .dsb-count {
+      min-width: 1.4em;
+      color: #fff; font-size: 1.1rem; font-weight: 800; text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .dsb-count.typed { color: #ddd6fe; text-shadow: 0 0 14px rgba(167, 139, 250, 0.8); }
+    .dsb-count.bump { animation: dsb-bump 0.2s cubic-bezier(0.2, 1.6, 0.4, 1); }
+    @keyframes dsb-bump { 0% { transform: scale(1); } 45% { transform: scale(1.3); } 100% { transform: scale(1); } }
+    .dsb-of { color: var(--muted, #9ca3af); font-size: 0.72rem; }
+    .dsb-left {
+      padding: 1px 7px; border-radius: 8px;
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24; font-size: 0.7rem; font-weight: 700;
+    }
+    .dsb-hint {
+      padding-left: 8px;
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--muted, #9ca3af); font-size: 0.66rem;
     }
   `],
 })
 export class DragSplitMenuComponent implements OnInit, OnDestroy {
   readonly split = inject(DragSplitService);
   private zone = inject(NgZone);
-  readonly operations = DRAG_SPLIT_OPERATIONS;
 
-  /** The option that already fired on this pass, until the pointer leaves it. */
-  readonly used = signal<DragSplitOperation['id'] | null>(null);
-  /** The option flashing right now (visual confirmation that it landed). */
-  readonly fired = signal<DragSplitOperation['id'] | null>(null);
-  /** The count is bumping because it just changed. */
   readonly bump = signal(false);
-  /** A typed number is being entered. */
-  readonly typing = signal(false);
-  readonly closing = signal(false);
+  /** Cursor position, so the badge can follow it without a change-detection pass per move. */
+  readonly badgeTransform = signal('translate3d(-1000px, -1000px, 0)');
 
-  /** The option currently repeating because Shift is held over it. */
-  repeatOp: DragSplitOperation['id'] | null = null;
-
-  private repeatTimer: ReturnType<typeof setInterval> | null = null;
-  private fadeTimer: ReturnType<typeof setTimeout> | null = null;
-  private flashTimer: ReturnType<typeof setTimeout> | null = null;
   private typedDigits = '';
-  private shiftDown = false;
+  private frame = 0;
 
-  private static readonly REPEAT_MS = 90;
+  // ── Following the cursor ──────────────────────────────────────────────────
 
-  ngOnDestroy(): void {
-    this.stopRepeat();
-    this.cancelFade();
-    window.removeEventListener('mousedown', this.onRightMouseDown, true);
-    window.removeEventListener('mouseup', this.onRightMouseUp, true);
-    window.removeEventListener('contextmenu', this.onAnyContextMenu, true);
-    window.removeEventListener('auxclick', this.onAnyAuxClick, true);
-  }
-
-  // ── The right button belongs to the split, always ─────────────────────────
-  // These are registered by hand in the CAPTURE phase, not via @HostListener: Angular's host
-  // listeners are bubble-phase, so any card that calls stopPropagation() on its own contextmenu
-  // would beat them and interrupt the split. Capturing on window means nothing underneath ever
-  // sees a right-button event while a drag is running — and the browser's own menu never opens,
-  // including the contextmenu that fires AFTER the button is released.
-
-  /** Right button TAPS toggle split mode; the button is never held. */
-  private readonly onRightMouseDown = (event: MouseEvent): void => {
-    if (event.button !== 2 || !this.split.isDragging()) return;
-    this.swallow(event);
-    this.zone.run(() => {
-      // Mid-fade counts as closed, so a quick double tap reopens instead of doing nothing.
-      if (this.split.menuOpen() && !this.closing()) {
-        this.fadeOut();
-        return;
-      }
-      this.cancelFade();
-      this.closing.set(false);
-      this.used.set(null);
-      this.typedDigits = '';
-      this.typing.set(false);
-      this.split.openMenu(event.clientX, event.clientY);
+  private readonly onMove = (event: MouseEvent): void => {
+    if (!this.split.isDragging() || this.frame) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = 0;
+      this.zone.run(() =>
+        this.badgeTransform.set(`translate3d(${event.clientX + 18}px, ${event.clientY + 22}px, 0)`));
     });
   };
 
-  /**
-   * The release of a toggling tap. It changes nothing — but it still has to be swallowed, or the
-   * card underneath sees a right-click and the browser opens its own menu.
-   */
+  // ── The right button belongs to the drag ──────────────────────────────────
+  // Captured on window, not via @HostListener: host listeners are bubble-phase, so any card that
+  // calls stopPropagation() on its own contextmenu would beat them and interrupt the drag.
+
+  // Placing a unit is the GRID's job — only it knows which slot is under the pointer and whether
+  // that slot can take the item. It claims right-mousedown itself; everything else about the
+  // right button is neutralised here.
+
   private readonly onRightMouseUp = (event: MouseEvent): void => {
-    if (event.button !== 2) return;
-    if (!this.split.isDragging() && !this.split.menuOpen()) return;
+    if (event.button !== 2 || !this.split.isDragging()) return;
     this.swallow(event);
   };
 
   private readonly onAnyContextMenu = (event: MouseEvent): void => {
-    if (this.split.isDragging() || this.split.menuOpen() || this.closing()) this.swallow(event);
+    if (this.split.isDragging()) this.swallow(event);
   };
 
   private readonly onAnyAuxClick = (event: MouseEvent): void => {
-    if (event.button === 2 && (this.split.isDragging() || this.split.menuOpen())) this.swallow(event);
+    if (event.button === 2 && this.split.isDragging()) this.swallow(event);
   };
+
+  // ── Typing the count ──────────────────────────────────────────────────────
+
+  private readonly onKeyDown = (event: KeyboardEvent): void => {
+    if (!this.split.isDragging() || !this.split.splittable()) return;
+
+    // Never steal keys from someone typing in a field.
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      this.typedDigits = (this.typedDigits + event.key).slice(0, 6);
+      this.commitTyped();
+      return;
+    }
+
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      this.typedDigits = this.typedDigits.slice(0, -1);
+      this.commitTyped();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.typedDigits = '';
+      this.zone.run(() => {
+        this.split.setCarried(this.split.total() - this.split.parkedCount());
+        this.feedback();
+      });
+    }
+  };
+
+  private commitTyped(): void {
+    this.zone.run(() => {
+      const max = this.split.total() - this.split.parkedCount();
+      this.split.setCarried(this.typedDigits ? parseInt(this.typedDigits, 10) : max);
+      this.split.markTyped();
+      this.feedback();
+    });
+  }
 
   ngOnInit(): void {
     this.zone.runOutsideAngular(() => {
-      window.addEventListener('mousedown', this.onRightMouseDown, true);
+      window.addEventListener('mousemove', this.onMove, { passive: true });
       window.addEventListener('mouseup', this.onRightMouseUp, true);
       window.addEventListener('contextmenu', this.onAnyContextMenu, true);
       window.addEventListener('auxclick', this.onAnyAuxClick, true);
+      window.addEventListener('keydown', this.onKeyDown, true);
     });
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('mousemove', this.onMove);
+    window.removeEventListener('mouseup', this.onRightMouseUp, true);
+    window.removeEventListener('contextmenu', this.onAnyContextMenu, true);
+    window.removeEventListener('auxclick', this.onAnyAuxClick, true);
+    window.removeEventListener('keydown', this.onKeyDown, true);
+    if (this.frame) cancelAnimationFrame(this.frame);
   }
 
   private swallow(event: Event): void {
@@ -275,126 +182,10 @@ export class DragSplitMenuComponent implements OnInit, OnDestroy {
     event.stopImmediatePropagation();
   }
 
-  // ── Keyboard: type a count, hold Shift to repeat ──────────────────────────
-
-  @HostListener('window:keydown', ['$event'])
-  onKeyDown(event: KeyboardEvent): void {
-    if (!this.split.menuOpen()) return;
-
-    if (event.key === 'Shift') {
-      this.shiftDown = true;
-      if (this.repeatOp) this.startRepeat(this.repeatOp);
-      return;
-    }
-
-    if (/^[0-9]$/.test(event.key)) {
-      event.preventDefault();
-      this.typedDigits = (this.typedDigits + event.key).slice(0, 6);
-      this.typing.set(true);
-      this.split.setTaken(parseInt(this.typedDigits, 10));
-      this.feedback('set');
-      return;
-    }
-
-    if (event.key === 'Backspace') {
-      event.preventDefault();
-      this.typedDigits = this.typedDigits.slice(0, -1);
-      this.typing.set(this.typedDigits.length > 0);
-      if (this.typedDigits) this.split.setTaken(parseInt(this.typedDigits, 10));
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.split.setTaken(this.split.total()); // back to the whole pile
-      this.typedDigits = '';
-      this.typing.set(false);
-      this.feedback('set');
-    }
-  }
-
-  @HostListener('window:keyup', ['$event'])
-  onKeyUp(event: KeyboardEvent): void {
-    if (event.key === 'Shift') {
-      this.shiftDown = false;
-      this.stopRepeat();
-    }
-  }
-
-  // ── Sweeping the ring ─────────────────────────────────────────────────────
-
-  /** Evenly spaced around the circle, starting at the top. */
-  angleFor(index: number): string {
-    return `${(360 / this.operations.length) * index}deg`;
-  }
-
-  onSweep(op: DragSplitOperation): void {
-    this.repeatOp = op.id;
-    if (this.shiftDown) { this.startRepeat(op.id); return; }
-    if (this.used() === op.id) return;
-    this.run(op.id);
-    this.used.set(op.id);
-  }
-
-  onLeave(op: DragSplitOperation): void {
-    if (this.repeatOp === op.id) { this.repeatOp = null; this.stopRepeat(); }
-    if (this.used() === op.id) this.used.set(null);
-  }
-
-  private run(id: DragSplitOperation['id']): boolean {
-    // Typing and sweeping are alternatives; an operation ends the typed entry.
-    this.typedDigits = '';
-    this.typing.set(false);
-
-    const ok = this.split.apply(id);
-    this.feedback(ok ? id : 'blocked');
-    if (ok) {
-      this.fired.set(id);
-      if (this.flashTimer) clearTimeout(this.flashTimer);
-      this.flashTimer = setTimeout(() => this.fired.set(null), 340);
-    }
-    return ok;
-  }
-
-  private startRepeat(id: DragSplitOperation['id']): void {
-    this.stopRepeat();
-    if (!this.run(id)) return; // already at the limit — do not spin on a blocked op
-    this.repeatTimer = setInterval(() => {
-      if (!this.run(id)) this.stopRepeat();
-    }, DragSplitMenuComponent.REPEAT_MS);
-  }
-
-  private stopRepeat(): void {
-    if (this.repeatTimer) clearInterval(this.repeatTimer);
-    this.repeatTimer = null;
-  }
-
-  /** Sound + the count's bump, together, so an applied operation is unmistakable. */
-  private feedback(kind: string): void {
-    playSplitTick(kind);
+  private feedback(): void {
+    playSplitTick('set');
     this.bump.set(false);
-    // Restart the animation on the next frame so repeated hits each get their own bump.
     requestAnimationFrame(() => this.bump.set(true));
-    setTimeout(() => this.bump.set(false), 240);
-  }
-
-  private cancelFade(): void {
-    if (this.fadeTimer) { clearTimeout(this.fadeTimer); this.fadeTimer = null; }
-  }
-
-  private fadeOut(): void {
-    this.stopRepeat();
-    this.cancelFade();
-    this.closing.set(true);
-    this.fadeTimer = setTimeout(() => {
-      this.fadeTimer = null;
-      this.split.closeMenu();
-      this.closing.set(false);
-      this.used.set(null);
-      this.fired.set(null);
-      this.repeatOp = null;
-      this.typedDigits = '';
-      this.typing.set(false);
-    }, 160);
+    setTimeout(() => this.bump.set(false), 220);
   }
 }

@@ -7,7 +7,7 @@
   <!-- ── Identify (signed out) ── -->
   @else if (!user()) {
     <div class="identify">
-      <h1 class="brand">⚔️ 22Fail</h1>
+      <h1 class="brand">22Fail</h1>
 
       @if (needsBootstrap()) {
         <div class="auth-card">
@@ -21,14 +21,68 @@
         </div>
       } @else {
         <div class="auth-card">
-          <h2>Anmelden</h2>
-          <p class="muted">Name und Beitritts-Code (vom Admin erhalten).</p>
-          <input class="fld" [(ngModel)]="loginName" placeholder="Name" (keydown.enter)="doLogin()" />
-          <input class="fld" [(ngModel)]="loginCode" placeholder="Code, z. B. swift-fox-72"
-                 (keydown.enter)="doLogin()" />
-          <button class="btn primary" [disabled]="busy() || !loginName.trim() || !loginCode.trim()" (click)="doLogin()">
-            Anmelden
+          <!-- Accounts this device already knows: one click, no code needed. -->
+          @if (knownAccounts().length) {
+            <h2>Willkommen zurück</h2>
+            <p class="muted">Gespeicherte Zugänge auf diesem Gerät.</p>
+            <div class="acct-list">
+              @for (a of knownAccounts(); track a.userId) {
+                <div class="acct" [class.disabled]="busy()">
+                  <button class="acct-main" [disabled]="busy()" (click)="useAccount(a)">
+                    <span class="acct-avatar"><i class="app-icon i-character"></i></span>
+                    <span class="acct-name">{{ a.name }}</span>
+                    @if (a.isAdmin) { <span class="badge admin">Admin</span> }
+                  </button>
+                  <button class="acct-forget" title="Zugang von diesem Gerät entfernen"
+                          (click)="forgetAccount(a, $event)">×</button>
+                </div>
+              }
+            </div>
+          }
+
+          @if (showLoginForm() || !knownAccounts().length) {
+            <h2 [class.sub]="knownAccounts().length > 0">Anmelden</h2>
+            <p class="muted">Name und Beitritts-Code (vom Admin erhalten).</p>
+            <input class="fld" [(ngModel)]="loginName" placeholder="Name" (keydown.enter)="doLogin()" />
+            <input class="fld" [(ngModel)]="loginCode" placeholder="Code, z. B. swift-fox-72"
+                   (keydown.enter)="doLogin()" />
+            <button class="btn primary" [disabled]="busy() || !loginName.trim() || !loginCode.trim()" (click)="doLogin()">
+              Anmelden
+            </button>
+          } @else {
+            <button class="btn ghost" (click)="showLoginForm.set(true)">Anderes Konto …</button>
+          }
+        </div>
+
+        <!-- Rescue hatch: master password lists every account (and its code). -->
+        <div class="root-box">
+          <button class="linkish" (click)="toggleRoot()">
+            {{ rootOpen() ? 'Master-Zugang schließen' : 'Code vergessen? Master-Zugang' }}
           </button>
+          @if (rootOpen()) {
+            <div class="root-panel">
+              <div class="root-row">
+                <input class="fld" type="password" [(ngModel)]="rootPassword"
+                       placeholder="Master-Passwort" (keydown.enter)="doRootList()" />
+                <button class="btn" [disabled]="busy() || !rootPassword.trim()" (click)="doRootList()">
+                  Anzeigen
+                </button>
+              </div>
+              @if (rootError()) { <div class="auth-error">{{ rootError() }}</div> }
+              @if (rootUsers().length) {
+                <p class="muted">Konto anklicken, um sich als dieser Nutzer anzumelden.</p>
+                <div class="acct-list">
+                  @for (u of rootUsers(); track u.id) {
+                    <button class="acct-main root" [disabled]="busy()" (click)="loginAsUser(u)">
+                      <span class="acct-name">{{ u.name }}</span>
+                      @if (u.isAdmin) { <span class="badge admin">Admin</span> }
+                      <code class="code">{{ u.joinCode }}</code>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
         </div>
       }
 
@@ -56,12 +110,12 @@
           <div class="card char">
             <button class="card-main" (click)="openSheet(c.id)">
               @if (c.portrait) { <img class="pic" [src]="c.portrait" alt="" /> }
-              @else { <span class="pic ph">🧑</span> }
+              @else { <span class="pic ph"><i class="app-icon i-character"></i></span> }
               <span class="card-name">{{ c.name || c.id }}</span>
             </button>
             @if (c.worldName) {
               <div class="jump">
-                <span class="jump-lbl">🌍 {{ c.worldName }}</span>
+                <span class="jump-lbl"><i class="app-icon i-map"></i>{{ c.worldName }}</span>
                 <button class="chip" (click)="openLobby(c.worldName!)">Lobby</button>
                 <button class="chip" (click)="openMap(c.worldName!)">Karte</button>
               </div>
@@ -87,7 +141,7 @@
       <div class="grid">
         @for (w of myWorlds(); track w.name) {
           <div class="card world">
-            <span class="card-name">🌍 {{ w.name }}</span>
+            <span class="card-name"><i class="app-icon i-map"></i>{{ w.name }}</span>
             <div class="jump">
               <button class="chip" (click)="openLobby(w.name)">Lobby</button>
               <button class="chip" (click)="openMap(w.name)">Karte</button>
@@ -101,7 +155,7 @@
     <!-- ── Admin section ── -->
     @if (isAdmin()) {
       <section class="panel admin-panel">
-        <div class="panel-head"><h2>⚙️ Admin</h2></div>
+        <div class="panel-head"><h2>Admin</h2></div>
 
         <div class="admin-row">
           <label>Neue Welt</label>
@@ -129,7 +183,7 @@
                   <tr>
                     <td>{{ u.name }}</td>
                     <td><code class="code">{{ u.joinCode }}</code>
-                        <button class="mini" (click)="regenerateCode(u)" title="Neuen Code erzeugen">↻</button></td>
+                        <button class="mini icon" (click)="regenerateCode(u)" title="Neuen Code erzeugen"><i class="app-icon i-sync"></i></button></td>
                     <td>
                       @if (u.id === user()!.id) { <span class="badge admin">Du</span> }
                       @else {
@@ -138,7 +192,7 @@
                     </td>
                     <td>
                       @if (u.id !== user()!.id) {
-                        <button class="mini danger" (click)="deleteUser(u)">✕</button>
+                        <button class="mini danger" (click)="deleteUser(u)" title="Nutzer löschen">×</button>
                       }
                     </td>
                   </tr>

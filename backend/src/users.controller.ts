@@ -41,6 +41,17 @@ export class UsersController {
     return user;
   }
 
+  /**
+   * Master-password rescue: returns every account incl. its join code. Exists so a lost join code
+   * can be looked up and so any account can be entered while debugging. See UsersService.
+   */
+  @Post('root/list')
+  rootList(@Body() body: { password: string }) {
+    const users = this.users.listForRoot(body?.password ?? '');
+    if (!users) throw new UnauthorizedException('Wrong master password');
+    return users;
+  }
+
   // ── Admin-only management ──
   @Get()
   @UseGuards(AdminGuard)

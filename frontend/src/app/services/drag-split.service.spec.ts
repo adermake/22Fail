@@ -20,7 +20,8 @@ describe('Teilen beim Ziehen', () => {
     it('carries the whole pile until something changes it', () => {
       svc.begin(item({ amount: 10 }));
       expect(svc.total()).toBe(10);
-      expect(svc.taken()).toBe(10);
+      expect(svc.carried()).toBe(10);
+      expect(svc.leftover()).toBe(0);
       expect(svc.isSplit()).toBe(false);
       expect(svc.isDragging()).toBe(true);
     });
@@ -28,248 +29,156 @@ describe('Teilen beim Ziehen', () => {
     it('marks a single unit as unsplittable', () => {
       svc.begin(item({ amount: 1 }));
       expect(svc.splittable()).toBe(false);
-      expect(svc.canHalf()).toBe(false);
-      expect(svc.canMinus()).toBe(false);
     });
 
     it('marks an unstackable item as unsplittable', () => {
       svc.begin(item({ stackable: false, amount: 5 }));
       expect(svc.splittable()).toBe(false);
     });
-
-    it('is not dragging before it begins, or after it ends', () => {
-      expect(svc.isDragging()).toBe(false);
-      svc.begin(item({ amount: 4 }));
-      expect(svc.finishDrag()).toBe(4);
-      svc.reset();
-      expect(svc.isDragging()).toBe(false);
-    });
   });
 
-  describe('operations', () => {
+  describe('typing a count', () => {
     beforeEach(() => svc.begin(item({ amount: 10 })));
 
-    it('halves toward the larger half', () => {
-      svc.apply('half');
-      expect(svc.taken()).toBe(5);
-      svc.apply('half');
-      expect(svc.taken()).toBe(3);
-    });
-
-    it('doubles back up', () => {
-      svc.apply('half');
-      svc.apply('double');
-      expect(svc.taken()).toBe(10);
-    });
-
-    it('adds and removes one', () => {
-      svc.apply('minus');
-      expect(svc.taken()).toBe(9);
-      svc.apply('plus');
-      expect(svc.taken()).toBe(10);
-    });
-
-    it('refuses to double past the pile', () => {
-      svc.setTaken(7);
-      expect(svc.canDouble()).toBe(false);
-      expect(svc.apply('double')).toBe(false);
-      expect(svc.taken()).toBe(7);
-    });
-
-    it('refuses to add past the pile', () => {
-      expect(svc.canPlus()).toBe(false);
-      expect(svc.apply('plus')).toBe(false);
-      expect(svc.taken()).toBe(10);
-    });
-
-    it('refuses to go below one', () => {
-      svc.setTaken(1);
-      expect(svc.canMinus()).toBe(false);
-      expect(svc.canHalf()).toBe(false);
-      expect(svc.apply('minus')).toBe(false);
-      expect(svc.taken()).toBe(1);
-    });
-
-    it('doubling exactly to the pile size is allowed', () => {
-      svc.setTaken(5);
-      expect(svc.canDouble()).toBe(true);
-      svc.apply('double');
-      expect(svc.taken()).toBe(10);
-    });
-
-    it('reports a split only once less than everything is carried', () => {
-      expect(svc.isSplit()).toBe(false);
-      svc.apply('minus');
+    it('takes the number typed and leaves the rest behind', () => {
+      svc.setCarried(3);
+      expect(svc.carried()).toBe(3);
+      expect(svc.leftover()).toBe(7);
       expect(svc.isSplit()).toBe(true);
     });
 
-    it('offers nothing for an unsplittable pile', () => {
-      svc.begin(item({ amount: 1 }));
-      for (const op of ['half', 'double', 'plus', 'minus'] as const) {
-        expect(svc.can(op)).toBe(false);
-        expect(svc.apply(op)).toBe(false);
-      }
-    });
-  });
-
-  describe('typing a number', () => {
-    beforeEach(() => svc.begin(item({ amount: 10 })));
-
-    it('takes the number typed', () => {
-      svc.setTaken(3);
-      expect(svc.taken()).toBe(3);
-    });
-
     it('clamps above the pile', () => {
-      svc.setTaken(99);
-      expect(svc.taken()).toBe(10);
+      svc.setCarried(99);
+      expect(svc.carried()).toBe(10);
+      expect(svc.leftover()).toBe(0);
     });
 
-    it('clamps below one', () => {
-      svc.setTaken(0);
-      expect(svc.taken()).toBe(1);
-      svc.setTaken(-5);
-      expect(svc.taken()).toBe(1);
+    it('allows zero — everything stays behind', () => {
+      svc.setCarried(0);
+      expect(svc.carried()).toBe(0);
+      expect(svc.leftover()).toBe(10);
+    });
+
+    it('never goes negative', () => {
+      svc.setCarried(-5);
+      expect(svc.carried()).toBe(0);
     });
 
     it('ignores nonsense instead of blanking the count', () => {
-      svc.setTaken(NaN);
-      expect(svc.taken()).toBe(10);
+      svc.setCarried(NaN);
+      expect(svc.carried()).toBe(10);
     });
 
     it('floors a fraction', () => {
-      svc.setTaken(3.9);
-      expect(svc.taken()).toBe(3);
+      svc.setCarried(3.9);
+      expect(svc.carried()).toBe(3);
     });
 
     it('does nothing when no drag is running', () => {
-      svc.finishDrag();
       svc.reset();
-      svc.setTaken(5);
-      expect(svc.taken()).toBe(0);
+      svc.setCarried(5);
+      expect(svc.carried()).toBe(0);
     });
   });
 
-  describe('the menu', () => {
-    it('only opens during a drag', () => {
-      svc.openMenu(10, 10);
-      expect(svc.menuOpen()).toBe(false);
+  describe('right-clicking units into slots', () => {
+    beforeEach(() => svc.begin(item({ amount: 10 })));
 
-      svc.begin(item({ amount: 4 }));
-      svc.openMenu(10, 20);
-      expect(svc.menuOpen()).toBe(true);
-      // The exact spot is clamped so the ring fits — see "keeping the ring on screen".
+    it('moves one unit off the cursor per click', () => {
+      expect(svc.parkOne(4)).toBe(true);
+      expect(svc.carried()).toBe(9);
+      expect(svc.parkedAt(4)).toBe(1);
+      expect(svc.parkedCount()).toBe(1);
     });
 
-    it('closes when the drag ends', () => {
-      svc.begin(item({ amount: 4 }));
-      svc.openMenu(0, 0);
-      svc.finishDrag();
-      expect(svc.menuOpen()).toBe(false);
-    });
-  });
-
-  describe('keeping the ring on screen', () => {
-    const withWindow = (w: number, h: number, fn: () => void) => {
-      const realW = window.innerWidth, realH = window.innerHeight;
-      Object.defineProperty(window, 'innerWidth', { value: w, configurable: true });
-      Object.defineProperty(window, 'innerHeight', { value: h, configurable: true });
-      try { fn(); } finally {
-        Object.defineProperty(window, 'innerWidth', { value: realW, configurable: true });
-        Object.defineProperty(window, 'innerHeight', { value: realH, configurable: true });
-      }
-    };
-
-    it('leaves a central click where it is', () => {
-      withWindow(1600, 1000, () => {
-        svc.begin(item({ amount: 4 }));
-        svc.openMenu(800, 500);
-        expect(svc.menuPosition()).toEqual({ x: 800, y: 500 });
-      });
+    it('stacks repeated clicks on the same slot', () => {
+      svc.parkOne(4);
+      svc.parkOne(4);
+      svc.parkOne(4);
+      expect(svc.parkedAt(4)).toBe(3);
+      expect(svc.carried()).toBe(7);
     });
 
-    it('pushes a corner click inward so the whole ring fits', () => {
-      withWindow(1600, 1000, () => {
-        svc.begin(item({ amount: 4 }));
-        svc.openMenu(5, 5);
-        const pos = svc.menuPosition();
-        expect(pos.x).toBeGreaterThanOrEqual(DragSplitService.RING_MARGIN);
-        expect(pos.y).toBeGreaterThanOrEqual(DragSplitService.RING_MARGIN);
-      });
+    it('spreads across several slots', () => {
+      svc.parkOne(1);
+      svc.parkOne(2);
+      expect(svc.parkedAt(1)).toBe(1);
+      expect(svc.parkedAt(2)).toBe(1);
+      expect(svc.parkedCount()).toBe(2);
     });
 
-    it('pulls a click near the far edge back in', () => {
-      withWindow(1600, 1000, () => {
-        svc.begin(item({ amount: 4 }));
-        svc.openMenu(1595, 995);
-        const pos = svc.menuPosition();
-        expect(pos.x).toBeLessThanOrEqual(1600 - DragSplitService.RING_MARGIN);
-        expect(pos.y).toBeLessThanOrEqual(1000 - DragSplitService.RING_MARGIN);
-      });
+    it('stops once the cursor is empty', () => {
+      for (let i = 0; i < 10; i++) expect(svc.parkOne(1)).toBe(true);
+      expect(svc.carried()).toBe(0);
+      expect(svc.parkOne(1)).toBe(false);
+      expect(svc.parkedCount()).toBe(10);
     });
 
-    it('centres the ring on a window too small to hold it', () => {
-      withWindow(300, 300, () => {
-        svc.begin(item({ amount: 4 }));
-        svc.openMenu(10, 290);
-        expect(svc.menuPosition()).toEqual({ x: 150, y: 150 });
-      });
-    });
-  });
-
-  describe('repeating an operation (Shift)', () => {
-    it('walks a big pile down one step at a time and stops at the floor', () => {
-      svc.begin(item({ amount: 5 }));
-      let guard = 0;
-      while (svc.apply('minus') && ++guard < 50) { /* as Shift-repeat does */ }
-      expect(svc.taken()).toBe(1);
-      expect(svc.apply('minus')).toBe(false);
+    it('conserves the pile: carried + parked + leftover always equals the total', () => {
+      svc.setCarried(6); // 4 left behind
+      svc.parkOne(1);
+      svc.parkOne(2);
+      expect(svc.carried() + svc.parkedCount() + svc.leftover()).toBe(10);
     });
 
-    it('walks back up and stops at the ceiling', () => {
-      svc.begin(item({ amount: 5 }));
-      svc.setTaken(1);
-      let guard = 0;
-      while (svc.apply('plus') && ++guard < 50) { /* as Shift-repeat does */ }
-      expect(svc.taken()).toBe(5);
-      expect(svc.apply('plus')).toBe(false);
+    it('does not let a typed count reclaim units already placed', () => {
+      svc.parkOne(1);
+      svc.parkOne(2);
+      svc.setCarried(99);
+      expect(svc.carried()).toBe(8);
+      expect(svc.leftover()).toBe(0);
+    });
+
+    it('does nothing without a drag', () => {
+      svc.reset();
+      expect(svc.parkOne(1)).toBe(false);
     });
   });
 
   describe('surviving the drop handler', () => {
     // Angular CDK emits `ended` BEFORE `dropped`. Everything that moves units runs in the drop
-    // handler, so the count has to still be readable after the drag has "finished".
+    // handler, so the counts have to still be readable after the drag has "finished".
     it('still reports the split count synchronously after finishDrag', () => {
       svc.begin(item({ amount: 10 }));
-      svc.setTaken(3);
+      svc.setCarried(3);
 
       expect(svc.finishDrag()).toBe(3);
 
-      // This is the drop handler's turn — same tick.
       expect(svc.isSplit()).toBe(true);
-      expect(svc.taken()).toBe(3);
+      expect(svc.carried()).toBe(3);
       expect(svc.total()).toBe(10);
+      expect(svc.leftover()).toBe(7);
+    });
+
+    it('still reports parked units after finishDrag', () => {
+      svc.begin(item({ amount: 5 }));
+      svc.parkOne(2);
+      svc.finishDrag();
+      expect(svc.parkedAt(2)).toBe(1);
     });
 
     it('clears itself once the tick is over', async () => {
       svc.begin(item({ amount: 10 }));
-      svc.setTaken(3);
+      svc.setCarried(3);
       svc.finishDrag();
 
       await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(svc.isDragging()).toBe(false);
-      expect(svc.taken()).toBe(0);
+      expect(svc.carried()).toBe(0);
+      expect(svc.parkedCount()).toBe(0);
     });
 
     it('a new drag starts clean even if the cleanup has not run yet', () => {
       svc.begin(item({ amount: 10 }));
-      svc.setTaken(3);
+      svc.setCarried(3);
+      svc.parkOne(1);
       svc.finishDrag();
 
       svc.begin(item({ amount: 4 }));
       expect(svc.total()).toBe(4);
-      expect(svc.taken()).toBe(4);
+      expect(svc.carried()).toBe(4);
+      expect(svc.parkedCount()).toBe(0);
       expect(svc.isSplit()).toBe(false);
     });
 
@@ -282,13 +191,6 @@ describe('Teilen beim Ziehen', () => {
 
       expect(svc.total()).toBe(6);
       expect(svc.isDragging()).toBe(true);
-    });
-
-    it('closes the menu immediately, not on the deferred tick', () => {
-      svc.begin(item({ amount: 10 }));
-      svc.openMenu(500, 500);
-      svc.finishDrag();
-      expect(svc.menuOpen()).toBe(false);
     });
   });
 });

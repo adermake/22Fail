@@ -153,7 +153,7 @@ describe('renderMarkdown', () => {
     expect(bad.warnings.join()).toContain('Unbekannte Farbe');
   });
 
-  it('supports custom colours on notes, formula boxes and sections', async () => {
+  it('supports custom colours on notes, formula boxes, sections and cards', async () => {
     const f = await renderMarkdown(md(':::formula{color=#38bdf8}', 'x', ':::'), 'g');
     expect(f.html).toContain('rb-note--formula');
     expect(f.html).toContain('--rb-note-color:#38bdf8');
@@ -163,6 +163,19 @@ describe('renderMarkdown', () => {
 
     const sec = await renderMarkdown(md(':::section{title="A" color=tuerkis}', 'x', ':::'), 'g');
     expect(sec.html).toContain('--rb-section-color:#06b6d4');
+
+    const card = await renderMarkdown(md(':::card{title="A" color=pink}', 'x', ':::'), 'g');
+    expect(card.html).toContain('--rb-card-color:#ec4899');
+    expect(card.warnings).toEqual([]);
+
+    // `color=` beats `accent=`: the inline custom property outranks the accent class
+    const both = await renderMarkdown(md(':::card{accent=health color=#38bdf8}', 'x', ':::'), 'g');
+    expect(both.html).toContain('rb-card--health');
+    expect(both.html).toContain('--rb-card-color:#38bdf8');
+
+    const badCard = await renderMarkdown(md(':::card{color=javascript:alert(1)}', 'x', ':::'), 'g');
+    expect(badCard.html).not.toContain('javascript');
+    expect(badCard.warnings.join()).toContain('Unbekannte Farbe');
 
     // legacy `color=<typename>` still selects the variant rather than a custom colour
     const legacy = await renderMarkdown(md(':::note{color=warning}', 'x', ':::'), 'g');

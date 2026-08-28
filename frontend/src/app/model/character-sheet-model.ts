@@ -65,6 +65,8 @@ export interface CharacterSheet {
   resources?: ItemBlock[];
   carryCapacityMultiplier: number;
   carryCapacityBonus: number;
+  /** Kitchen bonus X in the Kochprobe (1d20 + 5 + X) / 10. Kept per character between sessions. */
+  cookingBonus?: number;
   speedPenaltyNegation?: number; // Reduces speed penalties from armor/encumbrance
   spells: SpellBlock[];
   currency: Currency;

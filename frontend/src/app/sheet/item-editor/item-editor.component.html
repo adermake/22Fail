@@ -111,6 +111,12 @@
               title="Wird beim Benutzen verbraucht und landet in der Verbraucht-Liste bis zur nächsten Rast">
               <span class="app-icon i-brewing"></span> Verbrauchsgegenstand
             </button>
+            <button
+              [class.active]="editItem.itemType === 'cooking-ingredient'"
+              (click)="setItemType('cooking-ingredient')"
+              title="Hat eine onRest-Wirkung und kann gekocht werden, lässt sich aber nicht direkt verzehren">
+              <span class="app-icon i-item"></span> Kochzutat
+            </button>
           </div>
 
           <!-- Weapon-specific options -->
@@ -207,7 +213,7 @@
         <section class="editor-section">
           <h3>
             Aktionscode
-            @if (editItem.itemType === 'consumable') {
+            @if (editItem.itemType === 'consumable' || editItem.itemType === 'cooking-ingredient') {
               <span class="ie-section-tag">Verbrauchsgegenstand</span>
             }
           </h3>

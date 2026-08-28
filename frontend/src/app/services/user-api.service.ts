@@ -26,6 +26,11 @@ export class UserApiService {
     return firstValueFrom(this.http.post<User>(`${this.base}/resolve`, { userId, code }));
   }
 
+  /** Master-password rescue: every account incl. join codes. */
+  rootList(password: string): Promise<User[]> {
+    return firstValueFrom(this.http.post<User[]>(`${this.base}/root/list`, { password }));
+  }
+
   // Admin
   list(): Promise<User[]> {
     return firstValueFrom(this.http.get<User[]>(this.base));

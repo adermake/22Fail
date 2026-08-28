@@ -136,6 +136,20 @@ Schaden = Effektivität × Trefferstärke
 
 Auch Abschnitte: `:::section{title="…" color=tuerkis}`.
 
+Und Karten — `color=` übersteuert dabei ein gesetztes `accent=`:
+
+::::grid{cols=3}
+:::card{title="Eigene Farbe" color=tuerkis}
+`:::card{title="…" color=tuerkis}`
+:::
+:::card{title="Als Hex" color=#f97316}
+`:::card{title="…" color=#f97316}`
+:::
+:::card{title="Akzent" accent=health}
+`:::card{title="…" accent=health}` — die vier Theme-Farben gibt es weiterhin.
+:::
+::::
+
 ## 6. Raster und Karten
 
 :::grid{cols=3}

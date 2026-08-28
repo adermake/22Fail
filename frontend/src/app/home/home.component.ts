@@ -8,6 +8,7 @@ import { UserApiService } from '../services/user-api.service';
 import { CharacterApiService, CharacterSummary } from '../services/character-api.service';
 import { WorldApiService, WorldSummary } from '../services/world-api.service';
 import { User } from '../model/user.model';
+import { KnownAccount } from '../services/identity';
 import { createEmptySheet } from '../model/character-sheet-model';
 import { createEmptyWorld } from '../model/world.model';
 
@@ -42,6 +43,17 @@ export class HomeComponent {
   bootstrapName = '';
   authError = signal('');
   busy = signal(false);
+
+  /** Accounts this device remembers — one click each, no join code needed. */
+  readonly knownAccounts = this.auth.knownAccounts;
+  /** Show the name + code form. Auto-open when there is nothing remembered to click. */
+  showLoginForm = signal(this.auth.knownAccounts().length === 0);
+
+  // Master-password rescue (lost join code / debugging as another player)
+  rootOpen = signal(false);
+  rootPassword = '';
+  rootUsers = signal<User[]>([]);
+  rootError = signal('');
 
   // Dashboard data
   private characters = signal<CharacterSummary[]>([]);
@@ -129,6 +141,55 @@ export class HomeComponent {
     }
   }
 
+  /** Sign in as a remembered account; a dead entry removes itself from the list. */
+  async useAccount(acc: KnownAccount): Promise<void> {
+    this.authError.set('');
+    this.busy.set(true);
+    try {
+      await this.auth.loginWithKnownAccount(acc);
+    } catch {
+      this.authError.set(`Der gespeicherte Zugang für „${acc.name}“ gilt nicht mehr.`);
+      if (this.knownAccounts().length === 0) this.showLoginForm.set(true);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  forgetAccount(acc: KnownAccount, ev: Event): void {
+    ev.stopPropagation();
+    this.auth.forget(acc.userId);
+    if (this.knownAccounts().length === 0) this.showLoginForm.set(true);
+  }
+
+  // ── Master password ──
+  toggleRoot(): void {
+    const open = !this.rootOpen();
+    this.rootOpen.set(open);
+    if (!open) { this.rootUsers.set([]); this.rootPassword = ''; this.rootError.set(''); }
+  }
+
+  /** Unlock the full account list with the master password. */
+  async doRootList(): Promise<void> {
+    this.rootError.set('');
+    if (!this.rootPassword.trim()) return;
+    this.busy.set(true);
+    try {
+      this.rootUsers.set(await this.auth.rootList(this.rootPassword.trim()));
+    } catch {
+      this.rootUsers.set([]);
+      this.rootError.set('Master-Passwort stimmt nicht.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Log in as any account from the master list (its real code gets stored, so it persists). */
+  async loginAsUser(u: User): Promise<void> {
+    await this.useAccount({
+      userId: u.id, code: u.joinCode, name: u.name, isAdmin: u.isAdmin, lastUsed: 0,
+    });
+  }
+
   switchUser(): void {
     this.auth.logout();
     this.characters.set([]);
@@ -136,6 +197,12 @@ export class HomeComponent {
     this.users.set([]);
     this.loginName = '';
     this.loginCode = '';
+    this.authError.set('');
+    this.rootOpen.set(false);
+    this.rootUsers.set([]);
+    this.rootPassword = '';
+    // Remembered accounts survive the switch — that is the point of switching.
+    this.showLoginForm.set(this.knownAccounts().length === 0);
     this.refreshStatus();
   }
 

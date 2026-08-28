@@ -1,10 +1,15 @@
 import {
-  COOKED_MARK, dividePortions, isCookable, isCookedMeal, mergeConsumableScripts, splitAmount,
+  COOKED_MARK, cookingMultiplier, dividePortions, isCookable, isCookedMeal,
+  mergeConsumableScripts, rollCookingQuality, scaleRestValues, splitAmount,
 } from './cooking.util';
 import { ItemBlock } from '../model/item-block.model';
 
 function item(name: string, script?: string): ItemBlock {
   return { name, itemType: 'consumable', script } as ItemBlock;
+}
+
+function typed(type: ItemBlock['itemType'], script?: string): ItemBlock {
+  return { name: 'X', itemType: type, script } as ItemBlock;
 }
 
 describe('Kochen', () => {
@@ -126,6 +131,109 @@ describe('Kochen', () => {
       // item stays cookable and the author fixes it in the editor's lint panel.
       expect(() => isCookable(item('Kaputt', 'onRest { ('))).not.toThrow();
       expect(isCookable(item('Kaputt', 'gainResource(health,'))).toBe(false);
+    });
+  });
+
+  describe('Kochzutaten', () => {
+    const REST = 'onRest { gainResource(health, 4) }';
+
+    it('accepts a Kochzutat, which cannot be eaten on its own', () => {
+      expect(isCookable(typed('cooking-ingredient', REST))).toBe(true);
+    });
+
+    it('refuses equipment, however many onRest blocks it carries', () => {
+      expect(isCookable(typed('other', REST))).toBe(false);
+      expect(isCookable(typed('armor', REST))).toBe(false);
+      expect(isCookable(typed('weapon', REST))).toBe(false);
+    });
+
+    it('still accepts ordinary food', () => {
+      expect(isCookable(typed('consumable', REST))).toBe(true);
+      expect(isCookable(typed('potion', REST))).toBe(true);
+    });
+  });
+
+  describe('Kochprobe', () => {
+    it('turns the die into a multiplier: (die + 5 + bonus) / 10', () => {
+      expect(cookingMultiplier(1, 0).multiplier).toBe(0.6);
+      expect(cookingMultiplier(5, 0).multiplier).toBe(1);
+      expect(cookingMultiplier(20, 0).multiplier).toBe(2.5);
+    });
+
+    it('counts the kitchen bonus', () => {
+      expect(cookingMultiplier(10, 5).multiplier).toBe(2);
+      expect(cookingMultiplier(1, -4).multiplier).toBe(0.2);
+    });
+
+    it('never drops to zero, however bad it goes', () => {
+      expect(cookingMultiplier(1, -99).multiplier).toBeGreaterThan(0);
+    });
+
+    it('rolls a d20 and reports what it rolled', () => {
+      const roll = rollCookingQuality(3, () => 0.5);
+      expect(roll.die).toBe(11);
+      expect(roll.bonus).toBe(3);
+      expect(roll.multiplier).toBe(1.9);
+    });
+
+    it('stays inside 1..20 across the whole random range', () => {
+      for (const r of [0, 0.049, 0.5, 0.999]) {
+        const die = rollCookingQuality(0, () => r).die;
+        expect(die).toBeGreaterThanOrEqual(1);
+        expect(die).toBeLessThanOrEqual(20);
+      }
+    });
+  });
+
+  describe('scaling what a meal restores', () => {
+    it('multiplies the values inside onRest', () => {
+      const out = scaleRestValues('onRest { gainResource(health, 10) }', 2);
+      expect(out).toBe('onRest { gainResource(health, 20) }');
+    });
+
+    it('leaves instant effects alone — they are the ingredient, not the cooking', () => {
+      const out = scaleRestValues('gainResource(mana, 10) onRest { gainResource(health, 10) }', 2);
+      expect(out).toContain('gainResource(mana, 10)');
+      expect(out).toContain('gainResource(health, 20)');
+    });
+
+    it('scales applyStatus stacks and duration inside onRest', () => {
+      const out = scaleRestValues('onRest { applyStatus("fx_satt", 2, 4) }', 2);
+      expect(out).toBe('onRest { applyStatus("fx_satt", 4, 8) }');
+    });
+
+    it('handles several onRest blocks from several ingredients', () => {
+      const out = scaleRestValues(
+        ['onRest { gainResource(health, 4) }', 'onRest { gainResource(mana, 6) }'].join('\n'),
+        0.5,
+      );
+      expect(out).toContain('gainResource(health, 2)');
+      expect(out).toContain('gainResource(mana, 3)');
+    });
+
+    it('keeps a nested block inside onRest', () => {
+      const out = scaleRestValues('onRest { if (level > 2) { gainResource(health, 10) } }', 2);
+      expect(out).toBe('onRest { if (level > 2) { gainResource(health, 20) } }');
+    });
+
+    it('never rounds a real effect away to nothing', () => {
+      const out = scaleRestValues('onRest { gainResource(health, 1) }', 0.1);
+      expect(out).toBe('onRest { gainResource(health, 1) }');
+    });
+
+    it('is a no-op at a multiplier of one', () => {
+      const src = 'onRest { gainResource(health, 7) }';
+      expect(scaleRestValues(src, 1)).toBe(src);
+    });
+
+    it('leaves a script with no onRest untouched', () => {
+      const src = 'gainResource(health, 7)';
+      expect(scaleRestValues(src, 3)).toBe(src);
+    });
+
+    it('survives an unclosed onRest block', () => {
+      const src = 'onRest { gainResource(health, 7)';
+      expect(() => scaleRestValues(src, 2)).not.toThrow();
     });
   });
 });

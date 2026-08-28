@@ -25,10 +25,15 @@ export interface ConsumeResult {
   queued: boolean;
 }
 
-/** Both item types are consumed the same way; 'potion' is kept as its own type for icons/brewing. */
+/**
+ * What can be used up on the spot. Potions and Verbrauchsgegenstände only.
+ *
+ * Deliberately NOT "anything with a script": a Kochzutat and an amulet both carry an `onRest`
+ * block, and neither is something you eat. Being scriptable says nothing about being edible.
+ */
 export function isConsumable(item: ItemBlock | null | undefined): boolean {
   if (!item) return false;
-  return item.itemType === 'consumable' || item.itemType === 'potion' || !!item.script;
+  return item.itemType === 'consumable' || item.itemType === 'potion';
 }
 
 @Injectable({ providedIn: 'root' })

@@ -56,6 +56,11 @@ export type ItemType =
   | 'potion'
   /** Verbrauchsgegenstand: used up on use; lands in the Verbraucht queue until the next Rast. */
   | 'consumable'
+  /**
+   * Kochzutat: has an `onRest` effect and can go in the pot, but cannot be eaten on its own.
+   * Raw dough is not a meal — it only counts once something has been cooked out of it.
+   */
+  | 'cooking-ingredient'
   | 'raw-material'
   | 'ingredient'
   | 'extractor';

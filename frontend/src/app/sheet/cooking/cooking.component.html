@@ -53,6 +53,28 @@
         </span>
       </label>
 
+      <label class="ck-field">
+        <span class="ck-label">Kochbonus (X)</span>
+        <span class="ck-field-row">
+          <input class="ck-input ck-input-num" type="number"
+                 [ngModel]="cookingBonus" (ngModelChange)="setCookingBonus($event)">
+          <span class="ck-hint">
+            Kochprobe: (1W20 + 5 + X) / 10 &mdash; zwischen
+            <b>{{ rollRange.min }}&times;</b> und <b>{{ rollRange.max }}&times;</b> auf alles,
+            was das Gericht bei der Rast wiederherstellt.
+          </span>
+        </span>
+      </label>
+
+      @if (lastRoll; as roll) {
+        <div class="ck-roll">
+          <span class="ck-roll-die">W20: {{ roll.die }}</span>
+          <span class="ck-roll-sum">+ 5 + {{ roll.bonus }}</span>
+          <span class="ck-roll-mult" [class.good]="roll.multiplier >= 1.5"
+                [class.bad]="roll.multiplier < 1">&times;{{ roll.multiplier }}</span>
+        </div>
+      }
+
       @if (pot.length) {
         <div class="ck-preview">
           <span class="ck-label">Wirkung je Portion</span>
