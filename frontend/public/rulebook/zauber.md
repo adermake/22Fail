@@ -100,12 +100,12 @@ Mithilfe dieser Runen ist es nun möglich, einen vollwertigen Zauber zusammenzus
 Stärke des Zaubers, bestimmt wie bei Waffen den Angriffsschaden, kann aber auch für Dinge wie die Heilstärke stehen. Die Effektivität des Zaubers wird aus der Summe aller enthaltenen Runen bestimmt.
 :::
 :::card{title="Kosten" color=##3b82f6}
-Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt.
+Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt. Ein Zauber kann nur gewirkt werden, wenn der Zaubernde ausreichend [Fokus](zauber#fokus) und Mana besitzt.
 :::
 :::card{title="Voraussetzung" color=#00ff00}
 Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
 :::
-:::formula{title="Haltbarkeit" color=#ef9533}
+:::card{title="Haltbarkeit" color=#ef9533}
 Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber zu wirken verbraucht Haltbarkeit mit folgender Formel:
 :::formula
 Voraussetzung*10
@@ -116,7 +116,6 @@ Die meisten magischen Zauberunterlagen sind allerdings spezifisch für Zauber ge
 Sollte die Haltbarkeit eines Zaubers unter 100 fallen, muss beim Wirken von Zaubern gewürfelt werden, ob er zerstört wird. Je weiter die Haltbarkeit unter 100 fällt, desto höher ist der Würfelbonus für die Zerstörung der Rüstung.
 :::formula
 Würfelbonus: -5 + ⌊(100 - Rüstungshaltbarkeit)/10⌋
-:::
 :::
 :::
 
@@ -147,14 +146,9 @@ Es gibt Wege eine gewisse Anzahl an Zaubern „verinnerlichen“. Das bedeutet, 
 Man kann das z.B über den Talentbaum im Magier Baum Richtung Runenkünstler erreichen.
 
 Ein verinnerlichter Zauber lässt sich durch einen anderen ersetzen, allerdings dauert der Prozess des Verinnerlichens mehrere Stunden.
-
-Um einen Zauber nutzen zu können, muss man die nötigen Stat-Voraussetzungen erfüllen (meist Intelligenz) und über genügend Mana und Fokus verfügen.
-
-Die Voraussetzungen eines Zaubers sowie dessen Mana- und Fokus-Kosten setzen sich im Normalfall aus den Stats der verwendeten Runen zusammen.  
-Wir gehen später noch auf ein paar Beispiele ein.
 :::
 
-:::section{title="Fokus"}
+:::section{title="Fokus" id=fokus}
 
 Fokus ist ein Stat, der darüber aussagt, auf wie viele Dinge sich ein Charakter gleichzeitig konzentrieren kann. Er ist ein limitierender Faktor dafür, wie viele anhaltende Zauber ein Magier gleichzeitig aufrechterhalten kann.
 
