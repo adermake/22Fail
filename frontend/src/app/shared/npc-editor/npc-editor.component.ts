@@ -1,4 +1,5 @@
 import {
+  ChangeDetectorRef,
   Component,
   EventEmitter,
   inject,
@@ -71,6 +72,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   @Output() cancel = new EventEmitter<void>();
 
   private npcGen = inject(NpcGeneratorService);
+  private cdr = inject(ChangeDetectorRef);
   private imageService = inject(ImageService);
 
   draft!: NpcStatblock;
@@ -125,7 +127,15 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   newMod: NpcBodyStatMod = { stat: 'constitution', value: 1, mode: 'add' };
 
   // ─── UI state ───────────────────────────────────────────────────────────────
-  aktuellTab: 'skills' | 'spells' | 'equipment' | 'notes' = 'skills';
+  aktuellTab: 'skills' | 'spells' | 'equipment' | 'inventory' | 'notes' = 'skills';
+
+  /**
+   * Die Datei-ID, die gerade grün aufblitzt. Ein Klick in der Bibliothek hatte vorher überhaupt
+   * keine sichtbare Antwort — kein Zustand, keine Animation, und das Ergebnis oft außerhalb des
+   * Blickfelds.
+   */
+  justAddedId: string | null = null;
+  private justAddedTimer?: number;
   browseCategory: 'skills' | 'items' | 'spells' = 'skills';
   skillTab: 'tree' | 'library' = 'tree';
   expandedClass: string | null = null;
@@ -182,6 +192,10 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     if (!this.draft.body) this.draft.body = createEmptyNpcBody();
     if (!this.draft.body.mods) this.draft.body.mods = [];
     if (!this.draft.customSkills) this.draft.customSkills = [];
+    // Statblöcke von vor dem Inventar-Feld kennen es nicht — hier reparieren, statt überall
+    // gegen undefined zu prüfen.
+    if (!this.draft.inventory) this.draft.inventory = [];
+    if (!this.draft.equipment) this.draft.equipment = [];
 
     // Unify: materialize any class-tree learnedSkillIds into editable SkillBlocks, so every skill
     // renders the same and can be tweaked locally (without touching the class-tree definitions).
@@ -256,6 +270,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     document.body.style.overflow = this.prevBodyOverflow;
+    if (this.justAddedTimer) clearTimeout(this.justAddedTimer);
   }
 
   // ─── Soul: level → point budget → distribute over the 6 base stats ──────────
@@ -388,10 +403,22 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.selectedTreeSkillId = null;
   }
 
+  /** Kurzes grünes Aufblitzen der angeklickten Zeile — die Quittung für den Klick. */
+  private flashAdded(fileId: string): void {
+    this.justAddedId = fileId;
+    if (this.justAddedTimer) clearTimeout(this.justAddedTimer);
+    this.justAddedTimer = window.setTimeout(() => {
+      this.justAddedId = null;
+      this.cdr.markForCheck();
+    }, 450);
+  }
+
   // ─── Skills: library + custom ─────────────────────────────────────────────
   addSkillFromLibrary(file: AssetFile): void {
     const skill = JSON.parse(JSON.stringify(file.data)) as SkillBlock;
     this.draft.customSkills.push(skill);
+    this.aktuellTab = 'skills';
+    this.flashAdded(file.id);
   }
 
   openSkillEditor(index: number | null): void {
@@ -415,20 +442,45 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   removeCustomSkill(index: number): void { this.draft.customSkills.splice(index, 1); this.recalcFokus(); }
 
   // ─── Items: library + custom ──────────────────────────────────────────────
+
+  /** Welche der beiden Gegenstandslisten der Editor gerade bearbeitet. */
+  private itemTarget: 'equipment' | 'inventory' = 'equipment';
+
+  private itemList(target: 'equipment' | 'inventory'): ItemBlock[] {
+    return target === 'inventory' ? this.draft.inventory : this.draft.equipment;
+  }
+
+  /**
+   * Ein Klick im Bibliotheks-Browser legt den Gegenstand dorthin, wo die mittlere Spalte gerade
+   * hinsieht — und schaltet sie auf den passenden Reiter, damit man sieht, dass etwas passiert
+   * ist. Vorher landete alles unsichtbar in der Ausrüstung, während die Spalte auf Fertigkeiten
+   * stand: der Klick fühlte sich an, als hätte er nichts getan.
+   */
   addItemFromLibrary(file: AssetFile): void {
-    const item = JSON.parse(JSON.stringify(file.data)) as ItemBlock;
-    this.draft.equipment.push(item);
+    const target = this.aktuellTab === 'inventory' ? 'inventory' : 'equipment';
+    this.itemList(target).push(JSON.parse(JSON.stringify(file.data)) as ItemBlock);
+    this.aktuellTab = target;
+    this.flashAdded(file.id);
   }
 
   openItemEditor(index: number | null): void {
+    this.itemTarget = 'equipment';
     this.editingItemIndex = index;
     this.editingItem = index === null ? null : JSON.parse(JSON.stringify(this.draft.equipment[index]));
     this.itemEditorOpen = true;
   }
 
+  openInventoryEditor(index: number | null): void {
+    this.itemTarget = 'inventory';
+    this.editingItemIndex = index;
+    this.editingItem = index === null ? null : JSON.parse(JSON.stringify(this.draft.inventory[index]));
+    this.itemEditorOpen = true;
+  }
+
   onItemSave(item: ItemBlock): void {
-    if (this.editingItemIndex === null) this.draft.equipment.push(item);
-    else this.draft.equipment[this.editingItemIndex] = item;
+    const list = this.itemList(this.itemTarget);
+    if (this.editingItemIndex === null) list.push(item);
+    else list[this.editingItemIndex] = item;
     this.closeItemEditor();
   }
 
@@ -436,9 +488,11 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.itemEditorOpen = false;
     this.editingItem = null;
     this.editingItemIndex = null;
+    this.itemTarget = 'equipment';
   }
 
   removeEquipment(index: number): void { this.draft.equipment.splice(index, 1); }
+  removeInventoryItem(index: number): void { this.draft.inventory.splice(index, 1); }
 
   // ─── Forge (all materials unlocked) ───────────────────────────────────────
   openForge(): void { this.forgeOpen = true; }
@@ -462,6 +516,8 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   // ─── Spells: library + custom ─────────────────────────────────────────────
   addSpellFromLibrary(file: AssetFile): void {
     this.draft.spells.push(JSON.parse(JSON.stringify(file.data)) as SpellBlock);
+    this.aktuellTab = 'spells';
+    this.flashAdded(file.id);
   }
 
   openSpellEditor(index: number | null): void {

@@ -10,13 +10,13 @@ Last Updated: March 2, 2026
 **Purpose:** Professional content editor where you DEFINE all library content with tabs and powerful editors
 
 **Features:**
-- Tab-based interface (Items, Runes, Spells, Skills, Status Effects, Macros, Shops, Loot Bundles)
+- Tab-based interface (Items, Runes, Spells, Skills, Status Effects, Macros, Shops)
 - **Library Info Section** at the top with:
   - Description
   - Tags
   - **🔗 Library Dependencies** (multi-select dropdown with Ctrl/Cmd)
   - Public/Private toggle
-- Professional editors for Shops and Loot Bundles:
+- Professional editor for Shops:
   - Select items from dependency libraries
   - Add deals/loot items with detailed configuration
   - Full pricing, stock, and negotiation settings
@@ -62,24 +62,27 @@ Last Updated: March 2, 2026
 
 ---
 
-### 🌍 WORLD LIBRARY (LibraryTabsComponent)
-**Location:** Inside WorldComponent  
-**File:** `frontend/src/app/world/library-tabs/library-tabs.component.ts`  
-**Purpose:** READ-ONLY view of all content from libraries linked to the world
+### 🗂 GM-SCHREIBTISCH (GmDeskComponent)
+**Location:** Inside WorldComponent (the panel titled "Bibliothek")  
+**File:** `frontend/src/app/world/gm-desk/gm-desk.component.ts`  
+**Purpose:** The DM's desk — prepare things in named tabs, hand them to players, reveal a tab as
+shared loot. Replaces the old read-only World Library list.
+
+**Layout:** three columns — **Porträts ⟂ Vorbereitung ⟂ Bibliothek**
 
 **Features:**
-- Shows aggregated content from all world-linked libraries
-- Tabs for items, runes, spells, skills, status effects
-- Drag items to send to players
-- Search/filter functionality
-- Context menu to send items to characters
-- **Does NOT include shops/bundles** (those are separate events)
+- **Left**: party portraits. Selecting one makes every ＋ go straight to that player; portraits are
+  also drop targets.
+- **Middle**: GM tabs (add / rename / delete / reveal) plus one tab per NPC on the **active lobby
+  map**. A revealed tab glows; individual entries can be hidden from players.
+- **Right**: folder-grouped, searchable browser over items, runes, spells, skills, status effects,
+  materials and all five knowledge kinds.
+- Revealed tabs show up under Aktive Events as a shared loot pool; claiming is server-arbitrated.
+- Entries can be dropped into the party's shared bag.
 
 **Usage:**
-- DM opens a world → sees World Library section
-- Shows combined content from all linked libraries
-- Used to quickly send items/spells to players
-- Not for editing (edit in the Library view instead)
+- DM opens a world → sees the GM desk where the World Library used to be
+- Not for editing content (edit in the Library view instead)
 
 ---
 
@@ -117,14 +120,14 @@ Last Updated: March 2, 2026
 
 ## Key Differences
 
-| Feature | Library (Editor) | Assets (File Browser) | World Library (View) |
-|---------|------------------|----------------------|---------------------|
-| **Purpose** | Define & edit content | Organize files in folders | View world content |
-| **Editable** | ✓ Full editors | ✓ File management | ✗ Read-only |
+| Feature | Library (Editor) | Assets (File Browser) | GM-Schreibtisch |
+|---------|------------------|----------------------|-----------------|
+| **Purpose** | Define & edit content | Organize files in folders | Prepare & hand out content |
+| **Editable** | ✓ Full editors | ✓ File management | ✗ Browses, does not edit |
 | **Dependencies** | ✓ Multi-select dropdown | ✓ Settings panel | ✗ Auto-resolved |
-| **Shops/Bundles** | ✓ Professional editors | ✓ Simple metadata only | ✗ Not shown here |
-| **Context Menu** | ✓ Edit/Duplicate/Delete | ✓ File operations | ✓ Send to players |
-| **Navigation** | Tabs | Folders | Tabs |
+| **Shops** | ✓ Professional editor | ✓ Simple metadata only | ✗ Live under Aktive Events |
+| **Hand to players** | ✗ | ✗ | ✓ ＋, drag, or reveal a tab |
+| **Navigation** | Tabs | Folders | Three columns |
 
 ---
 
@@ -143,10 +146,10 @@ frontend/src/app/
 │   └── asset-browser.component.css
 │
 └── world/
-    └── library-tabs/                 ← 🌍 WORLD LIBRARY (Read-only View)
-        ├── library-tabs.component.ts
-        ├── library-tabs.component.html
-        └── library-tabs.component.css
+    └── gm-desk/                      ← 🗂 GM-SCHREIBTISCH
+        ├── gm-desk.component.ts
+        ├── gm-desk.component.html
+        └── gm-desk.component.css
 ```
 
 ---
@@ -155,7 +158,7 @@ frontend/src/app/
 
 - `/library/:libraryId` → **Library** (Professional Editor) ← **PRIMARY VIEW**
 - `/assets/:libraryId` → **Assets** (File Browser) ← Optional advanced organization
-- `/world/:worldName` → **World** (includes World Library section)
+- `/world/:worldName` → **World** (includes the GM-Schreibtisch)
 
 ---
 
@@ -165,7 +168,8 @@ When discussing features, use these terms:
 
 - **"in the Library"** = The tabbed editor with professional shop/bundle editors
 - **"in Assets"** = The folder tree file browser (rarely used)
-- **"in the World Library"** = The read-only tabs inside the World view showing linked content
+- **"on the GM desk"** / **"im GM-Schreibtisch"** = The three-column panel inside the World view
+  (portraits, prepared tabs, library browser). It replaced the read-only World Library.
 - **"Library Info section"** = Top section in Library view with dependencies selector
 - **"Library Settings"** = ⚙️ button in Assets view header
 

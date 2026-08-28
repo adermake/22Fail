@@ -40,7 +40,7 @@ import {
   createEmptyMaterialBlock, createEmptyForgeTrait,
 } from '../model/forging.model';
 import { 
-  ShopEvent, ShopDeal, LootBundleEvent, LootItem, 
+  ShopEvent, ShopDeal,
   createEmptyShopDeal, Currency 
 } from '../model/current-events.model';
 
@@ -195,11 +195,6 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   selectedDealItemType = signal<'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | null>(null);
   selectedDealItemId = signal<string | null>(null);
 
-  // Loot Bundle editing state
-  addingLootToBundle = signal<string | null>(null); // bundleId currently adding loot to
-  editingLootItemData = signal<Partial<LootItem> | null>(null);
-  selectedLootItemType = signal<'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency' | null>(null);
-  selectedLootItemId = signal<string | null>(null);
 
   // Drag and drop state
   isDragging = signal(false);
@@ -761,15 +756,6 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
           claimedDeals: {},
           createdAt: Date.now()
         };
-      case 'loot-bundle':
-        return {
-          id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          type: 'loot',
-          name,
-          description: '',
-          items: [],
-          createdAt: Date.now()
-        };
       case 'statblock':
         return { ...createEmptyNpcStatblock(), name };
       default:
@@ -1146,140 +1132,6 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     if (currency.silver > 0) parts.push(`${currency.silver}s`);
     if (currency.copper > 0) parts.push(`${currency.copper}c`);
     return parts.length > 0 ? parts.join(' ') : '0c';
-  }
-
-  // ==================== LOOT BUNDLE MANAGEMENT ====================
-
-  startAddingLootToBundle(): void {
-    const file = this.editingFile();
-    if (!file || file.type !== 'loot-bundle') return;
-    
-    this.addingLootToBundle.set(file.id);
-    this.editingLootItemData.set(null);
-    this.selectedLootItemType.set(null);
-    this.selectedLootItemId.set(null);
-  }
-
-  selectLootItemType(type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency'): void {
-    this.selectedLootItemType.set(type);
-    this.selectedLootItemId.set(null);
-    
-    // Debug: Check what items are available
-    console.log(`Selected loot type: ${type}`, {
-      items: this.availableItems().length,
-      runes: this.availableRunes().length,
-      spells: this.availableSpells().length,
-      skills: this.availableSkills().length,
-      statusEffects: this.availableStatusEffects().length
-    });
-    
-    if (type === 'currency') {
-      // Initialize with empty currency
-      this.editingLootItemData.set({
-        id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        type: 'currency',
-        data: { copper: 0, silver: 0, gold: 0, platinum: 0 }
-      });
-    } else {
-      this.editingLootItemData.set({
-        id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        type: type
-      });
-    }
-  }
-
-  selectLootItem(itemFile: AssetFile): void {
-    this.selectedLootItemId.set(itemFile.id);
-    const lootItem = this.editingLootItemData();
-    if (!lootItem) return;
-
-    lootItem.data = itemFile.data;
-    this.editingLootItemData.set({ ...lootItem });
-  }
-
-  onLootItemSelected(event: Event): void {
-    const selectElement = event.target as HTMLSelectElement;
-    const selectedIndex = selectElement.selectedIndex - 1; // -1 for placeholder option
-    if (selectedIndex < 0) return;
-
-    const type = this.selectedLootItemType();
-    let itemFile: AssetFile | undefined;
-    
-    switch (type) {
-      case 'item':
-        itemFile = this.availableItems()[selectedIndex];
-        break;
-      case 'rune':
-        itemFile = this.availableRunes()[selectedIndex];
-        break;
-      case 'spell':
-        itemFile = this.availableSpells()[selectedIndex];
-        break;
-      case 'skill':
-        itemFile = this.availableSkills()[selectedIndex];
-        break;
-      case 'status-effect':
-        itemFile = this.availableStatusEffects()[selectedIndex];
-        break;
-    }
-
-    if (itemFile) {
-      this.selectLootItem(itemFile);
-    }
-  }
-
-  async saveLootItemToBundle(): Promise<void> {
-    const file = this.editingFile();
-    const lootItem = this.editingLootItemData();
-    if (!file || !lootItem || file.type !== 'loot-bundle') return;
-
-    const bundleData = file.data as LootBundleEvent;
-    if (!bundleData.items) bundleData.items = [];
-    
-    bundleData.items.push(lootItem as LootItem);
-    
-    // Save to backend without closing editor
-    await this.saveEditor(bundleData, false);
-    
-    // Reset state
-    this.cancelAddingLootItem();
-  }
-
-  async removeLootItemFromBundle(lootItemId: string): Promise<void> {
-    const file = this.editingFile();
-    if (!file || file.type !== 'loot-bundle') return;
-
-    const bundleData = file.data as LootBundleEvent;
-    bundleData.items = bundleData.items.filter(i => i.id !== lootItemId);
-    
-    // Save to backend without closing editor
-    await this.saveEditor(bundleData, false);
-  }
-
-  cancelAddingLootItem(): void {
-    this.addingLootToBundle.set(null);
-    this.editingLootItemData.set(null);
-    this.selectedLootItemType.set(null);
-    this.selectedLootItemId.set(null);
-  }
-
-  getLootItemName(lootItem: LootItem): string {
-    if (lootItem.type === 'currency') {
-      return this.formatCurrency(lootItem.data as Currency);
-    }
-    return (lootItem.data as any)?.name || 'Unnamed';
-  }
-
-  getLootItemIcon(lootItem: LootItem): string {
-    switch (lootItem.type) {
-      case 'item': return getAssetTypeIcon('item');
-      case 'rune': return getAssetTypeIcon('rune');
-      case 'spell': return getAssetTypeIcon('spell');
-      case 'skill': return getAssetTypeIcon('skill');
-      case 'status-effect': return getAssetTypeIcon('status-effect');
-      case 'currency': return '💰';
-      default: return '❓';
-    }
   }
 
   // ==================== CONTEXT MENU ====================

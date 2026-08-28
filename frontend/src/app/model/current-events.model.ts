@@ -80,41 +80,13 @@ export interface ShopEvent {
 }
 
 /**
- * A loot item in a bundle that can be claimed
+ * Union type for all current events.
+ *
+ * Loot lived here as a second event kind (`LootBundleEvent`) with its own authoring UI in the
+ * library editor. Vorbereiteter Loot ist jetzt der GM-Schreibtisch (`WorldData.gmDesk`), dessen
+ * aufgedeckte Reiter unter den Events erscheinen — Shops sind das einzige, was ein Event bleibt.
  */
-export interface LootItem {
-  id: string;
-  type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency';
-  data: ItemBlock | RuneBlock | SpellBlock | SkillBlock | StatusEffect | Currency;
-  
-  // Reference to source library
-  sourceRef?: LibraryItemRef;
-  
-  // Claim tracking - once claimed, cannot be claimed again
-  claimedBy?: string; // characterId who claimed this
-}
-
-/**
- * A loot bundle event - players can take items freely
- */
-export interface LootBundleEvent {
-  id: string;
-  type: 'loot';
-  name: string;
-  description?: string;
-  
-  items: LootItem[];
-  
-  // Reference to source library (for editing)
-  sourceRef?: LibraryItemRef;
-  
-  createdAt: number;
-}
-
-/**
- * Union type for all current events
- */
-export type CurrentEvent = ShopEvent | LootBundleEvent;
+export type CurrentEvent = ShopEvent;
 
 /**
  * Current events state for a world
@@ -134,20 +106,6 @@ export function createEmptyShopEvent(name: string): ShopEvent {
     description: '',
     deals: [],
     claimedDeals: {},
-    createdAt: Date.now()
-  };
-}
-
-/**
- * Create an empty loot bundle event
- */
-export function createEmptyLootBundleEvent(name: string): LootBundleEvent {
-  return {
-    id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    type: 'loot',
-    name,
-    description: '',
-    items: [],
     createdAt: Date.now()
   };
 }

@@ -1,18 +1,15 @@
 import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { 
-  CurrentEvent, 
-  ShopEvent, 
-  LootBundleEvent, 
-  ShopDeal,
-  LootItem,
+import {
+  CurrentEvent,
+  ShopEvent,
   Currency,
   formatCurrency,
   createEmptyShopEvent,
-  createEmptyLootBundleEvent,
-  createEmptyShopDeal
 } from '../../model/current-events.model';
+import { DeskEntry, DeskTab, GRANT_TYPE_ICON, GRANT_TYPE_LABEL } from '../../model/gm-desk.model';
+import { PartyStashService } from '../../services/party-stash.service';
 import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
@@ -34,7 +31,6 @@ import { Library } from '../../model/library.model';
           </button>
           @if (showAddMenu) {
             <div class="add-menu">
-              <button (click)="createNewLootBundle()">💰 Neues Loot-Bündel</button>
               <button (click)="createNewShop()">🏪 Neuer Shop</button>
               @if (libraryShops.length > 0) {
                 <hr>
@@ -43,29 +39,98 @@ import { Library } from '../../model/library.model';
                   <button (click)="addShopFromLibrary(shop)">🏪 {{ shop.name }}</button>
                 }
               }
-              @if (libraryLootBundles.length > 0) {
-                @for (bundle of libraryLootBundles; track bundle.id) {
-                  <button (click)="addLootBundleFromLibrary(bundle)">💰 {{ bundle.name }}</button>
-                }
-              }
             </div>
           }
         </div>
       </div>
 
-      @if (events.length === 0) {
+      @if (events.length === 0 && revealedTabs.length === 0) {
         <p class="empty-state">Keine aktiven Events. Events werden für alle Spieler in der Party sichtbar.</p>
       }
 
-      <div class="events-list" 
+      <!-- Aufgedeckte Reiter des Schreibtischs: der gemeinsame Loot-Pool -->
+      @for (tab of revealedTabs; track tab.tabId) {
+        <div class="event-card loot revealed">
+          <div class="event-header">
+            <span class="event-icon">💰</span>
+            <span class="event-name">{{ tab.name }}</span>
+            <div class="event-actions-inline">
+              <button class="icon-btn" (click)="toggleEventExpanded(tab.tabId)" title="Details">
+                {{ expandedEvents.has(tab.tabId) ? '▼' : '▶' }}
+              </button>
+            </div>
+          </div>
+
+          @if (expandedEvents.has(tab.tabId)) {
+            <div class="event-content">
+              <div class="loot-items">
+                @for (entry of tab.entries; track entry.entryId) {
+                  @if (!entry.hidden) {
+                    <div class="loot-item" [class.claimed]="entry.claimedBy">
+                      <span class="loot-type-icon app-icon" [class]="typeIcon[entry.type]"></span>
+                      <span class="loot-name">{{ deskEntryName(entry) }}</span>
+                      @if (entry.claimedBy) {
+                        <span class="claimed-by">Beansprucht</span>
+                      }
+                      <button
+                        class="icon-btn delete"
+                        (click)="deskEntryRemoved.emit({ tabId: tab.tabId, entryId: entry.entryId })"
+                        title="Entfernen">✕</button>
+                    </div>
+                  }
+                }
+                @if (tab.entries.length === 0) {
+                  <p class="event-description">Der Reiter ist leer.</p>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Beutel der Gruppe: server-autoritativ, dieselbe Ablage wie im Charakterbogen -->
+      <div class="party-bag">
+        <div class="party-bag-head">
+          <span class="party-bag-icon app-icon i-item"></span>
+          <span class="party-bag-title">Beutel der Gruppe</span>
+          <span class="party-bag-count">{{ stash.entries().length }}</span>
+          @if (stash.busy()) { <span class="party-bag-busy">…</span> }
+        </div>
+
+        @if (stash.notice(); as note) {
+          <p class="party-bag-notice">{{ note }}</p>
+        }
+
+        @if (stash.entries().length === 0) {
+          <p class="party-bag-empty">Leer — zieh etwas aus dem Schreibtisch hierher.</p>
+        } @else {
+          <div class="party-bag-list">
+            @for (entry of stash.entries(); track entry.entryId) {
+              <div class="party-bag-entry">
+                <span class="party-bag-name">{{ entry.item.name }}</span>
+                @if (entry.item.stackable && (entry.item.amount ?? 1) > 1) {
+                  <span class="party-bag-amount">×{{ entry.item.amount }}</span>
+                }
+                @if (entry.fromName) {
+                  <span class="party-bag-from">von {{ entry.fromName }}</span>
+                }
+                <button class="icon-btn delete" title="Aus dem Beutel nehmen"
+                        [disabled]="stash.busy()" (click)="removeFromBag(entry.entryId)">✕</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="events-list"
            [class.drag-over]="isDraggingOverList"
            (dragover)="onDragOverEvents($event)"
            (dragleave)="onDragLeaveEvents($event)"
            (drop)="onDropEvent($event)">
         @for (event of events; track event.id) {
-          <div class="event-card" [class.shop]="event.type === 'shop'" [class.loot]="event.type === 'loot'">
+          <div class="event-card shop">
             <div class="event-header">
-              <span class="event-icon">{{ event.type === 'shop' ? '🏪' : '💰' }}</span>
+              <span class="event-icon">🏪</span>
               @if (editingEventId === event.id) {
                 <input 
                   type="text" 
@@ -92,11 +157,7 @@ import { Library } from '../../model/library.model';
 
             @if (expandedEvents.has(event.id)) {
               <div class="event-content">
-                @if (event.type === 'shop') {
-                  <ng-container *ngTemplateOutlet="shopContent; context: { $implicit: asShop(event) }"></ng-container>
-                } @else {
-                  <ng-container *ngTemplateOutlet="lootContent; context: { $implicit: asLoot(event) }"></ng-container>
-                }
+                <ng-container *ngTemplateOutlet="shopContent; context: { $implicit: asShop(event) }"></ng-container>
               </div>
             }
           </div>
@@ -149,25 +210,6 @@ import { Library } from '../../model/library.model';
         </div>
       </ng-template>
 
-      <!-- Loot Content Template -->
-      <ng-template #lootContent let-loot>
-        <div class="loot-content">
-          <p class="event-description">{{ loot.description || 'Keine Beschreibung' }}</p>
-          
-          <div class="loot-items">
-            @for (item of loot.items; track item.id) {
-              <div class="loot-item" [class.claimed]="item.claimedBy">
-                <span class="loot-type-icon app-icon {{ getLootTypeIcon(item.type) }}"></span>
-                <span class="loot-name">{{ getLootName(item) }}</span>
-                @if (item.claimedBy) {
-                  <span class="claimed-by">Beansprucht</span>
-                }
-                <button class="icon-btn delete" (click)="removeLootItem(loot.id, item.id)" title="Entfernen">✕</button>
-              </div>
-            }
-          </div>
-        </div>
-      </ng-template>
     </div>
   `,
   styles: [`
@@ -245,6 +287,59 @@ import { Library } from '../../model/library.model';
       padding: 2rem;
       font-style: italic;
     }
+
+    /* ── Beutel der Gruppe ── */
+    .party-bag {
+      margin: 0 0 12px;
+      padding: 8px 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .party-bag-head {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 6px;
+    }
+
+    .party-bag-icon { width: 1em; height: 1em; background-color: var(--accent); }
+
+    .party-bag-title {
+      flex: 1;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .party-bag-count,
+    .party-bag-busy { font-size: 0.72rem; color: var(--text-muted, #9ca3af); }
+
+    .party-bag-empty,
+    .party-bag-notice {
+      margin: 0;
+      font-size: 0.76rem;
+      font-style: italic;
+      color: var(--text-muted, #9ca3af);
+    }
+
+    .party-bag-list { display: flex; flex-direction: column; gap: 4px; }
+
+    .party-bag-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 7px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.79rem;
+    }
+
+    .party-bag-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .party-bag-amount { font-weight: 600; color: var(--text-muted, #9ca3af); }
+    .party-bag-from { font-size: 0.68rem; font-style: italic; color: var(--text-muted, #9ca3af); }
 
     .events-list {
       display: flex;
@@ -575,34 +670,44 @@ export class CurrentEventsManagerComponent {
   @Input() mergedSpells: SpellBlock[] = [];
   @Input() mergedSkills: SkillBlock[] = [];
   @Input() mergedStatusEffects: StatusEffect[] = [];
-  
+  /** Aufgedeckte Reiter des GM-Schreibtischs — der gemeinsame Loot-Pool der Gruppe. */
+  @Input() revealedTabs: DeskTab[] = [];
+
   @Output() eventsChange = new EventEmitter<CurrentEvent[]>();
   @Output() eventAdded = new EventEmitter<CurrentEvent>();
   @Output() eventRemoved = new EventEmitter<string>();
   @Output() eventUpdated = new EventEmitter<CurrentEvent>();
-  @Output() navigateToLibrary = new EventEmitter<{ libraryId: string; tab: 'shops' | 'loot-bundles'; itemId: string }>();
+  @Output() navigateToLibrary = new EventEmitter<{ libraryId: string; tab: 'shops'; itemId: string }>();
+  /** Der GM nimmt einen Eintrag aus einem aufgedeckten Reiter wieder heraus. */
+  @Output() deskEntryRemoved = new EventEmitter<{ tabId: string; entryId: string }>();
+
+  /** Derselbe server-autoritative Beutel wie im Charakterbogen — der GM sieht ihn jetzt auch. */
+  readonly stash = inject(PartyStashService);
 
   showAddMenu = false;
   expandedEvents = new Set<string>();
   editingEventId: string | null = null;
   isDraggingOverList = false;
 
-  // Get shops and loot bundles from linked libraries
+  /** Nimmt einen Eintrag endgültig aus dem Beutel (der Server gibt ihn genau einmal heraus). */
+  async removeFromBag(entryId: string): Promise<void> {
+    await this.stash.withdraw(entryId);
+  }
+
+  readonly typeIcon = GRANT_TYPE_ICON;
+  readonly typeLabel = GRANT_TYPE_LABEL;
+
+  // Get shops from linked libraries
   get libraryShops(): ShopEvent[] {
     return this.libraries.flatMap(lib => lib.shops || []);
   }
 
-  get libraryLootBundles(): LootBundleEvent[] {
-    return this.libraries.flatMap(lib => lib.lootBundles || []);
-  }
-
   formatCurrency = formatCurrency;
 
-  createNewLootBundle() {
-    const bundle = createEmptyLootBundleEvent('Neues Loot-Bündel');
-    this.eventAdded.emit(bundle);
-    this.expandedEvents.add(bundle.id);
-    this.showAddMenu = false;
+  /** Anzeigename eines Schreibtisch-Eintrags; Münzen werden als Betrag geschrieben. */
+  deskEntryName(entry: DeskEntry): string {
+    if (entry.type === 'currency') return formatCurrency(entry.data as Currency);
+    return entry.name || 'Unbekannt';
   }
 
   createNewShop() {
@@ -628,29 +733,6 @@ export class CurrentEventsManagerComponent {
     };
     this.eventAdded.emit(newShop);
     this.expandedEvents.add(newShop.id);
-    this.showAddMenu = false;
-  }
-
-  addLootBundleFromLibrary(bundle: LootBundleEvent) {
-    // Create a copy with new ID and reset claims, track source library
-    const sourceLibrary = this.libraries.find(lib => lib.lootBundles.some(b => b.id === bundle.id));
-    const newBundle: LootBundleEvent = {
-      ...JSON.parse(JSON.stringify(bundle)),
-      id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      createdAt: Date.now(),
-      items: bundle.items.map(item => ({
-        ...item,
-        id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        claimedBy: undefined
-      })),
-      sourceRef: sourceLibrary ? {
-        libraryId: sourceLibrary.id,
-        libraryName: sourceLibrary.name,
-        itemId: bundle.id
-      } : undefined
-    };
-    this.eventAdded.emit(newBundle);
-    this.expandedEvents.add(newBundle.id);
     this.showAddMenu = false;
   }
 
@@ -684,10 +766,6 @@ export class CurrentEventsManagerComponent {
     return event as ShopEvent;
   }
 
-  asLoot(event: CurrentEvent): LootBundleEvent {
-    return event as LootBundleEvent;
-  }
-
   updateDealDiscount(shopId: string, dealId: string) {
     const shop = this.events.find(e => e.id === shopId) as ShopEvent;
     if (shop) {
@@ -703,40 +781,12 @@ export class CurrentEventsManagerComponent {
     }
   }
 
-  getLootTypeIcon(type: string): string {
-    switch (type) {
-      case 'item': return 'i-item';
-      case 'rune': return 'i-spell';
-      case 'spell': return 'i-spell';
-      case 'skill': return 'i-ability';
-      case 'status-effect': return 'i-status-effect';
-      case 'currency': return 'i-stat';
-      default: return 'i-item';
-    }
-  }
-
-  getLootName(item: LootItem): string {
-    if (item.type === 'currency') {
-      return formatCurrency(item.data as Currency);
-    }
-    return (item.data as any)?.name || 'Unbekannt';
-  }
-
-  removeLootItem(eventId: string, itemId: string) {
-    const loot = this.events.find(e => e.id === eventId) as LootBundleEvent;
-    if (loot) {
-      loot.items = loot.items.filter(i => i.id !== itemId);
-      this.eventUpdated.emit(loot);
-    }
-  }
-
   editInLibrary(event: CurrentEvent) {
     if (!event.sourceRef) return;
-    
-    const tab = event.type === 'shop' ? 'shops' : 'loot-bundles';
+
     this.navigateToLibrary.emit({
       libraryId: event.sourceRef.libraryId,
-      tab,
+      tab: 'shops',
       itemId: event.sourceRef.itemId!
     });
   }
@@ -767,46 +817,12 @@ export class CurrentEventsManagerComponent {
     event.preventDefault();
     this.isDraggingOverList = false;
     
-    const type = event.dataTransfer!.getData('lootType') as 'shop' | 'loot-bundle';
+    const type = event.dataTransfer!.getData('lootType');
     const index = parseInt(event.dataTransfer!.getData('lootIndex'));
-    
+
     if (type === 'shop') {
       const shop = this.libraryShops[index];
-      if (shop) {
-        this.addShopFromLibrary(shop);
-      }
-    } else if (type === 'loot-bundle') {
-      const bundle = this.libraryLootBundles[index];
-      if (bundle) {
-        this.addLootBundleFromLibrary(bundle);
-      }
-    }
-  }
-
-  onDropToLoot(event: DragEvent, eventId: string) {
-    event.preventDefault();
-    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell' | 'skill';
-    const index = parseInt(event.dataTransfer!.getData('lootIndex'));
-    
-    const loot = this.events.find(e => e.id === eventId) as LootBundleEvent;
-    if (!loot) return;
-
-    let data: any;
-    switch (type) {
-      case 'item': data = this.mergedItems[index]; break;
-      case 'rune': data = this.mergedRunes[index]; break;
-      case 'spell': data = this.mergedSpells[index]; break;
-      case 'skill': data = this.mergedSkills[index]; break;
-    }
-
-    if (data) {
-      const lootItem: LootItem = {
-        id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        type,
-        data: { ...data }
-      };
-      loot.items.push(lootItem);
-      this.eventUpdated.emit(loot);
+      if (shop) this.addShopFromLibrary(shop);
     }
   }
 }

@@ -116,6 +116,13 @@ export interface Token {
   imageMode?: TokenImageMode; // How image fills token (default 'fill' = cover, no stretch)
   customPortraitData?: string; // Base64 hand-drawn portrait (overrides portrait if set)
 
+  /**
+   * Per-token inventory (NPC loot). Seeded from the statblock's `inventory` when the token is
+   * placed, then owned by this token alone — `statblockId` points at a SHARED library asset, so
+   * writing loot back there would give every Goblin on the map the same pile.
+   */
+  inventory?: import('./item-block.model').ItemBlock[];
+
   // ---- Per-token status effects (used for NPC tokens) ----
   activeStatusEffects?: TokenStatusEffect[];
 

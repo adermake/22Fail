@@ -57,7 +57,9 @@ export class CharacterGateway
 
   broadcastPatch(characterId: string, patch: JsonPatch) {
     if (this.server) {
-      this.server.to(characterId).emit('characterPatched', { characterId, patch });
+      this.server
+        .to(characterId)
+        .emit('characterPatched', { characterId, patch });
     }
   }
 }

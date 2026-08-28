@@ -1,18 +1,52 @@
 <div class="events-view-container">
-  @if (events.length === 0) {
+  @if (events.length === 0 && lootPools.length === 0) {
     <div class="no-events">
       <span class="no-events-icon">📜</span>
       <p>Keine aktuellen Ereignisse</p>
-      <p class="hint">Der Spielleiter kann Shops und Loot-Bündel aktivieren</p>
+      <p class="hint">Der Spielleiter kann Shops öffnen und Beute freigeben</p>
+    </div>
+  }
+
+  <!-- Freigegebene Beute: gemeinsamer Pool, jeder Eintrag geht nur an eine Person -->
+  @for (pool of lootPools; track pool.tabId) {
+    <div class="loot-pool">
+      <div class="loot-pool-header">
+        <span class="loot-pool-icon app-icon i-item"></span>
+        <h3 class="loot-pool-name">{{ pool.name }}</h3>
+        <span class="loot-pool-count">{{ openEntries(pool).length }} frei</span>
+      </div>
+
+      @if (openEntries(pool).length === 0) {
+        <p class="loot-pool-empty">Alles verteilt.</p>
+      } @else {
+        <div class="loot-pool-list">
+          @for (entry of openEntries(pool); track entry.entryId) {
+            <div class="loot-pool-entry">
+              <span class="loot-pool-entry-icon app-icon" [class]="typeIcon[entry.type]"></span>
+              <div class="loot-pool-entry-info">
+                <span class="loot-pool-entry-name">{{ entryName(entry) }}</span>
+                <span class="loot-pool-entry-type">{{ typeLabel[entry.type] }}</span>
+              </div>
+              <button
+                class="loot-pool-take"
+                [disabled]="claiming === entry.entryId"
+                (click)="claimEntry(pool, entry)">
+                {{ claiming === entry.entryId ? '…' : 'Nehmen' }}
+              </button>
+            </div>
+          }
+        </div>
+      }
+
+      @if (claimNotice) {
+        <p class="loot-pool-notice">{{ claimNotice }}</p>
+      }
     </div>
   }
 
   @for (event of events; track event.id) {
-    <div class="event-card-portal" 
-         [class.shop]="event.type === 'shop'" 
-         [class.loot]="event.type === 'loot'"
-         (click)="openPortal(event.id)">
-      <div class="portal-icon-large">{{ event.type === 'shop' ? '🏪' : '💰' }}</div>
+    <div class="event-card-portal shop" (click)="openPortal(event.id)">
+      <div class="portal-icon-large">🏪</div>
       <h3 class="portal-event-name">{{ event.name }}</h3>
       @if (event.description) {
         <p class="portal-event-description">{{ event.description }}</p>

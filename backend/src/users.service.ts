@@ -19,12 +19,40 @@ export interface User {
 }
 
 const ADJECTIVES = [
-  'swift', 'brave', 'silent', 'lucky', 'clever', 'mighty', 'gentle', 'fierce',
-  'sunny', 'frosty', 'golden', 'shadow', 'crimson', 'azure', 'jolly', 'noble',
+  'swift',
+  'brave',
+  'silent',
+  'lucky',
+  'clever',
+  'mighty',
+  'gentle',
+  'fierce',
+  'sunny',
+  'frosty',
+  'golden',
+  'shadow',
+  'crimson',
+  'azure',
+  'jolly',
+  'noble',
 ];
 const NOUNS = [
-  'otter', 'falcon', 'badger', 'lynx', 'raven', 'wolf', 'fox', 'bear',
-  'hawk', 'stag', 'owl', 'moth', 'newt', 'toad', 'crane', 'boar',
+  'otter',
+  'falcon',
+  'badger',
+  'lynx',
+  'raven',
+  'wolf',
+  'fox',
+  'bear',
+  'hawk',
+  'stag',
+  'owl',
+  'moth',
+  'newt',
+  'toad',
+  'crane',
+  'boar',
 ];
 
 /**
@@ -40,7 +68,8 @@ export class UsersService {
   private usersFile = path.join(this.dataDir, 'users.json');
 
   constructor() {
-    if (!fs.existsSync(this.dataDir)) fs.mkdirSync(this.dataDir, { recursive: true });
+    if (!fs.existsSync(this.dataDir))
+      fs.mkdirSync(this.dataDir, { recursive: true });
   }
 
   // ── Persistence ──
@@ -67,7 +96,7 @@ export class UsersService {
     const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)];
     for (let i = 0; i < 50; i++) {
       const code = `${pick(ADJECTIVES)}-${pick(NOUNS)}-${Math.floor(10 + Math.random() * 90)}`;
-      if (!existing.some(u => u.joinCode === code)) return code;
+      if (!existing.some((u) => u.joinCode === code)) return code;
     }
     return `user-${Date.now().toString(36)}`;
   }
@@ -78,14 +107,15 @@ export class UsersService {
   }
 
   findById(id: string): User | undefined {
-    return this.read().find(u => u.id === id);
+    return this.read().find((u) => u.id === id);
   }
 
   /** Resolve a user from the identity headers a client sends (soft auth). */
   resolve(userId?: string, code?: string): User | undefined {
     if (!userId || !code) return undefined;
-    if (this.isRootPassword(code)) return this.read().find(u => u.id === userId);
-    return this.read().find(u => u.id === userId && u.joinCode === code);
+    if (this.isRootPassword(code))
+      return this.read().find((u) => u.id === userId);
+    return this.read().find((u) => u.id === userId && u.joinCode === code);
   }
 
   /** True if `code` is the master password (constant-length-agnostic; soft auth, see above). */
@@ -105,8 +135,12 @@ export class UsersService {
   login(name: string, code: string): User | null {
     const n = (name || '').trim().toLowerCase();
     const c = (code || '').trim();
-    if (this.isRootPassword(c)) return this.read().find(u => u.name.toLowerCase() === n) ?? null;
-    return this.read().find(u => u.name.toLowerCase() === n && u.joinCode === c) ?? null;
+    if (this.isRootPassword(c))
+      return this.read().find((u) => u.name.toLowerCase() === n) ?? null;
+    return (
+      this.read().find((u) => u.name.toLowerCase() === n && u.joinCode === c) ??
+      null
+    );
   }
 
   /** Every user incl. join codes — only ever returned behind the master password. */
@@ -119,8 +153,11 @@ export class UsersService {
     const users = this.read();
     if (users.length > 0) throw new Error('Users already exist');
     const user: User = {
-      id: this.genId(), name: (name || 'Admin').trim() || 'Admin',
-      joinCode: this.genCode(users), isAdmin: true, createdAt: Date.now(),
+      id: this.genId(),
+      name: (name || 'Admin').trim() || 'Admin',
+      joinCode: this.genCode(users),
+      isAdmin: true,
+      createdAt: Date.now(),
     };
     users.push(user);
     this.write(users);
@@ -133,8 +170,11 @@ export class UsersService {
     const trimmed = (name || '').trim();
     if (!trimmed) throw new Error('Name required');
     const user: User = {
-      id: this.genId(), name: trimmed, joinCode: this.genCode(users),
-      isAdmin: !!isAdmin, createdAt: Date.now(),
+      id: this.genId(),
+      name: trimmed,
+      joinCode: this.genCode(users),
+      isAdmin: !!isAdmin,
+      createdAt: Date.now(),
     };
     users.push(user);
     this.write(users);
@@ -142,14 +182,19 @@ export class UsersService {
   }
 
   /** Admin updates a user: rename, promote/demote, regenerate the join code. */
-  update(id: string, patch: { name?: string; isAdmin?: boolean; regenerateCode?: boolean }): User | null {
+  update(
+    id: string,
+    patch: { name?: string; isAdmin?: boolean; regenerateCode?: boolean },
+  ): User | null {
     const users = this.read();
-    const idx = users.findIndex(u => u.id === id);
+    const idx = users.findIndex((u) => u.id === id);
     if (idx < 0) return null;
     const u = users[idx];
-    if (patch.name !== undefined && patch.name.trim()) u.name = patch.name.trim();
+    if (patch.name !== undefined && patch.name.trim())
+      u.name = patch.name.trim();
     if (patch.isAdmin !== undefined) u.isAdmin = !!patch.isAdmin;
-    if (patch.regenerateCode) u.joinCode = this.genCode(users.filter(x => x.id !== id));
+    if (patch.regenerateCode)
+      u.joinCode = this.genCode(users.filter((x) => x.id !== id));
     users[idx] = u;
     this.write(users);
     return u;
@@ -157,7 +202,7 @@ export class UsersService {
 
   remove(id: string): boolean {
     const users = this.read();
-    const next = users.filter(u => u.id !== id);
+    const next = users.filter((u) => u.id !== id);
     if (next.length === users.length) return false;
     this.write(next);
     return true;

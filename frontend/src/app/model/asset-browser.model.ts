@@ -3,6 +3,11 @@
  * Unity-like asset management system for library content
  */
 
+/**
+ * `loot-bundle` ist kein Typ mehr, den man anlegen kann — vorbereitete Beute ist der
+ * GM-Schreibtisch. Der Wert bleibt hier nur stehen, damit alte Asset-Dateien auf der Platte
+ * weiterhin gelesen und angezeigt werden können.
+ */
 export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait' | 'statblock' | 'ingredient' | 'extractor' | 'brew-trait';
 
 /**

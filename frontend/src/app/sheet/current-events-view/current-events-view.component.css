@@ -475,3 +475,104 @@
 }
 
 
+
+/* ── Freigegebene Beute (gemeinsamer Pool) ──
+   Ein Eintrag geht an genau eine Person: der Server entscheidet, wer zuerst war. */
+.loot-pool {
+  background: var(--card);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.loot-pool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.loot-pool-icon {
+  width: 1.1em;
+  height: 1.1em;
+  background-color: var(--accent);
+}
+
+.loot-pool-name {
+  flex: 1;
+  margin: 0;
+  font-size: 0.98rem;
+  color: var(--text);
+}
+
+.loot-pool-count {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.loot-pool-empty,
+.loot-pool-notice {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.loot-pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.loot-pool-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.loot-pool-entry-icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  background-color: var(--text-muted);
+}
+
+.loot-pool-entry-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.loot-pool-entry-name {
+  font-size: 0.86rem;
+  color: var(--text);
+}
+
+.loot-pool-entry-type {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.loot-pool-take {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.08s;
+}
+
+.loot-pool-take:hover:not(:disabled) { background: var(--accentdark, #6d28d9); }
+.loot-pool-take:active:not(:disabled) { transform: scale(0.96); }
+.loot-pool-take:disabled { opacity: 0.5; cursor: default; }

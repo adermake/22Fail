@@ -68,44 +68,51 @@ export class AppController {
   // Image proxy endpoint - downloads image from URL and returns it
   // This avoids CORS issues when searching for images
   @Get('images/proxy')
-  async proxyImage(@Query('url') url: string, @Res() res: Response): Promise<void> {
+  async proxyImage(
+    @Query('url') url: string,
+    @Res() res: Response,
+  ): Promise<void> {
     if (!url) {
       res.status(400).send('URL is required');
       return;
     }
 
     const protocol = url.startsWith('https') ? https : http;
-    
+
     return new Promise((resolve) => {
-      protocol.get(url, { timeout: 10000 }, (response) => {
-        if (response.statusCode === 301 || response.statusCode === 302) {
-          // Follow redirects
-          const redirectUrl = response.headers.location;
-          if (redirectUrl) {
-            this.proxyImage(redirectUrl, res).then(resolve);
-            return;
+      protocol
+        .get(url, { timeout: 10000 }, (response) => {
+          if (response.statusCode === 301 || response.statusCode === 302) {
+            // Follow redirects
+            const redirectUrl = response.headers.location;
+            if (redirectUrl) {
+              this.proxyImage(redirectUrl, res).then(resolve);
+              return;
+            }
           }
-        }
-        
-        const contentType = response.headers['content-type'] || 'image/jpeg';
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        
-        response.pipe(res);
-        response.on('end', () => resolve());
-      }).on('error', (err) => {
-        console.error('Proxy error:', err);
-        res.status(500).send('Failed to fetch image');
-        resolve();
-      });
+
+          const contentType = response.headers['content-type'] || 'image/jpeg';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+
+          response.pipe(res);
+          response.on('end', () => resolve());
+        })
+        .on('error', (err) => {
+          console.error('Proxy error:', err);
+          res.status(500).send('Failed to fetch image');
+          resolve();
+        });
     });
   }
 
   // Download image to server and return an image ID
   @Post('images/download')
-  async downloadImage(@Body() body: { url: string; name: string }): Promise<{ success: boolean; imageId?: string; error?: string }> {
+  async downloadImage(
+    @Body() body: { url: string; name: string },
+  ): Promise<{ success: boolean; imageId?: string; error?: string }> {
     const { url, name } = body;
-    
+
     if (!url || !name) {
       return { success: false, error: 'URL and name are required' };
     }
@@ -113,21 +120,21 @@ export class AppController {
     try {
       // Download the image to a temporary buffer
       const buffer = await this.downloadFileToBuffer(url);
-      
+
       // Determine mime type from URL
       const ext = this.getExtensionFromUrl(url) || 'png';
       const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-      
+
       // Convert to base64 data URL
       const base64 = buffer.toString('base64');
       const dataUrl = `data:${mimeType};base64,${base64}`;
-      
+
       // Store using image service (automatically deduplicates)
       const imageId = this.imageService.storeImage(dataUrl);
 
-      return { 
-        success: true, 
-        imageId 
+      return {
+        success: true,
+        imageId,
       };
     } catch (error) {
       console.error('Download error:', error);
@@ -151,7 +158,7 @@ export class AppController {
   private downloadFileToBuffer(url: string): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
-      
+
       const request = protocol.get(url, { timeout: 30000 }, (response) => {
         if (response.statusCode === 301 || response.statusCode === 302) {
           const redirectUrl = response.headers.location;
@@ -160,7 +167,7 @@ export class AppController {
             return;
           }
         }
-        
+
         if (response.statusCode !== 200) {
           reject(new Error(`HTTP ${response.statusCode}`));
           return;
@@ -184,18 +191,20 @@ export class AppController {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const file = fs.createWriteStream(destPath);
-      
+
       const request = protocol.get(url, { timeout: 30000 }, (response) => {
         if (response.statusCode === 301 || response.statusCode === 302) {
           const redirectUrl = response.headers.location;
           if (redirectUrl) {
             file.close();
             fs.unlinkSync(destPath);
-            this.downloadFile(redirectUrl, destPath).then(resolve).catch(reject);
+            this.downloadFile(redirectUrl, destPath)
+              .then(resolve)
+              .catch(reject);
             return;
           }
         }
-        
+
         if (response.statusCode !== 200) {
           file.close();
           fs.unlinkSync(destPath);
@@ -217,7 +226,7 @@ export class AppController {
         }
         reject(err);
       });
-      
+
       request.on('timeout', () => {
         request.destroy();
         file.close();
@@ -264,8 +273,11 @@ export class AppController {
     // Stamp the creator as a controller so a self-made character is theirs to control.
     const caller = this.usersService.resolve(userId, userCode);
     if (caller && body && typeof body === 'object') {
-      const controllers: string[] = Array.isArray(body.controllerUserIds) ? body.controllerUserIds : [];
-      if (!controllers.includes(caller.id)) body.controllerUserIds = [...controllers, caller.id];
+      const controllers: string[] = Array.isArray(body.controllerUserIds)
+        ? body.controllerUserIds
+        : [];
+      if (!controllers.includes(caller.id))
+        body.controllerUserIds = [...controllers, caller.id];
     }
     console.log('SAVED ' + id);
     this.dataService.saveCharacter(id, JSON.stringify(body));
@@ -275,13 +287,21 @@ export class AppController {
   /** Admin: set exactly which users control a character. */
   @Put('characters/:id/controllers')
   @UseGuards(AdminGuard)
-  setCharacterControllers(@Param('id') id: string, @Body() body: { controllerUserIds: string[] }): any {
+  setCharacterControllers(
+    @Param('id') id: string,
+    @Body() body: { controllerUserIds: string[] },
+  ): any {
     const json = this.dataService.getCharacter(id);
     if (!json) throw new BadRequestException('Character not found');
     const sheet = JSON.parse(json);
-    sheet.controllerUserIds = Array.isArray(body?.controllerUserIds) ? body.controllerUserIds : [];
+    sheet.controllerUserIds = Array.isArray(body?.controllerUserIds)
+      ? body.controllerUserIds
+      : [];
     this.dataService.saveCharacter(id, JSON.stringify(sheet, null, 2));
-    this.characterGateway.broadcastPatch(id, { path: 'controllerUserIds', value: sheet.controllerUserIds });
+    this.characterGateway.broadcastPatch(id, {
+      path: 'controllerUserIds',
+      value: sheet.controllerUserIds,
+    });
     return { success: true, controllerUserIds: sheet.controllerUserIds };
   }
 
@@ -319,16 +339,19 @@ export class AppController {
   @Post('trash/:kind/:id/restore')
   @UseGuards(AdminGuard)
   restoreFromTrash(@Param('kind') kind: string, @Param('id') id: string): any {
-    if (kind !== 'character' && kind !== 'world') throw new BadRequestException('Unknown kind');
+    if (kind !== 'character' && kind !== 'world')
+      throw new BadRequestException('Unknown kind');
     const result = this.dataService.restoreFromTrash(kind, id);
-    if (!result.ok) throw new BadRequestException(result.error ?? 'Restore failed');
+    if (!result.ok)
+      throw new BadRequestException(result.error ?? 'Restore failed');
     return { success: true };
   }
 
   @Delete('trash/:kind/:id')
   @UseGuards(AdminGuard)
   purgeFromTrash(@Param('kind') kind: string, @Param('id') id: string): any {
-    if (kind !== 'character' && kind !== 'world') throw new BadRequestException('Unknown kind');
+    if (kind !== 'character' && kind !== 'world')
+      throw new BadRequestException('Unknown kind');
     return { success: this.dataService.purgeFromTrash(kind, id) };
   }
 
@@ -407,14 +430,17 @@ export class AppController {
       throw new BadRequestException('File must be an image');
     }
 
-    const imageId = this.imageService.storeImageBuffer(file.buffer, file.mimetype);
+    const imageId = this.imageService.storeImageBuffer(
+      file.buffer,
+      file.mimetype,
+    );
     return { imageId };
   }
 
   @Get('images/:id')
   getImage(@Param('id') id: string, @Res() res: Response): void {
     const imageData = this.imageService.getImageBuffer(id);
-    
+
     if (!imageData) {
       res.status(404).send('Image not found');
       return;
@@ -452,7 +478,7 @@ export class AppController {
   @Get('textures/:id')
   getTexture(@Param('id') id: string, @Res() res: Response): void {
     const textureData = this.textureService.getTextureBuffer(id);
-    
+
     if (!textureData) {
       res.status(404).send('Texture not found');
       return;
@@ -484,11 +510,15 @@ export class AppController {
   }
 
   @Post('texture-library')
-  addToTextureLibrary(@Body() body: { name: string; textureId: string; tileSize: number }): any {
+  addToTextureLibrary(
+    @Body() body: { name: string; textureId: string; tileSize: number },
+  ): any {
     const { name, textureId, tileSize } = body;
 
     if (!name || !textureId || !tileSize) {
-      throw new BadRequestException('Missing required fields: name, textureId, tileSize');
+      throw new BadRequestException(
+        'Missing required fields: name, textureId, tileSize',
+      );
     }
 
     const texture = {
@@ -512,21 +542,21 @@ export class AppController {
   @Post('images/cleanup')
   cleanupOrphanedImages(): any {
     console.log('[CLEANUP] Starting image cleanup...');
-    
+
     // Get all stored images
     const allImages = this.imageService.listImages();
     console.log(`[CLEANUP] Found ${allImages.length} stored images`);
-    
+
     // Get all worlds to check for image references
     const worlds = this.dataService.getAllWorldNames();
     const referencedImages = new Set<string>();
-    
+
     for (const worldName of worlds) {
       try {
         const worldData = this.dataService.getWorld(worldName);
         if (worldData) {
           const world = JSON.parse(worldData);
-          
+
           // Check lobby maps for image references
           if (world.lobby && world.lobby.maps) {
             for (const map of world.lobby.maps) {
@@ -537,12 +567,20 @@ export class AppController {
               }
             }
           }
-          
+
           // Check characters for portrait images
           if (world.characters) {
             for (const character of world.characters) {
-              if (character.portrait && character.portrait.startsWith('http://localhost:3000/api/images/')) {
-                const imageId = character.portrait.replace('http://localhost:3000/api/images/', '');
+              if (
+                character.portrait &&
+                character.portrait.startsWith(
+                  'http://localhost:3000/api/images/',
+                )
+              ) {
+                const imageId = character.portrait.replace(
+                  'http://localhost:3000/api/images/',
+                  '',
+                );
                 referencedImages.add(imageId);
               }
             }
@@ -552,13 +590,18 @@ export class AppController {
         console.error(`[CLEANUP] Error checking world ${worldName}:`, error);
       }
     }
-    
+
     console.log(`[CLEANUP] Found ${referencedImages.size} referenced images`);
-    
+
     // Find orphaned images
-    const orphanedImages = allImages.filter(imageId => !referencedImages.has(imageId));
-    console.log(`[CLEANUP] Found ${orphanedImages.length} orphaned images:`, orphanedImages);
-    
+    const orphanedImages = allImages.filter(
+      (imageId) => !referencedImages.has(imageId),
+    );
+    console.log(
+      `[CLEANUP] Found ${orphanedImages.length} orphaned images:`,
+      orphanedImages,
+    );
+
     // Delete orphaned images
     let deletedCount = 0;
     for (const imageId of orphanedImages) {
@@ -566,15 +609,15 @@ export class AppController {
         deletedCount++;
       }
     }
-    
+
     console.log(`[CLEANUP] Deleted ${deletedCount} orphaned images`);
-    return { 
-      success: true, 
+    return {
+      success: true,
       totalImages: allImages.length,
       referencedImages: referencedImages.size,
       orphanedImages: orphanedImages.length,
       deletedImages: deletedCount,
-      orphanedImageIds: orphanedImages
+      orphanedImageIds: orphanedImages,
     };
   }
 
@@ -632,7 +675,10 @@ export class AppController {
 
   // Battle Map Endpoints (legacy)
   @Get('worlds/:worldName/battlemaps/:battleMapId')
-  getBattleMap(@Param('worldName') worldName: string, @Param('battleMapId') battleMapId: string): any {
+  getBattleMap(
+    @Param('worldName') worldName: string,
+    @Param('battleMapId') battleMapId: string,
+  ): any {
     const battleMap = this.dataService.getBattleMap(worldName, battleMapId);
     if (!battleMap) {
       return null;
@@ -674,7 +720,10 @@ export class AppController {
   }
 
   @Get('worlds/:worldName/lobby/maps/:mapId')
-  getMap(@Param('worldName') worldName: string, @Param('mapId') mapId: string): any {
+  getMap(
+    @Param('worldName') worldName: string,
+    @Param('mapId') mapId: string,
+  ): any {
     const map = this.dataService.getMap(worldName, mapId);
     if (!map) {
       return null;
@@ -683,7 +732,11 @@ export class AppController {
   }
 
   @Post('worlds/:worldName/lobby/maps/:mapId')
-  saveMap(@Param('worldName') worldName: string, @Param('mapId') mapId: string, @Body() body: any): any {
+  saveMap(
+    @Param('worldName') worldName: string,
+    @Param('mapId') mapId: string,
+    @Body() body: any,
+  ): any {
     const map = this.dataService.saveMap(worldName, mapId, body);
     return map;
   }
@@ -705,26 +758,37 @@ export class AppController {
       if (!characterJson) continue;
 
       const character = JSON.parse(characterJson);
-      
+
       // Check if portrait is a base64 data URL
-      if (character.portrait && typeof character.portrait === 'string' && character.portrait.startsWith('data:image')) {
+      if (
+        character.portrait &&
+        typeof character.portrait === 'string' &&
+        character.portrait.startsWith('data:image')
+      ) {
         try {
           const imageId = this.imageService.storeImage(character.portrait);
           this.dataService.applyPatchToCharacter(characterId, {
             path: 'portrait',
             value: imageId,
           });
-          console.log(`[MIGRATION] Migrated character ${characterId}: ${(character.portrait.length / 1024).toFixed(2)}KB -> ${imageId}`);
+          console.log(
+            `[MIGRATION] Migrated character ${characterId}: ${(character.portrait.length / 1024).toFixed(2)}KB -> ${imageId}`,
+          );
           migrated++;
         } catch (err) {
-          console.error(`[MIGRATION] Failed to migrate character ${characterId}:`, err);
+          console.error(
+            `[MIGRATION] Failed to migrate character ${characterId}:`,
+            err,
+          );
         }
       } else {
         skipped++;
       }
     }
 
-    console.log(`[MIGRATION] Complete: ${migrated} migrated, ${skipped} skipped`);
+    console.log(
+      `[MIGRATION] Complete: ${migrated} migrated, ${skipped} skipped`,
+    );
     return { success: true, migrated, skipped };
   }
 
@@ -791,23 +855,29 @@ export class AppController {
   // ==================== STRESS TEST ENDPOINTS ====================
 
   @Post('stress-test/generate')
-  async generateStressTestData(@Body() config: {
-    characters?: number;
-    worlds?: number;
-    items?: number;
-    spells?: number;
-    runes?: number;
-    skills?: number;
-    battlemaps?: number;
-    customImages?: string[];
-  }) {
+  async generateStressTestData(
+    @Body()
+    config: {
+      characters?: number;
+      worlds?: number;
+      items?: number;
+      spells?: number;
+      runes?: number;
+      skills?: number;
+      battlemaps?: number;
+      customImages?: string[];
+    },
+  ) {
     console.log('[STRESS TEST] Generating test data:', config);
 
     const result = await this.stressTestService.generateStressTestData(config);
 
     // Save all generated characters
     for (const char of result.characters) {
-      this.dataService.saveCharacter(char.id, JSON.stringify(char.data, null, 2));
+      this.dataService.saveCharacter(
+        char.id,
+        JSON.stringify(char.data, null, 2),
+      );
     }
 
     // Save all generated worlds
@@ -815,7 +885,9 @@ export class AppController {
       this.dataService.saveWorld(world.name, JSON.stringify(world, null, 2));
     }
 
-    console.log(`[STRESS TEST] Created ${result.characters.length} characters, ${result.worlds.length} worlds, ${result.imageIds.length} images`);
+    console.log(
+      `[STRESS TEST] Created ${result.characters.length} characters, ${result.worlds.length} worlds, ${result.imageIds.length} images`,
+    );
 
     return {
       success: true,
@@ -824,8 +896,8 @@ export class AppController {
         worlds: result.worlds.length,
         images: result.imageIds.length,
       },
-      characterIds: result.characters.map(c => c.id),
-      worldNames: result.worlds.map(w => w.name),
+      characterIds: result.characters.map((c) => c.id),
+      worldNames: result.worlds.map((w) => w.name),
       imageIds: result.imageIds,
     };
   }
@@ -836,7 +908,9 @@ export class AppController {
 
     // Delete characters - delete the actual files
     const allCharIds = this.dataService.getAllCharacterIds();
-    const stressCharIds = allCharIds.filter(id => id.startsWith('stress_char_'));
+    const stressCharIds = allCharIds.filter((id) =>
+      id.startsWith('stress_char_'),
+    );
 
     for (const charId of stressCharIds) {
       // Delete character file (now just id.json)
@@ -849,7 +923,9 @@ export class AppController {
 
     // Delete worlds - delete the entire world directories
     const worldNames = this.dataService.getAllWorldNames();
-    const stressWorldNames = worldNames.filter(name => name.startsWith('StressWorld_'));
+    const stressWorldNames = worldNames.filter((name) =>
+      name.startsWith('StressWorld_'),
+    );
 
     const worldsDir = path.join(__dirname, '../../../data/worlds');
     for (const worldName of stressWorldNames) {
@@ -859,7 +935,7 @@ export class AppController {
         .replace(/\s+/g, '_')
         .replace(/\.+/g, '_')
         .substring(0, 200);
-      
+
       const worldDirPath = path.join(worldsDir, safeName);
       if (fs.existsSync(worldDirPath)) {
         // Delete the entire world directory recursively
@@ -867,7 +943,9 @@ export class AppController {
       }
     }
 
-    console.log(`[STRESS TEST] Deleted ${stressCharIds.length} characters, ${stressWorldNames.length} worlds`);
+    console.log(
+      `[STRESS TEST] Deleted ${stressCharIds.length} characters, ${stressWorldNames.length} worlds`,
+    );
 
     return {
       success: true,

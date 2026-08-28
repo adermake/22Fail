@@ -689,6 +689,25 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
               </div>
             }
           }
+
+          <!-- Inventar: die Beute, die der NSC bei sich hat (pro Token, nicht pro Statblock) -->
+          @if (inventory.length > 0) {
+            <div class="equip-section-label">Inventar</div>
+            @for (item of inventory; track $index) {
+              <div class="equip-entry">
+                <div class="equip-top">
+                  <span class="equip-type-icon"><span class="app-icon i-item"></span></span>
+                  <span class="equip-name">{{ item.name }}</span>
+                  @if (item.stackable && (item.amount ?? 1) > 1) {
+                    <span class="equip-amount">×{{ item.amount }}</span>
+                  }
+                </div>
+                @if (item.description) {
+                  <div class="equip-desc">{{ item.description }}</div>
+                }
+              </div>
+            }
+          }
         </div>
       }
 
@@ -1526,6 +1545,9 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
     .equip-stat-label { font-size: 10px; color: #6b7280; }
     .equip-stat-val { font-size: 13px; font-weight: 700; color: #fbbf24; }
     .equip-desc { font-size: 10px; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+    .equip-section-label { margin: 10px 0 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #9ca3af; }
+    .equip-amount { margin-left: auto; font-size: 10px; font-weight: 600; color: #9ca3af; }
 
     /* ---- Dice Roller Overlay ---- */
     .dice-overlay-backdrop {
@@ -1800,6 +1822,11 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (this.character) return this.character.spells || [];
     if (this.npc)       return this.npc.spells || [];
     return [];
+  }
+
+  /** Die Beute des Tokens. Liegt am Token, nicht am geteilten Statblock — siehe `Token.inventory`. */
+  get inventory(): ItemBlock[] {
+    return this.token?.inventory ?? [];
   }
 
   get equipment(): ItemBlock[] {

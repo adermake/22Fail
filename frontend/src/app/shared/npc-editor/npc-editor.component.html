@@ -164,6 +164,7 @@
             <button [class.active]="aktuellTab === 'skills'" (click)="aktuellTab = 'skills'">Fertigkeiten</button>
             <button [class.active]="aktuellTab === 'spells'" (click)="aktuellTab = 'spells'">Zauber</button>
             <button [class.active]="aktuellTab === 'equipment'" (click)="aktuellTab = 'equipment'">Ausrüstung</button>
+            <button [class.active]="aktuellTab === 'inventory'" (click)="aktuellTab = 'inventory'">Inventar</button>
             <button [class.active]="aktuellTab === 'notes'" (click)="aktuellTab = 'notes'">Notizen</button>
           </div>
 
@@ -250,6 +251,31 @@
             </div>
           }
 
+          <!-- INVENTAR — die Beute, die der NSC bei sich trägt (beeinflusst keine Werte) -->
+          @if (aktuellTab === 'inventory') {
+            <div class="npc-tab-head">
+              <span class="npc-hint">{{ draft.inventory.length }} Gegenstand/-stände</span>
+              <span class="npc-tab-head-actions">
+                <button class="npc-btn-add" (click)="openInventoryEditor(null)">＋ Erstellen</button>
+              </span>
+            </div>
+            @if (!draft.inventory.length) {
+              <p class="npc-empty">Noch keine Beute — im Browser rechts auswählen oder erstellen.</p>
+            }
+            <div class="npc-embed-list">
+              @for (it of draft.inventory; track $index) {
+                <div class="npc-embed-card">
+                  <div class="npc-embed-actions">
+                    <button (click)="openInventoryEditor($index)" title="Bearbeiten">✎</button>
+                    <button (click)="removeInventoryItem($index)" title="Entfernen">×</button>
+                  </div>
+                  <app-item [item]="it" [sheet]="previewSheet" [index]="$index"
+                            [startUnfolded]="true" [hideFoldControls]="true"></app-item>
+                </div>
+              }
+            </div>
+          }
+
           <!-- NOTES -->
           @if (aktuellTab === 'notes') {
             <textarea class="npc-notes" [(ngModel)]="draft.notes" placeholder="GM-Notizen…"></textarea>
@@ -323,7 +349,7 @@
                       @if (isFolderOpen('skill', fol.path)) {
                         <div class="npc-tree-skills">
                           @for (f of fol.files; track f.id) {
-                            <button class="npc-tree-skill" (click)="addSkillFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                            <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id" (click)="addSkillFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
                           }
                         </div>
                       }
@@ -347,7 +373,7 @@
                     @if (isFolderOpen('item', fol.path)) {
                       <div class="npc-tree-skills">
                         @for (f of fol.files; track f.id) {
-                          <button class="npc-tree-skill" (click)="addItemFromLibrary(f)">
+                          <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id" (click)="addItemFromLibrary(f)">
                             <span>＋ {{ f.name }}</span>
                             @if (itemValue(f); as gold) {
                               <span class="npc-item-value" title="Goldwert">{{ gold }} G</span>
@@ -375,7 +401,7 @@
                     @if (isFolderOpen('spell', fol.path)) {
                       <div class="npc-tree-skills">
                         @for (f of fol.files; track f.id) {
-                          <button class="npc-tree-skill" (click)="addSpellFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                          <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id" (click)="addSpellFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
                         }
                       </div>
                     }

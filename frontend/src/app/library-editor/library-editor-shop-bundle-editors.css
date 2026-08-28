@@ -1,8 +1,7 @@
-/* Shop & Loot Bundle Editor Styles */
+/* Shop Editor Styles */
 /* Split from main asset-browser.component.css to reduce file size */
 
-.shop-editor,
-.loot-bundle-editor {
+.shop-editor {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -11,24 +10,20 @@
   overflow-y: auto;
 }
 
-.shop-editor .form-group,
-.loot-bundle-editor .form-group {
+.shop-editor .form-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.shop-editor .form-group label,
-.loot-bundle-editor .form-group label {
+.shop-editor .form-group label {
   color: var(--text);
   font-weight: 600;
   font-size: 0.9rem;
 }
 
 .shop-editor .form-group input,
-.shop-editor .form-group textarea,
-.loot-bundle-editor .form-group input,
-.loot-bundle-editor .form-group textarea {
+.shop-editor .form-group textarea {
   padding: 0.75rem;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -39,16 +34,13 @@
 }
 
 .shop-editor .form-group input:focus,
-.shop-editor .form-group textarea:focus,
-.loot-bundle-editor .form-group input:focus,
-.loot-bundle-editor .form-group textarea:focus {
+.shop-editor .form-group textarea:focus {
   outline: none;
   border-color: var(--accent);
 }
 
 /* Deals Section */
-.deals-section,
-.loot-items-section {
+.deals-section {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -93,9 +85,8 @@
   cursor: not-allowed;
 }
 
-/* Deal/Loot Creator */
-.deal-creator,
-.loot-creator {
+/* Deal Creator */
+.deal-creator {
   padding: 1rem;
   background: var(--card);
   border: 2px solid var(--accent);
@@ -219,9 +210,8 @@
   gap: 0.5rem;
 }
 
-/* Deals/Loot Items List */
-.deals-list,
-.loot-list {
+/* Deals List */
+.deals-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -229,8 +219,7 @@
   overflow-y: auto;
 }
 
-.deal-card,
-.loot-item-card {
+.deal-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -241,8 +230,7 @@
   transition: all 0.2s;
 }
 
-.deal-card:hover,
-.loot-item-card:hover {
+.deal-card:hover {
   background: var(--bg);
   border-color: var(--accent);
 }
@@ -251,35 +239,26 @@
   border-left: 4px solid #ff9800;
 }
 
-.deal-info,
-.loot-item-info {
+.deal-info {
   display: flex;
   align-items: center;
   gap: 1rem;
   flex: 1;
 }
 
-.deal-icon,
-.loot-icon {
+.deal-icon {
   font-size: 1.5rem;
 }
 
-.deal-details,
-.loot-details {
+.deal-details {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.deal-name,
-.loot-name {
+.deal-name {
   color: var(--text);
   font-weight: 600;
-}
-
-.loot-type {
-  color: var(--text-dim);
-  font-size: 0.85rem;
 }
 
 .deal-meta {

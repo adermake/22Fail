@@ -1,6 +1,16 @@
 import {
-  BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException,
-  Param, Patch, Post, UnauthorizedException, UseGuards,
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AdminGuard } from './admin.guard';
@@ -71,7 +81,11 @@ export class UsersController {
 
   @Patch(':id')
   @UseGuards(AdminGuard)
-  update(@Param('id') id: string, @Body() body: { name?: string; isAdmin?: boolean; regenerateCode?: boolean }) {
+  update(
+    @Param('id') id: string,
+    @Body()
+    body: { name?: string; isAdmin?: boolean; regenerateCode?: boolean },
+  ) {
     const updated = this.users.update(id, body ?? {});
     if (!updated) throw new NotFoundException('User not found');
     return updated;

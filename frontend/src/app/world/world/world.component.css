@@ -981,6 +981,35 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Umschalter zwischen den fünf Wissensarten */
+.km-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 10px 16px 0;
+}
+
+.km-kind {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.74rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.08s;
+}
+
+.km-kind:hover { background: var(--card); color: var(--text); }
+.km-kind:active { transform: scale(0.97); }
+
+.km-kind.active {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .km-hint {
   font-size: 0.78rem;
   color: var(--muted);

@@ -7,7 +7,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import { MapEditorService, MapOp, ObjectCollection } from './map-editor.service';
+import {
+  MapEditorService,
+  MapOp,
+  ObjectCollection,
+} from './map-editor.service';
 import { UsersService } from './users.service';
 
 /**
@@ -44,22 +48,32 @@ export class MapEditorGateway {
 
   /** Resolve GM status from the socket handshake auth the frontend attaches. */
   private isGM(client: Socket): boolean {
-    const auth = client.handshake?.auth as { userId?: string; code?: string } | undefined;
+    const auth = client.handshake?.auth as
+      | { userId?: string; code?: string }
+      | undefined;
     return !!this.users.resolve(auth?.userId, auth?.code)?.isAdmin;
   }
 
   @SubscribeMessage('joinMapEditor')
-  join(@MessageBody() data: { worldName: string }, @ConnectedSocket() client: Socket) {
+  join(
+    @MessageBody() data: { worldName: string },
+    @ConnectedSocket() client: Socket,
+  ) {
     const { worldName } = data ?? {};
     if (!worldName) return;
 
     // Exactly one room per client, so a single emit addressing both cannot double-deliver.
-    const room = this.isGM(client) ? this.gmRoom(worldName) : this.room(worldName);
+    const room = this.isGM(client)
+      ? this.gmRoom(worldName)
+      : this.room(worldName);
     client.join(room);
   }
 
   @SubscribeMessage('leaveMapEditor')
-  leave(@MessageBody() data: { worldName: string }, @ConnectedSocket() client: Socket) {
+  leave(
+    @MessageBody() data: { worldName: string },
+    @ConnectedSocket() client: Socket,
+  ) {
     const { worldName } = data ?? {};
     if (!worldName) return;
     client.leave(this.room(worldName));
@@ -76,21 +90,24 @@ export class MapEditorGateway {
 
     // Editing the world is a GM action. Rejecting loudly beats silently diverging state.
     if (!this.isGM(client)) {
-      this.logger.warn(`Rejected map edit from non-GM socket ${client.id} on ${worldName}`);
+      this.logger.warn(
+        `Rejected map edit from non-GM socket ${client.id} on ${worldName}`,
+      );
       return;
     }
 
     // Visibility before the op decides who may be told about it afterwards.
     const priorVis =
       op.t === 'upd' || op.t === 'del'
-        ? this.mapEditor.getObjectVisibility(worldName, op.c as ObjectCollection, op.id)
+        ? this.mapEditor.getObjectVisibility(worldName, op.c, op.id)
         : undefined;
 
     this.mapEditor.applyOp(worldName, op);
 
     const gm = this.gmRoom(worldName);
     const players = this.room(worldName);
-    const toEveryone = () => this.server.to(gm).to(players).emit('mapEditorOp', op);
+    const toEveryone = () =>
+      this.server.to(gm).to(players).emit('mapEditorOp', op);
     const toGMs = () => this.server.to(gm).emit('mapEditorOp', op);
 
     switch (op.t) {
@@ -120,11 +137,16 @@ export class MapEditorGateway {
 
         if (wasSecret && !nowSecret) {
           // Reveal: players are seeing this object for the first time.
-          const full = this.mapEditor.getObject(worldName, op.c as ObjectCollection, op.id);
-          if (full) this.server.to(players).emit('mapEditorOp', { t: 'add', c: op.c, v: full });
+          const full = this.mapEditor.getObject(worldName, op.c, op.id);
+          if (full)
+            this.server
+              .to(players)
+              .emit('mapEditorOp', { t: 'add', c: op.c, v: full });
         } else if (!wasSecret && nowSecret) {
           // Hidden again: retract it from players entirely.
-          this.server.to(players).emit('mapEditorOp', { t: 'del', c: op.c, id: op.id });
+          this.server
+            .to(players)
+            .emit('mapEditorOp', { t: 'del', c: op.c, id: op.id });
         } else if (!nowSecret) {
           this.server.to(players).emit('mapEditorOp', op);
         }

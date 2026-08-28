@@ -12,17 +12,24 @@ import {
 } from '@nestjs/common';
 import * as LibraryServiceModule from './library.service';
 import type { Library } from './library.service';
+import { WorldGateway } from './world.gateway';
 
 @Controller('api/library')
 export class LibraryController {
-  constructor(private readonly libraryService: LibraryServiceModule.LibraryService) {}
+  constructor(
+    private readonly libraryService: LibraryServiceModule.LibraryService,
+    private readonly worldGateway: WorldGateway,
+  ) {}
 
   /**
    * GET /library
    * Get all libraries or filter by query parameters
    */
   @Get()
-  getAllLibraries(@Query('tag') tag?: string, @Query('public') isPublic?: string): Library[] {
+  getAllLibraries(
+    @Query('tag') tag?: string,
+    @Query('public') isPublic?: string,
+  ): Library[] {
     if (tag) {
       return this.libraryService.getLibrariesByTag(tag);
     }
@@ -48,7 +55,9 @@ export class LibraryController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   createLibrary(@Body() library: Library): Library {
-    return this.libraryService.createLibrary(library);
+    const created = this.libraryService.createLibrary(library);
+    this.worldGateway.broadcastLibraryChanged(created.id);
+    return created;
   }
 
   /**
@@ -60,7 +69,11 @@ export class LibraryController {
     @Param('id') id: string,
     @Body() updates: Partial<Library>,
   ): Library {
-    return this.libraryService.updateLibrary(id, updates);
+    const updated = this.libraryService.updateLibrary(id, updates);
+    // Worlds and lobbies hold a merged copy of every linked library. Without this they keep
+    // showing the pre-edit content until someone reloads the page.
+    this.worldGateway.broadcastLibraryChanged(id);
+    return updated;
   }
 
   /**
@@ -71,5 +84,6 @@ export class LibraryController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteLibrary(@Param('id') id: string): void {
     this.libraryService.deleteLibrary(id);
+    this.worldGateway.broadcastLibraryChanged(id);
   }
 }

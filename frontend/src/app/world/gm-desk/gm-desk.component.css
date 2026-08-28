@@ -1,0 +1,424 @@
+/* Drei Spalten wie im NSC-Editor: eine schmale Porträtleiste, die Vorbereitung, der Browser.
+   Jede Spalte scrollt für sich, damit lange Listen die anderen nicht wegdrücken. */
+.desk {
+  display: grid;
+  grid-template-columns: 132px minmax(280px, 1.1fr) minmax(260px, 1fr);
+  gap: 0;
+  height: 620px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.desk-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.desk-col-players,
+.desk-col-prep { border-right: 1px solid var(--border); }
+
+.desk-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.desk-col-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9ca3af);
+}
+
+.desk-empty {
+  margin: 4px 0;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--text-muted, #9ca3af);
+}
+
+.desk-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #cbd5e1);
+  font-size: 0.74rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, transform 0.08s;
+}
+
+.desk-btn:hover { background: var(--bg); color: var(--text); }
+.desk-btn:active { transform: scale(0.97); }
+.desk-btn.danger:hover { border-color: #f87171; color: #f87171; }
+
+/* ── Spalte 1: Porträts ───────────────────────────────────────────────── */
+
+.desk-players {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.desk-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-muted, #cbd5e1);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s;
+}
+
+.desk-player img,
+.desk-player-initial {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.desk-player-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--border);
+  color: var(--text);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.desk-player-name {
+  font-size: 0.7rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.desk-player:hover { border-color: var(--border); }
+.desk-player:active { transform: scale(0.97); }
+
+/* Die Auswahl muss auf einen Blick erkennbar sein — sie ändert, wohin jeder Klick geht. */
+.desk-player.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px rgba(139, 92, 246, 0.55);
+  color: var(--text);
+}
+
+.desk-selected-hint {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--accent);
+}
+
+.desk-selected-hint.muted { color: var(--text-muted, #9ca3af); }
+
+/* ── Spalte 2: Vorbereitung ───────────────────────────────────────────── */
+
+.desk-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.desk-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #cbd5e1);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
+}
+
+.desk-tab small { opacity: 0.65; font-size: 0.68rem; }
+.desk-tab:hover { background: var(--bg); color: var(--text); }
+.desk-tab:active { transform: scale(0.97); }
+
+.desk-tab.active {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.desk-tab.npc { border-style: dashed; }
+
+/* Ein aufgedeckter Reiter pulsiert, damit der GM nie vergisst, dass die Spieler mitlesen. */
+.desk-tab.revealed {
+  border-color: #34d399;
+  color: #34d399;
+  animation: deskGlow 1.8s ease-in-out infinite;
+}
+
+@keyframes deskGlow {
+  0%, 100% { box-shadow: 0 0 0 rgba(52, 211, 153, 0); }
+  50%      { box-shadow: 0 0 10px rgba(52, 211, 153, 0.65); }
+}
+
+.desk-tab-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.desk-tab-name { font-size: 0.86rem; font-weight: 600; color: var(--text); }
+
+.desk-rename {
+  padding: 3px 6px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.desk-tab-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.desk-reveal,
+.desk-entry-hide {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+}
+
+.desk-npc-badge {
+  font-size: 0.68rem;
+  color: var(--text-muted, #9ca3af);
+  font-style: italic;
+}
+
+.desk-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-height: 0;
+}
+
+.desk-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: grab;
+}
+
+.desk-entry.hidden-entry { opacity: 0.45; }
+.desk-entry.claimed { opacity: 0.55; border-style: dashed; }
+
+.desk-entry-icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  background-color: var(--text-muted, #9ca3af);
+}
+
+.desk-entry-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.desk-entry-name { font-size: 0.82rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.desk-entry-type { font-size: 0.66rem; color: var(--text-muted, #9ca3af); }
+.desk-entry-claimed { font-size: 0.66rem; color: #34d399; white-space: nowrap; }
+
+.desk-entry-actions { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
+
+.desk-icon-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.08s;
+}
+
+.desk-icon-btn:hover { background: var(--card); color: var(--text); }
+.desk-icon-btn:active { transform: scale(0.9); }
+.desk-icon-btn.danger:hover { color: #f87171; }
+
+.cdk-drag-preview {
+  border-radius: 6px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.4);
+}
+
+.cdk-drag-placeholder { opacity: 0.35; }
+
+/* ── Spalte 3: Bibliothek ─────────────────────────────────────────────── */
+
+.desk-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.desk-cat {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #cbd5e1);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
+}
+
+.desk-cat:hover { background: var(--bg); color: var(--text); }
+.desk-cat:active { transform: scale(0.97); }
+
+.desk-cat.active {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.desk-search {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.desk-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.desk-folder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-left-color: #eab308;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #cbd5e1);
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+}
+
+.desk-folder:hover { background: var(--bg); }
+.desk-folder:active { transform: scale(0.99); }
+.desk-folder small { opacity: 0.6; }
+
+.desk-folder-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px 0 5px 12px;
+}
+
+.desk-lib-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #cbd5e1);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.08s;
+}
+
+.desk-lib-entry:hover { background: var(--bg); color: var(--text); }
+.desk-lib-entry:active { transform: scale(0.97); background: var(--bg); }
+
+/* Die Quittung für den Klick — ohne sie fühlt sich das ＋ an, als täte es nichts. */
+.desk-lib-entry.just-added { animation: deskJustAdded 0.45s ease-out; }
+
+@keyframes deskJustAdded {
+  0%   { background: rgba(52, 211, 153, 0.45); color: #ecfdf5; }
+  100% { background: transparent; color: var(--text-muted, #cbd5e1); }
+}
+
+@media (max-width: 1100px) {
+  .desk {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .desk-col-players,
+  .desk-col-prep {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .desk-players { flex-direction: row; flex-wrap: wrap; }
+  .desk-scroll, .desk-entries { max-height: 340px; }
+}
+
+/* Der Chip, der beim Ziehen am Cursor hängt — Vorbild ist der Inventar-Drag im Bogen. */
+.desk-drag-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.78rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Ein Porträt, über dem etwas schwebt, muss als Ziel erkennbar sein. */
+.desk-player.cdk-drop-list-dragging,
+.desk-player.cdk-drop-list-receiving {
+  border-color: #34d399;
+  box-shadow: 0 0 0 1px #34d399, 0 0 12px rgba(52, 211, 153, 0.5);
+}

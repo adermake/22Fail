@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, debounceTime } from 'rxjs';
 import { LibraryApiService } from './library-api.service';
+import { WorldSocketService } from './world-socket.service';
 import { AssetBrowserApiService } from './asset-browser-api.service';
 import { Library, createEmptyLibrary } from '../model/library.model';
 import { ItemBlock } from '../model/item-block.model';
@@ -18,6 +19,7 @@ import { MacroAction } from '../model/macro-action.model';
 export class LibraryStoreService {
   private api = inject(LibraryApiService);
   private assetBrowserApi = inject(AssetBrowserApiService);
+  private worldSocket = inject(WorldSocketService);
 
   // Current library being edited
   private librarySubject = new BehaviorSubject<Library | null>(null);
@@ -29,6 +31,18 @@ export class LibraryStoreService {
 
   // Loading state
   isLoading = signal(false);
+
+  /**
+   * Bibliotheken werden zur Laufzeit bearbeitet, während Welten und Lobbys offen sind. Ohne
+   * dieses Abo zeigen die den Stand von vor der Änderung, bis jemand die Seite neu lädt.
+   * Entprellt, weil eine Massenoperation im Asset-Browser eine ganze Serie von Ereignissen sendet.
+   */
+  private libraryChangedSub = this.worldSocket.libraryChanged$
+    .pipe(debounceTime(300))
+    .subscribe(() => void this.loadAllLibraries());
+
+  /** Feuert, wenn eine Bibliothek gespeichert wurde — für Ansichten mit eigenem Asset-Cache. */
+  readonly libraryChanged$ = this.worldSocket.libraryChanged$;
 
   get currentLibrary(): Library | null {
     return this.librarySubject.value;
@@ -104,7 +118,6 @@ export class LibraryStoreService {
             statusEffects: [],
             macroActions: [],
             shops: [],
-            lootBundles: [],
             dependencies: [],
             tags: created.tags || [],
             isPublic: created.isPublic || false
@@ -364,24 +377,6 @@ export class LibraryStoreService {
     this.librarySubject.next({ ...library });
   }
 
-  addLootBundle(bundle: any): void {
-    const library = this.librarySubject.value;
-    if (!library) return;
-
-    library.lootBundles.push(bundle);
-    library.updatedAt = Date.now();
-    this.librarySubject.next({ ...library });
-  }
-
-  removeLootBundle(bundleId: string): void {
-    const library = this.librarySubject.value;
-    if (!library) return;
-
-    library.lootBundles = library.lootBundles.filter(b => b.id !== bundleId);
-    library.updatedAt = Date.now();
-    this.librarySubject.next({ ...library });
-  }
-
   updateShop(shopId: string, field: string, value: any): void {
     const library = this.librarySubject.value;
     if (!library) return;
@@ -414,43 +409,6 @@ export class LibraryStoreService {
     const shop = library.shops.find(s => s.id === shopId);
     if (shop && shop.deals) {
       shop.deals = shop.deals.filter(d => d.id !== dealId);
-      library.updatedAt = Date.now();
-      this.librarySubject.next({ ...library });
-    }
-  }
-
-  updateLootBundle(bundleId: string, field: string, value: any): void {
-    const library = this.librarySubject.value;
-    if (!library) return;
-
-    const bundle = library.lootBundles.find(b => b.id === bundleId);
-    if (bundle) {
-      (bundle as any)[field] = value;
-      library.updatedAt = Date.now();
-      this.librarySubject.next({ ...library });
-    }
-  }
-
-  addLootItemToBundle(bundleId: string, item: any): void {
-    const library = this.librarySubject.value;
-    if (!library) return;
-
-    const bundle = library.lootBundles.find(b => b.id === bundleId);
-    if (bundle) {
-      if (!bundle.items) bundle.items = [];
-      bundle.items.push(item);
-      library.updatedAt = Date.now();
-      this.librarySubject.next({ ...library });
-    }
-  }
-
-  removeLootItemFromBundle(bundleId: string, itemId: string): void {
-    const library = this.librarySubject.value;
-    if (!library) return;
-
-    const bundle = library.lootBundles.find(b => b.id === bundleId);
-    if (bundle && bundle.items) {
-      bundle.items = bundle.items.filter(i => i.id !== itemId);
       library.updatedAt = Date.now();
       this.librarySubject.next({ ...library });
     }

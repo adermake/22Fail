@@ -1,12 +1,15 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { 
-  CurrentEvent, ShopEvent, LootBundleEvent, ShopDeal, LootItem as EventLootItem, 
-  formatCurrency, convertToCopper, copperToCurrency, Currency 
+import {
+  CurrentEvent, ShopEvent, ShopDeal,
+  formatCurrency, convertToCopper, copperToCurrency, Currency
 } from '../../model/current-events.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
+import {
+  DeskEntry, DeskTab, GRANT_TYPE_ICON, GRANT_TYPE_LABEL,
+} from '../../model/gm-desk.model';
 
 export interface BuyItemEvent {
   eventId: string;
@@ -15,11 +18,10 @@ export interface BuyItemEvent {
   totalCostCopper: number;
 }
 
+/** Ein Spieler will einen Eintrag aus einem freigegebenen Reiter nehmen. */
 export interface ClaimLootEvent {
-  eventId: string;
-  itemIndex: number;
-  characterId: string;
-  characterName: string;
+  tabId: string;
+  entry: DeskEntry;
 }
 
 @Component({
@@ -34,6 +36,12 @@ export class CurrentEventsViewComponent {
   @Input() events: CurrentEvent[] = [];
   @Input() sheet!: CharacterSheet;
   @Input() characterId: string = '';
+  /** Vom Spielleiter freigegebene Reiter des GM-Schreibtischs. */
+  @Input() lootPools: DeskTab[] = [];
+  /** entryId, dessen Anfrage gerade beim Server liegt. */
+  @Input() claiming: string | null = null;
+  /** "Jemand war schneller …" — kommt vom Bogen, wenn der Server ablehnt. */
+  @Input() claimNotice: string | null = null;
 
   @Output() buyRequest = new EventEmitter<BuyItemEvent>();
   @Output() claimRequest = new EventEmitter<ClaimLootEvent>();
@@ -44,6 +52,23 @@ export class CurrentEventsViewComponent {
   buyQuantities: Map<string, number> = new Map(); // key: eventId-dealIndex
 
   formatCurrency = formatCurrency;
+  readonly typeIcon = GRANT_TYPE_ICON;
+  readonly typeLabel = GRANT_TYPE_LABEL;
+
+  /** Was in diesem Pool noch zu haben ist: nichts Verstecktes, nichts bereits Genommenes. */
+  openEntries(pool: DeskTab): DeskEntry[] {
+    return (pool.entries ?? []).filter(e => !e.hidden && !e.claimedBy);
+  }
+
+  entryName(entry: DeskEntry): string {
+    if (entry.type === 'currency') return formatCurrency(entry.data as Currency);
+    return entry.name || 'Unbekannt';
+  }
+
+  claimEntry(pool: DeskTab, entry: DeskEntry): void {
+    if (this.claiming) return;
+    this.claimRequest.emit({ tabId: pool.tabId, entry });
+  }
 
   toggleExpanded(eventId: string) {
     if (this.expandedEvents.has(eventId)) {
@@ -59,10 +84,6 @@ export class CurrentEventsViewComponent {
 
   asShop(event: CurrentEvent): ShopEvent {
     return event as ShopEvent;
-  }
-
-  asLootBundle(event: CurrentEvent): LootBundleEvent {
-    return event as LootBundleEvent;
   }
 
   getBuyQuantity(eventId: string, dealIndex: number): number {
@@ -102,17 +123,6 @@ export class CurrentEventsViewComponent {
            (c.platinum || 0) * 1000;
   }
 
-  getItemName(item: EventLootItem): string {
-    // Try to get name from data based on type
-    const data = item.data as any;
-    if (data && data.name) return data.name;
-    if (item.type === 'currency') {
-      const currency = item.data as Currency;
-      return formatCurrency(currency);
-    }
-    return 'Item';
-  }
-
   buyItem(eventId: string, dealIndex: number, deal: ShopDeal) {
     if (!deal.price) return; // Can't auto-buy negotiable items
 
@@ -140,17 +150,6 @@ export class CurrentEventsViewComponent {
 
     // Reset quantity
     this.buyQuantities.delete(`${eventId}-${dealIndex}`);
-  }
-
-  claimItem(eventId: string, itemIndex: number) {
-    const characterName = (this.sheet as any)?.name || (this.sheet as any)?.bio?.name || 'Unbekannt';
-    
-    this.claimRequest.emit({
-      eventId,
-      itemIndex,
-      characterId: this.characterId,
-      characterName
-    });
   }
 
   private deductMoney(copperAmount: number) {

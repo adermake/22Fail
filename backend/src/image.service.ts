@@ -30,18 +30,23 @@ export class ImageService {
     // Extract the actual base64 content (remove "data:image/png;base64," prefix)
     const matches = base64Data.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
     if (!matches) {
-      throw new Error(`Invalid base64 image data: format must be "data:image/TYPE;base64,CONTENT" (got: ${base64Data.substring(0, 50)}...)`);
+      throw new Error(
+        `Invalid base64 image data: format must be "data:image/TYPE;base64,CONTENT" (got: ${base64Data.substring(0, 50)}...)`,
+      );
     }
 
     const extension = matches[1]; // png, jpeg, etc
     const base64Content = matches[2];
-    
+
     if (!base64Content || base64Content.trim().length === 0) {
       throw new Error('Invalid base64 image data: base64 content is empty');
     }
 
     // Generate hash of the image content (deduplication)
-    const hash = crypto.createHash('sha256').update(base64Content).digest('hex');
+    const hash = crypto
+      .createHash('sha256')
+      .update(base64Content)
+      .digest('hex');
     const imageId = `${hash}.${extension}`;
     const filePath = path.join(this.imagesDir, imageId);
 
@@ -49,7 +54,9 @@ export class ImageService {
     if (!fs.existsSync(filePath)) {
       const buffer = Buffer.from(base64Content, 'base64');
       fs.writeFileSync(filePath, buffer);
-      console.log(`[IMAGE SERVICE] Stored new image: ${imageId} (${(buffer.length / 1024).toFixed(2)} KB)`);
+      console.log(
+        `[IMAGE SERVICE] Stored new image: ${imageId} (${(buffer.length / 1024).toFixed(2)} KB)`,
+      );
     } else {
       console.log(`[IMAGE SERVICE] Image already exists: ${imageId}`);
     }
@@ -100,7 +107,7 @@ export class ImageService {
     }
 
     const filePath = path.join(this.imagesDir, imageId);
-    
+
     if (!fs.existsSync(filePath)) {
       console.warn(`[IMAGE SERVICE] Image not found: ${imageId}`);
       return null;
@@ -128,7 +135,7 @@ export class ImageService {
     }
 
     const filePath = path.join(this.imagesDir, imageId);
-    
+
     if (!fs.existsSync(filePath)) {
       return null;
     }
@@ -155,7 +162,7 @@ export class ImageService {
     }
 
     const filePath = path.join(this.imagesDir, imageId);
-    
+
     if (!fs.existsSync(filePath)) {
       return false;
     }
@@ -177,7 +184,7 @@ export class ImageService {
   listImages(): string[] {
     try {
       const files = fs.readdirSync(this.imagesDir);
-      return files.filter(file => /\.(png|jpg|jpeg|gif|webp)$/i.test(file));
+      return files.filter((file) => /\.(png|jpg|jpeg|gif|webp)$/i.test(file));
     } catch (err) {
       console.error('[IMAGE SERVICE] Error listing images:', err);
       return [];

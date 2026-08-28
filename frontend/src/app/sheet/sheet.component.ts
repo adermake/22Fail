@@ -7,7 +7,7 @@ import { PortraitComponent } from './portrait/portrait.component';
 import { ActivatedRoute } from '@angular/router';
 import { CharacterApiService } from '../services/character-api.service';
 import { CharacterStoreService } from '../services/character-store.service';
-import { CharacterSocketService, BattleLootEvent } from '../services/character-socket.service';
+import { CharacterSocketService } from '../services/character-socket.service';
 import { WorldSocketService } from '../services/world-socket.service';
 import { WorldApiService } from '../services/world-api.service';
 import { LibraryStoreService } from '../services/library-store.service';
@@ -23,8 +23,9 @@ import { EquipmentComponent } from './equipment/equipment.component';
 import { SpellsComponent } from "./spells/spells.component";
 import { RunesComponent } from '../shared/runes/runes.component';
 import { CurrencyComponent } from "./currency/currency.component";
-import { LootPopupComponent } from '../shared/loot-popup/loot-popup.component';
-import { LootItem } from '../model/world.model';
+import { GrantPopupComponent } from './grant-popup/grant-popup.component';
+import { GrantService } from '../services/grant.service';
+import { DeskTab, PendingGrant } from '../model/gm-desk.model';
 import { SoulBlock } from '../model/soul-block.model';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule } from '@angular/cdk/drag-drop';
@@ -38,7 +39,7 @@ import { BackstoryComponent } from './backstory/backstory.component';
 import { JsonPatch } from '../model/json-patch.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { StatusBlock } from '../model/status-block.model';
-import { CurrentEvent, LootBundleEvent, convertToCopper, copperToCurrency } from '../model/current-events.model';
+import { CurrentEvent, convertToCopper, copperToCurrency } from '../model/current-events.model';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
@@ -65,7 +66,7 @@ import { CharacterSheet } from '../model/character-sheet-model';
     LevelclassComponent,
     CurrentstatsComponent,
     EquipmentComponent,
-    LootPopupComponent,
+    GrantPopupComponent,
     CharacterTabsComponent,
     TalentsComponent,
     SkillTreeComponent,
@@ -94,15 +95,13 @@ export class SheetComponent implements OnInit {
   private libraryStore = inject(LibraryStoreService);
   private trueStats = inject(TrueStatsService);
   private restService = inject(RestService);
+  private grants = inject(GrantService);
   cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
 
   // Expose Math for template
   Math = Math;
 
-  showLootPopup = false;
-  receivedLoot: LootItem[] = [];
-  isBattleLoot = false;
   currentWorldName = '';
   isCurrentTurn = false;
   isGroupTurn = false;
@@ -124,6 +123,11 @@ export class SheetComponent implements OnInit {
   readonly restResources = REST_RESOURCES;
   damageCalcEffektivitaet?: number;
   currentEvents: CurrentEvent[] = [];
+  /** Vom Spielleiter freigegebene Reiter des Schreibtischs — der gemeinsame Beutepool. */
+  lootPools: DeskTab[] = [];
+  /** entryId, dessen Anfrage gerade beim Server liegt (sperrt den Knopf). */
+  claimingEntryId: string | null = null;
+  claimNotice: string | null = null;
   transactions: Transaction[] = [];
   openPortalEventId: string | null = null;
 
@@ -272,6 +276,7 @@ export class SheetComponent implements OnInit {
           
           // Load current events from world
           this.currentEvents = world?.currentEvents || [];
+          this.lootPools = this.revealedPools(world?.gmDesk);
           this.cdr.detectChanges();
 
           if (world && world.battleParticipants && world.battleParticipants.length > 0) {
@@ -294,51 +299,11 @@ export class SheetComponent implements OnInit {
       }
     });
 
-    // Listen for loot notifications
-    this.socket.lootReceived$.subscribe((loot: LootItem) => {
-      this.ngZone.run(() => {
-        this.receivedLoot = [loot];
-        this.isBattleLoot = false;
-        this.showLootPopup = true;
-        this.cdr.detectChanges();
-      });
-    });
-
-    this.socket.battleLootReceived$.subscribe(async (data: BattleLootEvent) => {
-      await this.ngZone.run(async () => {
-        this.receivedLoot = data.loot;
-        this.isBattleLoot = true;
-        this.currentWorldName = data.worldName;
-        this.showLootPopup = true;
-
-        // Join the world room to receive battle loot updates
-        await this.worldSocket.joinWorld(data.worldName);
-
-        this.cdr.detectChanges();
-      });
-    });
-
-    // Listen for world patches to update battle loot when someone else claims
+    // Listen for world patches
     this.worldSocket.patches$.subscribe((patch) => {
       this.ngZone.run(() => {
         // Normalize path: remove leading slash for comparison
         const normalizedPath = patch.path.startsWith('/') ? patch.path.substring(1) : patch.path;
-        
-        // If battle loot was updated and we're showing the popup
-        if (normalizedPath === 'battleLoot' && this.showLootPopup && this.isBattleLoot) {
-          const updatedBattleLoot = patch.value as any[];
-
-          // Filter our current loot to only show items that still exist
-          const updatedLootIds = new Set(updatedBattleLoot.map((item: any) => item.id));
-          this.receivedLoot = this.receivedLoot.filter(loot => updatedLootIds.has(loot.id));
-
-          // Close popup if no more loot
-          if (this.receivedLoot.length === 0) {
-            this.showLootPopup = false;
-          }
-
-          this.cdr.detectChanges();
-        }
 
         // Check if battle participants were updated to determine current turn
         if (normalizedPath === 'battleParticipants') {
@@ -370,6 +335,12 @@ export class SheetComponent implements OnInit {
         // Check if current events were updated
         if (normalizedPath === 'currentEvents') {
           this.currentEvents = patch.value as CurrentEvent[] || [];
+          this.cdr.detectChanges();
+        }
+
+        // Der Spielleiter hat einen Reiter auf- oder zugedeckt, oder jemand hat etwas genommen.
+        if (normalizedPath === 'gmDesk') {
+          this.lootPools = this.revealedPools(patch.value as DeskTab[]);
           this.cdr.detectChanges();
         }
       });
@@ -436,61 +407,37 @@ export class SheetComponent implements OnInit {
   }
 
 
-  onClaimLoot(lootItem: LootItem) {
-    // Add item to character sheet based on type
+  // ── Angebote des Spielleiters ──────────────────────────────────────────────
+
+  /** Was der GM angeboten hat und noch auf eine Entscheidung wartet. */
+  get pendingGrants(): PendingGrant[] {
+    return this.store.sheetValue?.pendingGrants ?? [];
+  }
+
+  onAcceptGrant(grant: PendingGrant): void {
     const sheet = this.store.sheetValue;
     if (!sheet) return;
-
-    switch (lootItem.type) {
-      case 'item':
-        this.store.applyPatch({
-          path: 'inventory',
-          value: [...sheet.inventory, lootItem.data]
-        });
-        break;
-      case 'rune':
-        this.store.applyPatch({
-          path: 'runes',
-          value: [...sheet.runes, lootItem.data]
-        });
-        break;
-      case 'spell':
-        this.store.applyPatch({
-          path: 'spells',
-          value: [...sheet.spells, lootItem.data]
-        });
-        break;
-      case 'currency':
-        // Add currency to character's currency
-        const currentCurrency = sheet.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 };
-        const newCurrency = {
-          copper: (currentCurrency.copper || 0) + (lootItem.data.copper || 0),
-          silver: (currentCurrency.silver || 0) + (lootItem.data.silver || 0),
-          gold: (currentCurrency.gold || 0) + (lootItem.data.gold || 0),
-          platinum: (currentCurrency.platinum || 0) + (lootItem.data.platinum || 0)
-        };
-        this.store.applyPatch({
-          path: 'currency',
-          value: newCurrency
-        });
-        break;
+    // GrantService baut die Patches aus dem AKTUELLEN Bogen (freies Fach, Stapel-Merge) und
+    // schickt sie; danach lokal anwenden, damit die Ansicht nicht auf den Echo wartet.
+    for (const patch of this.grants.accept(this.store.characterId, sheet, grant)) {
+      this.store.applyPatchLocally(patch);
     }
-
-    // Remove claimed loot from popup immediately
-    this.receivedLoot = this.receivedLoot.filter(l => l.id !== lootItem.id);
-
-    // Close popup if no more loot
-    if (this.receivedLoot.length === 0) {
-      this.showLootPopup = false;
-    }
-
-    // Trigger change detection to update UI immediately
     this.cdr.detectChanges();
+  }
 
-    // Notify server that loot was claimed (only for battle loot)
-    if (this.isBattleLoot && this.currentWorldName) {
-      this.worldSocket.claimBattleLoot(this.currentWorldName, lootItem.id);
-    }
+  onDeclineGrant(grant: PendingGrant): void {
+    const sheet = this.store.sheetValue;
+    if (!sheet) return;
+    this.grants.decline(this.store.characterId, sheet, grant);
+    this.store.applyPatchLocally({
+      path: '/pendingGrants',
+      value: this.pendingGrants.filter(g => g.entryId !== grant.entryId),
+    });
+    this.cdr.detectChanges();
+  }
+
+  onAcceptAllGrants(): void {
+    for (const grant of [...this.pendingGrants]) this.onAcceptGrant(grant);
   }
 
   /**
@@ -539,120 +486,49 @@ export class SheetComponent implements OnInit {
   }
 
   /**
-   * Handle claim loot from current events (loot bundles)
+   * Nimmt einen Eintrag aus einem freigegebenen Reiter des GM-Schreibtischs.
+   *
+   * Der Server entscheidet, wer ihn bekommt. Vorher schrieb jeder Client das ganze
+   * `currentEvents`-Array zurück — bei zwei gleichzeitigen Zugriffen gewann der letzte Schreiber
+   * und beide hatten den Gegenstand. Erst wenn die Bestätigung sagt, dass wir ihn tatsächlich
+   * entfernt haben, landet er im Bogen.
    */
-  onClaimEventLoot(event: { eventId: string; itemIndex: number; characterId: string; characterName: string }) {
+  async onClaimEventLoot(request: ClaimLootEvent) {
     const sheet = this.store.sheetValue;
-    if (!sheet) return;
+    if (!sheet || !this.currentWorldName || this.claimingEntryId) return;
 
-    // Find the loot bundle and item
-    const lootBundle = this.currentEvents.find(e => e.id === event.eventId && e.type === 'loot') as LootBundleEvent | undefined;
-    if (!lootBundle || !lootBundle.items[event.itemIndex]) return;
+    this.claimingEntryId = request.entry.entryId;
+    this.claimNotice = null;
+    this.cdr.detectChanges();
 
-    const item = lootBundle.items[event.itemIndex];
+    try {
+      const res = await this.worldSocket.claimFromDesk(
+        this.currentWorldName, request.tabId, request.entry.entryId, this.store.characterId,
+      );
 
-    // Check if already claimed
-    if (item.claimedBy) {
-      console.warn('Item already claimed');
-      return;
-    }
-
-    // Add item to character's inventory based on type
-    switch (item.type) {
-      case 'item':
-        this.store.applyPatch({
-          path: '/inventory/-',
-          value: item.data
-        });
-        this.addTransaction({
-          type: 'claim',
-          itemName: (item.data as any)?.name || 'Item',
-          quantity: 1
-        });
-        break;
-      case 'rune':
-        this.store.applyPatch({
-          path: '/runes/-',
-          value: item.data
-        });
-        this.addTransaction({
-          type: 'claim',
-          itemName: (item.data as any)?.name || 'Rune',
-          quantity: 1
-        });
-        break;
-      case 'spell':
-        this.store.applyPatch({
-          path: '/spells/-',
-          value: item.data
-        });
-        this.addTransaction({
-          type: 'claim',
-          itemName: (item.data as any)?.name || 'Zauber',
-          quantity: 1
-        });
-        break;
-      case 'skill':
-        this.store.applyPatch({
-          path: '/skills/-',
-          value: item.data
-        });
-        this.addTransaction({
-          type: 'claim',
-          itemName: (item.data as any)?.name || 'Fähigkeit',
-          quantity: 1
-        });
-        break;
-      case 'currency':
-        // Add currency to player's currency
-        const currency = item.data as any;
-        const currentCurrency = sheet.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 };
-        this.store.applyPatch({
-          path: '/currency',
-          value: {
-            copper: (currentCurrency.copper || 0) + (currency.copper || 0),
-            silver: (currentCurrency.silver || 0) + (currency.silver || 0),
-            gold: (currentCurrency.gold || 0) + (currency.gold || 0),
-            platinum: (currentCurrency.platinum || 0) + (currency.platinum || 0)
-          }
-        });
-        // Create transaction popup for gained currency
-        this.addTransaction({
-          type: 'claim',
-          itemName: 'Währung',
-          quantity: 1,
-          moneyGained: currency
-        });
-        break;
-    }
-
-    // Update the world's current events to mark item as claimed
-    const updatedEvents = this.currentEvents.map(e => {
-      if (e.id === event.eventId && e.type === 'loot') {
-        const bundle = e as LootBundleEvent;
-        return {
-          ...bundle,
-          items: bundle.items.map((i, idx) => {
-            if (idx === event.itemIndex) {
-              return { ...i, claimedBy: event.characterId };
-            }
-            return i;
-          })
-        };
+      if (!res.ok || !res.entry) {
+        this.claimNotice = res.reason === 'gone'
+          ? 'Jemand war schneller — das ist schon weg.'
+          : 'Das lässt sich gerade nicht nehmen.';
+        return;
       }
-      return e;
-    });
 
-    // Emit patch to update world's current events
-    this.worldSocket.sendPatch(this.currentWorldName, {
-      path: '/currentEvents',
-      value: updatedEvents
-    });
+      this.lootPools = this.revealedPools(res.desk);
+      for (const patch of this.grants.accept(this.store.characterId, sheet, {
+        ...res.entry, offeredAt: Date.now(),
+      })) {
+        this.store.applyPatchLocally(patch);
+      }
+      this.addTransaction({ type: 'claim', itemName: res.entry.name, quantity: 1 });
+    } finally {
+      this.claimingEntryId = null;
+      this.cdr.detectChanges();
+    }
   }
 
-  onCloseLootPopup() {
-    this.showLootPopup = false;
-    this.receivedLoot = [];
+  /** Nur aufgedeckte Reiter, die für den Spieler überhaupt etwas enthalten. */
+  private revealedPools(desk: DeskTab[] | undefined): DeskTab[] {
+    return (desk ?? []).filter(t => t.revealed);
   }
 
   /**

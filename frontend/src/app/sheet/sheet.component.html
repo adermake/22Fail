@@ -78,6 +78,9 @@
         [events]="currentEvents"
         [sheet]="sheet"
         [characterId]="store.characterId"
+        [lootPools]="lootPools"
+        [claiming]="claimingEntryId"
+        [claimNotice]="claimNotice"
         (buyRequest)="onBuyFromShop($event)"
         (claimRequest)="onClaimEventLoot($event)"
         (openPortalEvent)="onOpenPortal($event)"
@@ -95,13 +98,13 @@
   </div>
 </div>
 
-@if (showLootPopup) {
-  <app-loot-popup
-    [loot]="receivedLoot"
-    [isBattleLoot]="isBattleLoot"
-    (claimItem)="onClaimLoot($event)"
-    (close)="onCloseLootPopup()">
-  </app-loot-popup>
+@if (pendingGrants.length > 0) {
+  <app-grant-popup
+    [grants]="pendingGrants"
+    (accept)="onAcceptGrant($event)"
+    (decline)="onDeclineGrant($event)"
+    (acceptAll)="onAcceptAllGrants()">
+  </app-grant-popup>
 }
 
 @if (newSoulPopup; as soul) {
@@ -470,7 +473,6 @@
     [sheet]="store.sheetValue!"
     (close)="onClosePortal()"
     (patch)="store.applyPatch($any($event))"
-    (buyRequest)="onBuyFromShop($event)"
-    (claimRequest)="onClaimEventLoot($event)">
+    (buyRequest)="onBuyFromShop($event)">
   </app-event-portal>
 }

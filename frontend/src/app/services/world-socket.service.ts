@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import { identityAuth } from './identity';
 import { JsonPatch } from '../model/json-patch.model';
 import { PartyStashEntry } from '../model/world.model';
+import { DeskEntry, DeskTab } from '../model/gm-desk.model';
 
 export interface DiceRollEvent {
   id: string;
@@ -34,8 +35,7 @@ export interface DiceRollEvent {
 export class WorldSocketService {
   private socket?: Socket;
   private patchSubject = new Subject<JsonPatch>();
-  private lootReceivedSubject = new Subject<any>();
-  private battleLootReceivedSubject = new Subject<any>();
+  private libraryChangedSubject = new Subject<{ libraryId: string }>();
   private connectionReadySubject = new Subject<void>();
   private diceRollSubject = new Subject<DiceRollEvent>();
   private isConnected = false;
@@ -45,8 +45,8 @@ export class WorldSocketService {
   get rollBuffer(): DiceRollEvent[] { return this._rollBuffer; }
 
   patches$ = this.patchSubject.asObservable();
-  lootReceived$ = this.lootReceivedSubject.asObservable();
-  battleLootReceived$ = this.battleLootReceivedSubject.asObservable();
+  /** Eine Bibliothek wurde gespeichert — World und Lobby laden sie daraufhin neu. */
+  libraryChanged$ = this.libraryChangedSubject.asObservable();
   connectionReady$ = this.connectionReadySubject.asObservable();
   diceRoll$ = this.diceRollSubject.asObservable();
 
@@ -89,12 +89,9 @@ export class WorldSocketService {
       this.patchSubject.next(patch);
     });
 
-    this.socket.on('lootReceived', (loot: any) => {
-      this.lootReceivedSubject.next(loot);
-    });
-
-    this.socket.on('battleLootReceived', (loot: any) => {
-      this.battleLootReceivedSubject.next(loot);
+    this.socket.on('libraryChanged', (data: { libraryId: string }) => {
+      console.log('[WORLD SOCKET] Library changed:', data?.libraryId);
+      this.libraryChangedSubject.next(data);
     });
 
     this.socket.on('diceRolled', (roll: DiceRollEvent) => {
@@ -122,21 +119,6 @@ export class WorldSocketService {
   sendPatch(worldName: string, patch: JsonPatch) {
     // Don't log full patches - they can be huge with base64 data
     this.socket?.emit('patchWorld', { worldName, patch });
-  }
-
-  claimBattleLoot(worldName: string, lootId: string) {
-    console.log('Claiming battle loot:', lootId);
-    this.socket?.emit('claimBattleLoot', { worldName, lootId });
-  }
-
-  revealBattleLoot(worldName: string) {
-    console.log('Revealing battle loot for:', worldName);
-    this.socket?.emit('revealBattleLoot', { worldName });
-  }
-
-  sendDirectLoot(characterId: string, loot: any) {
-    console.log('Sending direct loot to:', characterId, loot);
-    this.socket?.emit('sendDirectLoot', { characterId, loot });
   }
 
   // ── Shared party stash ──────────────────────────────────────────────────
@@ -169,6 +151,21 @@ export class WorldSocketService {
     return this.ask<{ ok: boolean; stash: PartyStashEntry[] }>(
       'partyStashRead', { worldName }, { ok: false, stash: [] },
     );
+  }
+
+  // ── GM-Schreibtisch ─────────────────────────────────────────────────────
+  // Aufgedeckte Reiter sind ein gemeinsamer Pool: der Server gibt einen Eintrag genau einmal
+  // heraus, damit zwei gleichzeitige Zugriffe nicht beide gewinnen.
+
+  claimFromDesk(worldName: string, tabId: string, entryId: string, characterId: string) {
+    return this.ask<{ ok: boolean; entry?: DeskEntry; desk: DeskTab[]; reason?: string }>(
+      'gmDeskClaim', { worldName, tabId, entryId, characterId },
+      { ok: false, desk: [], reason: 'offline' },
+    );
+  }
+
+  readDesk(worldName: string) {
+    return this.ask<{ ok: boolean; desk: DeskTab[] }>('gmDeskRead', { worldName }, { ok: false, desk: [] });
   }
 
   sendDiceRoll(roll: DiceRollEvent) {

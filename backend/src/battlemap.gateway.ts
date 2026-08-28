@@ -13,12 +13,36 @@ import { DataService, JsonPatch } from './data.service';
 @WebSocketGateway({
   cors: { origin: '*' }, // for dev, restrict later
 })
-export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class BattleMapGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer() server: Server;
 
   // Transient per-map measurements: mapId → (socketId → MeasurementLine)
-  private activeMeasurements = new Map<string, Map<string, { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string }>>();
-  private activeWorldMapMeasurements = new Map<string, Map<string, { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string }>>();
+  private activeMeasurements = new Map<
+    string,
+    Map<
+      string,
+      {
+        id: string;
+        start: { x: number; y: number };
+        end: { x: number; y: number };
+        createdBy: string;
+      }
+    >
+  >();
+  private activeWorldMapMeasurements = new Map<
+    string,
+    Map<
+      string,
+      {
+        id: string;
+        start: { x: number; y: number };
+        end: { x: number; y: number };
+        createdBy: string;
+      }
+    >
+  >();
 
   constructor(private readonly dataService: DataService) {}
 
@@ -36,11 +60,16 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
         this.server.to(`map-${mapId}`).emit('measurementUpdate', remaining);
       }
     }
-    for (const [worldName, measurements] of this.activeWorldMapMeasurements.entries()) {
+    for (const [
+      worldName,
+      measurements,
+    ] of this.activeWorldMapMeasurements.entries()) {
       if (measurements.has(client.id)) {
         measurements.delete(client.id);
         const remaining = Array.from(measurements.values());
-        this.server.to(`worldmap-${worldName}`).emit('worldMapMeasurementUpdate', remaining);
+        this.server
+          .to(`worldmap-${worldName}`)
+          .emit('worldMapMeasurementUpdate', remaining);
       }
     }
   }
@@ -64,42 +93,58 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {
     const room = `map-${data.mapId}`;
     client.join(room);
-    console.log(`Client ${client.id} joined map ${data.mapId} in world ${data.worldName}`);
+    console.log(
+      `Client ${client.id} joined map ${data.mapId} in world ${data.worldName}`,
+    );
   }
 
   // Join a battle map "room" (legacy support)
   @SubscribeMessage('joinBattleMap')
   joinBattleMap(
-    @MessageBody() data: { worldName: string, battleMapId: string },
+    @MessageBody() data: { worldName: string; battleMapId: string },
     @ConnectedSocket() client: Socket,
   ) {
     const room = `battlemap-${data.battleMapId}`;
     client.join(room);
-    console.log(`Client ${client.id} joined battle map ${data.battleMapId} in world ${data.worldName}`);
+    console.log(
+      `Client ${client.id} joined battle map ${data.battleMapId} in world ${data.worldName}`,
+    );
   }
 
   // Receive a patch from a client
   @SubscribeMessage('patchBattleMap')
   handlePatch(
-    @MessageBody() data: { worldName: string; battleMapId: string; patch: JsonPatch },
+    @MessageBody()
+    data: { worldName: string; battleMapId: string; patch: JsonPatch },
     @ConnectedSocket() client: Socket,
   ) {
     console.log('[BATTLEMAP GATEWAY] Received patchBattleMap message:', data);
     const { worldName, battleMapId, patch } = data;
 
     // Apply patch to the map in the lobby
-    const result = this.dataService.applyPatchToMap(worldName, battleMapId, patch);
-    console.log('[BATTLEMAP GATEWAY] Patch applied, result:', result ? 'success' : 'failed');
+    const result = this.dataService.applyPatchToMap(
+      worldName,
+      battleMapId,
+      patch,
+    );
+    console.log(
+      '[BATTLEMAP GATEWAY] Patch applied, result:',
+      result ? 'success' : 'failed',
+    );
 
     // Broadcast patch to all clients in the same map room
     const mapRoom = `map-${battleMapId}`;
     this.server.to(mapRoom).emit('battleMapPatched', patch);
-    
+
     // Also broadcast to legacy battlemap room for backward compatibility
     const battleMapRoom = `battlemap-${battleMapId}`;
     this.server.to(battleMapRoom).emit('battleMapPatched', patch);
-    
-    console.log('[BATTLEMAP GATEWAY] Broadcasted patch to rooms:', mapRoom, battleMapRoom);
+
+    console.log(
+      '[BATTLEMAP GATEWAY] Broadcasted patch to rooms:',
+      mapRoom,
+      battleMapRoom,
+    );
   }
 
   // Broadcast a patch to all clients in a battle map room
@@ -117,12 +162,14 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
   ) {
     const { worldName, mapId } = data;
-    console.log(`[BATTLEMAP GATEWAY] DM switching main view for ${worldName} to map ${mapId}`);
-    
+    console.log(
+      `[BATTLEMAP GATEWAY] DM switching main view for ${worldName} to map ${mapId}`,
+    );
+
     // Broadcast to all clients in the lobby room
     const room = `lobby-${worldName}`;
     this.server.to(room).emit('mainViewChanged', { mapId });
-    
+
     console.log(`[BATTLEMAP GATEWAY] Broadcasted mainViewChanged to ${room}`);
   }
 
@@ -149,9 +196,15 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   @SubscribeMessage('updateWorldMapMeasurement')
   handleWorldMapMeasurement(
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       worldName: string;
-      measurement: { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string } | null;
+      measurement: {
+        id: string;
+        start: { x: number; y: number };
+        end: { x: number; y: number };
+        createdBy: string;
+      } | null;
     },
     @ConnectedSocket() client: Socket,
   ) {
@@ -163,18 +216,31 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
     if (measurement === null) {
       mapMeasurements.delete(client.id);
     } else {
-      mapMeasurements.set(client.id, { ...measurement, id: client.id, createdBy: client.id });
+      mapMeasurements.set(client.id, {
+        ...measurement,
+        id: client.id,
+        createdBy: client.id,
+      });
     }
     const allMeasurements = Array.from(mapMeasurements.values());
-    this.server.to(`worldmap-${worldName}`).emit('worldMapMeasurementUpdate', allMeasurements);
+    this.server
+      .to(`worldmap-${worldName}`)
+      .emit('worldMapMeasurementUpdate', allMeasurements);
   }
 
   // Ephemeral radial pings — broadcast-only, never persisted.
   @SubscribeMessage('worldMapPing')
   handleWorldMapPing(
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       worldName: string;
-      ping: { id: string; type: string; worldX: number; worldY: number; createdBy: string };
+      ping: {
+        id: string;
+        type: string;
+        worldX: number;
+        worldY: number;
+        createdBy: string;
+      };
     },
   ) {
     const { worldName, ping } = data;
@@ -184,9 +250,16 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   @SubscribeMessage('lobbyPing')
   handleLobbyPing(
-    @MessageBody() data: {
+    @MessageBody()
+    data: {
       mapId: string;
-      ping: { id: string; type: string; worldX: number; worldY: number; createdBy: string };
+      ping: {
+        id: string;
+        type: string;
+        worldX: number;
+        worldY: number;
+        createdBy: string;
+      };
     },
   ) {
     const { mapId, ping } = data;
@@ -199,7 +272,17 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
   // Handle real-time measurement sync
   @SubscribeMessage('updateMeasurement')
   handleUpdateMeasurement(
-    @MessageBody() data: { worldName: string; battleMapId: string; measurement: { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string } | null },
+    @MessageBody()
+    data: {
+      worldName: string;
+      battleMapId: string;
+      measurement: {
+        id: string;
+        start: { x: number; y: number };
+        end: { x: number; y: number };
+        createdBy: string;
+      } | null;
+    },
     @ConnectedSocket() client: Socket,
   ) {
     const { battleMapId, measurement } = data;
@@ -214,10 +297,16 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
       mapMeasurements.delete(client.id);
     } else {
       // Stamp the socket id as the measurement id so each client can identify its own
-      mapMeasurements.set(client.id, { ...measurement, id: client.id, createdBy: client.id });
+      mapMeasurements.set(client.id, {
+        ...measurement,
+        id: client.id,
+        createdBy: client.id,
+      });
     }
 
     const allMeasurements = Array.from(mapMeasurements.values());
-    this.server.to(`map-${battleMapId}`).emit('measurementUpdate', allMeasurements);
+    this.server
+      .to(`map-${battleMapId}`)
+      .emit('measurementUpdate', allMeasurements);
   }
 }

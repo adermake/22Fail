@@ -4,6 +4,7 @@ import { SpellBlock } from "./spell-block-model";
 import { SkillBlock } from "./skill-block.model";
 import { StatusEffect } from "./status-effect.model";
 import { CurrentEvent } from "./current-events.model";
+import { DeskTab } from "./gm-desk.model";
 
 export interface Drawing {
   path: string;
@@ -71,6 +72,12 @@ export interface WorldData {
   partyIds: string[]; // Characters currently in the active party
   /** Shared party stash — server-authoritative, see WorldGateway.partyStash* handlers. */
   partyStash?: PartyStashEntry[];
+  /**
+   * Der GM-Schreibtisch: vorbereitete Reiter voller Dinge. Aufgedeckte Reiter erscheinen bei den
+   * Spielern als gemeinsamer Loot-Pool; das Beanspruchen läuft server-autoritativ über
+   * `WorldGateway.gmDeskClaim`, alles andere über normale `patchWorld`-Patches.
+   */
+  gmDesk?: DeskTab[];
   
   // Library system - new approach
   linkedLibraries?: string[]; // IDs of linked library files
@@ -82,13 +89,9 @@ export interface WorldData {
   skillLibrary: SkillBlock[];
   statusEffectLibrary: StatusEffect[];
   
-  // Current Events system - replaces battle loot
+  // Current Events system — shops; loot lives on the GM desk (`gmDesk`)
   currentEvents: CurrentEvent[];
-  
-  // Deprecated: Old loot system (kept for backwards compatibility)
-  lootBundles: LootBundle[];
-  battleLoot: LootItem[];
-  
+
   battleParticipants: BattleParticipant[];
   battleTimeline?: BattleTimelineEntry[]; // Full tile order for lobby sync
   currentTurnIndex: number;
@@ -104,29 +107,6 @@ export interface BattleTimelineEntry {
   turnNumber: number;
   timing: number;
   isScripted: boolean;
-}
-
-export interface LootItem {
-  id: string;
-  type: 'item' | 'rune' | 'spell' | 'skill' | 'currency';
-  data: any; // The actual item/rune/spell/skill data
-  claimedBy: string[]; // Character IDs who have claimed this
-  recipientIds?: string[]; // Specific party members who should receive this loot (if empty, all party members)
-}
-
-export interface LootBundle {
-  id: string;
-  name: string;
-  items: ItemBlock[];
-  runes: RuneBlock[];
-  spells: SpellBlock[];
-  skills: SkillBlock[];
-  currency?: {
-    copper?: number;
-    silver?: number;
-    gold?: number;
-    platinum?: number;
-  };
 }
 
 export interface BattleParticipant {
@@ -169,8 +149,7 @@ export function createEmptyWorld(name: string): WorldData {
     skillLibrary: [],
     statusEffectLibrary: [],
     currentEvents: [],
-    lootBundles: [],
-    battleLoot: [],
+    gmDesk: [],
     battleParticipants: [],
     currentTurnIndex: 0,
     trash: [],

@@ -39,13 +39,25 @@ export type DetailTier = 'high' | 'med' | 'low';
 const TIERS: DetailTier[] = ['high', 'med', 'low'];
 
 export type ObjectCollection = 'symbols' | 'labels' | 'regions' | 'markers';
-const OBJECT_COLLECTIONS: ObjectCollection[] = ['symbols', 'labels', 'regions', 'markers'];
+const OBJECT_COLLECTIONS: ObjectCollection[] = [
+  'symbols',
+  'labels',
+  'regions',
+  'markers',
+];
 
 export type MapOp =
   | { t: 'add'; c: ObjectCollection; v: any }
   | { t: 'upd'; c: ObjectCollection; id: string; v: Record<string, unknown> }
   | { t: 'del'; c: ObjectCollection; id: string }
-  | { t: 'chunk'; layer: RasterLayer; tier: DetailTier; cx: number; cy: number; ver: number }
+  | {
+      t: 'chunk';
+      layer: RasterLayer;
+      tier: DetailTier;
+      cx: number;
+      cy: number;
+      ver: number;
+    }
   | { t: 'set'; path: string; value: unknown };
 
 const MAP_FORMAT_VERSION = 2;
@@ -100,7 +112,13 @@ export class MapEditorService {
     if (!TIERS.includes(tier)) return null;
     if (!Number.isInteger(cx) || !Number.isInteger(cy)) return null;
 
-    return path.join(this.mapDir(worldName), 'chunks', layer, tier, `${cx}_${cy}.png`);
+    return path.join(
+      this.mapDir(worldName),
+      'chunks',
+      layer,
+      tier,
+      `${cx}_${cy}.png`,
+    );
   }
 
   // ── document ──
@@ -148,15 +166,23 @@ export class MapEditorService {
       doc = JSON.parse(fs.readFileSync(file, 'utf-8'));
       // Tolerate documents written before a field existed.
       const base = this.emptyDoc(worldName);
-      doc = { ...base, ...doc, settings: { ...base.settings, ...(doc.settings ?? {}) } };
-      for (const c of OBJECT_COLLECTIONS) if (!Array.isArray(doc[c])) doc[c] = [];
+      doc = {
+        ...base,
+        ...doc,
+        settings: { ...base.settings, ...(doc.settings ?? {}) },
+      };
+      for (const c of OBJECT_COLLECTIONS)
+        if (!Array.isArray(doc[c])) doc[c] = [];
     } catch {
       doc = this.emptyDoc(worldName);
     }
 
     // The chunk files on disk are the ground truth for what has been painted; reconcile so
     // a document that predates them cannot hide terrain that actually exists.
-    const versions = { ...this.scanChunkVersions(worldName), ...(doc.chunkVersions ?? {}) };
+    const versions = {
+      ...this.scanChunkVersions(worldName),
+      ...(doc.chunkVersions ?? {}),
+    };
 
     /*
      * Drop keys that are not `{layer}/{tier}/{cx}/{cy}`.
@@ -220,7 +246,7 @@ export class MapEditorService {
 
     const merged: Record<string, number> = { ...incoming };
     for (const [key, ver] of Object.entries(known)) {
-      merged[key] = Math.max(ver as number, (merged[key] as number) ?? 0);
+      merged[key] = Math.max(ver as number, merged[key] ?? 0);
     }
     doc.chunkVersions = merged;
 
@@ -247,7 +273,11 @@ export class MapEditorService {
     if (!doc) return;
     try {
       fs.mkdirSync(this.mapDir(worldName), { recursive: true });
-      fs.writeFileSync(this.mapFile(worldName), JSON.stringify(doc, null, 2), 'utf-8');
+      fs.writeFileSync(
+        this.mapFile(worldName),
+        JSON.stringify(doc, null, 2),
+        'utf-8',
+      );
     } catch (err) {
       this.logger.error(`Failed to write map for ${worldName}:`, err as Error);
     }
@@ -266,19 +296,19 @@ export class MapEditorService {
       case 'add': {
         if (!OBJECT_COLLECTIONS.includes(op.c)) return;
         const list = doc[op.c] as any[];
-        if (!list.some(o => o.id === op.v?.id)) list.push(op.v);
+        if (!list.some((o) => o.id === op.v?.id)) list.push(op.v);
         break;
       }
       case 'upd': {
         if (!OBJECT_COLLECTIONS.includes(op.c)) return;
-        const obj = (doc[op.c] as any[]).find(o => o.id === op.id);
+        const obj = (doc[op.c] as any[]).find((o) => o.id === op.id);
         if (obj) Object.assign(obj, op.v);
         break;
       }
       case 'del': {
         if (!OBJECT_COLLECTIONS.includes(op.c)) return;
         const list = doc[op.c] as any[];
-        const i = list.findIndex(o => o.id === op.id);
+        const i = list.findIndex((o) => o.id === op.id);
         if (i >= 0) list.splice(i, 1);
         break;
       }
@@ -290,7 +320,13 @@ export class MapEditorService {
       case 'set': {
         const parts = String(op.path).split('.').filter(Boolean);
         // Block prototype-poisoning paths — `path` arrives straight off the socket.
-        if (parts.some(p => p === '__proto__' || p === 'constructor' || p === 'prototype')) return;
+        if (
+          parts.some(
+            (p) =>
+              p === '__proto__' || p === 'constructor' || p === 'prototype',
+          )
+        )
+          return;
         if (parts.length === 0) return;
         let obj: any = doc;
         for (let i = 0; i < parts.length - 1; i++) {
@@ -323,7 +359,7 @@ export class MapEditorService {
 
     const filtered: any = { ...doc };
     for (const c of OBJECT_COLLECTIONS) {
-      filtered[c] = (doc[c] as any[]).filter(o => o?.vis !== 'secret');
+      filtered[c] = (doc[c] as any[]).filter((o) => o?.vis !== 'secret');
     }
     return filtered;
   }
@@ -335,16 +371,20 @@ export class MapEditorService {
   }
 
   /** Look up an object's current visibility, to decide what players may be told. */
-  getObjectVisibility(worldName: string, c: ObjectCollection, id: string): string | undefined {
+  getObjectVisibility(
+    worldName: string,
+    c: ObjectCollection,
+    id: string,
+  ): string | undefined {
     const doc = this.getMap(worldName);
     if (!OBJECT_COLLECTIONS.includes(c)) return undefined;
-    return (doc[c] as any[]).find(o => o.id === id)?.vis;
+    return (doc[c] as any[]).find((o) => o.id === id)?.vis;
   }
 
   getObject(worldName: string, c: ObjectCollection, id: string): any {
     const doc = this.getMap(worldName);
     if (!OBJECT_COLLECTIONS.includes(c)) return undefined;
-    return (doc[c] as any[]).find(o => o.id === id);
+    return (doc[c] as any[]).find((o) => o.id === id);
   }
 
   // ── chunks ──
@@ -387,7 +427,10 @@ export class MapEditorService {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, data);
     } catch (err) {
-      this.logger.error(`Failed to write chunk ${layer}/${tier}/${cx}_${cy}:`, err as Error);
+      this.logger.error(
+        `Failed to write chunk ${layer}/${tier}/${cx}_${cy}:`,
+        err as Error,
+      );
       return null;
     }
 

@@ -175,7 +175,7 @@ describe('Gemeinsamer Beutel', () => {
 
   it('ignores world patches that are not about the bag', async () => {
     await svc.deposit(item('Seil'));
-    server.patches$.next({ path: 'battleLoot', value: [] } as JsonPatch);
+    server.patches$.next({ path: 'gmDesk', value: [] } as JsonPatch);
     expect(svc.entries().length).toBe(1);
   });
 

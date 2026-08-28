@@ -28,11 +28,15 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private truncateImageData(obj: any): any {
-    if (typeof obj === 'string' && obj.startsWith('data:image') && obj.length > 100) {
+    if (
+      typeof obj === 'string' &&
+      obj.startsWith('data:image') &&
+      obj.length > 100
+    ) {
       return obj.substring(0, 50) + '...[TRUNCATED ' + obj.length + ' chars]';
     }
     if (Array.isArray(obj)) {
-      return obj.map(item => this.truncateImageData(item));
+      return obj.map((item) => this.truncateImageData(item));
     }
     if (obj && typeof obj === 'object') {
       const result: any = {};
@@ -67,30 +71,14 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Apply patch in backend
     const result = this.dataService.applyPatchToWorld(worldName, patch);
-    console.log('[WORLD GATEWAY] Patch applied, result:', result ? 'success' : 'failed');
+    console.log(
+      '[WORLD GATEWAY] Patch applied, result:',
+      result ? 'success' : 'failed',
+    );
 
     // Broadcast patch to all clients in the same world room
     this.server.to(worldName).emit('worldPatched', patch);
     console.log('[WORLD GATEWAY] Broadcasted patch to room:', worldName);
-  }
-
-  // Manually reveal battle loot to party
-  @SubscribeMessage('revealBattleLoot')
-  handleRevealBattleLoot(
-    @MessageBody() data: { worldName: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { worldName } = data;
-    console.log(`Revealing battle loot for world ${worldName}`);
-
-    const worldJson = this.dataService.getWorld(worldName);
-    if (worldJson) {
-      const world = JSON.parse(worldJson);
-      if (world && world.partyIds && world.battleLoot) {
-        // Send the entire battle loot array to all party members
-        this.sendBattleLootToParty(worldName, world.partyIds, world.battleLoot);
-      }
-    }
   }
 
   // Broadcast a patch to all clients in a world (called from controller)
@@ -100,78 +88,96 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // Send loot notification to a specific character
-  sendLootToCharacter(characterId: string, loot: any) {
+  /**
+   * Tells every client that a library changed, so worlds and lobbies can reload it instead of
+   * showing months-old content until someone refreshes the page. Called from the library and
+   * asset-browser controllers after every write.
+   */
+  broadcastLibraryChanged(libraryId: string) {
     if (this.server) {
-      this.server.to(characterId).emit('lootReceived', loot);
+      this.server.emit('libraryChanged', { libraryId });
     }
   }
 
-  // Handle sending direct loot to a character (GM drops item on player)
-  @SubscribeMessage('sendDirectLoot')
-  handleSendDirectLoot(
-    @MessageBody() data: { characterId: string; loot: any },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { characterId, loot } = data;
-    console.log(`Sending direct loot to ${characterId}:`, loot);
-    this.sendLootToCharacter(characterId, loot);
-  }
+  // ── GM-Schreibtisch: aufgedeckte Reiter als gemeinsamer Loot-Pool ─────────
+  // Wie beim Beutel entscheidet der Server, wer einen Eintrag bekommt. Der Vorgänger löste das
+  // im Client, indem jeder Spieler das ganze `currentEvents`-Array zurückschrieb — bei zwei
+  // gleichzeitigen Zugriffen gewann der Letzte und beide hatten den Gegenstand.
 
-  // Send battle loot notification to all party members
-  sendBattleLootToParty(worldName: string, partyIds: string[], loot: any) {
-    if (this.server) {
-      partyIds.forEach(characterId => {
-        // Filter loot to only include items this character should receive
-        const filteredLoot = loot.filter((item: any) => {
-          // If recipientIds is not set or empty, everyone gets it
-          if (!item.recipientIds || item.recipientIds.length === 0) {
-            return true;
-          }
-          // Otherwise, only include if this character is in the recipients list
-          return item.recipientIds.includes(characterId);
-        });
-
-        // Only send if there's loot for this character
-        if (filteredLoot.length > 0) {
-          this.server.to(characterId).emit('battleLootReceived', { worldName, loot: filteredLoot });
-        }
-      });
-    }
-  }
-
-  // Handle claiming battle loot (removes item from battle loot)
-  @SubscribeMessage('claimBattleLoot')
-  handleClaimBattleLoot(
-    @MessageBody() data: { worldName: string; lootId: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const { worldName, lootId } = data;
-    console.log(`Claiming loot ${lootId} from world ${worldName}`);
-
-    // Load the world
+  private readDesk(worldName: string): { world: any; desk: any[] } | null {
     const worldJson = this.dataService.getWorld(worldName);
-    if (!worldJson) {
-      console.error(`World ${worldName} not found`);
-      return;
-    }
-
+    if (!worldJson) return null;
     const world = JSON.parse(worldJson);
+    return { world, desk: Array.isArray(world.gmDesk) ? world.gmDesk : [] };
+  }
 
-    // Remove the loot item
-    const newBattleLoot = world.battleLoot.filter((item: any) => item.id !== lootId);
-
-    // Apply the patch
+  private commitDesk(worldName: string, desk: any[]): void {
     this.dataService.applyPatchToWorld(worldName, {
-      path: 'battleLoot',
-      value: newBattleLoot
+      path: 'gmDesk',
+      value: desk,
     });
+    this.server
+      .to(worldName)
+      .emit('worldPatched', { path: 'gmDesk', value: desk });
+  }
 
-    // Broadcast the updated battle loot to all clients in the world
-    this.server.to(worldName).emit('worldPatched', {
-      path: 'battleLoot',
-      value: newBattleLoot
-    });
+  /**
+   * Nimmt einen Eintrag aus einem aufgedeckten Reiter. Der Eintrag geht NUR an den Anfragenden,
+   * dessen Zugriff ihn tatsächlich entfernt hat — alle anderen bekommen `ok: false`.
+   */
+  @SubscribeMessage('gmDeskClaim')
+  handleDeskClaim(
+    @MessageBody()
+    data: {
+      worldName: string;
+      tabId: string;
+      entryId: string;
+      characterId: string;
+    },
+  ): { ok: boolean; entry?: any; desk: any[]; reason?: string } {
+    const { worldName, tabId, entryId, characterId } = data ?? ({} as any);
+    if (!worldName || !tabId || !entryId)
+      return { ok: false, desk: [], reason: 'bad-request' };
+
+    const read = this.readDesk(worldName);
+    if (!read) return { ok: false, desk: [], reason: 'no-world' };
+
+    const tabIdx = read.desk.findIndex((t: any) => t.tabId === tabId);
+    if (tabIdx < 0) return { ok: false, desk: read.desk, reason: 'gone' };
+
+    const tab = read.desk[tabIdx];
+    // Ein zugedeckter Reiter gibt nichts heraus, auch wenn ein Client noch eine alte Liste hat.
+    if (!tab.revealed) return { ok: false, desk: read.desk, reason: 'hidden' };
+
+    const entries: any[] = Array.isArray(tab.entries) ? tab.entries : [];
+    const entryIdx = entries.findIndex((e: any) => e.entryId === entryId);
+    if (entryIdx < 0) return { ok: false, desk: read.desk, reason: 'gone' };
+
+    const entry = entries[entryIdx];
+    if (entry.hidden) return { ok: false, desk: read.desk, reason: 'hidden' };
+    if (entry.claimedBy) return { ok: false, desk: read.desk, reason: 'gone' };
+
+    // Der Eintrag bleibt als beansprucht stehen, statt zu verschwinden — so sieht der GM, wer
+    // was genommen hat, und die Spieler sehen, dass der Pool abgearbeitet ist.
+    const desk = [...read.desk];
+    desk[tabIdx] = {
+      ...tab,
+      entries: entries.map((e: any, i: number) =>
+        i === entryIdx ? { ...e, claimedBy: characterId || 'unbekannt' } : e,
+      ),
+    };
+    this.commitDesk(worldName, desk);
+    return { ok: true, entry, desk };
+  }
+
+  /** Aktueller Stand des Schreibtischs — beim Öffnen eines Bogens, vor der ersten Änderung. */
+  @SubscribeMessage('gmDeskRead')
+  handleDeskRead(@MessageBody() data: { worldName: string }): {
+    ok: boolean;
+    desk: any[];
+  } {
+    const read = data?.worldName ? this.readDesk(data.worldName) : null;
+    return { ok: !!read, desk: read?.desk ?? [] };
   }
 
   // ── Gemeinsamer Beutel (shared party stash) ──────────────────────────────
@@ -191,12 +197,20 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const worldJson = this.dataService.getWorld(worldName);
     if (!worldJson) return null;
     const world = JSON.parse(worldJson);
-    return { world, stash: Array.isArray(world.partyStash) ? world.partyStash : [] };
+    return {
+      world,
+      stash: Array.isArray(world.partyStash) ? world.partyStash : [],
+    };
   }
 
   private commitStash(worldName: string, stash: any[]): void {
-    this.dataService.applyPatchToWorld(worldName, { path: 'partyStash', value: stash });
-    this.server.to(worldName).emit('worldPatched', { path: 'partyStash', value: stash });
+    this.dataService.applyPatchToWorld(worldName, {
+      path: 'partyStash',
+      value: stash,
+    });
+    this.server
+      .to(worldName)
+      .emit('worldPatched', { path: 'partyStash', value: stash });
   }
 
   /**
@@ -207,11 +221,14 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * it here in a second language is exactly how the two would drift apart.
    */
   @SubscribeMessage('partyStashDeposit')
-  handleStashDeposit(
-    @MessageBody() data: { worldName: string; entry: any },
-  ): { ok: boolean; stash: any[]; reason?: string } {
+  handleStashDeposit(@MessageBody() data: { worldName: string; entry: any }): {
+    ok: boolean;
+    stash: any[];
+    reason?: string;
+  } {
     const { worldName, entry } = data ?? ({} as any);
-    if (!worldName || !entry?.entryId) return { ok: false, stash: [], reason: 'bad-request' };
+    if (!worldName || !entry?.entryId)
+      return { ok: false, stash: [], reason: 'bad-request' };
 
     const read = this.readStash(worldName);
     if (!read) return { ok: false, stash: [], reason: 'no-world' };
@@ -222,7 +239,9 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const amount = WorldGateway.amountOf(entry);
     const mergeIdx = entry.stackKey
-      ? read.stash.findIndex((e: any) => e.stackKey === entry.stackKey && e.item?.stackable)
+      ? read.stash.findIndex(
+          (e: any) => e.stackKey === entry.stackKey && e.item?.stackable,
+        )
       : -1;
 
     let stash: any[];
@@ -231,7 +250,10 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const target = stash[mergeIdx];
       stash[mergeIdx] = {
         ...target,
-        item: { ...target.item, amount: WorldGateway.amountOf(target) + amount },
+        item: {
+          ...target.item,
+          amount: WorldGateway.amountOf(target) + amount,
+        },
       };
     } else {
       stash = [...read.stash, entry];
@@ -247,10 +269,16 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage('partyStashWithdraw')
   handleStashWithdraw(
-    @MessageBody() data: { worldName: string; entryId: string; amount?: number },
+    @MessageBody()
+    data: {
+      worldName: string;
+      entryId: string;
+      amount?: number;
+    },
   ): { ok: boolean; entry?: any; stash: any[]; reason?: string } {
     const { worldName, entryId, amount } = data ?? ({} as any);
-    if (!worldName || !entryId) return { ok: false, stash: [], reason: 'bad-request' };
+    if (!worldName || !entryId)
+      return { ok: false, stash: [], reason: 'bad-request' };
 
     const read = this.readStash(worldName);
     if (!read) return { ok: false, stash: [], reason: 'no-world' };
@@ -260,8 +288,10 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const entry = read.stash[idx];
     const have = WorldGateway.amountOf(entry);
-    const wanted = amount === undefined ? have : Math.max(0, Math.floor(amount));
-    if (wanted <= 0) return { ok: false, stash: read.stash, reason: 'bad-request' };
+    const wanted =
+      amount === undefined ? have : Math.max(0, Math.floor(amount));
+    if (wanted <= 0)
+      return { ok: false, stash: read.stash, reason: 'bad-request' };
 
     // Taking part of a pile splits it here, in one step, so two takers can never both get the
     // same unit and a failed split can never leave the bag short.
@@ -280,7 +310,10 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   /** Current contents — used when a sheet opens, before any change has been broadcast. */
   @SubscribeMessage('partyStashRead')
-  handleStashRead(@MessageBody() data: { worldName: string }): { ok: boolean; stash: any[] } {
+  handleStashRead(@MessageBody() data: { worldName: string }): {
+    ok: boolean;
+    stash: any[];
+  } {
     const read = data?.worldName ? this.readStash(data.worldName) : null;
     return { ok: !!read, stash: read?.stash ?? [] };
   }
@@ -288,7 +321,8 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Handle dice roll events - broadcast to all players in the world
   @SubscribeMessage('diceRoll')
   handleDiceRoll(
-    @MessageBody() roll: {
+    @MessageBody()
+    roll: {
       id: string;
       worldName: string;
       characterName: string;
@@ -304,7 +338,9 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     const { worldName, isSecret, characterName } = roll;
-    console.log(`[DICE ROLL] ${characterName} rolled in ${worldName}, isSecret: ${isSecret}`);
+    console.log(
+      `[DICE ROLL] ${characterName} rolled in ${worldName}, isSecret: ${isSecret}`,
+    );
 
     if (isSecret) {
       // Secret roll - only send to the GM (world room with "gm-" prefix or just send to world for now)

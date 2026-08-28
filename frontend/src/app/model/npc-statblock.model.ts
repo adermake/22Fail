@@ -218,8 +218,17 @@ export interface NpcStatblock {
   // Zauber
   spells: SpellBlock[];
 
-  // Ausrüstung
+  // Ausrüstung — was der NSC trägt und benutzt
   equipment: ItemBlock[];
+
+  /**
+   * Inventar — was der NSC bei sich hat, ohne es zu tragen: die Beute.
+   *
+   * Getrennt von `equipment`, weil das Getragene die Werte beeinflusst und die Beute nicht.
+   * Beim Ablegen auf der Karte wird diese Liste in das Token kopiert, damit drei Goblins nicht
+   * dieselbe Beute teilen (siehe `Token.inventory`).
+   */
+  inventory: ItemBlock[];
 
   // ─── Seele / Körper (authoring model) ──────────────────────────────────────
   // The soul (level + 6-stat distribution) and body (Stabilität/Effizienz + per-stat mods) drive the
@@ -273,6 +282,7 @@ export function createEmptyNpcStatblock(): NpcStatblock {
     customSkills: [],
     spells: [],
     equipment: [],
+    inventory: [],
     soul: createEmptyNpcSoul(),
     body: createEmptyNpcBody(),
     primaryClassTarget: 'Kämpfer',

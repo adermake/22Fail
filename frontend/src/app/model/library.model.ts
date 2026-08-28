@@ -4,7 +4,7 @@ import { SpellBlock } from './spell-block-model';
 import { SkillBlock } from './skill-block.model';
 import { StatusEffect } from './status-effect.model';
 import { MacroAction } from './macro-action.model';
-import { ShopEvent, LootBundleEvent } from './current-events.model';
+import { ShopEvent } from './current-events.model';
 
 
 /**
@@ -26,9 +26,8 @@ export interface Library {
   statusEffects: StatusEffect[];
   macroActions: MacroAction[];
   
-  // Event templates (shops and loot bundles defined in library)
+  // Event templates (shops defined in library)
   shops: ShopEvent[];
-  lootBundles: LootBundleEvent[];
   
   // Library dependencies - IDs of other libraries this one depends on
   dependencies: string[];
@@ -57,7 +56,6 @@ export function createEmptyLibrary(name: string): Library {
     statusEffects: [],
     macroActions: [],
     shops: [],
-    lootBundles: [],
     dependencies: [],
     tags: [],
     isPublic: false

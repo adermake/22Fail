@@ -25,7 +25,7 @@ import { PartyStashService } from '../../services/party-stash.service';
 import { DragSplitService } from '../../services/drag-split.service';
 import { canMerge, stackAmount, withAmount } from '../../utils/item-stack.util';
 import { PartyStashEntry } from '../../model/world.model';
-import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
+import { CurrentEvent, ShopEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
 
 @Component({

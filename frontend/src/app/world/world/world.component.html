@@ -68,9 +68,7 @@
       } @else {
         <div class="dashboard-grid">
           @for (member of getPartyCharacterArray(); track member.id) {
-            <div class="char-card drop-zone"
-                 (dragover)="onDragOver($event)"
-                 (drop)="onDropOnCharacter($event, member.id)"
+            <div class="char-card"
                  (dblclick)="openCharacterSheet(member.id)"
                  (contextmenu)="handleCharacterRightClick($event, member.id)">
 
@@ -180,68 +178,43 @@
         [mergedSpells]="mergedSpells()"
         [mergedSkills]="mergedSkills()"
         [mergedStatusEffects]="mergedStatusEffects()"
+        [revealedTabs]="revealedDeskTabs"
         (eventAdded)="onEventAdded($event)"
         (eventRemoved)="onEventRemoved($event)"
         (eventUpdated)="onEventUpdated($event)"
+        (deskEntryRemoved)="onDeskEntryRemoved($event)"
         (navigateToLibrary)="navigateToLibrary($event)">
       </app-current-events-manager>
     </app-card>
 
-    <!-- Asset Browser Section (Right) -->
+    <!-- GM-Schreibtisch (Right) -->
     <div class="library-card">
       <div class="library-header">
         <h2>Bibliothek</h2>
         <div class="library-header-actions">
-          <button (click)="openLibrarySelector()" class="header-btn" title="Verknüpfte Bibliotheken verwalten">
-            <span class="app-icon i-folder"></span> Bibliotheken
-          </button>
           <button (click)="openTrash()" class="header-btn secondary" title="Papierkorb öffnen">
             <span class="app-icon i-restore-trash"></span> Papierkorb ({{ (world.trash || []).length }})
           </button>
         </div>
       </div>
-      <p class="drag-hint">Elemente auf Charaktere oder Kampfbeute ziehen. Rechtsklick für Optionen.</p>
-      <app-asset-browser
+      <app-gm-desk
+        [deskTabs]="deskTabs"
+        [partyMembers]="getPartyCharacterArray()"
+        [npcTokens]="lobbyBridge.npcTokens()"
         [items]="mergedItems()"
         [runes]="mergedRunes()"
         [spells]="mergedSpells()"
         [skills]="mergedSkills()"
         [statusEffects]="mergedStatusEffects()"
-        [shops]="mergedShops()"
-        [lootBundles]="mergedBundles()"
-        [materials]="allMaterials"
-        [forgeTraits]="allForgeTraits"
-        [dummySheet]="dummySheet"
-        [editingItems]="editingItems"
-        [editingRunes]="editingRunes"
-        [editingSpells]="editingSpells"
-        [editingSkills]="editingSkills"
-        [editingStatusEffects]="editingStatusEffects"
-        [readonly]="true"
-        (openItemEditor)="openItemEditor($event)"
-        (openRuneEditor)="openRuneEditorDialog($event)"
-        (openSpellEditor)="openSpellEditorDialog($event)"
-        (openSkillEditor)="openSkillEditorDialog($event)"
-        (openStatusEffectEditor)="openStatusEffectEditorDialog($event)"
-        (updateItem)="updateItem($event.index, $event.patch)"
-        (updateRune)="updateRune($event.index, $event.patch)"
-        (updateSpell)="updateSpell($event.index, $event.patch)"
-        (updateSkill)="updateSkill($event.index, $event.patch)"
-        (updateStatusEffect)="updateStatusEffect($event.index, $event.patch)"
-        (itemEditingChange)="onItemEditingChange($event)"
-        (runeEditingChange)="onRuneEditingChange($event)"
-        (spellEditingChange)="onSpellEditingChange($event)"
-        (skillEditingChange)="onSkillEditingChange($event)"
-        (statusEffectEditingChange)="onStatusEffectEditingChange($event)"
-        (dragStart)="onDragStart($event.event, $event.type, $event.index)"
-        (contextMenuRequest)="onLibraryItemContextMenu($event)">
-      </app-asset-browser>
+        [knowledgeAssets]="knowledgeBrowseAssets"
+        [resourceItems]="resourceBrowseItems"
+        (deskChanged)="onDeskChanged($event)"
+        (offerToCharacter)="onDeskOffer($event)"
+        (npcInventoryChanged)="onNpcInventoryChanged($event)"
+        (depositToStash)="onDepositToStash($event)"
+        (openLibrarySelector)="openLibrarySelector()">
+      </app-gm-desk>
     </div>
-  </div>
-
-  <!-- Damage Calculator -->
-  <div class="damage-calc-section">
-    <app-damage-calculator [worldName]="worldName"></app-damage-calculator>
   </div>
 </div>
 
@@ -473,13 +446,20 @@
   <div class="sm-overlay" (click)="closeKnowledgeManager()">
     <div class="sm-panel km-panel" (click)="$event.stopPropagation()">
       <div class="sm-header">
-        @if (knowledgeManagerType === 'material') {
-          <span class="sm-title">📖 Materialwissen</span>
-        } @else {
-          <span class="sm-title">🔨 Schmiedewissen</span>
-        }
+        <span class="sm-title">{{ knowledgeKindLabel[knowledgeManagerType] }}</span>
         <span class="sm-subtitle">{{ partyCharacters.get(knowledgeManagerFor)?.name || knowledgeManagerFor }}</span>
         <button class="sm-close" (click)="closeKnowledgeManager()">✕</button>
+      </div>
+
+      <div class="km-kinds">
+        @for (kind of knowledgeKinds; track kind) {
+          <button
+            class="km-kind"
+            [class.active]="knowledgeManagerType === kind"
+            (click)="openKnowledgeManager(knowledgeManagerFor, kind)">
+            {{ knowledgeKindLabel[kind] }}
+          </button>
+        }
       </div>
 
       @if (knowledgeManagerLoading) {
@@ -488,77 +468,41 @@
           <span>Wird geladen...</span>
         </div>
       } @else {
-        @if (knowledgeManagerType === 'material') {
-          <p class="km-hint">Öffentliche Materialien sind automatisch für alle sichtbar. Hier kannst du nicht-öffentliche Materialien freigeben.</p>
+        <p class="km-hint">
+          Als "Bekannt" eingestufte Einträge sieht ohnehin jeder. Hier gibst du geheimes und
+          unbekanntes Wissen frei.
+        </p>
 
-          <input
-            class="sm-search"
-            type="text"
-            [(ngModel)]="knowledgeManagerSearch"
-            placeholder="Material suchen...">
+        <input
+          class="sm-search"
+          type="text"
+          [(ngModel)]="knowledgeManagerSearch"
+          placeholder="Suchen...">
 
-          @if (filteredKnowledgeMaterials.length === 0) {
-            <p class="sm-empty">
-              {{ knowledgeManagerSearch ? 'Keine passenden Materialien.' : 'Keine nicht-öffentlichen Materialien in der Bibliothek.' }}
-            </p>
-          } @else {
-            <div class="km-list">
-              @for (entry of filteredKnowledgeMaterials; track entry.material.id) {
-                <label class="km-item" [class.km-known]="entry.known">
-                  <input type="checkbox" [checked]="entry.known" (change)="toggleMaterialKnowledge(entry)" />
-                  <div class="km-item-info">
-                    <span class="km-item-name">{{ entry.material.name }}</span>
-                    @if (entry.material.description) {
-                      <span class="km-item-desc">{{ entry.material.description }}</span>
-                    }
-                    <div class="km-item-types">
-                      @if (entry.material.canBeWeaponMaterial) { <span class="km-type weapon">Waffe</span> }
-                      @if (entry.material.canBeArmorMaterial) { <span class="km-type armor">Rüstung</span> }
-                    </div>
-                  </div>
-                </label>
-              }
-            </div>
-          }
-
-          <div class="km-footer">
-            <span class="km-count">{{ knownMaterialCount }} von {{ knowledgeManagerMaterials.length }} bekannt</span>
-            <button class="km-save-btn" (click)="saveKnowledgeManager()">Speichern</button>
-          </div>
+        @if (filteredKnowledgeEntries.length === 0) {
+          <p class="sm-empty">
+            {{ knowledgeManagerSearch ? 'Keine passenden Einträge.' : 'Nichts zu vergeben — alles ist bereits allgemein bekannt.' }}
+          </p>
         } @else {
-          <p class="km-hint">Öffentliche Schmiedemerkmale sind automatisch für alle sichtbar. Hier kannst du nicht-öffentliche Schmiedemerkmale freigeben.</p>
-
-          <input
-            class="sm-search"
-            type="text"
-            [(ngModel)]="knowledgeManagerSearch"
-            placeholder="Schmiedemerkmal suchen...">
-
-          @if (filteredKnowledgeForgeTraits.length === 0) {
-            <p class="sm-empty">
-              {{ knowledgeManagerSearch ? 'Keine passenden Schmiedemerkmale.' : 'Keine nicht-öffentlichen Schmiedemerkmale in der Bibliothek.' }}
-            </p>
-          } @else {
-            <div class="km-list">
-              @for (entry of filteredKnowledgeForgeTraits; track entry.forgeTrait.id) {
-                <label class="km-item" [class.km-known]="entry.known">
-                  <input type="checkbox" [checked]="entry.known" (change)="toggleForgeTraitKnowledge(entry)" />
-                  <div class="km-item-info">
-                    <span class="km-item-name">{{ entry.forgeTrait.name }}</span>
-                    @if (entry.forgeTrait.description) {
-                      <span class="km-item-desc">{{ entry.forgeTrait.description }}</span>
-                    }
-                  </div>
-                </label>
-              }
-            </div>
-          }
-
-          <div class="km-footer">
-            <span class="km-count">{{ knownForgeTraitCount }} von {{ knowledgeManagerForgeTraits.length }} bekannt</span>
-            <button class="km-save-btn" (click)="saveKnowledgeManager()">Speichern</button>
+          <div class="km-list">
+            @for (entry of filteredKnowledgeEntries; track entry.id) {
+              <label class="km-item" [class.km-known]="entry.known">
+                <input type="checkbox" [checked]="entry.known" (change)="toggleKnowledgeEntry(entry)" />
+                <div class="km-item-info">
+                  <span class="km-item-name">{{ entry.name }}</span>
+                  @if (entry.description) {
+                    <span class="km-item-desc">{{ entry.description }}</span>
+                  }
+                </div>
+              </label>
+            }
           </div>
         }
+
+        <div class="km-footer">
+          <span class="km-count">{{ knownKnowledgeCount }} von {{ knowledgeManagerEntries.length }} bekannt</span>
+          <button class="km-save-btn" (click)="saveKnowledgeManager()">Speichern</button>
+        </div>
       }
     </div>
   </div>

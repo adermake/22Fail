@@ -9,6 +9,7 @@ import { RuneBlock } from './rune-block.model';
 import { ActiveStatusEffect } from './status-effect.model';
 import { SoulBlock } from './soul-block.model';
 import { CompanionBlock } from './companion-block.model';
+import { PendingGrant } from './gm-desk.model';
 
 export interface SheetTrashItem {
   type: 'item' | 'equipment' | 'rune' | 'spell' | 'skill';
@@ -113,6 +114,8 @@ export interface CharacterSheet {
   /** Verbrauchte Gegenstände: consumed items waiting for the next Rast (sheet tab "Verbraucht").
    *  On Rest each entry's `onRest` block fires and the queue is emptied. */
   consumedItems?: ConsumedItemEntry[];
+  /** Vom Spielleiter angebotene Dinge, die auf Annehmen/Ablehnen warten (siehe `GrantService`). */
+  pendingGrants?: PendingGrant[];
   // Souls captured from beings (Wissen → Seelen), usable as Begleiter material
   souls?: SoulBlock[];
   // Begleiter: summons/familiars the character keeps ready (Begleiter tab); summoning runes point here
@@ -174,6 +177,7 @@ export function createEmptySheet(): CharacterSheet {
     knownIngredientIds: [],
     knownExtractorIds: [],
     knownBrewTraitIds: [],
+    pendingGrants: [],
   };
 }
 

@@ -1,11 +1,28 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 
 /**
  * Asset types supported by the browser
  */
-export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait' | 'ingredient' | 'extractor';
+export type AssetType =
+  | 'item'
+  | 'spell'
+  | 'rune'
+  | 'skill'
+  | 'macro'
+  | 'status-effect'
+  | 'shop'
+  | 'loot-bundle'
+  | 'material'
+  | 'forge-trait'
+  | 'ingredient'
+  | 'extractor';
 
 /**
  * Folder structure
@@ -102,14 +119,17 @@ export class AssetBrowserService {
    */
   private resolveLibraryName(identifier: string): string {
     // If it's already a valid folder name, return it
-    const directPath = path.join(this.librariesDir, this.sanitizeFileName(identifier));
+    const directPath = path.join(
+      this.librariesDir,
+      this.sanitizeFileName(identifier),
+    );
     if (fs.existsSync(directPath)) {
       return this.sanitizeFileName(identifier);
     }
 
     // Try finding by ID
     const allLibs = this.getAllLibraries();
-    const byId = allLibs.find(l => l.id === identifier);
+    const byId = allLibs.find((l) => l.id === identifier);
     if (byId) {
       return this.sanitizeFileName(byId.name);
     }
@@ -143,29 +163,39 @@ export class AssetBrowserService {
         libraryId: this.generateId(libraryName, 'lib'),
         idToPath: new Map(),
         folders: new Map([
-          ['root', {
-            id: 'root',
-            name: libraryName,
-            parentId: null,
-            path: '',
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          }]
-        ])
+          [
+            'root',
+            {
+              id: 'root',
+              name: libraryName,
+              parentId: null,
+              path: '',
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          ],
+        ]),
       };
     } else {
       const content = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
       meta = {
         libraryId: content.libraryId,
         idToPath: new Map(Object.entries(content.idToPath || {})),
-        folders: new Map(Object.entries(content.folders || {}).map(([id, folder]) => [id, folder as AssetFolder]))
+        folders: new Map(
+          Object.entries(content.folders || {}).map(([id, folder]) => [
+            id,
+            folder as AssetFolder,
+          ]),
+        ),
       };
     }
 
     // Auto-discover unregistered AssetFile JSON files and register them
     const registered = this.autoDiscoverAssets(libraryName, meta);
     if (registered > 0) {
-      console.log(`[ASSET-BROWSER] Auto-registered ${registered} untracked files in "${libraryName}"`);
+      console.log(
+        `[ASSET-BROWSER] Auto-registered ${registered} untracked files in "${libraryName}"`,
+      );
       this.saveMeta(libraryName, meta);
     }
 
@@ -191,19 +221,38 @@ export class AssetBrowserService {
         return;
       }
       for (const entry of entries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'status-effects'
-          && entry.name !== 'items' && entry.name !== 'runes' && entry.name !== 'spells'
-          && entry.name !== 'skills' && entry.name !== 'macro-actions' && entry.name !== 'shops'
-          && entry.name !== 'loot-bundles') {
-          const subRelative = relativeBase ? `${relativeBase}/${entry.name}` : entry.name;
+        if (
+          entry.isDirectory() &&
+          !entry.name.startsWith('.') &&
+          entry.name !== 'status-effects' &&
+          entry.name !== 'items' &&
+          entry.name !== 'runes' &&
+          entry.name !== 'spells' &&
+          entry.name !== 'skills' &&
+          entry.name !== 'macro-actions' &&
+          entry.name !== 'shops' &&
+          entry.name !== 'loot-bundles'
+        ) {
+          const subRelative = relativeBase
+            ? `${relativeBase}/${entry.name}`
+            : entry.name;
           scanDir(path.join(dirPath, entry.name), subRelative);
         }
-        if (entry.isFile() && entry.name.endsWith('.json') && !entry.name.startsWith('.') && entry.name !== 'library.json') {
-          const relativePath = relativeBase ? `${relativeBase}/${entry.name}` : entry.name;
+        if (
+          entry.isFile() &&
+          entry.name.endsWith('.json') &&
+          !entry.name.startsWith('.') &&
+          entry.name !== 'library.json'
+        ) {
+          const relativePath = relativeBase
+            ? `${relativeBase}/${entry.name}`
+            : entry.name;
           if (trackedPaths.has(relativePath)) continue;
 
           try {
-            const content = JSON.parse(fs.readFileSync(path.join(dirPath, entry.name), 'utf-8'));
+            const content = JSON.parse(
+              fs.readFileSync(path.join(dirPath, entry.name), 'utf-8'),
+            );
             // Check if it looks like a valid AssetFile (has id, type, data)
             if (content.id && content.type && content.data) {
               meta.idToPath.set(content.id, relativePath);
@@ -211,7 +260,11 @@ export class AssetBrowserService {
               // Ensure the file's folderId maps to an existing folder
               if (content.folderId && !meta.folders.has(content.folderId)) {
                 content.folderId = 'root';
-                fs.writeFileSync(path.join(dirPath, entry.name), JSON.stringify(content, null, 2), 'utf-8');
+                fs.writeFileSync(
+                  path.join(dirPath, entry.name),
+                  JSON.stringify(content, null, 2),
+                  'utf-8',
+                );
               }
               registered++;
             }
@@ -230,12 +283,12 @@ export class AssetBrowserService {
     const content = {
       libraryId: meta.libraryId,
       idToPath: Object.fromEntries(meta.idToPath),
-      folders: Object.fromEntries(meta.folders)
+      folders: Object.fromEntries(meta.folders),
     };
     fs.writeFileSync(
       this.getMetaPath(libraryName),
       JSON.stringify(content, null, 2),
-      'utf-8'
+      'utf-8',
     );
   }
 
@@ -281,7 +334,7 @@ export class AssetBrowserService {
 
     // Try finding by ID
     const allLibs = this.getAllLibraries();
-    const byId = allLibs.find(l => l.id === identifier);
+    const byId = allLibs.find((l) => l.id === identifier);
     if (byId) {
       return byId;
     }
@@ -296,7 +349,7 @@ export class AssetBrowserService {
     const now = Date.now();
     const sanitizedName = this.sanitizeFileName(name);
     const meta = this.loadMeta(sanitizedName);
-    
+
     const library: AssetLibrary = {
       id: meta.libraryId,
       name,
@@ -304,7 +357,7 @@ export class AssetBrowserService {
       createdAt: now,
       updatedAt: now,
       tags: [],
-      isPublic: false
+      isPublic: false,
     };
 
     const libraryDir = this.getLibraryDir(sanitizedName);
@@ -314,7 +367,7 @@ export class AssetBrowserService {
     fs.writeFileSync(
       this.getLibraryMetadataPath(sanitizedName),
       JSON.stringify(library, null, 2),
-      'utf-8'
+      'utf-8',
     );
 
     // Initialize meta with root folder
@@ -326,21 +379,24 @@ export class AssetBrowserService {
   /**
    * Update library metadata
    */
-  updateLibrary(libraryIdentifier: string, updates: Partial<AssetLibrary>): AssetLibrary {
+  updateLibrary(
+    libraryIdentifier: string,
+    updates: Partial<AssetLibrary>,
+  ): AssetLibrary {
     const library = this.getLibrary(libraryIdentifier);
     const libraryName = library.name;
-    
+
     const updated: AssetLibrary = {
       ...library,
       ...updates,
       id: library.id, // Ensure ID doesn't change
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
 
     fs.writeFileSync(
       this.getLibraryMetadataPath(libraryName),
       JSON.stringify(updated, null, 2),
-      'utf-8'
+      'utf-8',
     );
 
     return updated;
@@ -387,44 +443,51 @@ export class AssetBrowserService {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
-    
+
     if (!folder && folderId !== 'root') {
       throw new NotFoundException(`Folder "${folderId}" not found`);
     }
 
     const targetFolder = folder || meta.folders.get('root')!;
-    
+
     // Get subfolders
-    const subfolders = Array.from(meta.folders.values())
-      .filter(f => f.parentId === targetFolder.id);
-    
+    const subfolders = Array.from(meta.folders.values()).filter(
+      (f) => f.parentId === targetFolder.id,
+    );
+
     // Get files in this folder
     const files = this.getFilesInFolder(libraryName, targetFolder);
-    
+
     // Build breadcrumbs
     const breadcrumbs: AssetFolder[] = [];
     let current: AssetFolder | undefined = targetFolder;
     while (current) {
       breadcrumbs.unshift(current);
-      current = current.parentId ? meta.folders.get(current.parentId) : undefined;
+      current = current.parentId
+        ? meta.folders.get(current.parentId)
+        : undefined;
     }
 
     return {
       folder: targetFolder,
       subfolders,
       files,
-      breadcrumbs
+      breadcrumbs,
     };
   }
 
   /**
    * Create a new folder
    */
-  createFolder(libraryName: string, name: string, parentId: string): AssetFolder {
+  createFolder(
+    libraryName: string,
+    name: string,
+    parentId: string,
+  ): AssetFolder {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const parent = meta.folders.get(parentId);
-    
+
     if (!parent && parentId !== 'root') {
       throw new NotFoundException(`Parent folder "${parentId}" not found`);
     }
@@ -432,13 +495,15 @@ export class AssetBrowserService {
     const parentFolder = parent || meta.folders.get('root')!;
     const now = Date.now();
     const sanitizedName = this.sanitizeFileName(name);
-    const newPath = parentFolder.path ? `${parentFolder.path}/${sanitizedName}` : sanitizedName;
-    
+    const newPath = parentFolder.path
+      ? `${parentFolder.path}/${sanitizedName}`
+      : sanitizedName;
+
     // Check if folder already exists
     const diskPath = this.getFolderDiskPath(libraryName, newPath);
     if (fs.existsSync(diskPath)) {
       throw new ConflictException(
-        `Ein Ordner mit dem Namen "${name}" existiert bereits hier.`
+        `Ein Ordner mit dem Namen "${name}" existiert bereits hier.`,
       );
     }
 
@@ -448,7 +513,7 @@ export class AssetBrowserService {
       parentId: parentFolder.id,
       path: newPath,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
 
     // Create physical directory (diskPath already declared above for duplicate check)
@@ -469,7 +534,7 @@ export class AssetBrowserService {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
-    
+
     if (!folder) {
       throw new NotFoundException(`Folder "${folderId}" not found`);
     }
@@ -495,7 +560,10 @@ export class AssetBrowserService {
     // Clean up idToPath entries
     const pathsToRemove: string[] = [];
     for (const [assetId, assetPath] of meta.idToPath.entries()) {
-      if (assetPath.startsWith(folder.path + '/') || assetPath === folder.path) {
+      if (
+        assetPath.startsWith(folder.path + '/') ||
+        assetPath === folder.path
+      ) {
         pathsToRemove.push(assetId);
       }
     }
@@ -510,27 +578,33 @@ export class AssetBrowserService {
   /**
    * Rename a folder
    */
-  renameFolder(libraryName: string, folderId: string, newName: string): AssetFolder {
+  renameFolder(
+    libraryName: string,
+    folderId: string,
+    newName: string,
+  ): AssetFolder {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
-    
+
     if (!folder) {
       throw new NotFoundException(`Folder "${folderId}" not found`);
     }
 
     const oldPath = folder.path;
     const oldDiskPath = this.getFolderDiskPath(libraryName, oldPath);
-    
+
     const parent = folder.parentId ? meta.folders.get(folder.parentId) : null;
     const sanitizedName = this.sanitizeFileName(newName);
-    const newPath = parent?.path ? `${parent.path}/${sanitizedName}` : sanitizedName;
+    const newPath = parent?.path
+      ? `${parent.path}/${sanitizedName}`
+      : sanitizedName;
     const newDiskPath = this.getFolderDiskPath(libraryName, newPath);
-    
+
     // Check if target folder name already exists
     if (oldPath !== newPath && fs.existsSync(newDiskPath)) {
       throw new ConflictException(
-        `Ein Ordner mit dem Namen "${newName}" existiert bereits hier.`
+        `Ein Ordner mit dem Namen "${newName}" existiert bereits hier.`,
       );
     }
 
@@ -556,22 +630,28 @@ export class AssetBrowserService {
   /**
    * Move a folder
    */
-  moveFolder(libraryName: string, folderId: string, newParentId: string): AssetFolder {
+  moveFolder(
+    libraryName: string,
+    folderId: string,
+    newParentId: string,
+  ): AssetFolder {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
-    
+
     if (!folder) {
       throw new NotFoundException(`Folder "${folderId}" not found`);
     }
 
     if (this.isDescendant(meta, newParentId, folderId)) {
-      throw new BadRequestException('Cannot move folder into itself or its descendant');
+      throw new BadRequestException(
+        'Cannot move folder into itself or its descendant',
+      );
     }
 
     const oldPath = folder.path;
     const oldDiskPath = this.getFolderDiskPath(libraryName, oldPath);
-    
+
     const newParent = meta.folders.get(newParentId);
     if (!newParent && newParentId !== 'root') {
       throw new NotFoundException(`Parent folder "${newParentId}" not found`);
@@ -579,7 +659,9 @@ export class AssetBrowserService {
 
     const parentFolder = newParent || meta.folders.get('root')!;
     const sanitizedName = this.sanitizeFileName(folder.name);
-    const newPath = parentFolder.path ? `${parentFolder.path}/${sanitizedName}` : sanitizedName;
+    const newPath = parentFolder.path
+      ? `${parentFolder.path}/${sanitizedName}`
+      : sanitizedName;
     const newDiskPath = this.getFolderDiskPath(libraryName, newPath);
 
     // Move physical folder
@@ -604,13 +686,20 @@ export class AssetBrowserService {
 
   // ==================== FILE OPERATIONS ====================
 
-  private getFileDiskPath(libraryName: string, folderPath: string, fileName: string): string {
+  private getFileDiskPath(
+    libraryName: string,
+    folderPath: string,
+    fileName: string,
+  ): string {
     const folderDiskPath = this.getFolderDiskPath(libraryName, folderPath);
     const sanitizedName = this.sanitizeFileName(fileName);
     return path.join(folderDiskPath, `${sanitizedName}.json`);
   }
 
-  private getFilesInFolder(libraryName: string, folder: AssetFolder): AssetFile[] {
+  private getFilesInFolder(
+    libraryName: string,
+    folder: AssetFolder,
+  ): AssetFile[] {
     const diskPath = this.getFolderDiskPath(libraryName, folder.path);
     if (!fs.existsSync(diskPath)) {
       return [];
@@ -618,18 +707,25 @@ export class AssetBrowserService {
 
     const files: AssetFile[] = [];
     const entries = fs.readdirSync(diskPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
-      if (entry.isFile() && entry.name.endsWith('.json') && !entry.name.startsWith('.')) {
+      if (
+        entry.isFile() &&
+        entry.name.endsWith('.json') &&
+        !entry.name.startsWith('.')
+      ) {
         try {
-          const content = fs.readFileSync(path.join(diskPath, entry.name), 'utf-8');
+          const content = fs.readFileSync(
+            path.join(diskPath, entry.name),
+            'utf-8',
+          );
           const file = JSON.parse(content);
           files.push(file);
         } catch (error) {
           console.error(`Error reading file ${entry.name}:`, error);
         }
       }
-    } 
+    }
 
     return files;
   }
@@ -641,7 +737,7 @@ export class AssetBrowserService {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const relativePath = meta.idToPath.get(fileId);
-    
+
     if (!relativePath) {
       throw new NotFoundException(`File "${fileId}" not found`);
     }
@@ -657,19 +753,25 @@ export class AssetBrowserService {
   /**
    * Create a new file
    */
-  createFile(libraryName: string, name: string, type: AssetType, folderId: string, data: any): AssetFile {
+  createFile(
+    libraryName: string,
+    name: string,
+    type: AssetType,
+    folderId: string,
+    data: any,
+  ): AssetFile {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId) || meta.folders.get('root')!;
-    
+
     // Check if a file with the same name already exists in this folder
     const diskPath = this.getFileDiskPath(libraryName, folder.path, name);
     if (fs.existsSync(diskPath)) {
       throw new ConflictException(
-        `Eine Datei mit dem Namen "${name}" existiert bereits in diesem Ordner.`
+        `Eine Datei mit dem Namen "${name}" existiert bereits in diesem Ordner.`,
       );
     }
-    
+
     const now = Date.now();
     const fileId = this.generateId(libraryName, type);
 
@@ -681,12 +783,12 @@ export class AssetBrowserService {
       path: folder.path ? `${folder.path}/${name}` : name,
       data: {
         ...data,
-        id: data.id || fileId
+        id: data.id || fileId,
       },
       createdAt: now,
       updatedAt: now,
       icon: this.getTypeIcon(type),
-      tags: []
+      tags: [],
     };
 
     // Write to disk (diskPath already declared above for duplicate check)
@@ -694,7 +796,9 @@ export class AssetBrowserService {
     fs.writeFileSync(diskPath, JSON.stringify(file, null, 2), 'utf-8');
 
     // Update meta
-    const relativePath = folder.path ? `${folder.path}/${this.sanitizeFileName(name)}.json` : `${this.sanitizeFileName(name)}.json`;
+    const relativePath = folder.path
+      ? `${folder.path}/${this.sanitizeFileName(name)}.json`
+      : `${this.sanitizeFileName(name)}.json`;
     meta.idToPath.set(fileId, relativePath);
     this.saveMeta(libraryName, meta);
     this.touchLibrary(libraryName);
@@ -705,44 +809,56 @@ export class AssetBrowserService {
   /**
    * Update a file
    */
-  updateFile(libraryName: string, fileId: string, updates: Partial<AssetFile>): AssetFile {
+  updateFile(
+    libraryName: string,
+    fileId: string,
+    updates: Partial<AssetFile>,
+  ): AssetFile {
     libraryName = this.resolveLibraryName(libraryName);
     const file = this.getFile(libraryName, fileId);
     const meta = this.loadMeta(libraryName);
-    
+
     const oldPath = meta.idToPath.get(fileId)!;
     const oldDiskPath = path.join(this.getLibraryDir(libraryName), oldPath);
-    
+
     const updated: AssetFile = {
       ...file,
       ...updates,
       id: fileId,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
 
     // If name changed, rename file
     if (updates.name && updates.name !== file.name) {
       const folder = meta.folders.get(file.folderId)!;
-      const newDiskPath = this.getFileDiskPath(libraryName, folder.path, updates.name);
-      
+      const newDiskPath = this.getFileDiskPath(
+        libraryName,
+        folder.path,
+        updates.name,
+      );
+
       // Check if target name already exists
       if (fs.existsSync(newDiskPath)) {
         throw new ConflictException(
-          `Eine Datei mit dem Namen "${updates.name}" existiert bereits in diesem Ordner.`
+          `Eine Datei mit dem Namen "${updates.name}" existiert bereits in diesem Ordner.`,
         );
       }
-      
+
       // Write updated content to new path
       fs.writeFileSync(newDiskPath, JSON.stringify(updated, null, 2), 'utf-8');
-      
+
       // Delete old file
       if (fs.existsSync(oldDiskPath)) {
         fs.unlinkSync(oldDiskPath);
       }
-      
-      const newRelativePath = folder.path ? `${folder.path}/${this.sanitizeFileName(updates.name)}.json` : `${this.sanitizeFileName(updates.name)}.json`;
+
+      const newRelativePath = folder.path
+        ? `${folder.path}/${this.sanitizeFileName(updates.name)}.json`
+        : `${this.sanitizeFileName(updates.name)}.json`;
       meta.idToPath.set(fileId, newRelativePath);
-      updated.path = folder.path ? `${folder.path}/${updates.name}` : updates.name;
+      updated.path = folder.path
+        ? `${folder.path}/${updates.name}`
+        : updates.name;
     } else {
       fs.writeFileSync(oldDiskPath, JSON.stringify(updated, null, 2), 'utf-8');
     }
@@ -756,16 +872,25 @@ export class AssetBrowserService {
   /**
    * Move a file
    */
-  moveFile(libraryName: string, fileId: string, newFolderId: string): AssetFile {
+  moveFile(
+    libraryName: string,
+    fileId: string,
+    newFolderId: string,
+  ): AssetFile {
     libraryName = this.resolveLibraryName(libraryName);
     const file = this.getFile(libraryName, fileId);
     const meta = this.loadMeta(libraryName);
-    
+
     const oldPath = meta.idToPath.get(fileId)!;
     const oldDiskPath = path.join(this.getLibraryDir(libraryName), oldPath);
-    
-    const newFolder = meta.folders.get(newFolderId) || meta.folders.get('root')!;
-    const newDiskPath = this.getFileDiskPath(libraryName, newFolder.path, file.name);
+
+    const newFolder =
+      meta.folders.get(newFolderId) || meta.folders.get('root')!;
+    const newDiskPath = this.getFileDiskPath(
+      libraryName,
+      newFolder.path,
+      file.name,
+    );
 
     // Move file
     this.ensureDirectory(path.dirname(newDiskPath));
@@ -779,7 +904,9 @@ export class AssetBrowserService {
     fs.writeFileSync(newDiskPath, JSON.stringify(file, null, 2), 'utf-8');
 
     // Update meta
-    const newRelativePath = newFolder.path ? `${newFolder.path}/${this.sanitizeFileName(file.name)}.json` : `${this.sanitizeFileName(file.name)}.json`;
+    const newRelativePath = newFolder.path
+      ? `${newFolder.path}/${this.sanitizeFileName(file.name)}.json`
+      : `${this.sanitizeFileName(file.name)}.json`;
     meta.idToPath.set(fileId, newRelativePath);
     this.saveMeta(libraryName, meta);
     this.touchLibrary(libraryName);
@@ -790,7 +917,11 @@ export class AssetBrowserService {
   /**
    * Copy a file
    */
-  copyFile(libraryName: string, fileId: string, targetFolderId: string): AssetFile {
+  copyFile(
+    libraryName: string,
+    fileId: string,
+    targetFolderId: string,
+  ): AssetFile {
     const sourceFile = this.getFile(libraryName, fileId);
     return this.createFile(
       libraryName,
@@ -800,8 +931,8 @@ export class AssetBrowserService {
       {
         ...sourceFile.data,
         id: undefined,
-        name: `${sourceFile.data.name || sourceFile.name} (Copy)`
-      }
+        name: `${sourceFile.data.name || sourceFile.name} (Copy)`,
+      },
     );
   }
 
@@ -812,7 +943,7 @@ export class AssetBrowserService {
     libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const relativePath = meta.idToPath.get(fileId);
-    
+
     if (!relativePath) {
       throw new NotFoundException(`File "${fileId}" not found`);
     }
@@ -833,7 +964,7 @@ export class AssetBrowserService {
     libraryName: string,
     folderIds: string[],
     fileIds: string[],
-    targetFolderId: string
+    targetFolderId: string,
   ): { folders: AssetFolder[]; files: AssetFile[] } {
     const copiedFolders: AssetFolder[] = [];
     const copiedFiles: AssetFile[] = [];
@@ -856,7 +987,7 @@ export class AssetBrowserService {
     libraryName: string,
     folderIds: string[],
     fileIds: string[],
-    targetFolderId: string
+    targetFolderId: string,
   ): { folders: AssetFolder[]; files: AssetFile[] } {
     const movedFolders: AssetFolder[] = [];
     const movedFiles: AssetFile[] = [];
@@ -874,7 +1005,11 @@ export class AssetBrowserService {
     return { folders: movedFolders, files: movedFiles };
   }
 
-  deleteMultiple(libraryName: string, folderIds: string[], fileIds: string[]): void {
+  deleteMultiple(
+    libraryName: string,
+    folderIds: string[],
+    fileIds: string[],
+  ): void {
     for (const fileId of fileIds) {
       this.deleteFile(libraryName, fileId);
     }
@@ -890,7 +1025,11 @@ export class AssetBrowserService {
 
   // ==================== SEARCH ====================
 
-  searchFiles(libraryName: string, query: string, types?: AssetType[]): AssetFile[] {
+  searchFiles(
+    libraryName: string,
+    query: string,
+    types?: AssetType[],
+  ): AssetFile[] {
     const resolvedName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(resolvedName);
     const files: AssetFile[] = [];
@@ -899,17 +1038,17 @@ export class AssetBrowserService {
     for (const [fileId, relativePath] of meta.idToPath.entries()) {
       try {
         const file = this.getFile(resolvedName, fileId);
-        
+
         if (types && types.length > 0 && !types.includes(file.type)) {
           continue;
         }
-        
+
         if (
           file.name.toLowerCase().includes(lowerQuery) ||
           file.path.toLowerCase().includes(lowerQuery) ||
           file.data?.name?.toLowerCase()?.includes(lowerQuery) ||
           file.data?.description?.toLowerCase()?.includes(lowerQuery) ||
-          file.tags?.some(t => t.toLowerCase().includes(lowerQuery))
+          file.tags?.some((t) => t.toLowerCase().includes(lowerQuery))
         ) {
           files.push(file);
         }
@@ -923,10 +1062,13 @@ export class AssetBrowserService {
 
   // ==================== HELPER METHODS ====================
 
-  private getDescendantFolderIds(meta: LibraryMeta, parentId: string): string[] {
+  private getDescendantFolderIds(
+    meta: LibraryMeta,
+    parentId: string,
+  ): string[] {
     const descendants: string[] = [];
     const queue = [parentId];
-    
+
     while (queue.length > 0) {
       const current = queue.shift()!;
       for (const [folderId, folder] of meta.folders.entries()) {
@@ -936,22 +1078,33 @@ export class AssetBrowserService {
         }
       }
     }
-    
+
     return descendants;
   }
 
-  private isDescendant(meta: LibraryMeta, parentId: string, childId: string): boolean {
+  private isDescendant(
+    meta: LibraryMeta,
+    parentId: string,
+    childId: string,
+  ): boolean {
     let current = meta.folders.get(parentId);
     while (current) {
       if (current.id === childId) return true;
-      current = current.parentId ? meta.folders.get(current.parentId) : undefined;
+      current = current.parentId
+        ? meta.folders.get(current.parentId)
+        : undefined;
     }
     return false;
   }
 
-  private updateDescendantPaths(meta: LibraryMeta, parentId: string, oldPath: string, newPath: string): void {
+  private updateDescendantPaths(
+    meta: LibraryMeta,
+    parentId: string,
+    oldPath: string,
+    newPath: string,
+  ): void {
     const descendants = this.getDescendantFolderIds(meta, parentId);
-    
+
     for (const folderId of descendants) {
       const folder = meta.folders.get(folderId)!;
       folder.path = folder.path.replace(oldPath, newPath);
@@ -973,7 +1126,11 @@ export class AssetBrowserService {
       if (fs.existsSync(metadataPath)) {
         const library = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
         library.updatedAt = Date.now();
-        fs.writeFileSync(metadataPath, JSON.stringify(library, null, 2), 'utf-8');
+        fs.writeFileSync(
+          metadataPath,
+          JSON.stringify(library, null, 2),
+          'utf-8',
+        );
       }
     } catch (e) {
       // Ignore
@@ -982,19 +1139,32 @@ export class AssetBrowserService {
 
   private getTypeIcon(type: AssetType): string {
     switch (type) {
-      case 'item': return '📦';
-      case 'spell': return '📖';
-      case 'rune': return '✨';
-      case 'skill': return '⚔️';
-      case 'macro': return '⚡';
-      case 'status-effect': return '🎭';
-      case 'shop': return '🏪';
-      case 'loot-bundle': return '🎁';
-      case 'material': return '⚙️';
-      case 'forge-trait': return '🔥';
-      case 'ingredient': return '🌿';
-      case 'extractor': return '🧪';
-      default: return '📄';
+      case 'item':
+        return '📦';
+      case 'spell':
+        return '📖';
+      case 'rune':
+        return '✨';
+      case 'skill':
+        return '⚔️';
+      case 'macro':
+        return '⚡';
+      case 'status-effect':
+        return '🎭';
+      case 'shop':
+        return '🏪';
+      case 'loot-bundle':
+        return '🎁';
+      case 'material':
+        return '⚙️';
+      case 'forge-trait':
+        return '🔥';
+      case 'ingredient':
+        return '🌿';
+      case 'extractor':
+        return '🧪';
+      default:
+        return '📄';
     }
   }
 }

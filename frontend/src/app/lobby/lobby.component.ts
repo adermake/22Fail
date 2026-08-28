@@ -22,6 +22,7 @@ import { ImageService } from '../services/image.service';
 import { TextureService } from '../services/texture.service';
 import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
+import { LibraryStoreService } from '../services/library-store.service';
 import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
 import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
@@ -75,6 +76,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private textureService = inject(TextureService);
   private trueStats = inject(TrueStatsService);
   private assetBrowserApi = inject(AssetBrowserApiService);
+  private libraryStore = inject(LibraryStoreService);
   private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -351,6 +353,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
         console.log('[Lobby] World loaded, characterIds:', this.worldStore.worldValue?.characterIds);
         await this.loadWorldCharacters();
         await this.loadNpcStatblocks();
+
+        // Statblöcke werden zur Laufzeit bearbeitet; ohne dieses Abo zeigt die Lobby bis zum
+        // nächsten Neuladen den alten Stand.
+        this.subscriptions.push(
+          this.libraryStore.libraryChanged$.subscribe(() => void this.loadNpcStatblocks()),
+        );
         this.syncClockInputsFromWorld();
         
         // Initial load of battle tracker
@@ -1134,6 +1142,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onNpcStatblockDrop(data: { statblockId: string; name: string; portrait: string; position: HexCoord }): void {
     const characterId = 'npc-' + data.statblockId + '-' + Date.now();
+    // Die Startbeute wird KOPIERT, nicht verlinkt: der Statblock ist ein geteiltes Asset, und
+    // drei Goblins vom selben Statblock sollen nicht denselben Beutel haben.
+    const statblock = this.npcStatblocks().find(s => s.id === data.statblockId)?.statblock;
     this.store.addToken({
       characterId,
       name: data.name,
@@ -1142,6 +1153,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
       team: 'red',
       isQuickToken: true,
       statblockId: data.statblockId,
+      inventory: structuredClone(statblock?.inventory ?? []),
     });
     this.currentTool.set('cursor');
   }

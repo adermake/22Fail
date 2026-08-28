@@ -7,9 +7,16 @@ import {
   Body,
   Param,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AssetBrowserService } from './asset-browser.service';
-import type { AssetType, AssetFile, AssetFolder, AssetLibrary } from './asset-browser.service';
+import type {
+  AssetType,
+  AssetFile,
+  AssetFolder,
+  AssetLibrary,
+} from './asset-browser.service';
+import { LibraryChangeInterceptor } from './library-change.interceptor';
 
 // DTOs
 class CreateLibraryDto {
@@ -76,6 +83,7 @@ class SearchDto {
 }
 
 @Controller('api/asset-browser')
+@UseInterceptors(LibraryChangeInterceptor)
 export class AssetBrowserController {
   constructor(private readonly assetBrowserService: AssetBrowserService) {}
 
@@ -133,7 +141,11 @@ export class AssetBrowserController {
     @Param('libraryId') libraryId: string,
     @Body() dto: CreateFolderDto,
   ): AssetFolder {
-    return this.assetBrowserService.createFolder(libraryId, dto.name, dto.parentId);
+    return this.assetBrowserService.createFolder(
+      libraryId,
+      dto.name,
+      dto.parentId,
+    );
   }
 
   @Put('libraries/:libraryId/folders/:folderId/rename')
@@ -151,7 +163,11 @@ export class AssetBrowserController {
     @Param('folderId') folderId: string,
     @Body() dto: MoveFolderDto,
   ): AssetFolder {
-    return this.assetBrowserService.moveFolder(libraryId, folderId, dto.newParentId);
+    return this.assetBrowserService.moveFolder(
+      libraryId,
+      folderId,
+      dto.newParentId,
+    );
   }
 
   @Delete('libraries/:libraryId/folders/:folderId')
@@ -202,7 +218,11 @@ export class AssetBrowserController {
     @Param('fileId') fileId: string,
     @Body() dto: MoveFileDto,
   ): AssetFile {
-    return this.assetBrowserService.moveFile(libraryId, fileId, dto.newFolderId);
+    return this.assetBrowserService.moveFile(
+      libraryId,
+      fileId,
+      dto.newFolderId,
+    );
   }
 
   @Post('libraries/:libraryId/files/:fileId/copy')
@@ -211,7 +231,11 @@ export class AssetBrowserController {
     @Param('fileId') fileId: string,
     @Body() dto: CopyFileDto,
   ): AssetFile {
-    return this.assetBrowserService.copyFile(libraryId, fileId, dto.targetFolderId);
+    return this.assetBrowserService.copyFile(
+      libraryId,
+      fileId,
+      dto.targetFolderId,
+    );
   }
 
   @Delete('libraries/:libraryId/files/:fileId')
@@ -256,7 +280,11 @@ export class AssetBrowserController {
     @Param('libraryId') libraryId: string,
     @Body() dto: BulkDeleteDto,
   ): { success: boolean } {
-    this.assetBrowserService.deleteMultiple(libraryId, dto.folderIds, dto.fileIds);
+    this.assetBrowserService.deleteMultiple(
+      libraryId,
+      dto.folderIds,
+      dto.fileIds,
+    );
     return { success: true };
   }
 

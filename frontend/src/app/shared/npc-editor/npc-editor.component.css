@@ -273,3 +273,24 @@
 
 /* Gold value on the right of a library item row */
 .npc-item-value { flex-shrink: 0; margin-left: 8px; color: #fbbf24; font-size: 0.72rem; font-weight: 600; }
+
+/* ── Klick-Rückmeldung im Bibliotheks-Browser ──
+   Eine Zeile war vorher komplett stumm: kein :active, keine transition, kein Zustand danach.
+   Jetzt drückt sie sichtbar ein und blitzt kurz grün, sobald der Eintrag übernommen wurde. */
+.npc-tree-skill {
+  transition: background 0.12s ease, color 0.12s ease, transform 0.08s ease;
+}
+
+.npc-tree-skill:active {
+  transform: scale(0.97);
+  background: var(--card, #2d3748);
+}
+
+.npc-tree-skill.just-added {
+  animation: npcJustAdded 0.45s ease-out;
+}
+
+@keyframes npcJustAdded {
+  0%   { background: rgba(52, 211, 153, 0.45); color: #ecfdf5; }
+  100% { background: transparent; color: var(--text-muted, #cbd5e1); }
+}

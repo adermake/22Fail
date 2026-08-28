@@ -4,7 +4,7 @@ import { join } from 'path';
 
 /**
  * Map Storage Service
- * 
+ *
  * Handles persistent file-based storage for maps, preventing data loss.
  * Maps are stored in: maps/{worldName}/{mapName}/
  *   - map.json: Full map data
@@ -64,15 +64,21 @@ export class MapStorageService {
    * Save a map to the filesystem
    * Returns true if successful, false otherwise
    */
-  async saveMap(worldName: string, mapName: string, mapData: any): Promise<boolean> {
+  async saveMap(
+    worldName: string,
+    mapName: string,
+    mapData: any,
+  ): Promise<boolean> {
     try {
       const mapDir = this.getMapDirectory(worldName, mapName);
       const mapFile = this.getMapFilePath(worldName, mapName);
-      
+
       // Ensure directory exists
       await fs.mkdir(mapDir, { recursive: true });
-      await fs.mkdir(this.getMapImagesDirectory(worldName, mapName), { recursive: true });
-      
+      await fs.mkdir(this.getMapImagesDirectory(worldName, mapName), {
+        recursive: true,
+      });
+
       // Add metadata
       const dataToSave = {
         ...mapData,
@@ -81,10 +87,10 @@ export class MapStorageService {
         _worldName: worldName,
         _mapName: mapName,
       };
-      
+
       // Write map data
       await fs.writeFile(mapFile, JSON.stringify(dataToSave, null, 2), 'utf-8');
-      
+
       this.logger.log(`Map saved: ${worldName}/${mapName}`);
       return true;
     } catch (error) {
@@ -102,11 +108,11 @@ export class MapStorageService {
       const mapFile = this.getMapFilePath(worldName, mapName);
       const data = await fs.readFile(mapFile, 'utf-8');
       const mapData = JSON.parse(data);
-      
+
       this.logger.log(`Map loaded: ${worldName}/${mapName}`);
       return mapData;
     } catch (error) {
-      if ((error as any).code !== 'ENOENT') {
+      if (error.code !== 'ENOENT') {
         this.logger.error(`Failed to load map ${worldName}/${mapName}:`, error);
       }
       return null;
@@ -120,20 +126,25 @@ export class MapStorageService {
     try {
       const mapFile = this.getMapFilePath(worldName, mapName);
       const backupsDir = this.getMapBackupsDirectory(worldName, mapName);
-      
+
       // Ensure backups directory exists
       await fs.mkdir(backupsDir, { recursive: true });
-      
+
       // Read current map
       const data = await fs.readFile(mapFile, 'utf-8');
-      
+
       // Create timestamped backup
-      const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/:/g, '-')
+        .replace(/\..+/, '');
       const backupFile = join(backupsDir, `map-${timestamp}.json`);
-      
+
       await fs.writeFile(backupFile, data, 'utf-8');
-      
-      this.logger.log(`Backup created: ${worldName}/${mapName} -> ${backupFile}`);
+
+      this.logger.log(
+        `Backup created: ${worldName}/${mapName} -> ${backupFile}`,
+      );
       return true;
     } catch (error) {
       this.logger.error(`Failed to backup map ${worldName}/${mapName}:`, error);
@@ -148,7 +159,7 @@ export class MapStorageService {
     try {
       const worldDir = join(this.mapsDirectory, worldName);
       const entries = await fs.readdir(worldDir, { withFileTypes: true });
-      
+
       // Filter for directories that contain a map.json file
       const maps: string[] = [];
       for (const entry of entries) {
@@ -162,10 +173,10 @@ export class MapStorageService {
           }
         }
       }
-      
+
       return maps;
     } catch (error) {
-      if ((error as any).code === 'ENOENT') {
+      if (error.code === 'ENOENT') {
         return [];
       }
       this.logger.error(`Failed to list maps for ${worldName}:`, error);
@@ -180,17 +191,20 @@ export class MapStorageService {
     try {
       // Create final backup before deletion
       await this.backupMap(worldName, mapName);
-      
+
       const mapDir = this.getMapDirectory(worldName, mapName);
       const trashDir = join(this.mapsDirectory, '_trash', worldName);
-      
+
       await fs.mkdir(trashDir, { recursive: true });
-      
-      const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/:/g, '-')
+        .replace(/\..+/, '');
       const trashPath = join(trashDir, `${mapName}-${timestamp}`);
-      
+
       await fs.rename(mapDir, trashPath);
-      
+
       this.logger.log(`Map moved to trash: ${worldName}/${mapName}`);
       return true;
     } catch (error) {
@@ -202,18 +216,26 @@ export class MapStorageService {
   /**
    * Save an image to the map's images directory
    */
-  async saveMapImage(worldName: string, mapName: string, imageId: string, imageData: Buffer): Promise<boolean> {
+  async saveMapImage(
+    worldName: string,
+    mapName: string,
+    imageId: string,
+    imageData: Buffer,
+  ): Promise<boolean> {
     try {
       const imagesDir = this.getMapImagesDirectory(worldName, mapName);
       await fs.mkdir(imagesDir, { recursive: true });
-      
+
       const imagePath = join(imagesDir, `${imageId}.png`);
       await fs.writeFile(imagePath, imageData);
-      
+
       this.logger.log(`Image saved: ${worldName}/${mapName}/${imageId}.png`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to save image for ${worldName}/${mapName}:`, error);
+      this.logger.error(
+        `Failed to save image for ${worldName}/${mapName}:`,
+        error,
+      );
       return false;
     }
   }
@@ -221,14 +243,24 @@ export class MapStorageService {
   /**
    * Load an image from the map's images directory
    */
-  async loadMapImage(worldName: string, mapName: string, imageId: string): Promise<Buffer | null> {
+  async loadMapImage(
+    worldName: string,
+    mapName: string,
+    imageId: string,
+  ): Promise<Buffer | null> {
     try {
-      const imagePath = join(this.getMapImagesDirectory(worldName, mapName), `${imageId}.png`);
+      const imagePath = join(
+        this.getMapImagesDirectory(worldName, mapName),
+        `${imageId}.png`,
+      );
       const data = await fs.readFile(imagePath);
       return data;
     } catch (error) {
-      if ((error as any).code !== 'ENOENT') {
-        this.logger.error(`Failed to load image ${worldName}/${mapName}/${imageId}:`, error);
+      if (error.code !== 'ENOENT') {
+        this.logger.error(
+          `Failed to load image ${worldName}/${mapName}/${imageId}:`,
+          error,
+        );
       }
       return null;
     }

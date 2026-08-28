@@ -1,0 +1,60 @@
+<div class="grant-overlay">
+  <div class="grant-modal">
+    <app-card>
+      <div class="grant-header">
+        <h2>Der Spielleiter bietet dir etwas an</h2>
+        @if (grants.length > 1) {
+          <span class="grant-count">{{ grants.length }} Angebote</span>
+        }
+      </div>
+
+      <div class="grant-list">
+        @for (grant of grants; track grant.entryId) {
+          <div class="grant-card">
+            <span class="grant-badge">
+              <i class="app-icon" [class]="typeIcon[grant.type]"></i>
+              {{ badgeFor(grant) }}
+            </span>
+
+            <div class="grant-details">
+              @if (grant.type === 'currency') {
+                <h3>Münzen</h3>
+                <div class="grant-coins">
+                  @for (coin of coinsFor(grant); track coin.type) {
+                    <span class="grant-coin" [style.color]="coin.color">
+                      {{ coin.amount }} {{ coin.symbol }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <h3>
+                  {{ grant.name }}
+                  @if (amountFor(grant) > 1) {
+                    <span class="grant-amount">×{{ amountFor(grant) }}</span>
+                  }
+                </h3>
+                @if (descriptionFor(grant)) {
+                  <p>{{ descriptionFor(grant) }}</p>
+                }
+              }
+              @if (grant.fromName) {
+                <p class="grant-from">von {{ grant.fromName }}</p>
+              }
+            </div>
+
+            <div class="grant-actions">
+              <button class="grant-accept" (click)="accept.emit(grant)">Annehmen</button>
+              <button class="grant-decline" (click)="decline.emit(grant)">Ablehnen</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (grants.length > 1) {
+        <div class="grant-footer">
+          <button class="grant-accept-all" (click)="acceptAll.emit()">Alle annehmen</button>
+        </div>
+      }
+    </app-card>
+  </div>
+</div>

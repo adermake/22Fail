@@ -18,6 +18,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { CharacterGateway } from './character.gateway';
 import { WorldGateway } from './world.gateway';
+import { LibraryChangeInterceptor } from './library-change.interceptor';
 import { BattleMapGateway } from './battlemap.gateway';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
@@ -46,7 +47,9 @@ function resolveFrontendRoot(): string {
   }
   console.error('[static] NO frontend build found. Tried these paths -');
   for (const dir of candidates) console.error('  ' + dir);
-  console.error('[static] Run "npm run deploy:stage" in frontend/ to build and stage it.');
+  console.error(
+    '[static] Run "npm run deploy:stage" in frontend/ to build and stage it.',
+  );
   return candidates[0];
 }
 
@@ -64,7 +67,10 @@ const FRONTEND_ROOT = resolveFrontendRoot();
           // change between deploys - it must revalidate, or you get the "updates only somewhat,
           // really inconsistent" behaviour. Revalidation is a cheap 304 when nothing changed.
           if (/-[A-Z0-9]{8,}[.](?:js|css)$/i.test(filePath)) {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            res.setHeader(
+              'Cache-Control',
+              'public, max-age=31536000, immutable',
+            );
           } else {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate');
           }
@@ -72,7 +78,30 @@ const FRONTEND_ROOT = resolveFrontendRoot();
       },
     }),
   ],
-  controllers: [AppController, MapStorageController, LibraryController, AssetBrowserController, UsersController, MapEditorController],
-  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService, MapStorageService, LibraryService, AssetBrowserService, UsersService, AdminGuard, MapEditorService, MapEditorGateway],
+  controllers: [
+    AppController,
+    MapStorageController,
+    LibraryController,
+    AssetBrowserController,
+    UsersController,
+    MapEditorController,
+  ],
+  providers: [
+    CharacterGateway,
+    WorldGateway,
+    BattleMapGateway,
+    DataService,
+    ImageService,
+    TextureService,
+    StressTestService,
+    MapStorageService,
+    LibraryService,
+    AssetBrowserService,
+    UsersService,
+    AdminGuard,
+    MapEditorService,
+    MapEditorGateway,
+    LibraryChangeInterceptor,
+  ],
 })
 export class AppModule {}

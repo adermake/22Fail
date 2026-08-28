@@ -102,10 +102,6 @@ export class DataService {
     return path.join(this.getWorldDir(worldName), 'skills');
   }
 
-  private getWorldLootBundlesDir(worldName: string): string {
-    return path.join(this.getWorldDir(worldName), 'loot-bundles');
-  }
-
   private getWorldStatusEffectsDir(worldName: string): string {
     return path.join(this.getWorldDir(worldName), 'status-effects');
   }
@@ -183,7 +179,10 @@ export class DataService {
       fs.unlinkSync(filePath);
       return true;
     } catch (error) {
-      console.error(`Error deleting entity ${entityId} from ${dirPath}:`, error);
+      console.error(
+        `Error deleting entity ${entityId} from ${dirPath}:`,
+        error,
+      );
       return false;
     }
   }
@@ -211,7 +210,6 @@ export class DataService {
     this.ensureDirectory(this.getWorldSpellsDir(worldName));
     this.ensureDirectory(this.getWorldRunesDir(worldName));
     this.ensureDirectory(this.getWorldSkillsDir(worldName));
-    this.ensureDirectory(this.getWorldLootBundlesDir(worldName));
     this.ensureDirectory(this.getWorldStatusEffectsDir(worldName));
     this.ensureDirectory(this.getWorldMapsDir(worldName));
   }
@@ -222,12 +220,17 @@ export class DataService {
       characterIds: [],
       partyIds: [],
       currentEvents: [],
-      battleLoot: [],
+      gmDesk: [],
       battleParticipants: [],
       currentTurnIndex: 0,
       trash: [],
       battleMaps: [], // Legacy, keeping for compatibility
     };
+  }
+
+  /** Whether a path segment addresses an array position ('-' appends, a number indexes). */
+  private isArrayKeySegment(key: string | undefined): boolean {
+    return key === '-' || (key !== undefined && !isNaN(parseInt(key, 10)));
   }
 
   private applyJsonPatch(target: unknown, patch: JsonPatch): void {
@@ -237,7 +240,7 @@ export class DataService {
       normalizedPath = normalizedPath.substring(1);
     }
     normalizedPath = normalizedPath.replace(/\//g, '.');
-    
+
     const keys = normalizedPath.split('.');
 
     // Special case: if path has only one key and value is an array, replace entire array
@@ -260,20 +263,22 @@ export class DataService {
         current = current[index] as JsonObject;
       } else {
         if (typeof current[key] !== 'object' || current[key] === null) {
-          current[key] = {};
+          // Create the shape the NEXT segment addresses: '-' or a number needs an array.
+          // Creating {} there stored an appended value under a literal '-' key and lost it.
+          current[key] = this.isArrayKeySegment(keys[i + 1]) ? [] : {};
         }
         current = current[key] as JsonObject;
       }
     }
 
     const finalKey = keys[keys.length - 1];
-    
+
     // Handle array append operation: '-' means append to array
     if (finalKey === '-' && Array.isArray(current)) {
       current.push(patch.value);
       return;
     }
-    
+
     const finalIndex = parseInt(finalKey, 10);
 
     if (!isNaN(finalIndex) && Array.isArray(current)) {
@@ -337,7 +342,10 @@ export class DataService {
         try {
           const c = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           out.push({
-            id, name: c?.name, portrait: c?.portrait, worldName: c?.worldName,
+            id,
+            name: c?.name,
+            portrait: c?.portrait,
+            worldName: c?.worldName,
             controllerUserIds: c?.controllerUserIds,
             // Shown on the homepage tile, so a character is identifiable without opening it.
             level: typeof c?.level === 'number' ? c.level : undefined,
@@ -346,7 +354,9 @@ export class DataService {
             race: c?.race || undefined,
             updatedAt: this.fileMtime(filePath),
           });
-        } catch { out.push({ id }); }
+        } catch {
+          out.push({ id });
+        }
       }
     } catch (e) {
       console.error('Error reading characters directory:', e);
@@ -355,7 +365,11 @@ export class DataService {
   }
 
   private fileMtime(filePath: string): number | undefined {
-    try { return fs.statSync(filePath).mtimeMs; } catch { return undefined; }
+    try {
+      return fs.statSync(filePath).mtimeMs;
+    } catch {
+      return undefined;
+    }
   }
 
   // ── Trash: soft delete / restore / purge ──
@@ -374,7 +388,11 @@ export class DataService {
 
   private writeTrashIndex(entries: TrashEntry[]): void {
     this.ensureDirectory(this.trashDir);
-    fs.writeFileSync(this.trashIndexFile, JSON.stringify(entries, null, 2), 'utf-8');
+    fs.writeFileSync(
+      this.trashIndexFile,
+      JSON.stringify(entries, null, 2),
+      'utf-8',
+    );
   }
 
   /** Newest deletions first. */
@@ -383,12 +401,16 @@ export class DataService {
   }
 
   private putTrashEntry(entry: TrashEntry): void {
-    const rest = this.readTrashIndex().filter(e => !(e.kind === entry.kind && e.id === entry.id));
+    const rest = this.readTrashIndex().filter(
+      (e) => !(e.kind === entry.kind && e.id === entry.id),
+    );
     this.writeTrashIndex([entry, ...rest]);
   }
 
   private dropTrashEntry(kind: TrashEntry['kind'], id: string): void {
-    this.writeTrashIndex(this.readTrashIndex().filter(e => !(e.kind === kind && e.id === id)));
+    this.writeTrashIndex(
+      this.readTrashIndex().filter((e) => !(e.kind === kind && e.id === id)),
+    );
   }
 
   private trashCharacterPath(id: string): string {
@@ -404,12 +426,22 @@ export class DataService {
     const src = this.getCharacterFilePath(id);
     if (!fs.existsSync(src)) return null;
     let name = id;
-    try { name = JSON.parse(fs.readFileSync(src, 'utf-8'))?.name || id; } catch { /* keep the id */ }
+    try {
+      name = JSON.parse(fs.readFileSync(src, 'utf-8'))?.name || id;
+    } catch {
+      /* keep the id */
+    }
     const dest = this.trashCharacterPath(id);
     // A previous deletion of the same id would collide — the newer copy wins.
     if (fs.existsSync(dest)) fs.rmSync(dest, { force: true });
     fs.renameSync(src, dest);
-    const entry: TrashEntry = { kind: 'character', id, name, deletedAt: Date.now(), deletedBy };
+    const entry: TrashEntry = {
+      kind: 'character',
+      id,
+      name,
+      deletedAt: Date.now(),
+      deletedBy,
+    };
     this.putTrashEntry(entry);
     return entry;
   }
@@ -422,7 +454,11 @@ export class DataService {
     if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
     fs.renameSync(src, dest);
     const entry: TrashEntry = {
-      kind: 'world', id: worldName, name: worldName, deletedAt: Date.now(), deletedBy,
+      kind: 'world',
+      id: worldName,
+      name: worldName,
+      deletedAt: Date.now(),
+      deletedBy,
     };
     this.putTrashEntry(entry);
     return entry;
@@ -432,18 +468,32 @@ export class DataService {
    * Move an item back out of the trash. Fails (rather than overwriting) when something new was
    * created under the same id/name in the meantime.
    */
-  restoreFromTrash(kind: TrashEntry['kind'], id: string): { ok: boolean; error?: string } {
-    const entry = this.readTrashIndex().find(e => e.kind === kind && e.id === id);
+  restoreFromTrash(
+    kind: TrashEntry['kind'],
+    id: string,
+  ): { ok: boolean; error?: string } {
+    const entry = this.readTrashIndex().find(
+      (e) => e.kind === kind && e.id === id,
+    );
     if (!entry) return { ok: false, error: 'Nicht im Papierkorb gefunden.' };
 
-    const src = kind === 'character' ? this.trashCharacterPath(id) : this.trashWorldPath(id);
-    const dest = kind === 'character' ? this.getCharacterFilePath(id) : this.getWorldDir(id);
+    const src =
+      kind === 'character'
+        ? this.trashCharacterPath(id)
+        : this.trashWorldPath(id);
+    const dest =
+      kind === 'character'
+        ? this.getCharacterFilePath(id)
+        : this.getWorldDir(id);
     if (!fs.existsSync(src)) {
       this.dropTrashEntry(kind, id);
       return { ok: false, error: 'Die Daten fehlen — Eintrag wurde entfernt.' };
     }
     if (fs.existsSync(dest)) {
-      return { ok: false, error: 'Es existiert bereits wieder etwas unter diesem Namen.' };
+      return {
+        ok: false,
+        error: 'Es existiert bereits wieder etwas unter diesem Namen.',
+      };
     }
     fs.renameSync(src, dest);
     this.dropTrashEntry(kind, id);
@@ -452,8 +502,12 @@ export class DataService {
 
   /** Permanently remove one trashed item. The only path that actually deletes bytes. */
   purgeFromTrash(kind: TrashEntry['kind'], id: string): boolean {
-    const target = kind === 'character' ? this.trashCharacterPath(id) : this.trashWorldPath(id);
-    if (fs.existsSync(target)) fs.rmSync(target, { recursive: true, force: true });
+    const target =
+      kind === 'character'
+        ? this.trashCharacterPath(id)
+        : this.trashWorldPath(id);
+    if (fs.existsSync(target))
+      fs.rmSync(target, { recursive: true, force: true });
     const before = this.readTrashIndex().length;
     this.dropTrashEntry(kind, id);
     return this.readTrashIndex().length < before;
@@ -473,7 +527,7 @@ export class DataService {
   applyPatchToCharacter(id: string, patch: JsonPatch): string | null {
     const logPatch = this.truncateImageData(patch);
     console.log('APPLY PATCH CHARACTER CALLED for:', id, 'Patch:', logPatch);
-    
+
     const filePath = this.getCharacterFilePath(id);
     if (!fs.existsSync(filePath)) {
       return null; // character does not exist
@@ -509,12 +563,21 @@ export class DataService {
       const world = JSON.parse(worldJson);
 
       // Load entity collections from their respective directories
-      world.itemLibrary = this.readEntityCollection(this.getWorldItemsDir(name));
-      world.spellLibrary = this.readEntityCollection(this.getWorldSpellsDir(name));
-      world.runeLibrary = this.readEntityCollection(this.getWorldRunesDir(name));
-      world.skillLibrary = this.readEntityCollection(this.getWorldSkillsDir(name));
-      world.lootBundles = this.readEntityCollection(this.getWorldLootBundlesDir(name));
-      world.statusEffectLibrary = this.readEntityCollection(this.getWorldStatusEffectsDir(name));
+      world.itemLibrary = this.readEntityCollection(
+        this.getWorldItemsDir(name),
+      );
+      world.spellLibrary = this.readEntityCollection(
+        this.getWorldSpellsDir(name),
+      );
+      world.runeLibrary = this.readEntityCollection(
+        this.getWorldRunesDir(name),
+      );
+      world.skillLibrary = this.readEntityCollection(
+        this.getWorldSkillsDir(name),
+      );
+      world.statusEffectLibrary = this.readEntityCollection(
+        this.getWorldStatusEffectsDir(name),
+      );
 
       // Load lobby if exists
       const lobbyPath = this.getWorldLobbyFilePath(name);
@@ -540,7 +603,6 @@ export class DataService {
       const spellLibrary = world.spellLibrary || [];
       const runeLibrary = world.runeLibrary || [];
       const skillLibrary = world.skillLibrary || [];
-      const lootBundles = world.lootBundles || [];
       const statusEffectLibrary = world.statusEffectLibrary || [];
 
       // Clear existing entity files
@@ -548,7 +610,6 @@ export class DataService {
       const spellsDir = this.getWorldSpellsDir(name);
       const runesDir = this.getWorldRunesDir(name);
       const skillsDir = this.getWorldSkillsDir(name);
-      const lootBundlesDir = this.getWorldLootBundlesDir(name);
       const statusEffectsDir = this.getWorldStatusEffectsDir(name);
 
       // Write each entity to its own file
@@ -564,9 +625,6 @@ export class DataService {
       for (const skill of skillLibrary) {
         this.writeEntity(skillsDir, skill.id, skill);
       }
-      for (const bundle of lootBundles) {
-        this.writeEntity(lootBundlesDir, bundle.id, bundle);
-      }
       for (const effect of statusEffectLibrary) {
         this.writeEntity(statusEffectsDir, effect.id, effect);
       }
@@ -574,7 +632,11 @@ export class DataService {
       // Save lobby separately if present
       if (world.lobby) {
         const lobbyPath = this.getWorldLobbyFilePath(name);
-        fs.writeFileSync(lobbyPath, JSON.stringify(world.lobby, null, 2), 'utf-8');
+        fs.writeFileSync(
+          lobbyPath,
+          JSON.stringify(world.lobby, null, 2),
+          'utf-8',
+        );
       }
 
       // Save core world data (without the entity collections and lobby, which live in their own
@@ -586,8 +648,12 @@ export class DataService {
       // A blocklist is the only shape that is correct here: strip what is stored elsewhere, keep
       // the rest, and adding a world field never needs a change in this function again.
       const SEPARATELY_STORED = [
-        'itemLibrary', 'spellLibrary', 'runeLibrary', 'skillLibrary',
-        'lootBundles', 'statusEffectLibrary', 'lobby',
+        'itemLibrary',
+        'spellLibrary',
+        'runeLibrary',
+        'skillLibrary',
+        'statusEffectLibrary',
+        'lobby',
       ];
       const coreWorld = { ...world };
       for (const key of SEPARATELY_STORED) delete coreWorld[key];
@@ -596,8 +662,12 @@ export class DataService {
       coreWorld.partyIds = world.partyIds || [];
 
       const worldFilePath = this.getWorldFilePath(name);
-      fs.writeFileSync(worldFilePath, JSON.stringify(coreWorld, null, 2), 'utf-8');
-      
+      fs.writeFileSync(
+        worldFilePath,
+        JSON.stringify(coreWorld, null, 2),
+        'utf-8',
+      );
+
       console.log('SAVE WORLD CALLED for:', name);
     } catch (error) {
       console.error(`Error saving world ${name}:`, error);
@@ -636,8 +706,16 @@ export class DataService {
   }
 
   /** Lightweight world listing for the homepage: name, owner, and character ids only. */
-  getAllWorldSummaries(): { name: string; ownerUserId?: string; characterIds: string[] }[] {
-    const out: { name: string; ownerUserId?: string; characterIds: string[] }[] = [];
+  getAllWorldSummaries(): {
+    name: string;
+    ownerUserId?: string;
+    characterIds: string[];
+  }[] {
+    const out: {
+      name: string;
+      ownerUserId?: string;
+      characterIds: string[];
+    }[] = [];
     try {
       for (const dir of fs.readdirSync(this.worldsDir)) {
         const worldFilePath = path.join(this.worldsDir, dir, 'world.json');
@@ -648,10 +726,14 @@ export class DataService {
             out.push({
               name: world.name,
               ownerUserId: world.ownerUserId,
-              characterIds: Array.isArray(world.characterIds) ? world.characterIds : [],
+              characterIds: Array.isArray(world.characterIds)
+                ? world.characterIds
+                : [],
             });
           }
-        } catch { /* skip unreadable world */ }
+        } catch {
+          /* skip unreadable world */
+        }
       }
     } catch (e) {
       console.error('Error reading worlds directory:', e);
@@ -674,33 +756,46 @@ export class DataService {
   }
 
   private writeGlobalTextures(textures: any[]): void {
-    fs.writeFileSync(this.globalTexturesFilePath, JSON.stringify(textures, null, 2), 'utf-8');
+    fs.writeFileSync(
+      this.globalTexturesFilePath,
+      JSON.stringify(textures, null, 2),
+      'utf-8',
+    );
   }
 
   getGlobalTextures(): any[] {
     const textures = this.readGlobalTextures();
     const texturesDir = path.join(__dirname, '../../../data/textures');
-    
+
     // Filter out textures where the actual file doesn't exist
-    const validTextures = textures.filter(texture => {
+    const validTextures = textures.filter((texture) => {
       const filePath = path.join(texturesDir, texture.textureId);
       const exists = fs.existsSync(filePath);
       if (!exists) {
-        console.log(`[DATA SERVICE] Filtering out missing texture: ${texture.textureId}`);
+        console.log(
+          `[DATA SERVICE] Filtering out missing texture: ${texture.textureId}`,
+        );
       }
       return exists;
     });
-    
+
     // If we filtered any out, update the file to remove stale references
     if (validTextures.length !== textures.length) {
-      console.log(`[DATA SERVICE] Removed ${textures.length - validTextures.length} stale texture references`);
+      console.log(
+        `[DATA SERVICE] Removed ${textures.length - validTextures.length} stale texture references`,
+      );
       this.writeGlobalTextures(validTextures);
     }
-    
+
     return validTextures;
   }
 
-  addGlobalTexture(texture: { id: string; name: string; textureId: string; tileSize: number }): void {
+  addGlobalTexture(texture: {
+    id: string;
+    name: string;
+    textureId: string;
+    tileSize: number;
+  }): void {
     const textures = this.readGlobalTextures();
     textures.push({ ...texture, createdAt: Date.now() });
     this.writeGlobalTextures(textures);
@@ -709,7 +804,7 @@ export class DataService {
 
   deleteGlobalTexture(id: string): boolean {
     const textures = this.readGlobalTextures();
-    const filtered = textures.filter(t => t.id !== id);
+    const filtered = textures.filter((t) => t.id !== id);
     if (filtered.length === textures.length) {
       return false; // Not found
     }
@@ -719,11 +814,15 @@ export class DataService {
   }
 
   private truncateImageData(obj: any): any {
-    if (typeof obj === 'string' && obj.startsWith('data:image') && obj.length > 100) {
+    if (
+      typeof obj === 'string' &&
+      obj.startsWith('data:image') &&
+      obj.length > 100
+    ) {
       return obj.substring(0, 50) + '...[TRUNCATED ' + obj.length + ' chars]';
     }
     if (Array.isArray(obj)) {
-      return obj.map(item => this.truncateImageData(item));
+      return obj.map((item) => this.truncateImageData(item));
     }
     if (obj && typeof obj === 'object') {
       const result: any = {};
@@ -746,7 +845,9 @@ export class DataService {
     let worldJson = this.getWorld(name);
 
     if (!worldJson) {
-      console.warn(`World "${name}" does not exist in backend! Creating it now...`);
+      console.warn(
+        `World "${name}" does not exist in backend! Creating it now...`,
+      );
       // Create a minimal world structure
       const world = this.createEmptyWorld(name);
       this.saveWorld(name, JSON.stringify(world, null, 2));
@@ -765,63 +866,73 @@ export class DataService {
   getBattleMap(worldName: string, battleMapId: string): any | null {
     const worldJson = this.getWorld(worldName);
     if (!worldJson) {
-        return null;
+      return null;
     }
     const world = JSON.parse(worldJson);
     if (!world.battleMaps) {
-        return null;
+      return null;
     }
     const battleMap = world.battleMaps.find((bm: any) => bm.id === battleMapId);
     return battleMap || null;
   }
 
   addBattleMap(worldName: string, battleMap: any): any {
-      let worldJson = this.getWorld(worldName);
-      if (!worldJson) {
-        // if world does not exist, create it.
-        const newWorld = this.createEmptyWorld(worldName);
-        this.saveWorld(worldName, JSON.stringify(newWorld, null, 2));
-        worldJson = this.getWorld(worldName)
-      }
-      const world = worldJson ? JSON.parse(worldJson) : this.createEmptyWorld(worldName);
+    let worldJson = this.getWorld(worldName);
+    if (!worldJson) {
+      // if world does not exist, create it.
+      const newWorld = this.createEmptyWorld(worldName);
+      this.saveWorld(worldName, JSON.stringify(newWorld, null, 2));
+      worldJson = this.getWorld(worldName);
+    }
+    const world = worldJson
+      ? JSON.parse(worldJson)
+      : this.createEmptyWorld(worldName);
 
-      if (!world.battleMaps) {
-          world.battleMaps = [];
-      }
-      world.battleMaps.push(battleMap);
-      
-      const updatedWorldJson = JSON.stringify(world, null, 2);
-      this.saveWorld(worldName, updatedWorldJson);
-      return battleMap;
+    if (!world.battleMaps) {
+      world.battleMaps = [];
+    }
+    world.battleMaps.push(battleMap);
+
+    const updatedWorldJson = JSON.stringify(world, null, 2);
+    this.saveWorld(worldName, updatedWorldJson);
+    return battleMap;
   }
 
-  applyPatchToBattleMap(worldName: string, battleMapId: string, patch: JsonPatch): string | null {
-      const worldJson = this.getWorld(worldName);
-      if (!worldJson) {
-        console.error(`World ${worldName} not found`);
-        return null;
-      }
-
-      const world = JSON.parse(worldJson);
-      const battleMapIndex = world.battleMaps.findIndex((bm: any) => bm.id === battleMapId);
-
-      if (battleMapIndex === -1) {
-        console.error(`Battle map ${battleMapId} not found in world ${worldName}`);
-        return null;
-      }
-
-      const worldPatch: JsonPatch = {
-        path: `battleMaps.${battleMapIndex}.${patch.path}`,
-        value: patch.value
-      };
-
-      this.applyJsonPatch(world, worldPatch);
-
-      const updatedWorldJson = JSON.stringify(world, null, 2);
-      this.saveWorld(worldName, updatedWorldJson);
-
-      return updatedWorldJson;
+  applyPatchToBattleMap(
+    worldName: string,
+    battleMapId: string,
+    patch: JsonPatch,
+  ): string | null {
+    const worldJson = this.getWorld(worldName);
+    if (!worldJson) {
+      console.error(`World ${worldName} not found`);
+      return null;
     }
+
+    const world = JSON.parse(worldJson);
+    const battleMapIndex = world.battleMaps.findIndex(
+      (bm: any) => bm.id === battleMapId,
+    );
+
+    if (battleMapIndex === -1) {
+      console.error(
+        `Battle map ${battleMapId} not found in world ${worldName}`,
+      );
+      return null;
+    }
+
+    const worldPatch: JsonPatch = {
+      path: `battleMaps.${battleMapIndex}.${patch.path}`,
+      value: patch.value,
+    };
+
+    this.applyJsonPatch(world, worldPatch);
+
+    const updatedWorldJson = JSON.stringify(world, null, 2);
+    this.saveWorld(worldName, updatedWorldJson);
+
+    return updatedWorldJson;
+  }
 
   // Lobby operations for new multi-map system
   getLobby(worldName: string): any | null {
@@ -874,7 +985,11 @@ export class DataService {
 
       // Save lobby.json (without maps)
       const lobbyPath = this.getWorldLobbyFilePath(worldName);
-      fs.writeFileSync(lobbyPath, JSON.stringify(lobbyWithoutMaps, null, 2), 'utf-8');
+      fs.writeFileSync(
+        lobbyPath,
+        JSON.stringify(lobbyWithoutMaps, null, 2),
+        'utf-8',
+      );
 
       // Save each map to its own directory
       for (const mapId in maps) {
@@ -944,7 +1059,10 @@ export class DataService {
       const json = fs.readFileSync(mapFilePath, 'utf-8');
       return JSON.parse(json);
     } catch (error) {
-      console.error(`Error reading map ${mapId} for world ${worldName}:`, error);
+      console.error(
+        `Error reading map ${mapId} for world ${worldName}:`,
+        error,
+      );
       return null;
     }
   }
@@ -966,7 +1084,11 @@ export class DataService {
     }
   }
 
-  applyPatchToMap(worldName: string, mapId: string, patch: JsonPatch): string | null {
+  applyPatchToMap(
+    worldName: string,
+    mapId: string,
+    patch: JsonPatch,
+  ): string | null {
     const mapData = this.getMap(worldName, mapId);
     if (!mapData) {
       console.error(`Map ${mapId} not found for world ${worldName}`);

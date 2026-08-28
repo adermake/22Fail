@@ -5,6 +5,11 @@ import { CharacterSocketService } from './character-socket.service';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { JsonPatch } from '../model/json-patch.model';
 
+/** Whether a path segment addresses an array position ('-' appends, a number indexes). */
+function isArrayKey(key: string | undefined): boolean {
+  return key === '-' || (key !== undefined && !isNaN(parseInt(key, 10)));
+}
+
 @Injectable({ providedIn: 'root' })
 export class CharacterStoreService {
   private sheetSubject = new BehaviorSubject<CharacterSheet | null>(null);
@@ -66,12 +71,19 @@ export class CharacterStoreService {
 
   applyPatch(patch: JsonPatch) {
     // Apply optimistically
-    const sheet = this.sheetSubject.value;
-    if (sheet) {
-      this.applyJsonPatch(sheet, patch);
-      this.sheetSubject.next({ ...sheet });
-    }
+    this.applyPatchLocally(patch);
     this.socket.sendPatch(this.characterId, patch);
+  }
+
+  /**
+   * Applies a patch to the local sheet WITHOUT sending it. For callers that already sent the
+   * patch themselves (see `GrantService`) and only need the view to catch up.
+   */
+  applyPatchLocally(patch: JsonPatch) {
+    const sheet = this.sheetSubject.value;
+    if (!sheet) return;
+    this.applyJsonPatch(sheet, patch);
+    this.sheetSubject.next({ ...sheet });
   }
 
   private applyJsonPatch(target: any, patch: JsonPatch) {
@@ -93,7 +105,11 @@ export class CharacterStoreService {
       if (!isNaN(index) && Array.isArray(current)) {
         current = current[index];
       } else {
-        current = current[key] ??= {};
+        // A missing container has to be created as the shape the NEXT segment needs: '-' or a
+        // number means an array. Creating {} there turned '/pendingGrants/-' on a sheet that has
+        // no pendingGrants yet into a literal '-' property, and the value was silently lost.
+        current[key] ??= isArrayKey(keys[i + 1]) ? [] : {};
+        current = current[key];
       }
     }
 

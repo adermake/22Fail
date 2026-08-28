@@ -20,26 +20,39 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
 import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
-import { CurrentEvent, ShopEvent, LootBundleEvent, getCoinParts, CoinPart } from '../../model/current-events.model';
+import { CurrentEvent, ShopEvent, getCoinParts, CoinPart } from '../../model/current-events.model';
 import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellEditorOverlayComponent } from '../../sheet/spell-editor-overlay/spell-editor-overlay.component';
 import { SpellBlock } from '../../model/spell-block-model';
 import { RuneEditorComponent } from '../../shared/rune-editor/rune-editor.component';
-import { AssetBrowserComponent } from '../asset-browser/asset-browser.component';
 import { LibrarySelectorComponent } from '../../shared/library-selector/library-selector.component';
 import { ContextMenuComponent, ContextMenuItem } from '../../shared/context-menu/context-menu.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker.component';
-import { LootBundle } from '../loot-manager/loot-manager.component';
 import { CurrentEventsManagerComponent } from '../current-events-manager/current-events-manager.component';
 import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { CharacterGeneratorComponent } from '../character-generator/character-generator.component';
-import { DamageCalculatorComponent } from '../damage-calculator/damage-calculator.component';
 import { SoundVolumeControlComponent } from '../../shared/sound/sound-volume-control.component';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
+import { GrantService } from '../../services/grant.service';
+import {
+  assetEntryId,
+  createDeskEntry,
+  DeskEntry,
+  DeskTab,
+  GrantType,
+  GRANT_TYPE_LABEL,
+  KnowledgeKind,
+  KNOWLEDGE_KIND_LABEL,
+} from '../../model/gm-desk.model';
+import { GmDeskComponent, BrowseEntry } from '../gm-desk/gm-desk.component';
+import { WorldLobbyBridgeService } from '../../services/world-lobby-bridge.service';
+import { PartyStashService } from '../../services/party-stash.service';
+import { knowledgeTierOf, KnowledgeGraded } from '../../utils/knowledge-tier.util';
+import { AssetFile } from '../../model/asset-browser.model';
 import { firstValueFrom } from 'rxjs';
 
 // Re-export types for template usage
@@ -48,7 +61,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorOverlayComponent, RuneEditorComponent, AssetBrowserComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, CurrentEventsManagerComponent, ImageUrlPipe, CharacterGeneratorComponent, DamageCalculatorComponent, SoundVolumeControlComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorOverlayComponent, RuneEditorComponent, GmDeskComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, CurrentEventsManagerComponent, ImageUrlPipe, CharacterGeneratorComponent, SoundVolumeControlComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,6 +85,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   cdr = inject(ChangeDetectorRef);
   trueStats = inject(TrueStatsService);
   assetBrowserApi = inject(AssetBrowserApiService);
+  grants = inject(GrantService);
+  lobbyBridge = inject(WorldLobbyBridgeService);
+  partyStash = inject(PartyStashService);
   router = inject(Router);
 
   // Character/party state
@@ -80,6 +96,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   partyCharacters: Map<string, CharacterSheet> = new Map();
   characterPortraitsMap: Map<string, string> = new Map();
   private characterPatchSubscription?: Subscription;
+  private libraryChangedSubscription?: Subscription;
 
   // Battle Engine
   battleEngine = new BattleTrackerEngine();
@@ -119,15 +136,30 @@ export class WorldComponent implements OnInit, OnDestroy {
   /** Character ID whose knowledge management overlay is open */
   knowledgeManagerFor: string | null = null;
   knowledgeManagerLoading = false;
-  knowledgeManagerType: 'material' | 'forge-trait' = 'material';
-  knowledgeManagerMaterials: { material: any; known: boolean }[] = [];
-  knowledgeManagerForgeTraits: { forgeTrait: any; known: boolean }[] = [];
+  knowledgeManagerType: KnowledgeKind = 'material';
+  /** Ein Eintrag pro vergebbarem Wissen, unabhängig von der Wissensart. */
+  knowledgeManagerEntries: { id: string; name: string; description?: string; known: boolean }[] = [];
   knowledgeManagerSearch = '';
+  readonly knowledgeKindLabel = KNOWLEDGE_KIND_LABEL;
+  /** Die Wissensarten, die das Kontextmenü und die Verwaltung anbieten. */
+  readonly knowledgeKinds: KnowledgeKind[] = ['material', 'forge-trait', 'ingredient', 'extractor', 'brew-trait'];
 
   // Asset browser knowledge data loaded from AssetBrowserApi
   allMaterials: MaterialBlock[] = [];
   allForgeTraits: ForgeTrait[] = [];
   private knowledgeDataLoaded = false;
+
+  /**
+   * Wissens-Assets für die Bibliotheks-Spalte des Schreibtischs, je Art.
+   *
+   * Die kommen NICHT aus `/api/library` — `getLibrary` kennt nur acht Asset-Typen, Wissen und
+   * Statblöcke sind nicht dabei. Deshalb der eigene Durchlauf über den Asset-Browser.
+   */
+  knowledgeBrowseAssets: Record<KnowledgeKind, BrowseEntry[]> = {
+    'material': [], 'forge-trait': [], 'ingredient': [], 'extractor': [], 'brew-trait': [],
+  };
+  /** Rohstoffe/Wirkstoffe/Extraktoren als echte Gegenstände (Bogen: Materialien). */
+  resourceBrowseItems: BrowseEntry[] = [];
 
   // Drag state
   private dragScrollInterval?: number;
@@ -135,8 +167,6 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Context menu state
   private selectedCharacterForContextMenu: string = '';
-  private selectedLibraryItemType: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | null = null;
-  private selectedLibraryItemIndex: number = -1;
 
   // Loaded libraries signal for reactivity
   loadedLibraries = signal<Library[]>([]);
@@ -146,16 +176,11 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.libraryStoreService.allLibraries$.subscribe(libs => {
       console.log('[WORLD] Libraries loaded:', libs.length, 'libraries');
       libs.forEach(lib => {
-        console.log(`  - ${lib.name}: ${lib.items?.length || 0} items, ${lib.spells?.length || 0} spells, ${lib.runes?.length || 0} runes, ${lib.skills?.length || 0} skills, ${lib.shops?.length || 0} shops, ${lib.lootBundles?.length || 0} bundles`);
+        console.log(`  - ${lib.name}: ${lib.items?.length || 0} items, ${lib.spells?.length || 0} spells, ${lib.runes?.length || 0} runes, ${lib.skills?.length || 0} skills, ${lib.shops?.length || 0} shops`);
       });
       this.loadedLibraries.set(libs);
       this.cdr.markForCheck();
     });
-  }
-
-  // Loot Bundles getter
-  get lootBundleLibrary(): LootBundle[] {
-    return (this.store.worldValue as any)?.lootBundleLibrary || [];
   }
 
   // Battle queue getter - delegates to service
@@ -288,29 +313,46 @@ export class WorldComponent implements OnInit, OnDestroy {
     return shops;
   });
 
-  mergedBundles = computed(() => {
-    const world = this.store.worldValue;
-    if (!world) return [];
-    
-    const bundles: LootBundleEvent[] = [];
-    const linkedLibs = world.linkedLibraries || [];
-    const loadedLibs = this.loadedLibraries();
-    
-    console.log('[WORLD] Merging bundles - Linked libs:', linkedLibs.length, 'Loaded libs:', loadedLibs.length);
-    
-    linkedLibs.forEach(libId => {
-      const lib = loadedLibs.find(l => l.id === libId);
-      if (lib?.lootBundles) {
-        console.log(`  - Adding ${lib.lootBundles.length} bundles from library "${lib.name}"`);
-        bundles.push(...lib.lootBundles);
-      } else {
-        console.log(`  - Library ${libId} not found or has no bundles`);
-      }
-    });
-    
-    console.log('[WORLD] Total merged bundles:', bundles.length);
-    return bundles;
-  });
+  // ── GM-Schreibtisch ────────────────────────────────────────────────────────
+
+  get deskTabs(): DeskTab[] {
+    return this.store.worldValue?.gmDesk ?? [];
+  }
+
+  /** Die aufgedeckten Reiter — sie erscheinen unter Aktive Events als gemeinsamer Loot-Pool. */
+  get revealedDeskTabs(): DeskTab[] {
+    return this.deskTabs.filter(t => t.revealed);
+  }
+
+  onDeskChanged(tabs: DeskTab[]): void {
+    this.store.applyPatch({ path: 'gmDesk', value: tabs });
+  }
+
+  onDeskOffer(event: { characterId: string; entry: DeskEntry }): void {
+    const name = this.partyCharacters.get(event.characterId)?.name ?? 'dem Charakter';
+    this.grants.offer(event.characterId, event.entry, 'Spielleiter');
+    this.notification.success(`"${event.entry.name}" wurde ${name} angeboten.`, 2500);
+    this.cdr.markForCheck();
+  }
+
+  onNpcInventoryChanged(event: { tokenId: string; inventory: ItemBlock[] }): void {
+    this.lobbyBridge.setTokenInventory(event.tokenId, event.inventory);
+  }
+
+  /** Ein Gegenstand vom Schreibtisch in den gemeinsamen Beutel der Gruppe. */
+  async onDepositToStash(item: ItemBlock): Promise<void> {
+    const ok = await this.partyStash.deposit(item, { name: 'Spielleiter' });
+    if (ok) this.notification.success(`"${item.name}" liegt jetzt im Beutel der Gruppe.`, 2000);
+    else this.notification.error('Der Beutel hat den Gegenstand nicht angenommen.', 3000);
+    this.cdr.markForCheck();
+  }
+
+  /** Der GM nimmt einen Eintrag aus einem aufgedeckten Reiter wieder heraus. */
+  onDeskEntryRemoved(event: { tabId: string; entryId: string }): void {
+    this.onDeskChanged(this.deskTabs.map(t => t.tabId !== event.tabId ? t : {
+      ...t, entries: t.entries.filter(e => e.entryId !== event.entryId),
+    }));
+  }
 
   // Current Events helpers
   get currentEvents(): CurrentEvent[] {
@@ -341,7 +383,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.store.applyPatch({ path: 'currentEvents', value: events });
   }
 
-  navigateToLibrary(data: { libraryId: string; tab: 'shops' | 'loot-bundles'; itemId: string }) {
+  navigateToLibrary(data: { libraryId: string; tab: 'shops'; itemId: string }) {
     // Navigate to library with query parameters to highlight the item
     this.router.navigate(['/library', data.libraryId], {
       queryParams: {
@@ -360,11 +402,22 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     // Load materials and forge traits for asset browser knowledge tab
     this.loadKnowledgeData();
-    
+
+    // Materialien und Schmiedemerkmale kommen nicht aus `allLibraries`, sondern aus einem eigenen
+    // Asset-Durchlauf — der muss beim Bearbeiten einer Bibliothek gesondert erneuert werden.
+    this.libraryChangedSubscription = this.libraryStoreService.libraryChanged$.subscribe(() => {
+      this.knowledgeDataLoaded = false;
+      void this.loadKnowledgeData();
+    });
+
+
     this.route.params.subscribe(params => {
       this.worldName = params['worldName'];
       document.title = this.worldName;
       this.store.load(this.worldName);
+      // Für die NSC-Reiter des Schreibtischs und den Beutel der Gruppe.
+      void this.lobbyBridge.attach(this.worldName);
+      this.partyStash.attach(this.worldName);
     });
 
     this.characterSocket.connect();
@@ -398,6 +451,8 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.characterPatchSubscription?.unsubscribe();
+    this.libraryChangedSubscription?.unsubscribe();
+    this.lobbyBridge.detach();
   }
 
   // ==================== Party Management ====================
@@ -793,13 +848,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     const character = this.partyCharacters.get(this.sendPickerFor);
     if (!character) return;
 
-    this.characterApi.loadCharacter(this.sendPickerFor).then(freshSheet => {
-      if (!freshSheet) return;
-      this.giveItemToCharacter(this.sendPickerFor!, this.sendPickerType!, item, freshSheet);
-      const typeName = this.sendPickerTypeLabel;
-      this.notification.success(`${typeName} "${item.name}" wurde an ${character.name} gesendet.`, 2500);
-      this.cdr.markForCheck();
-    });
+    this.offerToCharacter(this.sendPickerFor, this.sendPickerType, item);
   }
 
   removeStatusEffectFromCharacter(characterId: string, statusEffectId: string, appliedAt: number) {
@@ -873,149 +922,21 @@ export class WorldComponent implements OnInit, OnDestroy {
   permanentlyDelete(index: number) { this.trashService.permanentlyDelete(index); }
   emptyTrash() { this.trashService.emptyTrash(); }
 
-  // ==================== Drag and Drop ====================
+  /**
+   * Der einzige Weg, auf dem aus dieser Ansicht etwas an einen Spieler geht: anbieten, nicht
+   * einschreiben. Der Spieler entscheidet, und sein eigener Client legt das Ding dann ab — damit
+   * kann die Vergabe weder etwas überschreiben noch doppelt landen.
+   */
+  private offerToCharacter(characterId: string, type: GrantType, data: unknown, knowledgeKind?: KnowledgeKind): void {
+    const character = this.partyCharacters.get(characterId);
+    const entry = createDeskEntry(type, structuredClone(data), { knowledgeKind });
 
-  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'bundle' | 'status-effect' | 'shop' | 'loot-bundle', index: number) {
-    event.dataTransfer!.effectAllowed = 'copy';
-    event.dataTransfer!.setData('lootType', type);
-    event.dataTransfer!.setData('lootIndex', index.toString());
-    this.isDragging = true;
-    this.startAutoScroll();
-  }
-
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
-    event.dataTransfer!.dropEffect = 'copy';
-    this.updateAutoScroll(event.clientY);
-  }
-
-  private startAutoScroll() {
-    if (this.dragScrollInterval) clearInterval(this.dragScrollInterval);
-    this.dragScrollInterval = window.setInterval(() => {
-      if (!this.isDragging) this.stopAutoScroll();
-    }, 16);
-  }
-
-  private updateAutoScroll(mouseY: number) {
-    const scrollSpeed = 10;
-    const scrollThreshold = 100;
-    const viewportHeight = window.innerHeight;
-
-    if (mouseY < scrollThreshold) window.scrollBy(0, -scrollSpeed);
-    else if (mouseY > viewportHeight - scrollThreshold) window.scrollBy(0, scrollSpeed);
-  }
-
-  private stopAutoScroll() {
-    if (this.dragScrollInterval) {
-      clearInterval(this.dragScrollInterval);
-      this.dragScrollInterval = undefined;
-    }
-    this.isDragging = false;
-  }
-
-  onDropOnCharacter(event: DragEvent, characterId: string) {
-    event.preventDefault();
-    this.stopAutoScroll();
-
-    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell' | 'skill' | 'bundle';
-    const index = parseInt(event.dataTransfer!.getData('lootIndex'));
-    const world = this.store.worldValue;
-    if (!world) return;
-
-    if (type === 'bundle') {
-      const bundle = this.lootBundleLibrary[index];
-      if (bundle) {
-        this.characterApi.loadCharacter(characterId).then(freshSheet => {
-          if (!freshSheet) return;
-          bundle.items.forEach(item => this.giveItemToCharacter(characterId, 'item', item, freshSheet));
-          bundle.runes.forEach(rune => this.giveItemToCharacter(characterId, 'rune', rune, freshSheet));
-          bundle.spells.forEach(spell => this.giveItemToCharacter(characterId, 'spell', spell, freshSheet));
-          bundle.skills.forEach(skill => this.giveItemToCharacter(characterId, 'skill', skill, freshSheet));
-        });
-      }
-      return;
-    }
-
-    // Use merged arrays to get the correct item (includes linked library items)
-    let lootData: any;
-    switch (type) {
-      case 'item': lootData = this.mergedItems()[index]; break;
-      case 'rune': lootData = this.mergedRunes()[index]; break;
-      case 'spell': lootData = this.mergedSpells()[index]; break;
-      case 'skill': lootData = this.mergedSkills()[index]; break;
-    }
-
-    if (lootData) {
-      this.characterApi.loadCharacter(characterId).then(freshSheet => {
-        if (!freshSheet) return;
-        this.giveItemToCharacter(characterId, type, lootData, freshSheet);
-      });
-    }
-  }
-
-  private giveItemToCharacter(characterId: string, type: 'item' | 'rune' | 'spell' | 'skill', lootData: any, freshSheet: CharacterSheet) {
-    let fieldPath: string;
-    let currentArray: any[];
-
-    switch (type) {
-      case 'item':
-        fieldPath = 'inventory';
-        currentArray = freshSheet.inventory || [];
-        break;
-      case 'rune':
-        fieldPath = 'runes';
-        currentArray = freshSheet.runes || [];
-        break;
-      case 'spell':
-        fieldPath = 'spells';
-        currentArray = freshSheet.spells || [];
-        break;
-      case 'skill':
-        fieldPath = 'skills';
-        currentArray = freshSheet.skills || [];
-        break;
-    }
-
-    currentArray.push({ ...lootData });
-
-    this.characterSocket.sendPatch(characterId, { path: fieldPath, value: currentArray });
-    this.sendDirectLootNotification(characterId, type, lootData);
-  }
-
-  private sendDirectLootNotification(characterId: string, type: 'item' | 'rune' | 'spell' | 'skill', data: any) {
-    const lootItem = {
-      id: `direct_${type}_${Date.now()}_${Math.random()}`,
-      type,
-      data,
-      claimedBy: []
-    };
-    this.worldSocket.sendDirectLoot(characterId, lootItem);
-  }
-
-  // ==================== Loot Bundle Events ====================
-
-  onBundleCreated(bundle: LootBundle) {
-    const world = this.store.worldValue;
-    if (world) {
-      const currentBundles = (world as any).lootBundleLibrary || [];
-      const existingIndex = currentBundles.findIndex((b: LootBundle) => b.name === bundle.name);
-
-      const newBundles = existingIndex >= 0
-        ? currentBundles.map((b: LootBundle, i: number) => i === existingIndex ? bundle : b)
-        : [...currentBundles, bundle];
-
-      this.store.applyPatch({ path: 'lootBundleLibrary', value: newBundles });
-    }
-  }
-
-  onBundleDeleted(index: number) {
-    const world = this.store.worldValue;
-    if (world) {
-      const currentBundles = (world as any).lootBundleLibrary || [];
-      const newBundles = [...currentBundles];
-      newBundles.splice(index, 1);
-      this.store.applyPatch({ path: 'lootBundleLibrary', value: newBundles });
-    }
+    this.grants.offer(characterId, entry, 'Spielleiter');
+    this.notification.success(
+      `${GRANT_TYPE_LABEL[type]} "${entry.name}" wurde ${character?.name ?? 'dem Charakter'} angeboten.`,
+      2500,
+    );
+    this.cdr.markForCheck();
   }
 
   // ==================== Helpers ====================
@@ -1143,48 +1064,49 @@ export class WorldComponent implements OnInit, OnDestroy {
     menuItems.push({ label: '', action: '', divider: true });
 
     // ── Section 4: Knowledge management ──
-    menuItems.push({ icon: '📖', label: 'Materialwissen verwalten', action: `manage_knowledge::material::${characterId}` });
-    menuItems.push({ icon: '🔨', label: 'Schmiedewissen verwalten', action: `manage_knowledge::forge-trait::${characterId}` });
+    for (const kind of this.knowledgeKinds) {
+      menuItems.push({
+        icon: '📖',
+        label: `${KNOWLEDGE_KIND_LABEL[kind]} verwalten`,
+        action: `manage_knowledge::${kind}::${characterId}`,
+      });
+    }
 
     this.contextMenu?.show(event.clientX, event.clientY, menuItems);
   }
 
   // ── Knowledge Management ─────────────────────────────────────────────────────
 
-  async openKnowledgeManager(characterId: string, type: 'material' | 'forge-trait' = 'material'): Promise<void> {
+  /**
+   * Wissensverwaltung für eine beliebige der fünf Wissensarten. Vorher deckte sie nur Materialien
+   * und Schmiedemerkmale ab — Wirkstoffe, Extraktoren und Braumerkmale hatten überhaupt keinen
+   * Vergabeweg, obwohl der Bogen sie liest.
+   */
+  async openKnowledgeManager(characterId: string, kind: KnowledgeKind = 'material'): Promise<void> {
     this.knowledgeManagerFor = characterId;
-    this.knowledgeManagerType = type;
+    this.knowledgeManagerType = kind;
     this.knowledgeManagerSearch = '';
     this.knowledgeManagerLoading = true;
+    this.knowledgeManagerEntries = [];
     this.cdr.markForCheck();
 
     try {
-      const libraries = await firstValueFrom(this.assetBrowserApi.getAllLibraries());
       const character = this.partyCharacters.get(characterId);
+      const knownIds = new Set(this.knownIdsFor(character, kind));
+      const files = await this.loadKnowledgeAssets(kind);
 
-      if (type === 'material') {
-        const materialFiles: any[] = [];
-        for (const lib of libraries) {
-          const mats = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['material']));
-          materialFiles.push(...mats);
-        }
-        const knownIds = new Set(character?.knownMaterialIds ?? []);
-        this.knowledgeManagerMaterials = materialFiles
-          .map(f => f.data)
-          .filter(m => !m.isPublic)
-          .map(m => ({ material: m, known: knownIds.has(m.id) }));
-      } else {
-        const forgeTraitFiles: any[] = [];
-        for (const lib of libraries) {
-          const traits = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['forge-trait']));
-          forgeTraitFiles.push(...traits);
-        }
-        const knownIds = new Set(character?.knownForgeTraitIds ?? []);
-        this.knowledgeManagerForgeTraits = forgeTraitFiles
-          .map(f => f.data)
-          .filter(t => !t.isPublic)
-          .map(t => ({ forgeTrait: t, known: knownIds.has(t.id) }));
-      }
+      this.knowledgeManagerEntries = files
+        // Nach Wissensstufe filtern, nicht nach dem alten `isPublic`-Flag: wer nur `!isPublic`
+        // prüft, versteckt jeden Eintrag, der über `knowledgeTier` eingestuft wurde.
+        .filter(f => knowledgeTierOf(f.data as KnowledgeGraded) !== 'bekannt')
+        .map(f => {
+          // Ein Asset trägt seine ID mal in `data.id`, mal nur als Datei-ID. Ohne diesen Fallback
+          // wurde `undefined` vergeben und der Bogen fand das Wissen nie wieder.
+          const id = assetEntryId(f);
+          const data = f.data as { name?: string; description?: string };
+          return { id, name: data?.name ?? id, description: data?.description, known: knownIds.has(id) };
+        })
+        .filter(e => !!e.id);
     } catch (e) {
       console.error('Knowledge manager: Fehler beim Laden', e);
     } finally {
@@ -1193,44 +1115,65 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
-  get filteredKnowledgeMaterials(): { material: any; known: boolean }[] {
-    const q = this.knowledgeManagerSearch.toLowerCase();
-    if (!q) return this.knowledgeManagerMaterials;
-    return this.knowledgeManagerMaterials.filter(m => m.material.name.toLowerCase().includes(q));
+  /** Das Bogenfeld, in dem eine Wissensart liegt. */
+  private knownIdsFor(sheet: CharacterSheet | undefined, kind: KnowledgeKind): string[] {
+    switch (kind) {
+      case 'material': return sheet?.knownMaterialIds ?? [];
+      case 'forge-trait': return sheet?.knownForgeTraitIds ?? [];
+      case 'ingredient': return sheet?.knownIngredientIds ?? [];
+      case 'extractor': return sheet?.knownExtractorIds ?? [];
+      case 'brew-trait': return sheet?.knownBrewTraitIds ?? [];
+    }
   }
 
-  get filteredKnowledgeForgeTraits(): { forgeTrait: any; known: boolean }[] {
-    const q = this.knowledgeManagerSearch.toLowerCase();
-    if (!q) return this.knowledgeManagerForgeTraits;
-    return this.knowledgeManagerForgeTraits.filter(t => t.forgeTrait.name.toLowerCase().includes(q));
+  private knowledgeFieldPath(kind: KnowledgeKind): string {
+    switch (kind) {
+      case 'material': return '/knownMaterialIds';
+      case 'forge-trait': return '/knownForgeTraitIds';
+      case 'ingredient': return '/knownIngredientIds';
+      case 'extractor': return '/knownExtractorIds';
+      case 'brew-trait': return '/knownBrewTraitIds';
+    }
   }
 
-  toggleMaterialKnowledge(entry: { material: any; known: boolean }): void {
-    entry.known = !entry.known;
-    this.cdr.markForCheck();
+  private async loadKnowledgeAssets(kind: KnowledgeKind): Promise<AssetFile[]> {
+    const libraries = await firstValueFrom(this.assetBrowserApi.getAllLibraries());
+    const files: AssetFile[] = [];
+    for (const lib of libraries) {
+      files.push(...await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', [kind])));
+    }
+    return files;
   }
 
-  toggleForgeTraitKnowledge(entry: { forgeTrait: any; known: boolean }): void {
+  get filteredKnowledgeEntries(): { id: string; name: string; description?: string; known: boolean }[] {
+    const q = this.knowledgeManagerSearch.toLowerCase().trim();
+    if (!q) return this.knowledgeManagerEntries;
+    return this.knowledgeManagerEntries.filter(e => e.name.toLowerCase().includes(q));
+  }
+
+  toggleKnowledgeEntry(entry: { known: boolean }): void {
     entry.known = !entry.known;
     this.cdr.markForCheck();
   }
 
   saveKnowledgeManager(): void {
     if (!this.knowledgeManagerFor) return;
-    const char = this.partyCharacters.get(this.knowledgeManagerFor);
-    const name = char?.name ?? this.knowledgeManagerFor;
+    const name = this.partyCharacters.get(this.knowledgeManagerFor)?.name ?? this.knowledgeManagerFor;
+    const knownIds = this.knowledgeManagerEntries.filter(e => e.known).map(e => e.id);
 
-    if (this.knowledgeManagerType === 'material') {
-      const knownIds = this.knowledgeManagerMaterials.filter(e => e.known).map(e => e.material.id);
-      this.characterSocket.sendPatch(this.knowledgeManagerFor, { path: '/knownMaterialIds', value: knownIds });
-      this.notification.success(`Materialwissen für ${name} gespeichert.`, 2000);
-    } else {
-      const knownIds = this.knowledgeManagerForgeTraits.filter(e => e.known).map(e => e.forgeTrait.id);
-      this.characterSocket.sendPatch(this.knowledgeManagerFor, { path: '/knownForgeTraitIds', value: knownIds });
-      this.notification.success(`Schmiedewissen für ${name} gespeichert.`, 2000);
-    }
+    this.characterSocket.sendPatch(this.knowledgeManagerFor, {
+      path: this.knowledgeFieldPath(this.knowledgeManagerType),
+      value: knownIds,
+    });
+    this.notification.success(
+      `${KNOWLEDGE_KIND_LABEL[this.knowledgeManagerType]} für ${name} gespeichert.`, 2000,
+    );
     this.knowledgeManagerFor = null;
     this.cdr.markForCheck();
+  }
+
+  get knownKnowledgeCount(): number {
+    return this.knowledgeManagerEntries.filter(e => e.known).length;
   }
 
   closeKnowledgeManager(): void {
@@ -1243,16 +1186,28 @@ export class WorldComponent implements OnInit, OnDestroy {
     if (this.knowledgeDataLoaded) return;
     try {
       const libraries = await firstValueFrom(this.assetBrowserApi.getAllLibraries());
-      const materials: MaterialBlock[] = [];
-      const forgeTraits: ForgeTrait[] = [];
+      const byKind: Record<KnowledgeKind, AssetFile[]> = {
+        'material': [], 'forge-trait': [], 'ingredient': [], 'extractor': [], 'brew-trait': [],
+      };
+
       for (const lib of libraries) {
-        const mats = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['material']));
-        materials.push(...mats.map(f => f.data as MaterialBlock));
-        const traits = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['forge-trait']));
-        forgeTraits.push(...traits.map(f => f.data as ForgeTrait));
+        for (const kind of this.knowledgeKinds) {
+          byKind[kind].push(...await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', [kind])));
+        }
       }
-      this.allMaterials = materials;
-      this.allForgeTraits = forgeTraits;
+
+      this.allMaterials = byKind['material'].map(f => f.data as MaterialBlock);
+      this.allForgeTraits = byKind['forge-trait'].map(f => f.data as ForgeTrait);
+
+      for (const kind of this.knowledgeKinds) {
+        this.knowledgeBrowseAssets[kind] = byKind[kind].map(f => this.toBrowseEntry(f));
+      }
+      // Rohstoffe und Wirkstoffe sind auch physische Gegenstände — sie sollen sich verschenken
+      // lassen, nicht nur als Wissen.
+      this.resourceBrowseItems = [
+        ...byKind['material'], ...byKind['ingredient'], ...byKind['extractor'],
+      ].map(f => this.toBrowseEntry(f));
+
       this.knowledgeDataLoaded = true;
       this.cdr.markForCheck();
     } catch (e) {
@@ -1260,51 +1215,18 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
-  get knownMaterialCount(): number {
-    return this.knowledgeManagerMaterials.filter(e => e.known).length;
+  /** Eine Asset-Datei als Browser-Eintrag; der Ordner kommt aus dem Pfad der Datei. */
+  private toBrowseEntry(file: AssetFile): BrowseEntry {
+    const path = file.path ?? '/';
+    const slash = path.lastIndexOf('/');
+    return {
+      id: assetEntryId(file),
+      name: file.name,
+      folder: slash > 0 ? path.slice(0, slash) : '/',
+      data: file.data,
+    };
   }
 
-  get knownForgeTraitCount(): number {
-    return this.knowledgeManagerForgeTraits.filter(e => e.known).length;
-  }
-
-  // Context menu for library items (send to player, edit)
-  onLibraryItemContextMenu(eventData: { event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }) {    const { event, type, index } = eventData;
-    event.preventDefault();
-    
-    this.selectedLibraryItemType = type;
-    this.selectedLibraryItemIndex = index;
-
-    const menuItems: ContextMenuItem[] = [];
-    
-    // Add "Send to player..." submenu - list all party characters
-    this.partyCharacters.forEach((character, characterId) => {
-      const charName = character.name || 'Unknown';
-      menuItems.push({
-        icon: '📤',
-        label: `An ${charName} senden`,
-        action: `send_to::${characterId}`
-      });
-    });
-
-    if (this.partyCharacters.size === 0) {
-      menuItems.push({
-        icon: 'ℹ️',
-        label: 'Keine Charaktere in der Party',
-        action: 'none'
-      });
-    }
-
-    // Add divider and edit option
-    menuItems.push({ label: '', action: '', divider: true });
-    menuItems.push({
-      icon: '✏️',
-      label: 'Bearbeiten',
-      action: `edit::${type}`
-    });
-
-    this.contextMenu?.show(event.clientX, event.clientY, menuItems);
-  }
 
   handleContextMenuAction(action: string) {
     if (action === 'none') return;
@@ -1328,7 +1250,7 @@ export class WorldComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
         break;
       case 'manage_knowledge':
-        this.openKnowledgeManager(parts[2], parts[1] as 'material' | 'forge-trait');
+        this.openKnowledgeManager(parts[2], parts[1] as KnowledgeKind);
         break;
       case 'remove_status': {
         const statusEffectId = parts[1];
@@ -1336,88 +1258,6 @@ export class WorldComponent implements OnInit, OnDestroy {
         this.removeStatusEffectFromCharacter(this.selectedCharacterForContextMenu, statusEffectId, appliedAt);
         break;
       }
-      case 'send_to':
-        this.sendItemToCharacter(parts[1]);
-        break;
-      case 'edit':
-        this.editSelectedLibraryItem();
-        break;
-    }
-  }
-
-  // Send the selected library item to a character
-  private sendItemToCharacter(characterId: string) {
-    if (!this.selectedLibraryItemType || this.selectedLibraryItemIndex < 0) return;
-    
-    const character = this.partyCharacters.get(characterId);
-    if (!character) {
-      console.warn('Character not found:', characterId);
-      return;
-    }
-
-    // Get the item data based on type
-    let itemData: any;
-    let patchPath: string;
-    
-    switch (this.selectedLibraryItemType) {
-      case 'item':
-        itemData = this.mergedItems()[this.selectedLibraryItemIndex];
-        patchPath = '/inventory/-';
-        break;
-      case 'rune':
-        itemData = this.mergedRunes()[this.selectedLibraryItemIndex];
-        patchPath = '/runes/-';
-        break;
-      case 'spell':
-        itemData = this.mergedSpells()[this.selectedLibraryItemIndex];
-        patchPath = '/spells/-';
-        break;
-      case 'skill':
-        itemData = this.mergedSkills()[this.selectedLibraryItemIndex];
-        patchPath = '/skills/-';
-        break;
-      default:
-        return;
-    }
-
-    if (!itemData) {
-      console.warn('Item not found at index:', this.selectedLibraryItemIndex);
-      return;
-    }
-
-    // Send item to character via socket
-    const patch: JsonPatch = {
-      path: patchPath,
-      value: { ...itemData } // Clone to avoid reference issues
-    };
-    
-    this.characterSocket.sendPatch(characterId, patch);
-    const typeName = this.selectedLibraryItemType === 'item' ? 'Gegenstand'
-      : this.selectedLibraryItemType === 'rune' ? 'Rune'
-      : this.selectedLibraryItemType === 'spell' ? 'Zauber'
-      : 'Fähigkeit';
-    this.notification.success(`${typeName} "${itemData.name}" wurde an ${character.name} gesendet.`, 2500);
-    this.cdr.detectChanges();
-    console.log(`Sent ${this.selectedLibraryItemType} to character:`, character.name);
-  }
-
-  // Open editor for the selected library item
-  private editSelectedLibraryItem() {
-    if (!this.selectedLibraryItemType || this.selectedLibraryItemIndex < 0) return;
-
-    switch (this.selectedLibraryItemType) {
-      case 'item':
-        this.openItemEditor(this.selectedLibraryItemIndex);
-        break;
-      case 'rune':
-        this.openRuneEditorDialog(this.selectedLibraryItemIndex);
-        break;
-      case 'spell':
-        this.openSpellEditorDialog(this.selectedLibraryItemIndex);
-        break;
-      case 'skill':
-        this.openSkillEditorDialog(this.selectedLibraryItemIndex);
-        break;
     }
   }
 

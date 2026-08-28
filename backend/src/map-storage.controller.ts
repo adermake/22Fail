@@ -1,9 +1,17 @@
-import { Controller, Get, Post, Delete, Param, Body, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  Logger,
+} from '@nestjs/common';
 import { MapStorageService } from './map-storage.service';
 
 /**
  * Map Storage Controller
- * 
+ *
  * REST API for persistent map storage and backups.
  */
 @Controller('api/maps')
@@ -18,19 +26,21 @@ export class MapStorageController {
    * Body: { worldName: string, mapName: string, mapData: any }
    */
   @Post('save')
-  async saveMap(@Body() body: { worldName: string; mapName: string; mapData: any }) {
+  async saveMap(
+    @Body() body: { worldName: string; mapName: string; mapData: any },
+  ) {
     const { worldName, mapName, mapData } = body;
-    
+
     if (!worldName || !mapName || !mapData) {
       return { success: false, error: 'Missing required fields' };
     }
 
     const success = await this.mapStorage.saveMap(worldName, mapName, mapData);
-    
+
     if (success) {
       this.logger.log(`Map saved via API: ${worldName}/${mapName}`);
     }
-    
+
     return { success };
   }
 
@@ -39,13 +49,16 @@ export class MapStorageController {
    * GET /api/maps/load/:worldName/:mapName
    */
   @Get('load/:worldName/:mapName')
-  async loadMap(@Param('worldName') worldName: string, @Param('mapName') mapName: string) {
+  async loadMap(
+    @Param('worldName') worldName: string,
+    @Param('mapName') mapName: string,
+  ) {
     const mapData = await this.mapStorage.loadMap(worldName, mapName);
-    
+
     if (!mapData) {
       return { success: false, error: 'Map not found' };
     }
-    
+
     return { success: true, mapData };
   }
 
@@ -54,7 +67,10 @@ export class MapStorageController {
    * POST /api/maps/backup/:worldName/:mapName
    */
   @Post('backup/:worldName/:mapName')
-  async backupMap(@Param('worldName') worldName: string, @Param('mapName') mapName: string) {
+  async backupMap(
+    @Param('worldName') worldName: string,
+    @Param('mapName') mapName: string,
+  ) {
     const success = await this.mapStorage.backupMap(worldName, mapName);
     return { success };
   }
@@ -74,7 +90,10 @@ export class MapStorageController {
    * DELETE /api/maps/:worldName/:mapName
    */
   @Delete(':worldName/:mapName')
-  async deleteMap(@Param('worldName') worldName: string, @Param('mapName') mapName: string) {
+  async deleteMap(
+    @Param('worldName') worldName: string,
+    @Param('mapName') mapName: string,
+  ) {
     const success = await this.mapStorage.deleteMap(worldName, mapName);
     return { success };
   }
@@ -84,7 +103,10 @@ export class MapStorageController {
    * GET /api/maps/exists/:worldName/:mapName
    */
   @Get('exists/:worldName/:mapName')
-  async mapExists(@Param('worldName') worldName: string, @Param('mapName') mapName: string) {
+  async mapExists(
+    @Param('worldName') worldName: string,
+    @Param('mapName') mapName: string,
+  ) {
     const exists = await this.mapStorage.mapExists(worldName, mapName);
     return { exists };
   }

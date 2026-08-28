@@ -1,0 +1,204 @@
+<div class="desk">
+
+  <!-- ══ SPALTE 1 — SPIELER ═══════════════════════════════════════════════ -->
+  <div class="desk-col desk-col-players">
+    <div class="desk-col-head">
+      <span class="desk-col-title">Spieler</span>
+    </div>
+
+    @if (members().length === 0) {
+      <p class="desk-empty">Keine Charaktere in der Partei.</p>
+    }
+
+    <div class="desk-players">
+      @for (member of members(); track member.id) {
+        <button
+          class="desk-player"
+          cdkDropList
+          [id]="'deskPlayer-' + member.id"
+          [cdkDropListData]="member"
+          (cdkDropListDropped)="onDropOnPlayer($event, member.id)"
+          [class.selected]="selectedCharacterId() === member.id"
+          [title]="member.sheet.name || member.id"
+          (click)="toggleCharacter(member.id)">
+          @if (member.sheet.portrait) {
+            <img [src]="member.sheet.portrait | imageUrl" [alt]="member.sheet.name || member.id" />
+          } @else {
+            <span class="desk-player-initial">{{ (member.sheet.name || member.id).charAt(0) }}</span>
+          }
+          <span class="desk-player-name">{{ member.sheet.name || member.id }}</span>
+        </button>
+      }
+    </div>
+
+    @if (selectedCharacterId()) {
+      <p class="desk-selected-hint">
+        Alles, was du jetzt mit ＋ anklickst, geht an <strong>{{ selectedName }}</strong>.
+      </p>
+    } @else {
+      <p class="desk-selected-hint muted">
+        Ohne Auswahl landet alles im offenen Reiter.
+      </p>
+    }
+  </div>
+
+  <!-- ══ SPALTE 2 — VORBEREITUNG ══════════════════════════════════════════ -->
+  <div class="desk-col desk-col-prep">
+    <div class="desk-col-head">
+      <span class="desk-col-title">Vorbereitung</span>
+      <button class="desk-btn" (click)="addTab()">＋ Reiter</button>
+    </div>
+
+    <div class="desk-tabs">
+      @for (tab of tabViews(); track tab.key) {
+        <button
+          class="desk-tab"
+          [class.active]="activeTab()?.key === tab.key"
+          [class.revealed]="tab.revealed"
+          [class.npc]="tab.kind === 'npc'"
+          (click)="selectTab(tab.key)"
+          (dblclick)="tab.kind === 'desk' ? renamingTabId.set(tab.key) : null">
+          {{ tab.name }}
+          <small>{{ tab.count }}</small>
+        </button>
+      }
+      @if (tabViews().length === 0) {
+        <span class="desk-empty">Noch kein Reiter — leg einen an.</span>
+      }
+    </div>
+
+    @if (activeTab(); as tab) {
+      <div class="desk-tab-head">
+        @if (renamingTabId() === tab.key) {
+          <input
+            class="desk-rename"
+            [value]="tab.name"
+            autofocus
+            (blur)="renameTab(tab.key, $any($event.target).value)"
+            (keyup.enter)="renameTab(tab.key, $any($event.target).value)" />
+        } @else {
+          <span class="desk-tab-name">{{ tab.name }}</span>
+        }
+
+        <span class="desk-tab-actions">
+          @if (tab.kind === 'desk') {
+            <label class="desk-reveal" [title]="tab.revealed ? 'Für Spieler sichtbar' : 'Für Spieler aufdecken'">
+              <input type="checkbox" [checked]="tab.revealed" (change)="toggleRevealed(tab.key)" />
+              <span>Aufgedeckt</span>
+            </label>
+            <button class="desk-btn danger" (click)="deleteTab(tab.key)" title="Reiter löschen">✕</button>
+          } @else {
+            <span class="desk-npc-badge">NSC auf der Karte</span>
+          }
+          @if (selectedCharacterId() && tab.count > 0) {
+            <button class="desk-btn" (click)="offerTabToSelected()">Alles an {{ selectedName }}</button>
+          }
+        </span>
+      </div>
+
+      @if (activeEntries().length === 0) {
+        <p class="desk-empty">Leer — links einen Spieler abwählen und rechts Dinge hinzufügen.</p>
+      }
+
+      <div class="desk-entries"
+           cdkDropList
+           id="deskEntryList"
+           [cdkDropListData]="activeEntries()"
+           [cdkDropListConnectedTo]="dropTargets()"
+           (cdkDropListDropped)="onEntryDropped($event)">
+        @for (entry of activeEntries(); track entry.entryId) {
+          <div class="desk-entry" cdkDrag [cdkDragData]="entry"
+               [class.hidden-entry]="entry.hidden" [class.claimed]="entry.claimedBy">
+            <span class="desk-entry-icon app-icon" [class]="typeIcon[entry.type]"></span>
+            <div class="desk-entry-info">
+              <span class="desk-entry-name">{{ entryLabel(entry) }}</span>
+              <span class="desk-entry-type">{{ typeLabel[entry.type] }}</span>
+            </div>
+
+            @if (entry.claimedBy) {
+              <span class="desk-entry-claimed">genommen</span>
+            }
+
+            <span class="desk-entry-actions">
+              @if (tab.kind === 'desk' && tab.revealed) {
+                <label class="desk-entry-hide" [title]="entry.hidden ? 'Für Spieler verborgen' : 'Für Spieler sichtbar'">
+                  <input type="checkbox" [checked]="!entry.hidden" (change)="toggleEntryHidden(entry.entryId)" />
+                </label>
+              }
+              @if (selectedCharacterId()) {
+                <button class="desk-icon-btn" [title]="'An ' + selectedName + ' senden'" (click)="offerEntry(entry)">➜</button>
+              }
+              @if (canStash(entry)) {
+                <button class="desk-icon-btn" title="In den Beutel der Gruppe" (click)="moveToStash(entry)">⇩</button>
+              }
+              <button class="desk-icon-btn danger" title="Entfernen" (click)="removeEntry(entry.entryId)">✕</button>
+            </span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- ══ SPALTE 3 — BIBLIOTHEK ════════════════════════════════════════════ -->
+  <div class="desk-col desk-col-browser">
+    <div class="desk-col-head">
+      <span class="desk-col-title">Bibliothek</span>
+      <button class="desk-btn" (click)="openLibrarySelector.emit()" title="Verknüpfte Bibliotheken verwalten">
+        <span class="app-icon i-folder"></span> Bibliotheken
+      </button>
+    </div>
+
+    <div class="desk-cats">
+      @for (cat of categories; track cat.id) {
+        <button
+          class="desk-cat"
+          [class.active]="browseCategoryId() === cat.id"
+          (click)="selectCategory(cat.id)">
+          {{ cat.label }}
+        </button>
+      }
+    </div>
+
+    <input
+      class="desk-search"
+      type="text"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+      placeholder="Suchen…" />
+
+    <div class="desk-scroll"
+         cdkDropList
+         id="deskLibraryList"
+         [cdkDropListConnectedTo]="dropTargets()"
+         [cdkDropListSortingDisabled]="true">
+      @for (folder of folders(); track folder.path) {
+        <button class="desk-folder" (click)="toggleFolder(folder.path)">
+          <span>{{ isFolderOpen(folder.path) ? '▾' : '▸' }} {{ folder.label }}</span>
+          <small>{{ folder.entries.length }}</small>
+        </button>
+
+        @if (isFolderOpen(folder.path)) {
+          <div class="desk-folder-items">
+            @for (entry of folder.entries; track entry.id) {
+              <button
+                class="desk-lib-entry"
+                cdkDrag
+                [cdkDragData]="entry"
+                [class.just-added]="justAddedId() === entry.id"
+                (click)="addFromLibrary(entry)">
+                <span>＋ {{ entry.name }}</span>
+                <span class="desk-drag-chip" *cdkDragPreview>{{ entry.name }}</span>
+              </button>
+            }
+          </div>
+        }
+      }
+
+      @if (folders().length === 0) {
+        <p class="desk-empty">
+          {{ search() ? 'Nichts gefunden.' : 'Nichts in dieser Kategorie — verknüpfe eine Bibliothek.' }}
+        </p>
+      }
+    </div>
+  </div>
+</div>

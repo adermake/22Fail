@@ -3,29 +3,19 @@ import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { identityAuth } from './identity';
 import { JsonPatch } from '../model/json-patch.model';
-import { LootItem } from '../model/world.model';
 
 export interface CharacterPatchEvent {
   characterId: string;
   patch: JsonPatch;
 }
 
-export interface BattleLootEvent {
-  worldName: string;
-  loot: LootItem[];
-}
-
 @Injectable({ providedIn: 'root' })
 export class CharacterSocketService {
   private socket?: Socket;
   private patchSubject = new Subject<CharacterPatchEvent>();
-  private lootReceivedSubject = new Subject<LootItem>();
-  private battleLootReceivedSubject = new Subject<BattleLootEvent>();
   private localUpdateSubject = new Subject<void>();
 
   patches$ = this.patchSubject.asObservable();
-  lootReceived$ = this.lootReceivedSubject.asObservable();
-  battleLootReceived$ = this.battleLootReceivedSubject.asObservable();
   /** Fires immediately when the local UI mutates character data (before server echo). */
   localUpdate$ = this.localUpdateSubject.asObservable();
 
@@ -43,13 +33,6 @@ export class CharacterSocketService {
       this.patchSubject.next(data);
     });
 
-    this.socket.on('lootReceived', (loot: LootItem) => {
-      this.lootReceivedSubject.next(loot);
-    });
-
-    this.socket.on('battleLootReceived', (data: BattleLootEvent) => {
-      this.battleLootReceivedSubject.next(data);
-    });
   }
 
   joinCharacter(characterId: string) {

@@ -5,6 +5,11 @@ import { WorldSocketService } from './world-socket.service';
 import { WorldData, createEmptyWorld } from '../model/world.model';
 import { JsonPatch } from '../model/json-patch.model';
 
+/** Whether a path segment addresses an array position ('-' appends, a number indexes). */
+function isWorldArrayKey(key: string | undefined): boolean {
+  return key === '-' || (key !== undefined && !isNaN(parseInt(key, 10)));
+}
+
 @Injectable({ providedIn: 'root' })
 export class WorldStoreService {
   private worldSubject = new BehaviorSubject<WorldData | null>(null);
@@ -140,9 +145,9 @@ export class WorldStoreService {
         world.currentTurnIndex = 0;
         needsSave = true;
       }
-      if (!world.lootBundles) {
-        console.log('[WORLD STORE] Migrating: adding lootBundles');
-        world.lootBundles = [];
+      if (!world.gmDesk) {
+        console.log('[WORLD STORE] Migrating: adding gmDesk');
+        world.gmDesk = [];
         needsSave = true;
       }
       if (!world.skillLibrary) {
@@ -191,10 +196,6 @@ export class WorldStoreService {
     this.socket.sendPatch(this.worldName, patch);
   }
 
-  revealBattleLoot() {
-    this.socket.revealBattleLoot(this.worldName);
-  }
-
   private applyJsonPatch(target: any, patch: JsonPatch) {
     // Normalize path: remove leading slash, replace slashes with dots
     let normalizedPath = patch.path.trim();
@@ -214,7 +215,10 @@ export class WorldStoreService {
       if (!isNaN(index) && Array.isArray(current)) {
         current = current[index];
       } else {
-        current = current[key] ??= {};
+        // A missing container has to match what the NEXT segment addresses: '-' or a number
+        // means an array. Creating {} there loses the value under a literal '-' key.
+        current[key] ??= isWorldArrayKey(keys[i + 1]) ? [] : {};
+        current = current[key];
       }
     }
 

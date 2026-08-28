@@ -22,7 +22,7 @@ Echtzeit-D&D-Kollaborationstool mit WebSocket-synchronisierter multiplayer-Funkt
   
 - **Services**:
   - `data.service.ts`: Daten-Persistierung (JSON read/write)
-    - Entity-Collections (Items, Spells, Runes, Skills, LootBundles, StatusEffects) in eigene Unterverzeichnisse pro Welt
+    - Entity-Collections (Items, Spells, Runes, Skills, StatusEffects) in eigene Unterverzeichnisse pro Welt
     - `readEntityCollection()` / `writeEntity()` für einzelne JSON-Dateien pro Entity
   - `asset-browser.service.ts`: Asset-Management (Items, Spells, Skills, Shops, Bundles)
     - `AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle'`
@@ -55,15 +55,16 @@ app/
 
 ## Datenfluss
 
-### Event-System (Shops & Loot Bundles)
-1. **Library Creation**: Shops/Bundles werden in Library-Editor erstellt
-2. **Drag from Library**: Asset-Browser emittiert dragStart mit type + index
-3. **Drop to World**: Current-Events-Manager empfängt drop, fügt zu `currentEvents[]` hinzu
-4. **WebSocket Broadcast**: World-Gateway sendet `currentEventsUpdated` an Party
-5. **Player Sync**: Alle Charaktere der aktiven Party empfangen Update
-6. **UI Update**: Events-Tab in character-tabs zeigt neue Events
-7. **Interaction**: Spieler klicken Event, sehen Shop/Bundle in current-events-view
-8. **Transaction**: Kauf/Claim triggert WebSocket-Update, synchronisiert Stock/Availability
+### Event-System (Shops)
+1. **Library Creation**: Shops werden im Library-Editor erstellt
+2. **Aus der Bibliothek**: Current-Events-Manager listet die Shops der verknüpften Bibliotheken
+3. **In die Welt**: fügt eine Kopie zu `currentEvents[]` hinzu
+4. **WebSocket Broadcast**: World-Gateway sendet den `currentEvents`-Patch an die Party
+5. **UI Update**: Events-Tab in character-tabs zeigt neue Events
+6. **Interaction**: Spieler öffnen den Shop im Event-Portal
+7. **Transaction**: Kauf triggert WebSocket-Update, synchronisiert Stock/Availability
+
+Loot-Bündel gibt es nicht mehr — vorbereitete Beute ist der GM-Schreibtisch (siehe unten).
 
 ### Asset-Typen
 - **Items**: Waffen, Rüstung, Verbrauchsgüter (drag-drop fähig)
@@ -117,15 +118,44 @@ app/
   - `isReverseDeal: true` → Shop kauft Items von Spielern
   - `identified?: boolean` → `false` = Spieler sehen "Unbekannter Effekt" statt Item-Details
   - Library Editor: Einzelne identified-Checkbox pro Deal + "Alle identifiziert" Bulk-Toggle
-- **Loot Bundles**: Beutepakete mit claimable Items
+
+## GM-Schreibtisch (world/gm-desk)
+Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorbereitung ⟂ Bibliothek**.
+- **Model**: `model/gm-desk.model.ts` — `DeskTab { tabId, name, revealed, entries }`,
+  `DeskEntry { entryId, type, knowledgeKind?, name, data, hidden?, claimedBy? }`.
+  `GrantType` deckt Gegenstand, Rune, Zauber, Fähigkeit, Material (`resources`), Wissen,
+  Statuseffekt, Währung und Seele ab.
+- **Speicherort**: `WorldData.gmDesk`, Sync über normale `patchWorld`-Patches.
+- **Spalte 1**: Porträts der Party. Auswahl leuchtet; solange eine besteht, geht jedes ＋ direkt an
+  diesen Spieler statt in den Reiter. Porträts sind CDK-Drop-Ziele.
+- **Spalte 2**: GM-Reiter (anlegen/umbenennen/löschen/aufdecken) plus je ein Reiter pro NSC der
+  **aktiven Lobby-Karte** (`WorldLobbyBridgeService`). Ein aufgedeckter Reiter pulsiert grün.
+- **Spalte 3**: Ordner-gruppierte, durchsuchbare Bibliothek über alle Kategorien inklusive der
+  fünf Wissensarten und der Materialien.
+- **Aufgedeckte Reiter** erscheinen unter Aktive Events als gemeinsamer Loot-Pool. Das Nehmen läuft
+  server-autoritativ über `gmDeskClaim` (Muster wie der Party-Beutel) — genau einer bekommt den
+  Eintrag, alle anderen sehen "Jemand war schneller".
+
+## Vergabe an Charaktere (GrantService)
+- **Ein einziger Pfad**: `services/grant.service.ts`. Der GM schreibt nie direkt in einen Bogen,
+  er hängt ein Angebot an `CharacterSheet.pendingGrants`.
+- **Spielerseite**: `sheet/grant-popup` zeigt Annehmen/Ablehnen. Erst beim Annehmen legt der
+  Client des Spielers das Ding ab (`acceptPatches`) — freies Inventarfach, Stapel-Merge über
+  `item-stack.util`, richtiges `known*Ids`-Array, `resources`, `currency`, `souls`,
+  `activeStatusEffects` + `seenStatusEffectIds`.
+- Ein Angebot überlebt Offline-Spieler, weil es am Bogen hängt.
+- Tests: `services/grant.service.spec.ts` (komplettes Typ→Feld-Mapping).
 
 ## Wissen-System (Knowledge System)
-- **Model**: `CharacterSheet.knownMaterialIds?: string[]`, `CharacterSheet.knownForgeTraitIds?: string[]`
-- **Verwaltung**: Kontextmenü im World-Dashboard → "Materialwissen verwalten" / "Schmiedewissen verwalten"
-- **Overlay**: `knowledgeManagerType: 'material' | 'forge-trait'` steuert welche Einträge geladen werden
-- **Laden**: `assetBrowserApi.searchFiles(lib.id, '', ['material'])` / `['forge-trait']` über alle Bibliotheken
-- **Filter**: Nur `!m.isPublic` Einträge werden angezeigt (öffentliche sind auto-sichtbar)
-- **Speichern**: `characterSocket.sendPatch(charId, { path: '/knownMaterialIds', value: ids })` bzw. `knownForgeTraitIds`
+- **Model**: fünf Arrays auf dem Bogen — `knownMaterialIds`, `knownForgeTraitIds`,
+  `knownIngredientIds`, `knownExtractorIds`, `knownBrewTraitIds`.
+- **Verwaltung**: Kontextmenü im World-Dashboard → ein Eintrag je Wissensart; das Overlay schaltet
+  zwischen den Arten um (`knowledgeManagerType: KnowledgeKind`).
+- **Laden**: `assetBrowserApi.searchFiles(lib.id, '', [kind])` über alle Bibliotheken.
+- **Filter**: nach `knowledgeTierOf()` (nicht `bekannt`), NICHT nach dem Legacy-Flag `isPublic`.
+- **IDs**: immer über `assetEntryId(file)` = `data.id || file.id` — ohne diesen Fallback wird
+  Wissen vergeben, das der Bogen nicht wiederfindet.
+- **Speichern**: `characterSocket.sendPatch(charId, { path: '/known…Ids', value: ids })`.
 
 ## Stapelbare Items (Stackable Items)
 - `ItemBlock.stackable?: boolean` — ob das Item stapelbar ist
@@ -135,7 +165,9 @@ app/
 - **Editor**: Checkbox "Stapelbar" + Zahlenfeld "Anzahl" (sichtbar wenn stackable)
 
 ## World-View Layout
-- **Reihenfolge** (oben → unten): Party-Dashboard → Battle-Tracker → Content-Grid (Ereignisse + Bibliothek) → Schadenrechner
+- **Reihenfolge** (oben → unten): Party-Dashboard → Battle-Tracker → Content-Grid (Aktive Events
+  inkl. Beutel der Gruppe + GM-Schreibtisch). Der Schadenrechner ist hier entfernt — die anderen
+  Ansichten decken ihn ab.
 - **Bibliothek-Header**: `.library-header` + `.header-btn` CSS-Klassen (keine Inline-Styles)
 - **Resource-Max Formel**: `world.component.getResourceMax()` delegiert an `trueStats.calculateResourceMax()` (verhindert Abweichung von Charakter-Sheet-Werten)
 

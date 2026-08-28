@@ -1,7 +1,7 @@
 ﻿import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CurrentEvent, ShopEvent, LootBundleEvent, ShopDeal, LootItem, formatCurrency, getCoinParts, CoinPart, formatCurrencyAsGold, convertToCopper, copperToCurrency, Currency } from '../../model/current-events.model';
+import { CurrentEvent, ShopEvent, ShopDeal, formatCurrency, getCoinParts, CoinPart, formatCurrencyAsGold, convertToCopper, copperToCurrency, Currency } from '../../model/current-events.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 
 type PriceMode = 'highest-units' | 'total-gold';
@@ -16,7 +16,7 @@ type PriceMode = 'highest-units' | 'total-gold';
         <!-- Close button OUTSIDE portal-background so it is never clipped -->
         <button class="portal-close-fixed" (click)="close.emit()" title="Portal verlassen">✕</button>
 
-        <div class="portal-background" [class.shop-theme]="event.type === 'shop'" [class.loot-theme]="event.type === 'loot'">
+        <div class="portal-background shop-theme">
           <div class="portal-content">
 
             <!-- Portal Header -->
@@ -131,34 +131,6 @@ type PriceMode = 'highest-units' | 'total-gold';
               </div>
             }
 
-            <!-- Loot Bundle Portal -->
-            @if (event.type === 'loot') {
-              <div class="loot-portal-content">
-                @if (asLootBundle(event).items.length === 0) {
-                  <div class="empty-portal">
-                    <span class="empty-icon">📦</span>
-                    <p>Dieses Bündel wurde geleert</p>
-                  </div>
-                } @else {
-                  <div class="loot-grid">
-                    @for (item of asLootBundle(event).items; track item.id; let i = $index) {
-                      <div class="loot-portal-card" [class.claimed]="item.claimedBy">
-                        <div class="loot-item-type">{{ item.type }}</div>
-                        <h3 class="loot-item-name">{{ getItemName(item) }}</h3>
-
-                        @if (item.claimedBy) {
-                          <div class="claimed-badge">✓ Beansprucht</div>
-                        } @else {
-                          <button class="claim-btn-portal" (click)="claimItem(event.id, i)">
-                            Beanspruchen
-                          </button>
-                        }
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
-            }
           </div>
           <!-- Currency overlay – fixed bottom-right of portal -->
           @if (event.type === 'shop') {
@@ -306,12 +278,6 @@ type PriceMode = 'highest-units' | 'total-gold';
         radial-gradient(ellipse at 20% 80%, rgba(139,69,19,0.4), transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(218,165,32,0.3), transparent 50%),
         linear-gradient(135deg, #1a0f0a 0%, #2d1810 50%, #3a2418 100%);
-    }
-    .portal-background.loot-theme {
-      background:
-        radial-gradient(ellipse at 30% 70%, rgba(255,215,0,0.2), transparent 60%),
-        radial-gradient(ellipse at 70% 30%, rgba(255,140,0,0.2), transparent 60%),
-        linear-gradient(135deg, #0a0a1a 0%, #1a1020 50%, #2a1530 100%);
     }
     .portal-background::before {
       content: '';
@@ -539,32 +505,6 @@ type PriceMode = 'highest-units' | 'total-gold';
       padding:0.4rem; background:rgba(255,0,0,0.1); border-radius:7px;
     }
 
-    /* Loot */
-    .loot-portal-content { animation: slideInUp 0.5s ease-out; }
-    .loot-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-      gap: 1.8rem; padding: 0.5rem;
-    }
-    .loot-portal-card {
-      background: rgba(20,10,30,0.8);
-      border: 2px solid rgba(255,215,0,0.4);
-      border-radius: 14px; padding: 1.8rem;
-      display: flex; flex-direction: column; align-items: center; gap: 1rem;
-      transition: all 0.3s;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-      position: relative;
-    }
-    .loot-portal-card:hover:not(.claimed) { transform:translateY(-5px) scale(1.02); border-color:rgba(255,215,0,0.8); box-shadow:0 8px 25px rgba(255,215,0,0.3); }
-    .loot-portal-card.claimed { opacity:0.6; filter:grayscale(0.5); border-color:rgba(100,100,100,0.4); }
-    .loot-portal-card::before {
-      content:'✨'; position:absolute; top:10px; right:10px;
-      font-size:1.8rem; animation: twinkle 2s infinite;
-    }
-    .loot-portal-card.claimed::before { content:'✓'; color:#4caf50; animation:none; }
-    @keyframes twinkle { 0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:1;transform:scale(1.2);} }
-    .loot-item-type { background:rgba(138,43,226,0.6); color:white; padding:0.35rem 0.9rem; border-radius:18px; font-size:0.85rem; text-transform:uppercase; letter-spacing:1px; }
-    .loot-item-name { margin:0; font-size:1.4rem; color:#fff; text-align:center; }
     .claimed-badge { background:rgba(76,175,80,0.3); border:2px solid #4caf50; color:#4caf50; padding:0.7rem 1.3rem; border-radius:10px; font-weight:bold; font-size:1rem; }
     .claim-btn-portal {
       width: 100%; padding: 0.9rem 1.5rem;
@@ -620,7 +560,6 @@ export class EventPortalComponent implements OnInit {
   @Output() close = new EventEmitter<void>();
   @Output() patch = new EventEmitter<any>();
   @Output() buyRequest = new EventEmitter<{ eventId: string; dealIndex: number; quantity: number; totalCostCopper: number }>();
-  @Output() claimRequest = new EventEmitter<{ eventId: string; itemIndex: number; characterId: string; characterName: string }>();
 
   buyQuantities = new Map<string, number>();
   inspectedDeal: ShopDeal | null = null;
@@ -670,10 +609,6 @@ export class EventPortalComponent implements OnInit {
     return event as ShopEvent;
   }
 
-  asLootBundle(event: CurrentEvent): LootBundleEvent {
-    return event as LootBundleEvent;
-  }
-
   getBuyQuantity(eventId: string, dealIndex: number): number {
     return this.buyQuantities.get(`${eventId}-${dealIndex}`) || 1;
   }
@@ -711,17 +646,6 @@ export class EventPortalComponent implements OnInit {
 
     this.buyRequest.emit({ eventId, dealIndex, quantity, totalCostCopper });
     this.buyQuantities.delete(`${eventId}-${dealIndex}`);
-  }
-
-  claimItem(eventId: string, itemIndex: number) {
-    const characterId = this.sheet.id || '';
-    const characterName = this.sheet.name || 'Unbekannt';
-    this.claimRequest.emit({ eventId, itemIndex, characterId, characterName });
-  }
-
-  getItemName(item: LootItem): string {
-    const data = item.data as any;
-    return data?.name || 'Unbekannter Gegenstand';
   }
 
   inspectDeal(deal: ShopDeal) {
