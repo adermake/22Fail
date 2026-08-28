@@ -287,6 +287,42 @@
 
 /* ── Spalte 3: Bibliothek ─────────────────────────────────────────────── */
 
+/* Direkter Weg in die verknüpften Bibliotheken — auch wenn eine Kategorie leer ist. */
+.desk-libs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.desk-libs-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #9ca3af);
+}
+
+.desk-lib-chip {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted, #cbd5e1);
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
+}
+
+.desk-lib-chip:hover { background: var(--bg); border-color: var(--accent); color: var(--accent); }
+.desk-lib-chip:active { transform: scale(0.96); }
+
 .desk-cats {
   display: flex;
   flex-wrap: wrap;
@@ -366,7 +402,7 @@
 .desk-lib-entry {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   padding: 4px 9px;
   border: 1px solid transparent;
   border-radius: 5px;
@@ -379,6 +415,49 @@
 }
 
 .desk-lib-entry:hover { background: var(--bg); color: var(--text); }
+
+.desk-lib-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Woher der Eintrag stammt — sonst weiß man beim Bearbeiten nicht, welche Bibliothek gemeint ist. */
+.desk-lib-origin {
+  flex-shrink: 0;
+  max-width: 38%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  color: var(--text-muted, #9ca3af);
+  opacity: 0.75;
+}
+
+.desk-lib-edit {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.76rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s, transform 0.08s;
+}
+
+.desk-lib-entry:hover .desk-lib-edit,
+.desk-lib-edit:focus-visible { opacity: 1; }
+
+.desk-lib-edit:hover { background: var(--card); color: var(--accent); border-color: var(--accent); }
+.desk-lib-edit:active { transform: scale(0.9); }
 .desk-lib-entry:active { transform: scale(0.97); background: var(--bg); }
 
 /* Die Quittung für den Klick — ohne sie fühlt sich das ＋ an, als täte es nichts. */

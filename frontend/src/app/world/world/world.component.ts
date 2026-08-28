@@ -155,11 +155,11 @@ export class WorldComponent implements OnInit, OnDestroy {
    * Die kommen NICHT aus `/api/library` — `getLibrary` kennt nur acht Asset-Typen, Wissen und
    * Statblöcke sind nicht dabei. Deshalb der eigene Durchlauf über den Asset-Browser.
    */
-  knowledgeBrowseAssets: Record<KnowledgeKind, BrowseEntry[]> = {
+  knowledgeBrowseAssets = signal<Record<KnowledgeKind, BrowseEntry[]>>({
     'material': [], 'forge-trait': [], 'ingredient': [], 'extractor': [], 'brew-trait': [],
-  };
+  });
   /** Rohstoffe/Wirkstoffe/Extraktoren als echte Gegenstände (Bogen: Materialien). */
-  resourceBrowseItems: BrowseEntry[] = [];
+  resourceBrowseItems = signal<BrowseEntry[]>([]);
 
   // Drag state
   private dragScrollInterval?: number;
@@ -314,6 +314,74 @@ export class WorldComponent implements OnInit, OnDestroy {
   });
 
   // ── GM-Schreibtisch ────────────────────────────────────────────────────────
+
+  /**
+   * Der Bestand für die Bibliotheks-Spalte, nach Kategorie. Jeder Eintrag weiß, aus welcher
+   * Bibliothek er stammt — sonst findet man ihn zum Bearbeiten nicht wieder.
+   *
+   * Die Wissens- und Materialarten kommen aus `knowledgeBrowseAssets` (eigener Asset-Durchlauf,
+   * weil `/api/library` diese Typen nicht kennt), alles andere aus den verknüpften Bibliotheken.
+   */
+  readonly deskCatalog = computed<Record<string, BrowseEntry[]>>(() => {
+    const world = this.store.worldValue;
+    const libs = this.loadedLibraries();
+    const linked = world?.linkedLibraries ?? [];
+
+    const collect = (pick: (lib: Library) => { id?: string; name?: string }[] | undefined,
+                     ownArray: { id?: string; name?: string }[] | undefined,
+                     key: string): BrowseEntry[] => {
+      const out: BrowseEntry[] = [];
+      // Die veralteten welt-eigenen Arrays haben keine Bibliothek — sie bleiben ohne Herkunft.
+      for (const [i, data] of (ownArray ?? []).entries()) {
+        if (data) out.push({ id: data.id || `${key}-welt-${i}`, name: data.name || 'Unbenannt', folder: '/', data });
+      }
+      for (const libId of linked) {
+        const lib = libs.find(l => l.id === libId);
+        for (const [i, data] of (pick(lib as Library) ?? []).entries()) {
+          if (!data) continue;
+          out.push({
+            id: data.id || `${key}-${libId}-${i}`,
+            name: data.name || 'Unbenannt',
+            folder: '/',
+            data,
+            libraryId: lib?.id,
+            libraryName: lib?.name,
+          });
+        }
+      }
+      return out;
+    };
+
+    return {
+      'item': collect(l => l?.items, world?.itemLibrary, 'item'),
+      'spell': collect(l => l?.spells, world?.spellLibrary, 'spell'),
+      'skill': collect(l => l?.skills, world?.skillLibrary, 'skill'),
+      'rune': collect(l => l?.runes, world?.runeLibrary, 'rune'),
+      'status-effect': collect(l => l?.statusEffects, world?.statusEffectLibrary, 'status-effect'),
+      'resource': this.resourceBrowseItems(),
+      ...this.knowledgeBrowseAssets(),
+    };
+  });
+
+  /** Die mit der Welt verknüpften Bibliotheken, für den direkten Sprung in den Editor. */
+  readonly linkedLibraryList = computed<{ id: string; name: string }[]>(() => {
+    const linked = this.store.worldValue?.linkedLibraries ?? [];
+    const libs = this.loadedLibraries();
+    return linked
+      .map(id => libs.find(l => l.id === id))
+      .filter((l): l is Library => !!l)
+      .map(l => ({ id: l.id, name: l.name }));
+  });
+
+  /** Springt zum Bearbeiten in die Bibliothek und sucht den Eintrag dort gleich heraus. */
+  onOpenInLibrary(entry: BrowseEntry): void {
+    if (!entry.libraryId) return;
+    this.router.navigate(['/library', entry.libraryId], { queryParams: { q: entry.name } });
+  }
+
+  onOpenLibrary(libraryId: string): void {
+    this.router.navigate(['/library', libraryId]);
+  }
 
   get deskTabs(): DeskTab[] {
     return this.store.worldValue?.gmDesk ?? [];
@@ -1186,27 +1254,25 @@ export class WorldComponent implements OnInit, OnDestroy {
     if (this.knowledgeDataLoaded) return;
     try {
       const libraries = await firstValueFrom(this.assetBrowserApi.getAllLibraries());
-      const byKind: Record<KnowledgeKind, AssetFile[]> = {
+      const byKind: Record<KnowledgeKind, BrowseEntry[]> = {
         'material': [], 'forge-trait': [], 'ingredient': [], 'extractor': [], 'brew-trait': [],
       };
 
       for (const lib of libraries) {
         for (const kind of this.knowledgeKinds) {
-          byKind[kind].push(...await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', [kind])));
+          const files = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', [kind]));
+          byKind[kind].push(...files.map(f => this.toBrowseEntry(f, lib.id, lib.name)));
         }
       }
 
-      this.allMaterials = byKind['material'].map(f => f.data as MaterialBlock);
-      this.allForgeTraits = byKind['forge-trait'].map(f => f.data as ForgeTrait);
-
-      for (const kind of this.knowledgeKinds) {
-        this.knowledgeBrowseAssets[kind] = byKind[kind].map(f => this.toBrowseEntry(f));
-      }
+      this.allMaterials = byKind['material'].map(e => e.data as MaterialBlock);
+      this.allForgeTraits = byKind['forge-trait'].map(e => e.data as ForgeTrait);
+      this.knowledgeBrowseAssets.set({ ...byKind });
       // Rohstoffe und Wirkstoffe sind auch physische Gegenstände — sie sollen sich verschenken
       // lassen, nicht nur als Wissen.
-      this.resourceBrowseItems = [
+      this.resourceBrowseItems.set([
         ...byKind['material'], ...byKind['ingredient'], ...byKind['extractor'],
-      ].map(f => this.toBrowseEntry(f));
+      ]);
 
       this.knowledgeDataLoaded = true;
       this.cdr.markForCheck();
@@ -1216,7 +1282,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   /** Eine Asset-Datei als Browser-Eintrag; der Ordner kommt aus dem Pfad der Datei. */
-  private toBrowseEntry(file: AssetFile): BrowseEntry {
+  private toBrowseEntry(file: AssetFile, libraryId?: string, libraryName?: string): BrowseEntry {
     const path = file.path ?? '/';
     const slash = path.lastIndexOf('/');
     return {
@@ -1224,6 +1290,8 @@ export class WorldComponent implements OnInit, OnDestroy {
       name: file.name,
       folder: slash > 0 ? path.slice(0, slash) : '/',
       data: file.data,
+      libraryId,
+      libraryName,
     };
   }
 

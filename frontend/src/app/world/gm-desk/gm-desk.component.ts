@@ -49,6 +49,9 @@ export interface BrowseEntry {
   name: string;
   folder: string;
   data: unknown;
+  /** Aus welcher Bibliothek der Eintrag stammt — damit man ihn dort wiederfindet. */
+  libraryId?: string;
+  libraryName?: string;
 }
 
 interface BrowseFolder {
@@ -93,17 +96,13 @@ export class GmDeskComponent implements OnDestroy {
   /** NSC-Token der aktiven Lobby-Karte — je einer bekommt einen Reiter. */
   @Input() set npcTokens(value: Token[]) { this.npcs.set(value ?? []); }
 
-  @Input() items: ItemBlock[] = [];
-  @Input() runes: RuneBlock[] = [];
-  @Input() spells: SpellBlock[] = [];
-  @Input() skills: SkillBlock[] = [];
-  @Input() statusEffects: StatusEffect[] = [];
-  /** Wissens-Assets je Art, aus dem Asset-Browser geladen. */
-  @Input() knowledgeAssets: Record<KnowledgeKind, BrowseEntry[]> = {
-    'material': [], 'forge-trait': [], 'ingredient': [], 'extractor': [], 'brew-trait': [],
-  };
-  /** Rohstoffe als echte Gegenstände (landen im Bogen unter Materialien). */
-  @Input() resourceItems: BrowseEntry[] = [];
+  /**
+   * Der gesamte Bestand, nach Kategorie-ID sortiert. Ein einziger Eingang statt sieben, damit
+   * jeder Eintrag dieselben Angaben trägt — vor allem, aus welcher Bibliothek er stammt.
+   */
+  @Input() catalog: Record<string, BrowseEntry[]> = {};
+  /** Die mit der Welt verknüpften Bibliotheken — als direkter Weg in den Editor. */
+  @Input() linkedLibraries: { id: string; name: string }[] = [];
 
   // ── Ausgänge ───────────────────────────────────────────────────────────────
 
@@ -116,6 +115,10 @@ export class GmDeskComponent implements OnDestroy {
   /** Ein Ding wandert in den gemeinsamen Beutel der Gruppe. */
   @Output() depositToStash = new EventEmitter<ItemBlock>();
   @Output() openLibrarySelector = new EventEmitter<void>();
+  /** Diesen Eintrag im Bibliotheks-Editor öffnen (bearbeiten). */
+  @Output() openInLibrary = new EventEmitter<BrowseEntry>();
+  /** Eine ganze Bibliothek im Editor öffnen. */
+  @Output() openLibrary = new EventEmitter<string>();
 
   // ── Zustand ────────────────────────────────────────────────────────────────
 
@@ -346,24 +349,7 @@ export class GmDeskComponent implements OnDestroy {
 
   /** Der Bestand der aktiven Kategorie, ohne Filter. */
   private categoryEntries(): BrowseEntry[] {
-    const cat = this.currentCategory;
-    const wrap = (list: { id?: string; name?: string }[]): BrowseEntry[] =>
-      list.filter(Boolean).map((d, i) => ({
-        id: d.id || `${cat.id}-${i}`,
-        name: d.name || 'Unbenannt',
-        folder: '/',
-        data: d,
-      }));
-
-    switch (cat.id) {
-      case 'item': return wrap(this.items);
-      case 'spell': return wrap(this.spells);
-      case 'skill': return wrap(this.skills);
-      case 'rune': return wrap(this.runes);
-      case 'status-effect': return wrap(this.statusEffects);
-      case 'resource': return this.resourceItems;
-      default: return cat.knowledgeKind ? this.knowledgeAssets[cat.knowledgeKind] ?? [] : [];
-    }
+    return this.catalog[this.currentCategory.id] ?? [];
   }
 
   /**
@@ -394,6 +380,15 @@ export class GmDeskComponent implements OnDestroy {
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
   });
+
+  /**
+   * Zum Bearbeiten in die Bibliothek springen. Ohne das kommt man von hier nicht mehr an die
+   * Inhalte heran — und wer nicht weiß, in welcher Bibliothek ein Eintrag liegt, sucht sich tot.
+   */
+  editInLibrary(entry: BrowseEntry, event: MouseEvent): void {
+    event.stopPropagation();
+    this.openInLibrary.emit(entry);
+  }
 
   isFolderOpen(path: string): boolean {
     // Bei einer Suche wird alles aufgeklappt — sonst sucht man und sieht nichts.

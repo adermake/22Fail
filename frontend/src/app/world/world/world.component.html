@@ -201,17 +201,14 @@
         [deskTabs]="deskTabs"
         [partyMembers]="getPartyCharacterArray()"
         [npcTokens]="lobbyBridge.npcTokens()"
-        [items]="mergedItems()"
-        [runes]="mergedRunes()"
-        [spells]="mergedSpells()"
-        [skills]="mergedSkills()"
-        [statusEffects]="mergedStatusEffects()"
-        [knowledgeAssets]="knowledgeBrowseAssets"
-        [resourceItems]="resourceBrowseItems"
+        [catalog]="deskCatalog()"
+        [linkedLibraries]="linkedLibraryList()"
         (deskChanged)="onDeskChanged($event)"
         (offerToCharacter)="onDeskOffer($event)"
         (npcInventoryChanged)="onNpcInventoryChanged($event)"
         (depositToStash)="onDepositToStash($event)"
+        (openInLibrary)="onOpenInLibrary($event)"
+        (openLibrary)="onOpenLibrary($event)"
         (openLibrarySelector)="openLibrarySelector()">
       </app-gm-desk>
     </div>

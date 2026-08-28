@@ -148,6 +148,16 @@
       </button>
     </div>
 
+    @if (linkedLibraries.length) {
+      <div class="desk-libs">
+        <span class="desk-libs-label">Öffnen:</span>
+        @for (lib of linkedLibraries; track lib.id) {
+          <button class="desk-lib-chip" [title]="'Bibliothek &quot;' + lib.name + '&quot; bearbeiten'"
+                  (click)="openLibrary.emit(lib.id)">{{ lib.name }}</button>
+        }
+      </div>
+    }
+
     <div class="desk-cats">
       @for (cat of categories; track cat.id) {
         <button
@@ -180,15 +190,24 @@
         @if (isFolderOpen(folder.path)) {
           <div class="desk-folder-items">
             @for (entry of folder.entries; track entry.id) {
-              <button
+              <div
                 class="desk-lib-entry"
                 cdkDrag
                 [cdkDragData]="entry"
                 [class.just-added]="justAddedId() === entry.id"
                 (click)="addFromLibrary(entry)">
-                <span>＋ {{ entry.name }}</span>
+                <span class="desk-lib-name">＋ {{ entry.name }}</span>
+                @if (entry.libraryName) {
+                  <span class="desk-lib-origin" [title]="'Aus: ' + entry.libraryName">{{ entry.libraryName }}</span>
+                }
+                @if (entry.libraryId) {
+                  <button
+                    class="desk-lib-edit"
+                    [title]="'In &quot;' + entry.libraryName + '&quot; bearbeiten'"
+                    (click)="editInLibrary(entry, $event)">✎</button>
+                }
                 <span class="desk-drag-chip" *cdkDragPreview>{{ entry.name }}</span>
-              </button>
+              </div>
             }
           </div>
         }
@@ -196,7 +215,7 @@
 
       @if (folders().length === 0) {
         <p class="desk-empty">
-          {{ search() ? 'Nichts gefunden.' : 'Nichts in dieser Kategorie — verknüpfe eine Bibliothek.' }}
+          {{ search() ? 'Nichts gefunden.' : 'Nichts in dieser Kategorie — leg es in einer Bibliothek an (oben "Öffnen") oder verknüpfe eine weitere.' }}
         </p>
       }
     </div>

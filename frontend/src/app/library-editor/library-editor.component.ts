@@ -227,6 +227,14 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         await this.loadDependencyItems(); // Load items from dependencies
         await this.loadFolderContents();
         await this.loadAllFolders();
+
+        // Vom GM-Schreibtisch aus wird mit ?q=<Name> hierher gesprungen. Ohne das landet man in
+        // der Wurzel einer fremden Bibliothek und sucht den Eintrag von Hand.
+        const query = this.route.snapshot.queryParamMap.get('q');
+        if (query) {
+          this.searchQuery.set(query);
+          await this.search();
+        }
       }
     });
   }

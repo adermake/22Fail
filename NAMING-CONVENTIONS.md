@@ -79,6 +79,9 @@ shared loot. Replaces the old read-only World Library list.
   materials and all five knowledge kinds.
 - Revealed tabs show up under Aktive Events as a shared loot pool; claiming is server-arbitrated.
 - Entries can be dropped into the party's shared bag.
+- Every browser row shows which library it came from and has a ✎ that jumps to
+  `/library/:libraryId?q=<name>` — editing still lives in the Library editor, this is the way back
+  in. Chips above the categories open a linked library directly.
 
 **Usage:**
 - DM opens a world → sees the GM desk where the World Library used to be

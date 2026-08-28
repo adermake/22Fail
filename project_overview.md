@@ -131,7 +131,12 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - **Spalte 2**: GM-Reiter (anlegen/umbenennen/löschen/aufdecken) plus je ein Reiter pro NSC der
   **aktiven Lobby-Karte** (`WorldLobbyBridgeService`). Ein aufgedeckter Reiter pulsiert grün.
 - **Spalte 3**: Ordner-gruppierte, durchsuchbare Bibliothek über alle Kategorien inklusive der
-  fünf Wissensarten und der Materialien.
+  fünf Wissensarten und der Materialien. Ein einziger Eingang `catalog: Record<KategorieId,
+  BrowseEntry[]>`; jeder `BrowseEntry` trägt `libraryId` + `libraryName`.
+- **Zurück in die Bibliothek**: Jede Zeile zeigt ihre Herkunfts-Bibliothek und hat ein ✎, das nach
+  `/library/:libraryId?q=<Name>` springt — der Library-Editor liest `q`, füllt die Suche und führt
+  sie aus, sodass man direkt auf dem Eintrag landet. Darüber Chips für jede verknüpfte Bibliothek,
+  falls eine Kategorie leer ist.
 - **Aufgedeckte Reiter** erscheinen unter Aktive Events als gemeinsamer Loot-Pool. Das Nehmen läuft
   server-autoritativ über `gmDeskClaim` (Muster wie der Party-Beutel) — genau einer bekommt den
   Eintrag, alle anderen sehen "Jemand war schneller".
