@@ -110,13 +110,16 @@ Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber z
 :::formula
 Voraussetzung*10
 :::
-:::
 Die meisten magischen Zauberunterlagen sind allerdings spezifisch für Zauber gemacht und halten deutlich länger.
 :::note{type=warning}
 Sollte die Haltbarkeit eines Zaubers unter 100 fallen, muss beim Wirken von Zaubern gewürfelt werden, ob er zerstört wird. Je weiter die Haltbarkeit unter 100 fällt, desto höher ist der Würfelbonus für die Zerstörung der Rüstung.
 :::formula
 Würfelbonus: -5 + ⌊(100 - Rüstungshaltbarkeit)/10⌋
 :::
+:::
+:::
+:::note{type=tip}
+Die so berechneten Stats sind nur eine grobe Vorlage und können je nach genauem Effekt höher oder tiefer ausfallen.
 :::
 
 :::section{title="Wie mache ich einen neuen Zauber?"}
