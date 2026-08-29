@@ -1,0 +1,145 @@
+.wt-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  color: var(--text, #e5e7eb);
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-row > label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted, #9ca3af);
+}
+
+.hint {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+  opacity: 0.85;
+}
+
+input[type='text'],
+input[type='number'],
+textarea {
+  background: var(--bg, #111827);
+  border: 1px solid var(--border, #374151);
+  border-radius: 6px;
+  color: var(--text, #e5e7eb);
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent, #8b5cf6);
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* ── Segmented pickers ─────────────────────────────────────────────────────── */
+.wt-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.wt-btn {
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #374151);
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+
+.wt-btn:hover {
+  border-color: var(--accent, #8b5cf6);
+  color: var(--text, #e5e7eb);
+}
+
+.wt-btn--active {
+  background: var(--accent, #8b5cf6);
+  border-color: var(--accent, #8b5cf6);
+  color: #fff;
+}
+
+/* ── Reach ─────────────────────────────────────────────────────────────────── */
+.wt-range-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wt-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted, #9ca3af);
+}
+
+.wt-range input {
+  width: 80px;
+}
+
+.wt-hint {
+  font-size: 0.75rem;
+  color: var(--accent, #8b5cf6);
+}
+
+.wt-warn {
+  font-size: 0.75rem;
+  color: var(--health-color, #ef4444);
+}
+
+/* ── Actions ───────────────────────────────────────────────────────────────── */
+.wt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.wt-cancel,
+.wt-save {
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border, #374151);
+}
+
+.wt-cancel {
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+}
+
+.wt-cancel:hover {
+  color: var(--text, #e5e7eb);
+}
+
+.wt-save {
+  background: var(--accent, #8b5cf6);
+  border-color: var(--accent, #8b5cf6);
+  color: #fff;
+}
+
+.wt-save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

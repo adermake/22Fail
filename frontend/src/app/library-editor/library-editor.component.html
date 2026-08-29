@@ -172,6 +172,7 @@
                 <button (click)="createFile('material')">⚙️ Neues Material</button>
                 <button (click)="createFile('forge-trait')">🔥 Neues Schmiedemerkmal</button>
                 <button (click)="createFile('brew-trait')">⚗️ Neues Braumerkmal</button>
+                <button (click)="createFile('weapon-type')">🗡️ Neuer Waffentyp</button>
                 <button (click)="createFile('ingredient')">🌿 Neuer Wirkstoff</button>
                 <button (click)="createFile('extractor')">🧪 Neuer Extraktor</button>
                 <button (click)="createFile('statblock')">👤 Neues NSC-Statblock</button>
@@ -390,6 +391,7 @@
         <button (click)="createFile('material'); closeContextMenu()">⚙️ Neues Material</button>
         <button (click)="createFile('forge-trait'); closeContextMenu()">🔥 Neues Schmiedemerkmal</button>
         <button (click)="createFile('brew-trait'); closeContextMenu()">⚗️ Neues Braumerkmal</button>
+        <button (click)="createFile('weapon-type'); closeContextMenu()">🗡️ Neuer Waffentyp</button>
         <button (click)="createFile('ingredient'); closeContextMenu()">🌿 Neuer Wirkstoff</button>
         <button (click)="createFile('extractor'); closeContextMenu()">🧪 Neuer Extraktor</button>
         <button (click)="createFile('shop'); closeContextMenu()">🏪 Neuer Handel</button>
@@ -474,6 +476,13 @@
             @case ('brew-trait') {
               <app-brew-trait-editor
                 [trait]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('weapon-type') {
+              <app-weapon-type-editor
+                [weaponType]="editingFile()!.data"
                 (save)="saveEditor($event)"
                 (cancel)="closeEditor()"
               />

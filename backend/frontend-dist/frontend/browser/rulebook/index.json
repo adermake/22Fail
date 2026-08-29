@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-25T20:23:03.047Z",
+  "generatedAt": "2026-08-29T22:30:56.882Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -49,7 +49,7 @@
       "tab": "Stats",
       "icon": "stat_icon",
       "order": 20,
-      "hash": "1b843a2b",
+      "hash": "a3527399",
       "outline": [
         {
           "id": "stats",
@@ -323,7 +323,7 @@
       "tab": "Klassen",
       "icon": "ability",
       "order": 40,
-      "hash": "6af3118b",
+      "hash": "ab3c217f",
       "outline": [
         {
           "id": "klassen",
@@ -358,7 +358,7 @@
       "tab": "Rassen",
       "icon": "races",
       "order": 50,
-      "hash": "f82fc2d0",
+      "hash": "be4ae1b7",
       "outline": [
         {
           "id": "rassen",
@@ -393,23 +393,29 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "9f25e580",
+      "hash": "3b6252c3",
       "outline": [
         {
           "id": "magiesystem",
           "text": "Magiesystem",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "runen",
+          "text": "Runen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "elementarrunen",
+          "text": "Elementarrunen",
           "level": 3,
           "kind": "section"
         },
         {
-          "id": "elementar-runen",
-          "text": "Elementar-Runen",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "formungs-runen",
-          "text": "Formungs-Runen",
+          "id": "formungsrunen",
+          "text": "Formungsrunen",
           "level": 3,
           "kind": "section"
         },
@@ -432,20 +438,20 @@
           "kind": "heading"
         },
         {
-          "id": "seelen-runen",
-          "text": "Seelen-Runen",
+          "id": "seelenrunen",
+          "text": "Seelenrunen",
           "level": 3,
           "kind": "section"
         },
         {
-          "id": "studierte-seelen-runen",
-          "text": "Studierte Seelen-Runen",
+          "id": "studierte-seelenrunen",
+          "text": "Studierte Seelenrunen",
           "level": 3,
           "kind": "heading"
         },
         {
-          "id": "wahre-seelen-runen",
-          "text": "Wahre Seelen-Runen",
+          "id": "wahre-seelenrunen",
+          "text": "Wahre Seelenrunen",
           "level": 3,
           "kind": "heading"
         },
@@ -454,6 +460,18 @@
           "text": "Die Seelenrune",
           "level": 3,
           "kind": "heading"
+        },
+        {
+          "id": "zauber",
+          "text": "Zauber",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "wie-mache-ich-einen-neuen-zauber",
+          "text": "Wie mache ich einen neuen Zauber?",
+          "level": 3,
+          "kind": "section"
         },
         {
           "id": "zauber-zeichnen",
@@ -490,12 +508,6 @@
           "text": "Casten",
           "level": 3,
           "kind": "section"
-        },
-        {
-          "id": "wie-mache-ich-einen-neuen-zauber",
-          "text": "Wie mache ich einen neuen Zauber?",
-          "level": 3,
-          "kind": "section"
         }
       ]
     },
@@ -506,12 +518,18 @@
       "tab": "Ausrüstung",
       "icon": "equipment",
       "order": 70,
-      "hash": "2ec61e05",
+      "hash": "01498281",
       "outline": [
         {
-          "id": "waffen",
-          "text": "Waffen",
+          "id": "waffentypen",
+          "text": "Waffentypen",
           "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "nur-eine-waffenart",
+          "text": "Nur eine Waffenart",
+          "level": 3,
           "kind": "heading"
         },
         {
@@ -531,6 +549,12 @@
           "text": "Rüstungsmaterialien",
           "level": 3,
           "kind": "heading"
+        },
+        {
+          "id": "nur-allgemein-bekanntes-wissen",
+          "text": "Nur allgemein bekanntes Wissen",
+          "level": 3,
+          "kind": "heading"
         }
       ]
     },
@@ -541,7 +565,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "7b09a590",
+      "hash": "015b548c",
       "outline": [
         {
           "id": "syntax-beispiel",

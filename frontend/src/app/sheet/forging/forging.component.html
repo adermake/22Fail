@@ -44,17 +44,90 @@
           </div>
         </div>
         <div class="config-field weapon-type-field">
-          <label>Waffentyp</label>
-          <select class="weapon-type-select" [(ngModel)]="selectedWeaponType" (ngModelChange)="onWeaponTypeChange()" [compareWith]="compareByName">
-            <option [ngValue]="null">– Kein Typ –</option>
-            @for (cat of weaponCategories; track cat) {
-              <optgroup [label]="weaponCategoryLabels[cat]">
-                @for (wt of getWeaponTypesForCategory(cat); track wt.name) {
-                  <option [ngValue]="wt">{{ wt.name }} ({{ wt.damageType }}, {{ wt.range }})</option>
-                }
-              </optgroup>
+          <label>
+            Waffentyp
+            <button type="button" class="wt-mode-btn"
+                    [class.active]="customTypeMode"
+                    (click)="toggleCustomType(!customTypeMode)"
+                    title="Eigenen Typ entwerfen — der gewählte Typ dient als Vorlage">
+              {{ customTypeMode ? 'Vorlage wählen' : 'Eigener Typ' }}
+            </button>
+          </label>
+
+          @if (!customTypeMode) {
+            <select class="weapon-type-select" [(ngModel)]="selectedWeaponType" (ngModelChange)="onWeaponTypeChange()" [compareWith]="compareByName">
+              <option [ngValue]="null">– Kein Typ –</option>
+              @for (cat of weaponCategories; track cat) {
+                <optgroup [label]="weaponCategoryLabels[cat]">
+                  @for (wt of getWeaponTypesForCategory(cat); track wt.name) {
+                    <option [ngValue]="wt">{{ wt.name }} ({{ wt.damageType }}, {{ wt.range }})</option>
+                  }
+                </optgroup>
+              }
+            </select>
+            @if (selectedWeaponTypeBlock?.extraEffect) {
+              <div class="wt-extra">{{ selectedWeaponTypeBlock!.extraEffect }}</div>
             }
-          </select>
+          } @else {
+            <!-- Free-form type. Seeded from the selected type, so it doubles as a template. -->
+            <div class="wt-custom">
+              <input class="wt-custom-name" type="text" [(ngModel)]="customType.name"
+                     (ngModelChange)="applyCustomType()" placeholder="Name des Typs" />
+
+              <div class="wt-custom-row">
+                <label>Waffenart</label>
+                <select [(ngModel)]="customType.category" (ngModelChange)="applyCustomType()">
+                  @for (cat of weaponCategories; track cat) {
+                    <option [ngValue]="cat">{{ weaponCategoryLabels[cat] }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="wt-custom-row">
+                <label>Schadensart</label>
+                <select [(ngModel)]="customType.damageType" (ngModelChange)="applyCustomType()">
+                  @for (dt of damageTypeOptions; track dt) {
+                    <option [ngValue]="dt">{{ dt }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="wt-custom-row">
+                <label>Reichweite</label>
+                <span class="wt-reach">
+                  <input type="number" min="0" step="0.5" [(ngModel)]="customType.meleeRange"
+                         (ngModelChange)="applyCustomType()" title="Nahkampf in Metern" />
+                  <small>Nah</small>
+                  <input type="number" min="0" step="1" [(ngModel)]="customType.rangedRange"
+                         (ngModelChange)="applyCustomType()" title="Fernkampf in Metern" />
+                  <small>Fern</small>
+                </span>
+              </div>
+
+              <div class="wt-custom-row">
+                <label>Gewichtsklasse</label>
+                <select [(ngModel)]="customType.weight" (ngModelChange)="applyCustomType()">
+                  @for (w of weaponWeights; track w) {
+                    <option [ngValue]="w">{{ weaponWeightLabels[w] }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="wt-custom-row">
+                <label>Führung</label>
+                <select [(ngModel)]="customType.handed" (ngModelChange)="applyCustomType()">
+                  <option [ngValue]="'ONE'">{{ weaponHandedLabels['ONE'] }}</option>
+                  <option [ngValue]="'TWO'">{{ weaponHandedLabels['TWO'] }}</option>
+                </select>
+              </div>
+
+              <textarea class="wt-custom-extra" rows="2" [(ngModel)]="customType.extraEffect"
+                        (ngModelChange)="applyCustomType()"
+                        placeholder="Zusatzeffekt (landet in der Beschreibung)"></textarea>
+
+              <div class="wt-reach-summary">{{ customReachSummary }}</div>
+            </div>
+          }
         </div>
       } @else {
         <div class="config-field armor-type-field">

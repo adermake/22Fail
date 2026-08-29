@@ -1,0 +1,108 @@
+<div class="wt-editor">
+  <!-- Name -->
+  <div class="form-row">
+    <label>Name</label>
+    <input type="text" [(ngModel)]="edit.name" placeholder="z.B. Speer" />
+  </div>
+
+  <!-- Waffenart: how it is fought with. NOT the same as Gewichtsklasse below. -->
+  <div class="form-row">
+    <label>
+      Waffenart
+      <span class="hint"> — wonach Kämpfen und Talente gehen</span>
+    </label>
+    <div class="wt-btns">
+      @for (c of categories; track c) {
+        <button type="button" class="wt-btn"
+                [class.wt-btn--active]="edit.category === c"
+                (click)="setCategory(c)">{{ categoryLabels[c] }}</button>
+      }
+    </div>
+  </div>
+
+  <!-- Damage type -->
+  <div class="form-row">
+    <label>Schadensart</label>
+    <div class="wt-btns">
+      @for (t of damageTypes; track t) {
+        <button type="button" class="wt-btn"
+                [class.wt-btn--active]="edit.damageType === t"
+                (click)="setDamageType(t)">{{ t }}</button>
+      }
+    </div>
+  </div>
+
+  <!-- Reach: both at once, either may be 0 -->
+  <div class="form-row">
+    <label>
+      Reichweite
+      <span class="hint"> — 0 heißt „so nicht einsetzbar“</span>
+    </label>
+    <div class="wt-range-row">
+      <label class="wt-range">
+        <span>Nahkampf</span>
+        <input type="number" [(ngModel)]="edit.meleeRange" min="0" step="0.5" />
+        <small>m</small>
+      </label>
+      <label class="wt-range">
+        <span>Fernkampf</span>
+        <input type="number" [(ngModel)]="edit.rangedRange" min="0" step="1" />
+        <small>m</small>
+      </label>
+    </div>
+    @if (reachWarning) {
+      <div class="wt-warn">Ohne Reichweite lässt sich der Typ weder schwingen noch werfen.</div>
+    } @else {
+      <div class="wt-hint">{{ reachSummary }}</div>
+    }
+  </div>
+
+  <!-- Weight class: how heavy it IS. Independent of Waffenart. -->
+  <div class="form-row">
+    <label>
+      Gewichtsklasse
+      <span class="hint"> — nur für die vorgeschlagene Schmiedegröße</span>
+    </label>
+    <div class="wt-btns">
+      @for (w of weights; track w) {
+        <button type="button" class="wt-btn"
+                [class.wt-btn--active]="edit.weight === w"
+                (click)="setWeight(w)">{{ weightLabels[w] }}</button>
+      }
+    </div>
+  </div>
+
+  <!-- Handedness -->
+  <div class="form-row">
+    <label>Führung</label>
+    <div class="wt-btns">
+      <button type="button" class="wt-btn"
+              [class.wt-btn--active]="edit.handed === 'ONE'"
+              (click)="setHanded('ONE')">{{ handedLabels['ONE'] }}</button>
+      <button type="button" class="wt-btn"
+              [class.wt-btn--active]="edit.handed === 'TWO'"
+              (click)="setHanded('TWO')">{{ handedLabels['TWO'] }}</button>
+    </div>
+  </div>
+
+  <!-- Extra effect -->
+  <div class="form-row">
+    <label>
+      Zusatzeffekt
+      <span class="hint"> — landet in der Beschreibung der geschmiedeten Waffe</span>
+    </label>
+    <textarea [(ngModel)]="edit.extraEffect" rows="2"
+              placeholder="z.B. Kann geworfen werden, ohne die Hand zu verlassen"></textarea>
+  </div>
+
+  <!-- Description -->
+  <div class="form-row">
+    <label>Beschreibung</label>
+    <textarea [(ngModel)]="edit.description" rows="2" placeholder="Optionale Beschreibung..."></textarea>
+  </div>
+
+  <div class="wt-actions">
+    <button type="button" class="wt-cancel" (click)="onCancel()">Abbrechen</button>
+    <button type="button" class="wt-save" [disabled]="!edit.name?.trim()" (click)="onSave()">Speichern</button>
+  </div>
+</div>

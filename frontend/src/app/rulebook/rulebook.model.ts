@@ -51,6 +51,10 @@ export interface RulebookHeading {
  */
 export interface RulebookRenderContext {
   runes?: import('./../model/rune-block.model').RuneBlock[];
+  /** GM-defined Waffentypen merged over the built-ins. */
+  weaponTypes?: import('./../model/weapon-type-block.model').WeaponTypeBlock[];
+  /** Forge materials, straight from the libraries — the numbers players actually forge with. */
+  materials?: import('./../model/forging.model').MaterialBlock[];
 }
 
 /** Per-render state handed to markdown-it as its `env`. */

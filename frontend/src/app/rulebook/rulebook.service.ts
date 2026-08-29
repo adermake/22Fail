@@ -1,7 +1,9 @@
 import { Injectable, inject, isDevMode, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
+import { WeaponTypeService } from '../services/weapon-type.service';
 import type { RuneBlock } from '../model/rune-block.model';
+import type { MaterialBlock } from '../model/forging.model';
 import { firstValueFrom } from 'rxjs';
 import { renderMarkdown } from './markdown/rulebook-markdown';
 import type {
@@ -20,6 +22,7 @@ import type {
 export class RulebookService {
   private http = inject(HttpClient);
   private assets = inject(AssetBrowserApiService);
+  private weaponTypeService = inject(WeaponTypeService);
   private manifestPromise: Promise<RulebookManifest> | null = null;
   private pageCache = new Map<string, RenderResult>();
 
@@ -66,6 +69,15 @@ export class RulebookService {
     const context: RulebookRenderContext = {};
     if (/source\s*=\s*["']?run(?:es|en)|:rune\[|runeflow/i.test(source)) {
       context.runes = await this.loadRunes();
+    }
+    // Waffentypen are library assets too, and fall back to the built-ins if the fetch fails.
+    if (/source\s*=\s*["']?(?:weapon|waffen)/i.test(source)) {
+      context.weaponTypes = await this.weaponTypeService.load();
+    }
+    // Materials are pure library data — there is no static fallback worth printing, because the
+    // numbers a GM tuned in the Bibliothek are the only ones anyone plays with.
+    if (/source\s*=\s*["']?material/i.test(source)) {
+      context.materials = await this.loadMaterials();
     }
 
     const result = await renderMarkdown(source, id, context); // ← markdown-it lazy chunk loads here
@@ -129,6 +141,40 @@ export class RulebookService {
       }
     })();
     return this.runesPromise;
+  }
+
+  // ── Materials (library assets) ────────────────────────────────────────────────
+  private materialsPromise: Promise<MaterialBlock[]> | null = null;
+
+  /** Every forge material across all libraries, fetched once per session. */
+  private loadMaterials(): Promise<MaterialBlock[]> {
+    this.materialsPromise ??= (async () => {
+      try {
+        const libraries = await firstValueFrom(this.assets.getAllLibraries());
+        const perLibrary = await Promise.all(
+          libraries.map(async (lib) => {
+            try {
+              const files = await firstValueFrom(this.assets.searchFiles(lib.id, '', ['material']));
+              return files.map((f) => f.data as MaterialBlock);
+            } catch {
+              return [] as MaterialBlock[];
+            }
+          }),
+        );
+        // De-duplicate by name: the same material arrives twice via library dependencies.
+        const seen = new Set<string>();
+        return perLibrary.flat().filter((m) => {
+          const key = (m?.name ?? '').trim().toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      } catch {
+        this.materialsPromise = null; // allow a retry on the next page view
+        return [];
+      }
+    })();
+    return this.materialsPromise;
   }
 
   // ── Search ────────────────────────────────────────────────────────────────────

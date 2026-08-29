@@ -3,6 +3,8 @@ import { parseAttrs, esc, splitTarget } from './markdown/attrs';
 import { slugify, uniqueSlug } from './markdown/slug';
 import { renderMarkdown, stripFrontMatter } from './markdown/rulebook-markdown';
 import type { RuneBlock } from '../model/rune-block.model';
+import type { WeaponTypeBlock } from '../model/weapon-type-block.model';
+import type { MaterialBlock } from '../model/forging.model';
 
 const md = (...lines: string[]) => lines.join('\n') + '\n';
 
@@ -187,6 +189,190 @@ describe('renderMarkdown', () => {
     const { html } = await renderMarkdown(md(':::data{source=talents}', ':::'), 'talente');
     expect(html).toContain('Athletik');
     expect(html).toContain('rb-card');
+  });
+
+  it('filters weapon types by Waffenart and Gewichtsklasse independently', async () => {
+    const weaponTypes = [
+      { id: '1', name: 'Wurfmesser', category: 'FERNKAMPF', damageType: 'Schnitt',
+        meleeRange: 0, rangedRange: 20, weight: 'LEICHT', handed: 'ONE', extraEffect: '' },
+      { id: '2', name: 'Kriegsaxt', category: 'SCHWER', damageType: 'Schnitt',
+        meleeRange: 2, rangedRange: 0, weight: 'SCHWER', handed: 'TWO', extraEffect: 'Spaltet Schilde' },
+      { id: '3', name: 'Speer', category: 'SCHWER', damageType: 'Stich',
+        meleeRange: 3, rangedRange: 30, weight: 'MITTEL', handed: 'TWO', extraEffect: '' },
+    ] as unknown as WeaponTypeBlock[];
+
+    const all = await renderMarkdown(md(':::data{source=weapons}', ':::'), 'g', { weaponTypes });
+    expect(all.warnings).toEqual([]);
+    expect(all.html).toContain('Fernkampf (1)');
+    expect(all.html).toContain('Schwer (2)');
+    // A type usable both ways shows both reaches.
+    expect(all.html).toContain('Nahkampf 3m · Fernkampf 30m');
+    expect(all.html).toContain('Spaltet Schilde');
+
+    // Waffenart and Gewichtsklasse are different axes: Speer is SCHWER but weighs MITTEL.
+    const art = await renderMarkdown(md(':::data{source=weapons category=schwer}', ':::'), 'g', { weaponTypes });
+    expect(art.html).toContain('Speer');
+    expect(art.html).toContain('Kriegsaxt');
+    expect(art.html).not.toContain('Wurfmesser');
+
+    const gewicht = await renderMarkdown(md(':::data{source=weapons weight=schwer}', ':::'), 'g', { weaponTypes });
+    expect(gewicht.html).toContain('Kriegsaxt');
+    expect(gewicht.html).not.toContain('Speer');
+
+    const bad = await renderMarkdown(md(':::data{source=weapons weight=fernkampf}', ':::'), 'g', { weaponTypes });
+    expect(bad.warnings.join()).toContain('Gewichtsklasse');
+  });
+
+  it('reads materials from the library, not from static data', async () => {
+    const materials = [
+      {
+        name: 'Platin', rarity: 'LEGENDARY', canBeWeaponMaterial: true, canBeArmorMaterial: true,
+        isPublic: true,
+        weaponStats: { haltbarkeit: 120, haltbarkeitSkalierung: 7, effektivitaet: 14,
+                       effektivitaetSkalierung: 4, extraEffect: 'Bricht nie', weight: 3 },
+        armorStats: { haltbarkeit: 120, haltbarkeitSkalierung: 7, effektivitaet: 15,
+                      effektivitaetSkalierung: 3, extraEffect: '', weight: 4, ruestungsmalus: 2 },
+      },
+      {
+        name: 'Eisen', rarity: 'COMMON', canBeWeaponMaterial: true, canBeArmorMaterial: false,
+        isPublic: true,
+        weaponStats: { haltbarkeit: 80, haltbarkeitSkalierung: 3, effektivitaet: 7,
+                       effektivitaetSkalierung: 3, extraEffect: '', weight: 2 },
+      },
+      // `geheim` (isPublic false, ungraded) must never reach a player-facing page.
+      {
+        name: 'Sternenerz', rarity: 'LEGENDARY', canBeWeaponMaterial: true, canBeArmorMaterial: false,
+        isPublic: false,
+        weaponStats: { haltbarkeit: 200, haltbarkeitSkalierung: 9, effektivitaet: 20,
+                       effektivitaetSkalierung: 5, extraEffect: '', weight: 1 },
+      },
+    ] as unknown as MaterialBlock[];
+
+    const { html, warnings } = await renderMarkdown(
+      md(':::data{source=materials kind=weapon}', ':::'), 'g', { materials },
+    );
+    expect(warnings).toEqual([]);
+    // Both forge stats carry their own per-Schmiedung growth.
+    expect(html).toContain('80 <span class="rb-scale">(+3)</span>');
+    expect(html).toContain('7 <span class="rb-scale">(+3)</span>');
+    expect(html).toContain('14 <span class="rb-scale">(+4)</span>');
+    expect(html).not.toContain('Sternenerz');
+    // rarity order: COMMON before LEGENDARY
+    expect(html.indexOf('Eisen')).toBeLessThan(html.indexOf('Platin'));
+
+    // Armor reads armorStats and gains a Rüstungsmalus column; Eisen is weapon-only.
+    const armor = await renderMarkdown(md(':::data{source=materials kind=armor}', ':::'), 'g', { materials });
+    expect(armor.html).toContain('Stabilität');
+    expect(armor.html).toContain('Rüstungsmalus');
+    expect(armor.html).toContain('15 <span class="rb-scale">(+3)</span>');
+    expect(armor.html).not.toContain('Eisen');
+
+    // Without library data the table says so rather than printing stale numbers.
+    const none = await renderMarkdown(md(':::data{source=materials}', ':::'), 'g');
+    expect(none.html).toContain('konnten nicht geladen werden');
+  });
+
+  it('gates material listings by Wissensstufe, rarity and the effect column', async () => {
+    const stats = { haltbarkeit: 80, haltbarkeitSkalierung: 3, effektivitaet: 7,
+                    effektivitaetSkalierung: 3, extraEffect: 'Verrät zu viel', weight: 2 };
+    const materials = [
+      { name: 'Eisen', rarity: 'COMMON', canBeWeaponMaterial: true, knowledgeTier: 'bekannt',
+        weaponStats: { ...stats } },
+      { name: 'Mondstahl', rarity: 'RARE', canBeWeaponMaterial: true, knowledgeTier: 'unbekannt',
+        weaponStats: { ...stats } },
+      { name: 'Sternenerz', rarity: 'LEGENDARY', canBeWeaponMaterial: true, knowledgeTier: 'geheim',
+        weaponStats: { ...stats } },
+    ] as unknown as MaterialBlock[];
+
+    // Default: geheim stays hidden.
+    const def = await renderMarkdown(md(':::data{source=materials}', ':::'), 'g', { materials });
+    expect(def.html).toContain('Eisen');
+    expect(def.html).toContain('Mondstahl');
+    expect(def.html).not.toContain('Sternenerz');
+
+    // Only common knowledge.
+    const known = await renderMarkdown(md(':::data{source=materials tier=bekannt}', ':::'), 'g', { materials });
+    expect(known.html).toContain('Eisen');
+    expect(known.html).not.toContain('Mondstahl');
+
+    // A GM page can ask for everything.
+    const all = await renderMarkdown(md(':::data{source=materials tier=all}', ':::'), 'g', { materials });
+    expect(all.html).toContain('Sternenerz');
+    expect(all.warnings).toEqual([]);
+
+    // Rarity narrows independently of tier.
+    const rare = await renderMarkdown(md(':::data{source=materials rarity=rare}', ':::'), 'g', { materials });
+    expect(rare.html).toContain('Mondstahl');
+    expect(rare.html).not.toContain('Eisen');
+
+    // The effect column is the main spoiler surface and can be dropped.
+    const noFx = await renderMarkdown(md(':::data{source=materials effects=no}', ':::'), 'g', { materials });
+    expect(noFx.html).toContain('Eisen');
+    expect(noFx.html).not.toContain('Verrät zu viel');
+    expect(noFx.html).not.toContain('<th>Effekt</th>');
+
+    const bad = await renderMarkdown(md(':::data{source=materials tier=quatsch}', ':::'), 'g', { materials });
+    expect(bad.warnings.join()).toContain('Wissensstufe');
+  });
+
+  it('lists armor materials even when the can-be flag predates the data', async () => {
+    const materials = [
+      // No canBeArmorMaterial at all — older libraries simply lack the flag.
+      { name: 'Stoff', rarity: 'COMMON', isPublic: true,
+        armorStats: { haltbarkeit: 50, haltbarkeitSkalierung: 5, effektivitaet: 5,
+                      effektivitaetSkalierung: 5, extraEffect: '', weight: 1, ruestungsmalus: 0 } },
+      // Explicitly not an armor material — must stay out.
+      { name: 'Wurfstein', rarity: 'COMMON', isPublic: true, canBeArmorMaterial: false,
+        armorStats: { haltbarkeit: 10, haltbarkeitSkalierung: 1, effektivitaet: 1,
+                      effektivitaetSkalierung: 1, extraEffect: '', weight: 1 } },
+    ] as unknown as MaterialBlock[];
+
+    const { html, warnings } = await renderMarkdown(
+      md(':::data{source=materials kind=armor}', ':::'), 'g', { materials },
+    );
+    expect(warnings).toEqual([]);
+    expect(html).toContain('Stoff');
+    expect(html).not.toContain('Wurfstein');
+    expect(html).toContain('Rüstungsmalus');
+  });
+
+  it('filters data listings down to a named list, in the given order', async () => {
+    const materials = [
+      { name: 'Silber', rarity: 'RARE', canBeWeaponMaterial: true, isPublic: true,
+        weaponStats: { haltbarkeit: 80, haltbarkeitSkalierung: 2, effektivitaet: 11,
+                       effektivitaetSkalierung: 2, extraEffect: '', weight: 2 } },
+      { name: 'Eisen', rarity: 'COMMON', canBeWeaponMaterial: true, isPublic: true,
+        weaponStats: { haltbarkeit: 80, haltbarkeitSkalierung: 3, effektivitaet: 7,
+                       effektivitaetSkalierung: 3, extraEffect: '', weight: 2 } },
+      { name: 'Holz', rarity: 'COMMON', canBeWeaponMaterial: true, isPublic: true,
+        weaponStats: { haltbarkeit: 50, haltbarkeitSkalierung: 5, effektivitaet: 4,
+                       effektivitaetSkalierung: 3, extraEffect: '', weight: 1 } },
+    ] as unknown as MaterialBlock[];
+
+    const { html, warnings } = await renderMarkdown(
+      md(':::data{source=materials names="Silber, Eisen"}', ':::'), 'g', { materials },
+    );
+    expect(warnings).toEqual([]);
+    // The author's order wins over the rarity sort.
+    expect(html.indexOf('Silber')).toBeLessThan(html.indexOf('Eisen'));
+    expect(html).not.toContain('Holz');
+
+    // A typo is reported rather than silently dropped.
+    const typo = await renderMarkdown(
+      md(':::data{source=materials names="Eisen, Nixda"}', ':::'), 'g', { materials },
+    );
+    expect(typo.html).toContain('Eisen');
+    expect(typo.warnings.join()).toContain('Nixda');
+
+    // Same filter works for runes, flattened out of their categories.
+    const runes = [
+      { name: 'Feuer', drawing: 'a', tags: [], runeType: 'elemental' },
+      { name: 'Kreis', drawing: 'b', tags: [], runeType: 'manipulation' },
+    ] as unknown as RuneBlock[];
+    const picked = await renderMarkdown(md(':::data{source=runes names="Kreis"}', ':::'), 'g', { runes });
+    expect(picked.html).toContain('Kreis');
+    expect(picked.html).not.toContain('Feuer');
+    expect(picked.warnings).toEqual([]);
   });
 
   it('renders runes grouped by category, with Formung split into its sub-types', async () => {
