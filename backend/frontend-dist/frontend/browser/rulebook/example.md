@@ -136,6 +136,20 @@ Schaden = Effektivität × Trefferstärke
 
 Auch Abschnitte: `:::section{title="…" color=tuerkis}`.
 
+Und Karten — `color=` übersteuert dabei ein gesetztes `accent=`:
+
+::::grid{cols=3}
+:::card{title="Eigene Farbe" color=tuerkis}
+`:::card{title="…" color=tuerkis}`
+:::
+:::card{title="Als Hex" color=#f97316}
+`:::card{title="…" color=#f97316}`
+:::
+:::card{title="Akzent" accent=health}
+`:::card{title="…" accent=health}` — die vier Theme-Farben gibt es weiterhin.
+:::
+::::
+
 ## 6. Raster und Karten
 
 :::grid{cols=3}
@@ -248,9 +262,32 @@ Mit `stat=STR` wurden hier nur die Stärke-Talente gezeigt. Ohne `stat` kommen a
 :::data{source=weapons category=leicht}
 :::
 
+Waffentypen haben zwei unabhängige Achsen, und beide filtern:
+`category=` (Waffenart: `leicht`/`schwer`/`fernkampf`) und `weight=` (Gewichtsklasse:
+`leicht`/`mittel`/`schwer`). Dazu `names="Messer, Speer"` wie überall sonst.
+
+:::data{source=weapons weight=schwer names="Axt, Kriegsaxt, Hellebarde"}
+:::
+
 Ohne `category` werden alle Waffen nach Kategorie gruppiert.
 
 ### Materialien — `:::data{source=materials}`
+
+:::data{source=materials kind=weapon names="Eisen, Holz, Silber"}
+:::
+
+Filter für Materialien — alle kombinierbar:
+
+| Attribut | Wirkung |
+| --- | --- |
+| `kind=weapon\|armor` | Waffen- oder Rüstungswerte |
+| `tier=bekannt,unbekannt` | Wissensstufen. Standard blendet `geheim` aus; `tier=all` zeigt alles |
+| `rarity=common,rare,legendary` | nur diese Seltenheiten |
+| `names="Eisen, Holz"` | feste Auswahl, in dieser Reihenfolge |
+| `effects=no` | Effektspalte weglassen — dort stecken die meisten Spoiler |
+
+`names="..."` behält die angegebene Reihenfolge; ohne `names=` wird nach Seltenheit sortiert.
+Beide Schmiedewerte zeigen ihre Steigerung pro Schmiedung als oranges :hl[(+X)]{color=orange}.
 
 :::data{source=materials kind=weapon}
 :::

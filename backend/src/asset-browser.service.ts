@@ -22,7 +22,8 @@ export type AssetType =
   | 'material'
   | 'forge-trait'
   | 'ingredient'
-  | 'extractor';
+  | 'extractor'
+  | 'weapon-type';
 
 /**
  * Folder structure
@@ -1163,6 +1164,8 @@ export class AssetBrowserService {
         return '🌿';
       case 'extractor':
         return '🧪';
+      case 'weapon-type':
+        return '🗡️';
       default:
         return '📄';
     }

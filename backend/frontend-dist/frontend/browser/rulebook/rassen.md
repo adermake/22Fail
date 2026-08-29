@@ -25,5 +25,6 @@ Einige Rassen besitzen außerdem bestimmte Vor- oder Nachteile, die für alle Mi
 
 :::actions
 :jump[Weiter zur Magie]{to=zauber}
+
 :jump[Zurück zu den Klassen]{to=klassen}
 :::

@@ -8,7 +8,7 @@
  * GM-Schreibtisch. Der Wert bleibt hier nur stehen, damit alte Asset-Dateien auf der Platte
  * weiterhin gelesen und angezeigt werden können.
  */
-export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait' | 'statblock' | 'ingredient' | 'extractor' | 'brew-trait';
+export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait' | 'statblock' | 'ingredient' | 'extractor' | 'brew-trait' | 'weapon-type';
 
 /**
  * Represents a folder in the asset browser
@@ -108,6 +108,7 @@ export function getAssetTypeIcon(type: AssetType): string {
     case 'ingredient': return '🌿';
     case 'extractor': return '🧪';
     case 'brew-trait': return '⚗️';
+    case 'weapon-type': return '🗡️';
     default: return '📄';
   }
 }
@@ -131,6 +132,7 @@ export function getAssetTypeName(type: AssetType): string {
     case 'ingredient': return 'Wirkstoff';
     case 'extractor': return 'Extraktor';
     case 'brew-trait': return 'Braumerkmal';
+    case 'weapon-type': return 'Waffentyp';
     default: return 'Unbekannt';
   }
 }

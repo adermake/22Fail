@@ -1,1 +1,0 @@
-import{a as m}from"./chunk-JFNWBE4E.js";import{Pa as i,Wa as t}from"./chunk-TGTQBLBL.js";var a=class r{constructor(e){this.imageService=e}transform(e){return this.imageService.getImageUrl(e)}static \u0275fac=function(n){return new(n||r)(i(m,16))};static \u0275pipe=t({name:"imageUrl",type:r,pure:!0})};export{a};

@@ -11,6 +11,7 @@ Eine gute Ausrüstung kann den Ausgang einer Schlacht entscheiden. Sowohl die Wa
 
 :::grid{min=200}
 :::card{title="Helm"}
+
 :::
 :::card{title="Brustpanzer"}
 :::
@@ -34,9 +35,6 @@ Ausrüstung an- oder abzulegen kostet eine Bonusaktion. Sie auszuwechseln kostet
 
 ## Waffen
 
-:::data{source=weapons}
-:::
-
 Alle Waffen können in 3 Waffenarten unterteilt werden:
 
 :::card{title="Leichte Waffen" color=#ef9533}
@@ -50,7 +48,15 @@ Fernkampfwaffen sind eine spezielle Waffenart und kommt mit vielen eigenen [Rege
 :::
 
 
+
 ## Materialien
+
+:::note{type=tip title="Direkt aus den Bibliotheken"}
+Alle Werte stammen aus den Materialien, die im **Bibliotheks-Editor** gepflegt werden — also
+genau die Zahlen, mit denen in der Schmiede gerechnet wird. Das orange :hl[(+X)]{color=orange}
+ist die Steigerung **pro Schmiedung**. Als :hl[geheim]{color=rot} eingestufte Materialien
+erscheinen hier nicht.
+:::
 
 ### Waffenmaterialien
 
@@ -60,4 +66,11 @@ Fernkampfwaffen sind eine spezielle Waffenart und kommt mit vielen eigenen [Rege
 ### Rüstungsmaterialien
 
 :::data{source=materials kind=armor}
+:::
+
+### Nur allgemein bekanntes Wissen
+
+Beispiel für eine spoilerfreie Liste — nur `bekannt`, ohne Effektspalte:
+
+:::data{source=materials kind=weapon tier=bekannt effects=no}
 :::

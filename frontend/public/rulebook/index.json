@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T09:34:29.818Z",
+  "generatedAt": "2026-08-29T22:30:56.882Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -393,7 +393,7 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "41ae3eb5",
+      "hash": "3b6252c3",
       "outline": [
         {
           "id": "magiesystem",
@@ -518,12 +518,18 @@
       "tab": "Ausrüstung",
       "icon": "equipment",
       "order": 70,
-      "hash": "2ec61e05",
+      "hash": "01498281",
       "outline": [
         {
-          "id": "waffen",
-          "text": "Waffen",
+          "id": "waffentypen",
+          "text": "Waffentypen",
           "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "nur-eine-waffenart",
+          "text": "Nur eine Waffenart",
+          "level": 3,
           "kind": "heading"
         },
         {
@@ -543,6 +549,12 @@
           "text": "Rüstungsmaterialien",
           "level": 3,
           "kind": "heading"
+        },
+        {
+          "id": "nur-allgemein-bekanntes-wissen",
+          "text": "Nur allgemein bekanntes Wissen",
+          "level": 3,
+          "kind": "heading"
         }
       ]
     },
@@ -553,7 +565,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "75254d9a",
+      "hash": "015b548c",
       "outline": [
         {
           "id": "syntax-beispiel",
