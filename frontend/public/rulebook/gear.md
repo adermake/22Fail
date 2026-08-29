@@ -35,6 +35,12 @@ Ausrüstung an- oder abzulegen kostet eine Bonusaktion. Sie auszuwechseln kostet
 
 ## Waffen
 
+Waffen kommen in unterschiedlicher Form und Funktion, dennoch besitzen sie alle über diese grundlegenden Attribute:
+
+:::card{title="Effektivität" color=#ef4444 id=w_eff}
+Schadenspotenzial der Waffe. Je nach [Stärke des Treffers](kampf#schadenswuerfe) wird dieser Wert mit unterschiedlicher Stärke angewandt.
+:::
+
 Alle Waffen können in 3 Waffenarten unterteilt werden:
 
 :::card{title="Leichte Waffen" color=#ef9533}

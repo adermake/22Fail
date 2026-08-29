@@ -90,7 +90,7 @@ zusätzliche [Aktion](kampf#aktion).
 
 :::section{title="Effektivität" icon=effektivity id=effektivitaet}
 Die Grundstärke eines Angriffs o.Ä. Je Stärker der Treffer, desto mehr wirkt sich die Effektivität auf den Schaden aus.
-Die Effektivität schwankt im Normalfall zwischen 1 und 50, mit 10 als Standard für eine gute Waffe/Zauber/etc.
+Die Effektivität schwankt im Normalfall zwischen 1 und 50, mit 10 als Standard für eine gute Waffe/Zauber/etc. Mehr dazu [hier](gear#w_eff).
 :::
 
 :::section{title="Stabilität" icon=stability id=stabilitaet}

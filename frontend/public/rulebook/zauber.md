@@ -97,7 +97,7 @@ Beschwören aus der Seele selbst geformt. Du erkennst sie an ihrer Form:
 Mithilfe dieser Runen ist es nun möglich, einen vollwertigen Zauber zusammenzusetzen. Um einen Zauber nutzen zu können, braucht man aber zusätzlich noch ein Medium, durch den der Zauber benutzt werden kann. Schriftrollen oder magische Waffen sind dafür am besten geeignet, manche Situationen erfordern jedoch andere Unterlagen, die für einen Zauber herhalten müssen, oft mit reduzierter Kapazität. Jeder Zauber besitzt diese Attribute:
 
 :::card{title="Effektivität" color=#ef4444}
-Stärke des Zaubers, bestimmt wie bei Waffen den Angriffsschaden, kann aber auch für Dinge wie die Heilstärke stehen. Die Effektivität des Zaubers wird aus der Summe aller enthaltenen Runen bestimmt.
+Stärke des Zaubers, bestimmt wie bei [Waffen](gear#w_eff) den Angriffsschaden, kann aber auch für Dinge wie die Heilstärke stehen. Die Effektivität des Zaubers wird aus der Summe aller enthaltenen Runen bestimmt.
 :::
 :::card{title="Kosten" color=##3b82f6}
 Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt. Ein Zauber kann nur gewirkt werden, wenn der Zaubernde ausreichend [Fokus](zauber#fokus) und Mana besitzt.
