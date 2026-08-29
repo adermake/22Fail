@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T22:30:56.882Z",
+  "generatedAt": "2026-08-29T22:44:32.920Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -393,7 +393,7 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "3b6252c3",
+      "hash": "93d0a7fc",
       "outline": [
         {
           "id": "magiesystem",
@@ -565,7 +565,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "015b548c",
+      "hash": "d3e51fab",
       "outline": [
         {
           "id": "syntax-beispiel",

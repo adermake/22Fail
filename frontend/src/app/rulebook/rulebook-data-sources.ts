@@ -21,6 +21,7 @@ import {
   WEAPON_WEIGHT_LABELS,
   builtinWeaponTypes,
   describeWeaponReach,
+  weaponTypeKnowledgeTier,
   type WeaponCategory,
   type WeaponTypeBlock,
   type WeaponWeight,
@@ -34,6 +35,7 @@ import {
   RUNE_TYPES,
   RUNE_TYPE_LABELS,
   normalizeRuneType,
+  runeKnowledgeTier,
   runeGroupOf,
   type RuneGroup,
   type RuneType,
@@ -95,10 +97,31 @@ function renderWeapons(attrs: DirectiveAttrs, env: RulebookEnv): string {
     );
   }
 
+  // Same Wissensstufen-Gate as Materialien und Runen; built-ins are always common knowledge.
+  const tiers = parseTiers(attrs['tier'] ?? attrs['stufe'], env);
+  if (!tiers) {
+    return emptyNote(
+      `Unbekannte Wissensstufe. Verfügbar: ` +
+        KNOWLEDGE_TIERS.map((t) => t.value).join(', ') + ', all',
+    );
+  }
+
+  const rawDamage = (attrs['damage'] ?? attrs['schaden'] ?? '').trim().toLowerCase();
+  const rawHanded = (attrs['handed'] ?? attrs['fuehrung'] ?? '').trim().toLowerCase();
+  if (rawHanded && !/^(one|two|einhändig|einhaendig|zweihändig|zweihaendig)$/.test(rawHanded)) {
+    env.warnings.push(`Unbekannte Führung "handed=${rawHanded}"`);
+    return emptyNote(`Unbekannte Führung: <code>${esc(rawHanded)}</code>. Verfügbar: one, two`);
+  }
+  const wantsTwo = /^(two|zweih)/.test(rawHanded);
+
   const picked = filterByNames(all, attrs['names'] ?? attrs['nur'], env, 'Waffe');
   const rows = (picked ?? all).filter(
     (w) =>
-      (!rawCategory || w.category === rawCategory) && (!rawWeight || w.weight === rawWeight),
+      tiers.includes(weaponTypeKnowledgeTier(w)) &&
+      (!rawCategory || w.category === rawCategory) &&
+      (!rawWeight || w.weight === rawWeight) &&
+      (!rawDamage || w.damageType.toLowerCase() === rawDamage) &&
+      (!rawHanded || (w.handed === 'TWO') === wantsTwo),
   );
   if (!rows.length) return emptyNote('Keine Waffentypen für diese Auswahl.');
 
@@ -323,11 +346,32 @@ function renderRunes(attrs: DirectiveAttrs, env: RulebookEnv): string {
     );
   }
 
-  // Library runes plus the hardcoded ones, optionally narrowed to an explicit name list.
-  const pool: RulebookRune[] = [
+  // Library runes plus the hardcoded ones.
+  let pool: RulebookRune[] = [
     ...(all as RulebookRune[]),
     ...RUNE_TYPES.flatMap((type) => specialRunesOfType(type)),
   ];
+
+  // Spoiler control, same grading as Materialien: `geheim` is hidden unless asked for.
+  // The hardcoded runes have no tier and are always common knowledge.
+  const tiers = parseTiers(attrs['tier'] ?? attrs['stufe'], env);
+  if (!tiers) {
+    return emptyNote(
+      `Unbekannte Wissensstufe. Verfügbar: ` +
+        KNOWLEDGE_TIERS.map((t) => t.value).join(', ') + ', all',
+    );
+  }
+  pool = pool.filter((r) => r.glyph || tiers.includes(runeKnowledgeTier(r)));
+
+  // `tags="Feuer, Wasser"` — a rune matches when it carries ANY of the listed tags.
+  const tags = (attrs['tags'] ?? '')
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+  if (tags.length) {
+    pool = pool.filter((r) => (r.tags ?? []).some((t) => tags.includes(t.trim().toLowerCase())));
+  }
+
   const picked = filterByNames(pool, attrs['names'] ?? attrs['nur'], env, 'Rune');
 
   // An explicit list is shown as one flat grid in the author's order — grouping a hand-picked

@@ -8,7 +8,8 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile, createAssetFile } from '../../model/asset-browser.model';
-import { RuneBlock, RuneStatRequirements, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_TYPE_SHORT, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType } from '../../model/rune-block.model';
+import { KNOWLEDGE_TIERS, KnowledgeTier } from '../../utils/knowledge-tier.util';
+import { RuneBlock, RuneStatRequirements, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_TYPE_SHORT, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType, runeKnowledgeTier, setRuneKnowledgeTier } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -246,6 +247,19 @@ export class RuneTableComponent implements OnInit, OnDestroy {
 
   setRuneType(file: AssetFile, type: RuneType) {
     (file.data as RuneBlock).runeType = type;
+    this.onFieldChange(file);
+  }
+
+  // ─── Wissensstufe ─────────────────────────────
+
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
+
+  getTier(file: AssetFile): KnowledgeTier {
+    return runeKnowledgeTier(file.data as RuneBlock);
+  }
+
+  setTier(file: AssetFile, tier: KnowledgeTier) {
+    setRuneKnowledgeTier(file.data as RuneBlock, tier);
     this.onFieldChange(file);
   }
 }

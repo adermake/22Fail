@@ -5,6 +5,7 @@ import {
   WeaponCategory,
   WeaponType as BuiltinWeaponType,
 } from './forging.model';
+import { KnowledgeTier, setKnowledgeTier } from '../utils/knowledge-tier.util';
 
 /**
  * A weapon type as an editable LIBRARY asset ("Messer", "Speer", "Axt", …).
@@ -65,6 +66,10 @@ export interface WeaponTypeBlock {
   /** Free text folded into the forged weapon's description. */
   extraEffect: string;
   description?: string;
+  /** Wissensstufe: geheim | unbekannt | bekannt. Built-ins are always common knowledge. */
+  knowledgeTier?: KnowledgeTier;
+  /** Legacy public flag, kept in sync by setKnowledgeTier. */
+  isPublic?: boolean;
   /** Set on entries derived from the hardcoded list — they are not library files. */
   builtin?: boolean;
 }
@@ -81,7 +86,31 @@ export function createEmptyWeaponType(name = 'Neuer Waffentyp'): WeaponTypeBlock
     handed: 'ONE',
     extraEffect: '',
     description: '',
+    knowledgeTier: 'bekannt',
   };
+}
+
+/**
+ * A Waffentyp's Wissensstufe.
+ *
+ * Like runes, and unlike Materialien, an ungraded entry is `bekannt`: the field is new, and the
+ * built-in types have always been public. `knowledgeTierOf` would call those `geheim` and empty
+ * the list.
+ */
+export function weaponTypeKnowledgeTier(w: {
+  knowledgeTier?: KnowledgeTier;
+  isPublic?: boolean;
+  builtin?: boolean;
+}): KnowledgeTier {
+  if (w.builtin) return 'bekannt';
+  if (w.knowledgeTier) return w.knowledgeTier;
+  if (w.isPublic === false) return 'geheim';
+  return 'bekannt';
+}
+
+/** Write a tier onto a Waffentyp, keeping the legacy `isPublic` flag consistent. */
+export function setWeaponTypeKnowledgeTier(w: WeaponTypeBlock, tier: KnowledgeTier): WeaponTypeBlock {
+  return setKnowledgeTier(w, tier);
 }
 
 /** `'1,5m'` / `'0,5m'` / `'100m'` → metres. The built-in list stores ranges as German strings. */

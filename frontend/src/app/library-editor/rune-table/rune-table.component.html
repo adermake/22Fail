@@ -43,6 +43,7 @@
             <th class="c-tags">Tags</th>
             <th class="c-desc">Beschreibung</th>
             <th class="c-type" title="Runentyp">Typ</th>
+            <th class="c-tier" title="Wissensstufe">Wissen</th>
             <th class="c-del"></th>
           </tr>
         </thead>
@@ -150,6 +151,18 @@
                     </span>
                   }
                 </div>
+              </td>
+
+              <!-- Wissensstufe -->
+              <td class="c-tier">
+                <select class="rt-tier-select"
+                        [ngModel]="getTier(file)"
+                        (ngModelChange)="setTier(file, $event)"
+                        [title]="'Wissensstufe'">
+                  @for (t of knowledgeTiers; track t.value) {
+                    <option [value]="t.value">{{ t.label }}</option>
+                  }
+                </select>
               </td>
 
               <!-- Öffnen / Löschen -->

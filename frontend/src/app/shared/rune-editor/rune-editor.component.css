@@ -614,3 +614,21 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
 }
 input[type="number"] { -moz-appearance: textfield; }
+
+/* ─── Wissensstufe ──────────────────────────────────────────────────────────── */
+.kt-select {
+  width: 100%;
+  background: var(--bg, #111827);
+  border: 1px solid var(--border, #374151);
+  border-radius: 5px;
+  color: var(--text, #e5e7eb);
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.8rem;
+}
+.kt-select:focus { outline: none; border-color: #8b5cf6; }
+.kt-hint {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted, #9ca3af);
+}

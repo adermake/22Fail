@@ -101,6 +101,17 @@
     <textarea [(ngModel)]="edit.description" rows="2" placeholder="Optionale Beschreibung..."></textarea>
   </div>
 
+  <!-- Wissensstufe -->
+  <div class="form-row">
+    <label>Wissensstufe</label>
+    <select [ngModel]="tier" (ngModelChange)="setTier($event)">
+      @for (t of knowledgeTiers; track t.value) {
+        <option [value]="t.value">{{ t.label }}</option>
+      }
+    </select>
+    <div class="wt-hint">{{ tierHint }}</div>
+  </div>
+
   <div class="wt-actions">
     <button type="button" class="wt-cancel" (click)="onCancel()">Abbrechen</button>
     <button type="button" class="wt-save" [disabled]="!edit.name?.trim()" (click)="onSave()">Speichern</button>

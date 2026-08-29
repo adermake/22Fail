@@ -223,6 +223,38 @@ describe('renderMarkdown', () => {
     expect(bad.warnings.join()).toContain('Gewichtsklasse');
   });
 
+  it('gates weapon types by Wissensstufe and filters by damage and handedness', async () => {
+    const weaponTypes = [
+      { id: '1', name: 'Messer', category: 'LEICHT', damageType: 'Schnitt', meleeRange: 0.5,
+        rangedRange: 0, weight: 'LEICHT', handed: 'ONE', extraEffect: '', knowledgeTier: 'bekannt' },
+      { id: '2', name: 'Drachenlanze', category: 'SCHWER', damageType: 'Stich', meleeRange: 3,
+        rangedRange: 0, weight: 'SCHWER', handed: 'TWO', extraEffect: '', knowledgeTier: 'geheim' },
+      // Ungraded must stay visible — the field is new and built-ins were always public.
+      { id: '3', name: 'Keule', category: 'SCHWER', damageType: 'Wucht', meleeRange: 1,
+        rangedRange: 0, weight: 'MITTEL', handed: 'ONE', extraEffect: '' },
+    ] as unknown as WeaponTypeBlock[];
+
+    const def = await renderMarkdown(md(':::data{source=weapons}', ':::'), 'g', { weaponTypes });
+    expect(def.warnings).toEqual([]);
+    expect(def.html).toContain('Messer');
+    expect(def.html).toContain('Keule');
+    expect(def.html).not.toContain('Drachenlanze');
+
+    const all = await renderMarkdown(md(':::data{source=weapons tier=all}', ':::'), 'g', { weaponTypes });
+    expect(all.html).toContain('Drachenlanze');
+
+    const wucht = await renderMarkdown(md(':::data{source=weapons damage=wucht}', ':::'), 'g', { weaponTypes });
+    expect(wucht.html).toContain('Keule');
+    expect(wucht.html).not.toContain('Messer');
+
+    const oneHanded = await renderMarkdown(md(':::data{source=weapons handed=one}', ':::'), 'g', { weaponTypes });
+    expect(oneHanded.html).toContain('Messer');
+    expect(oneHanded.html).toContain('Keule');
+
+    const bad = await renderMarkdown(md(':::data{source=weapons handed=drei}', ':::'), 'g', { weaponTypes });
+    expect(bad.warnings.join()).toContain('Führung');
+  });
+
   it('reads materials from the library, not from static data', async () => {
     const materials = [
       {
@@ -413,6 +445,43 @@ describe('renderMarkdown', () => {
 
     const bad = await renderMarkdown(md(':::data{source=runes type=quatsch}', ':::'), 'runen', { runes });
     expect(bad.html).toContain('Unbekannter Runentyp');
+  });
+
+  it('gates runes by Wissensstufe, defaulting ungraded ones to bekannt', async () => {
+    const runes = [
+      { name: 'Feuer', drawing: 'a', tags: ['Feuer'], runeType: 'elemental', knowledgeTier: 'bekannt' },
+      { name: 'Mondrune', drawing: 'b', tags: ['Dunkel'], runeType: 'elemental', knowledgeTier: 'unbekannt' },
+      { name: 'Geheimrune', drawing: 'c', tags: ['Dunkel'], runeType: 'elemental', knowledgeTier: 'geheim' },
+      // Runes only just gained the field: an ungraded one must stay visible, not vanish.
+      { name: 'Kreis', drawing: 'd', tags: ['Feuer'], runeType: 'manipulation' },
+    ] as unknown as RuneBlock[];
+
+    const def = await renderMarkdown(md(':::data{source=runes}', ':::'), 'g', { runes });
+    expect(def.warnings).toEqual([]);
+    expect(def.html).toContain('Feuer');
+    expect(def.html).toContain('Kreis');
+    expect(def.html).toContain('Mondrune');
+    expect(def.html).not.toContain('Geheimrune');
+
+    const known = await renderMarkdown(md(':::data{source=runes tier=bekannt}', ':::'), 'g', { runes });
+    expect(known.html).toContain('Feuer');
+    expect(known.html).toContain('Kreis'); // ungraded counts as bekannt
+    expect(known.html).not.toContain('Mondrune');
+
+    const all = await renderMarkdown(md(':::data{source=runes tier=all}', ':::'), 'g', { runes });
+    expect(all.html).toContain('Geheimrune');
+
+    // The hardcoded Seelenrune has no tier and is always common knowledge.
+    const seele = await renderMarkdown(md(':::data{source=runes tier=bekannt}', ':::'), 'g', { runes });
+    expect(seele.html).toContain('Seelenrune');
+
+    // Tag filter, matching any of the listed tags.
+    const tagged = await renderMarkdown(md(':::data{source=runes tags="Feuer"}', ':::'), 'g', { runes });
+    expect(tagged.html).toContain('Kreis');
+    expect(tagged.html).not.toContain('Mondrune');
+
+    const bad = await renderMarkdown(md(':::data{source=runes tier=quatsch}', ':::'), 'g', { runes });
+    expect(bad.warnings.join()).toContain('Wissensstufe');
   });
 
   it('includes the hardcoded Seelenrune in the Seele category and by name', async () => {

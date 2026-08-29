@@ -4,7 +4,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType } from '../../model/rune-block.model';
+import { KNOWLEDGE_TIERS, KnowledgeTier } from '../../utils/knowledge-tier.util';
+import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType, runeKnowledgeTier, setRuneKnowledgeTier } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -339,6 +340,15 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly runeGroupLabels = RUNE_GROUP_LABELS;
   readonly runeGroupMembers = RUNE_GROUP_MEMBERS;
   readonly isGroupedRuneType = isGroupedRuneType;
+
+  // ── Wissensstufe (geheim | unbekannt | bekannt) ──────────────────────────────
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
+
+  get tier(): KnowledgeTier { return runeKnowledgeTier(this.editRune); }
+  get tierHint(): string {
+    return KNOWLEDGE_TIERS.find(t => t.value === this.tier)?.hint ?? '';
+  }
+  setTier(tier: KnowledgeTier): void { setRuneKnowledgeTier(this.editRune, tier); }
 
   /** Legacy values (medium/selektor/custom) show up as their current equivalent. */
   get currentRuneType(): RuneType {

@@ -216,6 +216,17 @@
           </div>
         </section>
 
+        <!-- Wissensstufe -->
+        <section class="ed-section">
+          <h3 class="section-title">Wissensstufe</h3>
+          <select class="kt-select" [ngModel]="tier" (ngModelChange)="setTier($event)">
+            @for (t of knowledgeTiers; track t.value) {
+              <option [value]="t.value">{{ t.label }}</option>
+            }
+          </select>
+          <div class="kt-hint">{{ tierHint }}</div>
+        </section>
+
         <!-- Runentyp -->
         <section class="ed-section">
           <h3 class="section-title">Runentyp</h3>

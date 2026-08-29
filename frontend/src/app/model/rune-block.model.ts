@@ -1,3 +1,5 @@
+import { KnowledgeTier, setKnowledgeTier } from '../utils/knowledge-tier.util';
+
 /**
  * Classification of a rune. Two levels: a rune stores one of these LEAF types, and the leaves
  * roll up into the four top-level GROUPS below (Formung is a group of three).
@@ -73,6 +75,14 @@ export class RuneBlock {
   cost?: number;              // Gold / shop value of the rune
   statRequirements?: RuneStatRequirements;
   identified?: boolean;       // false = show only image, hide all text info
+  /**
+   * Wissensstufe: geheim | unbekannt | bekannt — the same grading Materialien and
+   * Schmiedemerkmale use. Separate from `identified`, which is about a specific rune instance
+   * having been examined; this is about whether the rune is general knowledge at all.
+   */
+  knowledgeTier?: KnowledgeTier;
+  /** Legacy public flag, kept in sync by setKnowledgeTier. */
+  isPublic?: boolean;
   learned?: boolean;          // character sheet: has the character learned this rune
   libraryOrigin?: string;
   libraryOriginName?: string;
@@ -147,4 +157,26 @@ export function normalizeRuneType(value: string | undefined): RuneType {
   if (!value) return 'sonstiges';
   if (RUNE_TYPES.includes(value as RuneType)) return value as RuneType;
   return LEGACY_RUNE_TYPES[value] ?? 'sonstiges';
+}
+
+/**
+ * A rune's Wissensstufe.
+ *
+ * Deliberately NOT `knowledgeTierOf` from the util: that treats an ungraded entry as `geheim`,
+ * which is right for Materialien (they were gated by `isPublic` from the start) but would hide
+ * every rune ever created, since runes only gained the field now. An ungraded rune is `bekannt`,
+ * matching how it has always behaved.
+ */
+export function runeKnowledgeTier(rune: {
+  knowledgeTier?: KnowledgeTier;
+  isPublic?: boolean;
+}): KnowledgeTier {
+  if (rune.knowledgeTier) return rune.knowledgeTier;
+  if (rune.isPublic === false) return 'geheim';
+  return 'bekannt';
+}
+
+/** Write a tier onto a rune, keeping the legacy `isPublic` flag consistent. */
+export function setRuneKnowledgeTier(rune: RuneBlock, tier: KnowledgeTier): RuneBlock {
+  return setKnowledgeTier(rune, tier);
 }

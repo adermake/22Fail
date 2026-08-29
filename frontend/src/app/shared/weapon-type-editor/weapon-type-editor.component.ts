@@ -14,8 +14,11 @@ import {
   createEmptyWeaponType,
   describeWeaponReach,
   normalizeWeaponType,
+  setWeaponTypeKnowledgeTier,
+  weaponTypeKnowledgeTier,
   type WeaponCategory,
 } from '../../model/weapon-type-block.model';
+import { KNOWLEDGE_TIERS, KnowledgeTier } from '../../utils/knowledge-tier.util';
 import { DamageType } from '../../model/forging.model';
 
 /**
@@ -44,6 +47,14 @@ export class WeaponTypeEditorComponent implements OnInit {
   readonly handedLabels = WEAPON_HANDED_LABELS;
 
   edit: WeaponTypeBlock = createEmptyWeaponType();
+
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
+
+  get tier(): KnowledgeTier { return weaponTypeKnowledgeTier(this.edit); }
+  get tierHint(): string {
+    return KNOWLEDGE_TIERS.find((t) => t.value === this.tier)?.hint ?? '';
+  }
+  setTier(tier: KnowledgeTier): void { setWeaponTypeKnowledgeTier(this.edit, tier); }
 
   ngOnInit(): void {
     this.edit = normalizeWeaponType({

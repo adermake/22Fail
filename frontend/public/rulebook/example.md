@@ -262,9 +262,18 @@ Mit `stat=STR` wurden hier nur die Stärke-Talente gezeigt. Ohne `stat` kommen a
 :::data{source=weapons category=leicht}
 :::
 
-Waffentypen haben zwei unabhängige Achsen, und beide filtern:
-`category=` (Waffenart: `leicht`/`schwer`/`fernkampf`) und `weight=` (Gewichtsklasse:
-`leicht`/`mittel`/`schwer`). Dazu `names="Messer, Speer"` wie überall sonst.
+Filter für Waffentypen — alle kombinierbar:
+
+| Attribut | Wirkung |
+| --- | --- |
+| `category=` | **Waffenart**: `leicht`, `schwer`, `fernkampf` |
+| `weight=` | **Gewichtsklasse**: `leicht`, `mittel`, `schwer` |
+| `damage=` | `schnitt`, `stich`, `wucht` |
+| `handed=` | `one` oder `two` |
+| `tier=` | Wissensstufen. Standard blendet `geheim` aus; `tier=all` zeigt alles |
+| `names="Messer, Speer"` | feste Auswahl, in dieser Reihenfolge |
+
+`category` und `weight` sind **zwei verschiedene Achsen** — siehe Ausrüstung.
 
 :::data{source=weapons weight=schwer names="Axt, Kriegsaxt, Hellebarde"}
 :::
@@ -308,6 +317,22 @@ oder einen einzelnen **Untertyp**. `formung` ist die einzige Oberkategorie mit U
 
 Die **Seelenrune** ist im Zauber-Editor fest eingebaut und liegt in keiner Bibliothek — sie wird
 trotzdem mit angezeigt (`type=seele`), gezeichnet als der animierte Stapel aus dem Editor.
+
+Filter für Runen — alle kombinierbar:
+
+| Attribut | Wirkung |
+| --- | --- |
+| `type=` | Oberkategorie (`elemental`, `formung`, `seele`, `sonstiges`) **oder** Untertyp (`manipulation`, `selektor`, `ausfuehrung`) |
+| `tier=` | Wissensstufen, wie bei Materialien. Standard blendet `geheim` aus; `tier=all` zeigt alles |
+| `tags="Feuer, Eis"` | nur Runen mit **einem** dieser Tags |
+| `names="Feuer, Kreis"` | feste Auswahl, in dieser Reihenfolge |
+
+:::note{type=tip title="Wissensstufe"}
+Runen werden im **Runeneditor** und in der **Runentabelle** der Bibliothek eingestuft:
+:hl[geheim]{color=rot} (nie sichtbar), :hl[unbekannt]{color=gelb} oder
+:hl[bekannt]{color=gruen}. Noch nicht eingestufte Runen gelten als **bekannt** — an
+bestehenden Bibliotheken ändert sich also nichts, bis du sie einstufst.
+:::
 
 ### Einzelne Rune — `:rune[Name]`
 

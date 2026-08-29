@@ -337,3 +337,17 @@
 
 /* Goldwert column */
 .rt-cost { color: #fbbf24; }
+
+/* ─── Wissensstufe ──────────────────────────────────────────────────────────── */
+.c-tier { width: 108px; text-align: center; }
+.rt-tier-select {
+  width: 100%;
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: var(--text-muted, #9ca3af);
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 2px 4px;
+}
+.rt-tier-select:focus { outline: none; border-color: #8b5cf6; }

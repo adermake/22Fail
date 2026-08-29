@@ -25,6 +25,7 @@
   opacity: 0.85;
 }
 
+select,
 input[type='text'],
 input[type='number'],
 textarea {
@@ -37,6 +38,7 @@ textarea {
   font-size: 0.85rem;
 }
 
+select:focus,
 input:focus,
 textarea:focus {
   outline: none;
