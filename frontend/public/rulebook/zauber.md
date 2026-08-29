@@ -202,7 +202,7 @@ Ein Cast kann jederzeit freiwillig abgebrochen oder pausiert werden. Der bis dah
 
 
 :::actions
-:jump[Weiter zur Ausrüstung]{to=gear}
+:jump[Zurück zu den Rassen]{to=rassen}
 
-:jump[Zurück zu den Rassen]{to=klassen}
+:jump[Weiter zur Ausrüstung]{to=gear}
 :::
