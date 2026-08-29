@@ -102,7 +102,7 @@ Stärke des Zaubers, bestimmt wie bei Waffen den Angriffsschaden, kann aber auch
 :::card{title="Kosten" color=##3b82f6}
 Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt. Ein Zauber kann nur gewirkt werden, wenn der Zaubernde ausreichend [Fokus](zauber#fokus) und Mana besitzt.
 :::
-:::card{title="Voraussetzung" color=#00ff00}
+:::card{title="Voraussetzung" color=#22c55e}
 Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
 :::
 :::card{title="Haltbarkeit" color=#ef9533}
@@ -110,13 +110,16 @@ Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber z
 :::formula
 Voraussetzung*10
 :::
-:::
 Die meisten magischen Zauberunterlagen sind allerdings spezifisch für Zauber gemacht und halten deutlich länger.
 :::note{type=warning}
 Sollte die Haltbarkeit eines Zaubers unter 100 fallen, muss beim Wirken von Zaubern gewürfelt werden, ob er zerstört wird. Je weiter die Haltbarkeit unter 100 fällt, desto höher ist der Würfelbonus für die Zerstörung der Rüstung.
 :::formula
 Würfelbonus: -5 + ⌊(100 - Rüstungshaltbarkeit)/10⌋
 :::
+:::
+:::
+:::note{type=tip}
+Die so berechneten Stats sind nur eine grobe Vorlage und können je nach genauem Effekt höher oder tiefer ausfallen.
 :::
 
 :::section{title="Wie mache ich einen neuen Zauber?"}
