@@ -65,6 +65,7 @@ import { createEmptyNpcStatblock } from '../model/npc-statblock.model';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
+import { WeaponTypeTableComponent } from './weapon-type-table/weapon-type-table.component';
 import { MaterialTableComponent } from './material-table/material-table.component';
 import { CraftTableComponent, CraftTableType, CRAFT_TABLE_LABELS } from './craft-table/craft-table.component';
 import { registerStatusEffectChoices } from '../scripting/script-editor/failscript-cm';
@@ -95,6 +96,7 @@ import {
     ItemEditorComponent,
     RuneEditorComponent,
     RuneTableComponent,
+    WeaponTypeTableComponent,
     SpellEditorOverlayComponent,
     SkillEditorComponent,
     StatusEffectEditorComponent,
@@ -164,6 +166,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   editingFile = signal<AssetFile | null>(null);
   editingType = signal<AssetType | null>(null);
   showRuneTable = signal(false);
+  showWeaponTypeTable = signal(false);
   showMaterialTable = signal(false);
   /** Which craft-asset table is open ('forge-trait' | 'ingredient' | 'extractor' | 'brew-trait'). */
   openCraftTable = signal<CraftTableType | null>(null);
