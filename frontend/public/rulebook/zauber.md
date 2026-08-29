@@ -106,16 +106,13 @@ Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen b
 Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
 :::
 :::card{title="Haltbarkeit" color=#ef9533}
-Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber zu wirken verbraucht Haltbarkeit mit folgender Formel:
+Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber zu wirken verbraucht Haltbarkeit in Höhe der Voraussetzung des Zaubers. Wenn die Haltbarkeit beim Zaubern unter 10 fällt, muss gewürfelt werden, ob der Zauber kaputtgeht. Der Würfelbonus für diesen Wurf lautet
 :::formula
-Voraussetzung*10
++5 - Haltbarkeit
 :::
-Die meisten magischen Zauberunterlagen sind allerdings spezifisch für Zauber gemacht und halten deutlich länger.
-:::note{type=warning}
-Sollte die Haltbarkeit eines Zaubers unter 100 fallen, muss beim Wirken von Zaubern gewürfelt werden, ob er zerstört wird. Je weiter die Haltbarkeit unter 100 fällt, desto höher ist der Würfelbonus für die Zerstörung der Rüstung.
-:::formula
-Würfelbonus: -5 + ⌊(100 - Rüstungshaltbarkeit)/10⌋
-:::
+Ein kaputter Zauber ist nicht mehr verwendbar und das Material kann nicht mehr verwendet werden, um neue Zauber darauf zu schreiben.
+:::note{type:tip}
+Wenn ein Zauber in Ausrüstung eingraviert ist und diese kaputtgeht, ist auch der Zauber kaputt. Selbst wenn sie repariert wird ist der Zauber nicht mehr verwendbar, kann aber erneut eingraviert werden.
 :::
 :::
 :::note{type=tip}
