@@ -268,7 +268,7 @@ Filter für Waffentypen — alle kombinierbar:
 | --- | --- |
 | `category=` | **Waffenart**: `leicht`, `schwer`, `fernkampf` |
 | `weight=` | **Gewichtsklasse**: `leicht`, `mittel`, `schwer` |
-| `damage=` | `schnitt`, `stich`, `wucht` |
+| `damage=` | `schnitt`, `stich`, `wucht` — trifft, wenn der Typ diese Art **auch** hat |
 | `handed=` | `one` oder `two` |
 | `tier=` | Wissensstufen. Standard blendet `geheim` aus; `tier=all` zeigt alles |
 | `names="Messer, Speer"` | feste Auswahl, in dieser Reihenfolge |

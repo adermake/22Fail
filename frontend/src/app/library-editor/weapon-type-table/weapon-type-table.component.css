@@ -102,7 +102,7 @@
 /* ── Column widths ────────────────────────────────────────────────────────── */
 .c-name   { min-width: 150px; }
 .c-art    { width: 118px; }
-.c-dmg    { width: 100px; }
+.c-dmg    { width: 132px; }
 .c-range  { width: 74px; }
 .c-weight { width: 100px; }
 .c-handed { width: 118px; }
@@ -181,3 +181,23 @@
   cursor: pointer;
 }
 .wtt-del-btn:hover { color: #ef4444; border-color: #ef4444; }
+
+/* ── Damage types: several at once ────────────────────────────────────────── */
+.wtt-dmg { display: flex; gap: 3px; }
+
+.wtt-dmg-btn {
+  flex: 1;
+  padding: 3px 0;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.wtt-dmg-btn:hover { border-color: #8b5cf6; color: #a78bfa; }
+.wtt-dmg-btn.active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+/* The last active one stays locked — a weapon has to hurt somehow. */
+.wtt-dmg-btn:disabled { cursor: default; }

@@ -51,12 +51,28 @@ export const WEAPON_HANDED_LABELS: Record<WeaponHanded, string> = {
 
 export const DAMAGE_TYPES: DamageType[] = ['Schnitt', 'Stich', 'Wucht'];
 
+/** Short labels for cramped table cells — Schnitt and Stich both start with "S". */
+export const DAMAGE_TYPE_SHORT: Record<DamageType, string> = {
+  Schnitt: 'Sch',
+  Stich: 'Sti',
+  Wucht: 'Wu',
+};
+
 export interface WeaponTypeBlock {
   id: string;
   name: string;
   /** Waffenart — how it is fought with. Independent of `weight`. */
   category: WeaponCategory;
-  damageType: DamageType;
+  /**
+   * Every damage type the weapon can deal — a sword is Schnitt AND Stich. Always at least one
+   * entry after `normalizeWeaponType`.
+   */
+  damageTypes: DamageType[];
+  /**
+   * Legacy single value, kept in sync with `damageTypes[0]` so anything still reading one type
+   * (ItemBlock, the generators, older saved files) keeps working.
+   */
+  damageType?: DamageType;
   /** Reach in melee, in metres. 0 = the type cannot be swung at all (a bow). */
   meleeRange: number;
   /** Effective range thrown or fired, in metres. 0 = pure melee. */
@@ -79,6 +95,7 @@ export function createEmptyWeaponType(name = 'Neuer Waffentyp'): WeaponTypeBlock
     id: `weapontype_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
     name,
     category: 'LEICHT',
+    damageTypes: ['Schnitt'],
     damageType: 'Schnitt',
     meleeRange: 1,
     rangedRange: 0,
@@ -144,6 +161,7 @@ export function weaponTypeFromBuiltin(w: BuiltinWeaponType): WeaponTypeBlock {
     id: `builtin_${w.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
     name: w.name,
     category: w.category,
+    damageTypes: [w.damageType],
     damageType: w.damageType,
     meleeRange: ranged ? 0 : meters,
     rangedRange: ranged ? meters : 0,
@@ -192,13 +210,34 @@ export function toBuiltinShape(w: WeaponTypeBlock): BuiltinWeaponType {
   return {
     name: w.name,
     category: w.category,
-    damageType: w.damageType,
+    // The legacy shape holds exactly one; the first is the weapon's primary way of hurting things.
+    damageType: primaryDamageType(w),
     range: formatRangeMeters(useRanged ? w.rangedRange : w.meleeRange),
     defaultForgeSize: forgeSizeFor(w),
   };
 }
 
-/** Normalise a stored entry — older files predate `category`, so derive one rather than crash. */
+/** The weapon's primary damage type — what single-valued consumers get. */
+export function primaryDamageType(w: {
+  damageTypes?: DamageType[];
+  damageType?: DamageType;
+}): DamageType {
+  return w.damageTypes?.[0] ?? w.damageType ?? 'Schnitt';
+}
+
+/** `Schnitt / Stich` — every type the weapon deals, for display. */
+export function describeDamageTypes(w: {
+  damageTypes?: DamageType[];
+  damageType?: DamageType;
+}): string {
+  const list = w.damageTypes?.length ? w.damageTypes : [primaryDamageType(w)];
+  return list.join(' / ');
+}
+
+/**
+ * Normalise a stored entry — older files predate `category` and `damageTypes`, so derive them
+ * rather than crash. Also keeps the legacy single `damageType` in sync with the list head.
+ */
 export function normalizeWeaponType(w: WeaponTypeBlock): WeaponTypeBlock {
   const category: WeaponCategory = WEAPON_CATEGORIES.includes(w.category)
     ? w.category
@@ -207,5 +246,29 @@ export function normalizeWeaponType(w: WeaponTypeBlock): WeaponTypeBlock {
       : w.weight === 'SCHWER'
         ? 'SCHWER'
         : 'LEICHT';
-  return { ...w, category, weight: WEAPON_WEIGHTS.includes(w.weight) ? w.weight : 'MITTEL' };
+
+  // Keep only real values, in the canonical order, and never end up with an empty list.
+  const seen = new Set(w.damageTypes ?? (w.damageType ? [w.damageType] : []));
+  const damageTypes = DAMAGE_TYPES.filter((d) => seen.has(d));
+  if (!damageTypes.length) damageTypes.push('Schnitt');
+
+  return {
+    ...w,
+    category,
+    weight: WEAPON_WEIGHTS.includes(w.weight) ? w.weight : 'MITTEL',
+    damageTypes,
+    damageType: damageTypes[0],
+  };
+}
+
+/** Toggle one damage type on a weapon type; the last one cannot be removed. */
+export function toggleDamageType(w: WeaponTypeBlock, type: DamageType): WeaponTypeBlock {
+  const has = w.damageTypes?.includes(type);
+  if (has && (w.damageTypes?.length ?? 0) <= 1) return w; // a weapon must hurt somehow
+  const next = has
+    ? (w.damageTypes ?? []).filter((d) => d !== type)
+    : [...(w.damageTypes ?? []), type];
+  w.damageTypes = DAMAGE_TYPES.filter((d) => next.includes(d));
+  w.damageType = w.damageTypes[0];
+  return w;
 }

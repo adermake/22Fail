@@ -1357,3 +1357,27 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   font-size: 0.7rem;
   color: var(--accent, #8b5cf6);
 }
+
+/* Damage types are multi-select: a sword cuts and thrusts. */
+.wt-dmg-toggles { display: flex; gap: 4px; flex: 1; }
+.wt-dmg-btn {
+  flex: 1;
+  padding: 3px 6px;
+  border: 1px solid var(--border, #374151);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.wt-dmg-btn:hover { border-color: var(--accent, #8b5cf6); color: var(--text, #e5e7eb); }
+.wt-dmg-btn.active {
+  background: var(--accent, #8b5cf6);
+  border-color: var(--accent, #8b5cf6);
+  color: #fff;
+}
+.wt-dmg-btn:disabled { cursor: default; }
+
+.wt-extra-effect { color: var(--text-muted, #9ca3af); }

@@ -65,8 +65,13 @@
                 </optgroup>
               }
             </select>
-            @if (selectedWeaponTypeBlock?.extraEffect) {
-              <div class="wt-extra">{{ selectedWeaponTypeBlock!.extraEffect }}</div>
+            @if (selectedWeaponTypeBlock) {
+              <div class="wt-extra">
+                {{ selectedDamageSummary }}
+                @if (selectedWeaponTypeBlock!.extraEffect) {
+                  <span class="wt-extra-effect"> — {{ selectedWeaponTypeBlock!.extraEffect }}</span>
+                }
+              </div>
             }
           } @else {
             <!-- Free-form type. Seeded from the selected type, so it doubles as a template. -->
@@ -84,12 +89,18 @@
               </div>
 
               <div class="wt-custom-row">
-                <label>Schadensart</label>
-                <select [(ngModel)]="customType.damageType" (ngModelChange)="applyCustomType()">
+                <label>Schadensarten</label>
+                <span class="wt-dmg-toggles">
                   @for (dt of damageTypeOptions; track dt) {
-                    <option [ngValue]="dt">{{ dt }}</option>
+                    <button type="button" class="wt-dmg-btn"
+                            [class.active]="hasCustomDamage(dt)"
+                            [disabled]="isOnlyCustomDamage(dt)"
+                            [title]="isOnlyCustomDamage(dt)
+                                      ? 'Mindestens eine Schadensart muss bleiben'
+                                      : dt"
+                            (click)="toggleCustomDamage(dt)">{{ dt }}</button>
                   }
-                </select>
+                </span>
               </div>
 
               <div class="wt-custom-row">

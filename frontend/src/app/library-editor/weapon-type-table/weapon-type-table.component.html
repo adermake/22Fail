@@ -16,7 +16,7 @@
           <tr>
             <th class="c-name">Name</th>
             <th class="c-art" title="Wonach Kämpfen und Talente gehen">Waffenart</th>
-            <th class="c-dmg">Schaden</th>
+            <th class="c-dmg" title="Schadensarten — mehrere möglich (Sch=Schnitt, Sti=Stich, Wu=Wucht)">Schaden</th>
             <th class="c-range" title="Reichweite im Nahkampf (m)">Nah</th>
             <th class="c-range" title="Reichweite geworfen/geschossen (m)">Fern</th>
             <th class="c-weight" title="Nur für die vorgeschlagene Schmiedegröße">Gewicht</th>
@@ -44,11 +44,14 @@
               </td>
 
               <td class="c-dmg">
-                <select [ngModel]="block(file).damageType" (ngModelChange)="setDamage(file, $event)">
+                <div class="wtt-dmg">
                   @for (d of damageTypes; track d) {
-                    <option [ngValue]="d">{{ d }}</option>
+                    <button type="button" class="wtt-dmg-btn"
+                            [class.active]="hasDamage(file, d)"
+                            [disabled]="isOnlyDamage(file, d)"
+                            [title]="d" (click)="toggleDamage(file, d)">{{ damageShort[d] }}</button>
                   }
-                </select>
+                </div>
               </td>
 
               <td class="c-range">
@@ -109,11 +112,13 @@
               </select>
             </td>
             <td class="c-dmg">
-              <select [(ngModel)]="draft.damageType">
+              <div class="wtt-dmg">
                 @for (d of damageTypes; track d) {
-                  <option [ngValue]="d">{{ d }}</option>
+                  <button type="button" class="wtt-dmg-btn"
+                          [class.active]="hasDraftDamage(d)"
+                          [title]="d" (click)="toggleDraftDamage(d)">{{ damageShort[d] }}</button>
                 }
-              </select>
+              </div>
             </td>
             <td class="c-range">
               <input type="number" min="0" step="0.5" [(ngModel)]="draft.meleeRange"

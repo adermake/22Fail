@@ -15,6 +15,7 @@ import {
   describeWeaponReach,
   normalizeWeaponType,
   setWeaponTypeKnowledgeTier,
+  toggleDamageType,
   weaponTypeKnowledgeTier,
   type WeaponCategory,
 } from '../../model/weapon-type-block.model';
@@ -78,8 +79,17 @@ export class WeaponTypeEditorComponent implements OnInit {
     this.edit.category = c;
   }
 
-  setDamageType(t: DamageType): void {
-    this.edit.damageType = t;
+  hasDamageType(t: DamageType): boolean {
+    return this.edit.damageTypes?.includes(t) ?? false;
+  }
+
+  /** Multi-select: a sword is Schnitt AND Stich. The last one cannot be switched off. */
+  toggleDamage(t: DamageType): void {
+    toggleDamageType(this.edit, t);
+  }
+
+  get onlyDamageType(): boolean {
+    return (this.edit.damageTypes?.length ?? 0) <= 1;
   }
 
   setWeight(w: WeaponWeight): void {

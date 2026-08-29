@@ -10,10 +10,10 @@ import { AssetFile } from '../../model/asset-browser.model';
 import { KNOWLEDGE_TIERS, KnowledgeTier } from '../../utils/knowledge-tier.util';
 import { DamageType } from '../../model/forging.model';
 import {
-  DAMAGE_TYPES, WEAPON_CATEGORIES, WEAPON_CATEGORY_LABELS, WEAPON_HANDED_LABELS,
+  DAMAGE_TYPES, DAMAGE_TYPE_SHORT, WEAPON_CATEGORIES, WEAPON_CATEGORY_LABELS, WEAPON_HANDED_LABELS,
   WEAPON_WEIGHTS, WEAPON_WEIGHT_LABELS, WeaponCategory, WeaponHanded, WeaponTypeBlock,
   WeaponWeight, createEmptyWeaponType, describeWeaponReach, normalizeWeaponType,
-  setWeaponTypeKnowledgeTier, weaponTypeKnowledgeTier,
+  setWeaponTypeKnowledgeTier, toggleDamageType, weaponTypeKnowledgeTier,
 } from '../../model/weapon-type-block.model';
 
 /**
@@ -52,6 +52,7 @@ export class WeaponTypeTableComponent implements OnInit, OnDestroy {
   readonly weightLabels = WEAPON_WEIGHT_LABELS;
   readonly handedLabels = WEAPON_HANDED_LABELS;
   readonly damageTypes = DAMAGE_TYPES;
+  readonly damageShort = DAMAGE_TYPE_SHORT;
   readonly knowledgeTiers = KNOWLEDGE_TIERS;
 
   /** The pending new row at the bottom of the table. */
@@ -137,9 +138,29 @@ export class WeaponTypeTableComponent implements OnInit, OnDestroy {
     this.onFieldChange(file);
   }
 
-  setDamage(file: AssetFile, d: DamageType) {
-    this.block(file).damageType = d;
+  hasDamage(file: AssetFile, d: DamageType): boolean {
+    return this.block(file).damageTypes?.includes(d) ?? false;
+  }
+
+  /** Multi-select: a sword is Schnitt AND Stich. The last one cannot be switched off. */
+  toggleDamage(file: AssetFile, d: DamageType) {
+    toggleDamageType(this.block(file), d);
     this.onFieldChange(file);
+  }
+
+  isOnlyDamage(file: AssetFile, d: DamageType): boolean {
+    const list = this.block(file).damageTypes ?? [];
+    return list.length <= 1 && list.includes(d);
+  }
+
+  // ─── Draft row damage types ───────────────────────────────────────────────
+
+  hasDraftDamage(d: DamageType): boolean {
+    return this.draft.damageTypes?.includes(d) ?? false;
+  }
+
+  toggleDraftDamage(d: DamageType) {
+    toggleDamageType(this.draft, d);
   }
 
   getTier(file: AssetFile): KnowledgeTier {
