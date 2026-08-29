@@ -1,0 +1,203 @@
+/* Mirrors the Runen-/Material-Tabelle so the three feel like one tool. */
+
+/* ── Overlay ──────────────────────────────────────────────────────────────── */
+.wtt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: #0f1117;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  color: #d1d5db;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.wtt-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #161b26;
+  border-bottom: 1px solid #2d3748;
+  flex-shrink: 0;
+}
+
+.wtt-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #e2e8f0;
+  letter-spacing: 0.03em;
+}
+
+.wtt-count {
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 7px;
+  border-radius: 8px;
+}
+
+.wtt-spacer { flex: 1; }
+
+.wtt-close-btn {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.wtt-close-btn:hover { color: #e2e8f0; border-color: #8b5cf6; }
+
+/* ── Scroll area ──────────────────────────────────────────────────────────── */
+.wtt-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 16px 40px;
+}
+
+.wtt-loading,
+.wtt-empty {
+  padding: 24px;
+  color: #6b7280;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+.wtt-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wtt-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #161b26;
+  border-bottom: 1px solid #2d3748;
+  padding: 6px 6px;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.wtt-table td {
+  border-bottom: 1px solid #1f2735;
+  padding: 3px 6px;
+  vertical-align: middle;
+}
+
+.wtt-table tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+
+/* A row flashes while its debounced save is in flight. */
+.wtt-saving { background: rgba(139, 92, 246, 0.08); }
+
+/* ── Column widths ────────────────────────────────────────────────────────── */
+.c-name   { min-width: 150px; }
+.c-art    { width: 118px; }
+.c-dmg    { width: 132px; }
+.c-range  { width: 74px; }
+.c-weight { width: 100px; }
+.c-handed { width: 118px; }
+.c-effect { min-width: 200px; }
+.c-tier   { width: 112px; }
+.c-del    { width: 108px; text-align: right; white-space: nowrap; }
+
+/* ── Inputs ───────────────────────────────────────────────────────────────── */
+.wtt-table input,
+.wtt-table select {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 3px 5px;
+}
+
+.wtt-table input:hover,
+.wtt-table select:hover { border-color: #2d3748; }
+
+.wtt-table input:focus,
+.wtt-table select:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  background: #111827;
+}
+
+.wtt-table select option { background: #161b26; }
+
+/* ── Draft row ────────────────────────────────────────────────────────────── */
+.wtt-draft {
+  background: rgba(139, 92, 246, 0.06);
+}
+.wtt-draft td { border-top: 1px solid #2d3748; }
+.wtt-draft input,
+.wtt-draft select { border-color: #2d3748; }
+
+.wtt-add-btn {
+  padding: 4px 10px;
+  background: #8b5cf6;
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wtt-add-btn:hover { background: #7c3aed; }
+.wtt-add-btn:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+
+/* ── Row actions ──────────────────────────────────────────────────────────── */
+.wtt-jump-btn {
+  padding: 3px 9px;
+  margin-right: 4px;
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #9ca3af;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.wtt-jump-btn:hover { color: #e2e8f0; border-color: #8b5cf6; }
+
+.wtt-del-btn {
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.wtt-del-btn:hover { color: #ef4444; border-color: #ef4444; }
+
+/* ── Damage types: several at once ────────────────────────────────────────── */
+.wtt-dmg { display: flex; gap: 3px; }
+
+.wtt-dmg-btn {
+  flex: 1;
+  padding: 3px 0;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.wtt-dmg-btn:hover { border-color: #8b5cf6; color: #a78bfa; }
+.wtt-dmg-btn.active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+/* The last active one stays locked — a weapon has to hurt somehow. */
+.wtt-dmg-btn:disabled { cursor: default; }

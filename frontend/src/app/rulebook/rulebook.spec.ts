@@ -223,6 +223,38 @@ describe('renderMarkdown', () => {
     expect(bad.warnings.join()).toContain('Gewichtsklasse');
   });
 
+  it('supports several damage types on one weapon type', async () => {
+    const weaponTypes = [
+      // A sword cuts AND thrusts.
+      { id: '1', name: 'Langschwert', category: 'SCHWER', damageTypes: ['Schnitt', 'Stich'],
+        meleeRange: 2, rangedRange: 0, weight: 'SCHWER', handed: 'TWO', extraEffect: '' },
+      { id: '2', name: 'Keule', category: 'SCHWER', damageTypes: ['Wucht'],
+        meleeRange: 1, rangedRange: 0, weight: 'MITTEL', handed: 'ONE', extraEffect: '' },
+    ] as unknown as WeaponTypeBlock[];
+
+    const all = await renderMarkdown(md(':::data{source=weapons}', ':::'), 'g', { weaponTypes });
+    expect(all.html).toContain('Schnitt / Stich');
+    expect(all.warnings).toEqual([]);
+
+    // `damage=` matches when ANY of the type's damage types fits.
+    const stich = await renderMarkdown(md(':::data{source=weapons damage=stich}', ':::'), 'g', { weaponTypes });
+    expect(stich.html).toContain('Langschwert');
+    expect(stich.html).not.toContain('Keule');
+
+    const schnitt = await renderMarkdown(md(':::data{source=weapons damage=schnitt}', ':::'), 'g', { weaponTypes });
+    expect(schnitt.html).toContain('Langschwert');
+
+    // Legacy entries with only the old single field still render.
+    const legacy = [
+      { id: '3', name: 'Dolch', category: 'LEICHT', damageType: 'Stich', meleeRange: 0.5,
+        rangedRange: 0, weight: 'LEICHT', handed: 'ONE', extraEffect: '' },
+    ] as unknown as WeaponTypeBlock[];
+    const old = await renderMarkdown(md(':::data{source=weapons damage=stich}', ':::'), 'g', {
+      weaponTypes: legacy,
+    });
+    expect(old.html).toContain('Dolch');
+  });
+
   it('gates weapon types by Wissensstufe and filters by damage and handedness', async () => {
     const weaponTypes = [
       { id: '1', name: 'Messer', category: 'LEICHT', damageType: 'Schnitt', meleeRange: 0.5,

@@ -20,14 +20,21 @@
     </div>
   </div>
 
-  <!-- Damage type -->
+  <!-- Damage types: several at once (a sword cuts and thrusts) -->
   <div class="form-row">
-    <label>Schadensart</label>
+    <label>
+      Schadensarten
+      <span class="hint"> — mehrere möglich</span>
+    </label>
     <div class="wt-btns">
       @for (t of damageTypes; track t) {
         <button type="button" class="wt-btn"
-                [class.wt-btn--active]="edit.damageType === t"
-                (click)="setDamageType(t)">{{ t }}</button>
+                [class.wt-btn--active]="hasDamageType(t)"
+                [disabled]="hasDamageType(t) && onlyDamageType"
+                [title]="hasDamageType(t) && onlyDamageType
+                          ? 'Mindestens eine Schadensart muss bleiben'
+                          : t"
+                (click)="toggleDamage(t)">{{ t }}</button>
       }
     </div>
   </div>

@@ -139,6 +139,12 @@
               Runen-Tabelle
             </button>
           }
+          <!-- Always shown, unlike the other tables: Waffentypen have no bulk-import path, so
+               this table IS the way to add the first one. -->
+          <button class="rune-table-btn table-btn-fade" (click)="showWeaponTypeTable.set(true)"
+                  title="Waffentypen anlegen und in Tabellenansicht bearbeiten">
+            Waffentyp-Tabelle
+          </button>
           @if (hasType('material')) {
             <button class="rune-table-btn material-table-btn table-btn-fade" (click)="showMaterialTable.set(true)"
                     title="Alle Materialien in Tabellenansicht bearbeiten">
@@ -754,6 +760,17 @@
     (openFile)="openEditor($event)"
     (filesChanged)="loadFolderContents(); loadDependencyItems()">
   </app-rune-table>
+}
+
+<!-- Weapon Type Table Overlay -->
+@if (showWeaponTypeTable()) {
+  <app-weapon-type-table
+    [libraryId]="libraryId()"
+    [folderId]="currentFolderId()"
+    (close)="showWeaponTypeTable.set(false)"
+    (openFile)="openEditor($event)"
+    (filesChanged)="loadFolderContents(); loadDependencyItems()">
+  </app-weapon-type-table>
 }
 
 <!-- Material Table Overlay -->

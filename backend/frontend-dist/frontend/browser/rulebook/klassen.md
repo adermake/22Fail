@@ -51,7 +51,7 @@ Erkenntnisse beschreiben Fähigkeiten, die bestehen bleiben, selbst wenn die Kla
 Fähigkeiten mit Voraussetzungen benötigen eine angegebene Fähigkeit in einer anderen Klasse, um freigeschaltet werden zu können, da sie meist eine verbesserte Form dieser Fähigkeit darstellen.
 
 :::actions
-:jump[Weiter zu den Rassen]{to=rassen}
-
 :jump[Zurück zum Kampf]{to=kampf}
+
+:jump[Weiter zu den Rassen]{to=rassen}
 :::

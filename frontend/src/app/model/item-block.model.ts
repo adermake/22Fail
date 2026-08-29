@@ -108,7 +108,9 @@ export class ItemBlock {
   // Weapon-specific
   efficiency?: number; // Weapon effectiveness stat
   weaponTypeName?: string; // E.g. 'Langschwert', 'Dolch' — cosmetic, set during forging
-  damageType?: 'Schnitt' | 'Stich' | 'Wucht'; // Weapon damage type
+  damageType?: 'Schnitt' | 'Stich' | 'Wucht'; // Primary weapon damage type (= damageTypes[0])
+  /** Every damage type the weapon deals — a sword is Schnitt AND Stich. */
+  damageTypes?: ('Schnitt' | 'Stich' | 'Wucht')[];
   range?: string; // Effective range e.g. '2m', '100m'
   
   // Stat modifiers

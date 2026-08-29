@@ -145,3 +145,6 @@ textarea {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* The last active damage type stays locked on — a weapon has to hurt somehow. */
+.wt-btn:disabled { cursor: default; opacity: 0.9; }

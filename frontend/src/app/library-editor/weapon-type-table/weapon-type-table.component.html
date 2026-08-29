@@ -1,0 +1,172 @@
+<div class="wtt-overlay">
+  <!-- Header bar -->
+  <div class="wtt-header">
+    <span class="wtt-title">Waffentyp-Tabelle</span>
+    <span class="wtt-count">{{ files.length }} Typen</span>
+    <div class="wtt-spacer"></div>
+    <button class="wtt-close-btn" (click)="close.emit()">✕ Schließen</button>
+  </div>
+
+  <div class="wtt-scroll">
+    @if (isLoading()) {
+      <div class="wtt-loading">Wird geladen…</div>
+    } @else {
+      <table class="wtt-table">
+        <thead>
+          <tr>
+            <th class="c-name">Name</th>
+            <th class="c-art" title="Wonach Kämpfen und Talente gehen">Waffenart</th>
+            <th class="c-dmg" title="Schadensarten — mehrere möglich (Sch=Schnitt, Sti=Stich, Wu=Wucht)">Schaden</th>
+            <th class="c-range" title="Reichweite im Nahkampf (m)">Nah</th>
+            <th class="c-range" title="Reichweite geworfen/geschossen (m)">Fern</th>
+            <th class="c-weight" title="Nur für die vorgeschlagene Schmiedegröße">Gewicht</th>
+            <th class="c-handed">Führung</th>
+            <th class="c-effect">Zusatzeffekt</th>
+            <th class="c-tier" title="Wissensstufe">Wissen</th>
+            <th class="c-del"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (file of files; track file.id) {
+            <tr [class.wtt-saving]="savingIds().has(file.id)">
+              <td class="c-name">
+                <input type="text" [(ngModel)]="block(file).name"
+                       (ngModelChange)="onFieldChange(file)" placeholder="Name" />
+              </td>
+
+              <td class="c-art">
+                <select [ngModel]="block(file).category"
+                        (ngModelChange)="setCategory(file, $event)">
+                  @for (c of categories; track c) {
+                    <option [ngValue]="c">{{ categoryLabels[c] }}</option>
+                  }
+                </select>
+              </td>
+
+              <td class="c-dmg">
+                <div class="wtt-dmg">
+                  @for (d of damageTypes; track d) {
+                    <button type="button" class="wtt-dmg-btn"
+                            [class.active]="hasDamage(file, d)"
+                            [disabled]="isOnlyDamage(file, d)"
+                            [title]="d" (click)="toggleDamage(file, d)">{{ damageShort[d] }}</button>
+                  }
+                </div>
+              </td>
+
+              <td class="c-range">
+                <input type="number" min="0" step="0.5" [(ngModel)]="block(file).meleeRange"
+                       (ngModelChange)="onFieldChange(file)" />
+              </td>
+              <td class="c-range">
+                <input type="number" min="0" step="1" [(ngModel)]="block(file).rangedRange"
+                       (ngModelChange)="onFieldChange(file)" />
+              </td>
+
+              <td class="c-weight">
+                <select [ngModel]="block(file).weight" (ngModelChange)="setWeight(file, $event)">
+                  @for (w of weights; track w) {
+                    <option [ngValue]="w">{{ weightLabels[w] }}</option>
+                  }
+                </select>
+              </td>
+
+              <td class="c-handed">
+                <select [ngModel]="block(file).handed" (ngModelChange)="setHanded(file, $event)">
+                  <option [ngValue]="'ONE'">{{ handedLabels['ONE'] }}</option>
+                  <option [ngValue]="'TWO'">{{ handedLabels['TWO'] }}</option>
+                </select>
+              </td>
+
+              <td class="c-effect">
+                <input type="text" [(ngModel)]="block(file).extraEffect"
+                       (ngModelChange)="onFieldChange(file)" placeholder="—" />
+              </td>
+
+              <td class="c-tier">
+                <select [ngModel]="getTier(file)" (ngModelChange)="setTier(file, $event)">
+                  @for (t of knowledgeTiers; track t.value) {
+                    <option [value]="t.value">{{ t.label }}</option>
+                  }
+                </select>
+              </td>
+
+              <td class="c-del">
+                <button class="wtt-jump-btn" (click)="jump(file)" title="Im Editor öffnen">öffnen</button>
+                <button class="wtt-del-btn" (click)="remove(file)" title="Waffentyp löschen">×</button>
+              </td>
+            </tr>
+          }
+
+          <!-- Add row: fill it in and hit Enter or „+ Hinzufügen" -->
+          <tr class="wtt-draft">
+            <td class="c-name">
+              <input type="text" [(ngModel)]="draft.name" placeholder="Neuer Typ…"
+                     (keyup.enter)="addDraft()" />
+            </td>
+            <td class="c-art">
+              <select [(ngModel)]="draft.category">
+                @for (c of categories; track c) {
+                  <option [ngValue]="c">{{ categoryLabels[c] }}</option>
+                }
+              </select>
+            </td>
+            <td class="c-dmg">
+              <div class="wtt-dmg">
+                @for (d of damageTypes; track d) {
+                  <button type="button" class="wtt-dmg-btn"
+                          [class.active]="hasDraftDamage(d)"
+                          [title]="d" (click)="toggleDraftDamage(d)">{{ damageShort[d] }}</button>
+                }
+              </div>
+            </td>
+            <td class="c-range">
+              <input type="number" min="0" step="0.5" [(ngModel)]="draft.meleeRange"
+                     (keyup.enter)="addDraft()" />
+            </td>
+            <td class="c-range">
+              <input type="number" min="0" step="1" [(ngModel)]="draft.rangedRange"
+                     (keyup.enter)="addDraft()" />
+            </td>
+            <td class="c-weight">
+              <select [(ngModel)]="draft.weight">
+                @for (w of weights; track w) {
+                  <option [ngValue]="w">{{ weightLabels[w] }}</option>
+                }
+              </select>
+            </td>
+            <td class="c-handed">
+              <select [(ngModel)]="draft.handed">
+                <option [ngValue]="'ONE'">{{ handedLabels['ONE'] }}</option>
+                <option [ngValue]="'TWO'">{{ handedLabels['TWO'] }}</option>
+              </select>
+            </td>
+            <td class="c-effect">
+              <input type="text" [(ngModel)]="draft.extraEffect" placeholder="Zusatzeffekt"
+                     (keyup.enter)="addDraft()" />
+            </td>
+            <td class="c-tier">
+              <select [(ngModel)]="draft.knowledgeTier">
+                @for (t of knowledgeTiers; track t.value) {
+                  <option [ngValue]="t.value">{{ t.label }}</option>
+                }
+              </select>
+            </td>
+            <td class="c-del">
+              <button class="wtt-add-btn" [disabled]="!draft.name?.trim() || creating()"
+                      (click)="addDraft()">+ Hinzufügen</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      @if (files.length === 0) {
+        <div class="wtt-empty">
+          Noch keine Waffentypen in diesem Ordner. Trag unten einfach eine Zeile ein.
+          Die eingebauten Standardtypen bleiben weiterhin verfügbar — ein gleichnamiger
+          Typ hier überschreibt seinen eingebauten Zwilling.
+        </div>
+      }
+    }
+  </div>
+</div>

@@ -90,7 +90,7 @@ zusätzliche [Aktion](kampf#aktion).
 
 :::section{title="Effektivität" icon=effektivity id=effektivitaet}
 Die Grundstärke eines Angriffs o.Ä. Je Stärker der Treffer, desto mehr wirkt sich die Effektivität auf den Schaden aus.
-Die Effektivität schwankt im Normalfall zwischen 1 und 50, mit 10 als Standard für eine gute Waffe/Zauber/etc.
+Die Effektivität schwankt im Normalfall zwischen 1 und 50, mit 10 als Standard für eine gute Waffe/Zauber/etc. Mehr dazu [hier](gear#w_eff).
 :::
 
 :::section{title="Stabilität" icon=stability id=stabilitaet}
@@ -121,6 +121,7 @@ Einen Gegner anzugreifen, bevor er den Angreifer bemerkt, gilt als Überraschung
 :::section{title="Fernkampf" icon=range id="fernkampf"}
 - Bei der Schadensberechnung landen Fernkampfangriffe immer in der jeweils schwächeren Schadenskategorie.
 - Fernkampfwaffen und -magie können keine Gelegenheitsangriffe ausführen und erhalten Nachteil, wenn sie einen Nahkämpfer in deren Reichweite angreifen
+- Wenn ein Fernkampfangriff nach einer Bewegungsaktion ausgeführt wird, erhält der Angriff einen Nachteil.
 - Geworfene Nahkampfwaffen fügen auf gleiche Weise reduzierten Schaden zu und erhalten einen +1 Malus, erhöht um 1 für alle 5 Meter, die die Waffe geworfen wird.	
 - Werfbare Fernkampfwaffen erhalten auch die Schadenreduktion, aber keinen Würfelmalus
 - Manche Fernkampfwaffen müssen erst geladen oder gespannt werden, was je nach Waffenart eine Aktion oder Bonusaktion kostet
@@ -142,6 +143,7 @@ Rüstungsnegation reduziert den Rüstungsmalus. Sollte er den Rüstungsmalus üb
 :::
 
 :::actions
-:jump[Weiter zu den Klassen]{to=klassen}
 :jump[Zurück zu den Stats]{to=stats}
+
+:jump[Weiter zu den Klassen]{to=klassen}
 :::

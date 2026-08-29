@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T22:44:32.920Z",
+  "generatedAt": "2026-08-29T23:47:35.689Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -49,7 +49,7 @@
       "tab": "Stats",
       "icon": "stat_icon",
       "order": 20,
-      "hash": "a3527399",
+      "hash": "53081eb1",
       "outline": [
         {
           "id": "stats",
@@ -192,7 +192,7 @@
       "tab": "Kampf",
       "icon": "effektivity",
       "order": 30,
-      "hash": "db85d407",
+      "hash": "15aa2c0b",
       "outline": [
         {
           "id": "kampf",
@@ -323,7 +323,7 @@
       "tab": "Klassen",
       "icon": "ability",
       "order": 40,
-      "hash": "ab3c217f",
+      "hash": "1d574e2a",
       "outline": [
         {
           "id": "klassen",
@@ -358,7 +358,7 @@
       "tab": "Rassen",
       "icon": "races",
       "order": 50,
-      "hash": "be4ae1b7",
+      "hash": "00c9c48b",
       "outline": [
         {
           "id": "rassen",
@@ -393,7 +393,7 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "93d0a7fc",
+      "hash": "548cf01c",
       "outline": [
         {
           "id": "magiesystem",
@@ -518,18 +518,18 @@
       "tab": "Ausrüstung",
       "icon": "equipment",
       "order": 70,
-      "hash": "01498281",
+      "hash": "634641a1",
       "outline": [
         {
-          "id": "waffentypen",
-          "text": "Waffentypen",
-          "level": 2,
+          "id": "ausruestung",
+          "text": "Ausrüstung",
+          "level": 1,
           "kind": "heading"
         },
         {
-          "id": "nur-eine-waffenart",
-          "text": "Nur eine Waffenart",
-          "level": 3,
+          "id": "waffen",
+          "text": "Waffen",
+          "level": 2,
           "kind": "heading"
         },
         {
@@ -565,7 +565,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "d3e51fab",
+      "hash": "65f1d267",
       "outline": [
         {
           "id": "syntax-beispiel",

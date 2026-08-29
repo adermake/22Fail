@@ -16,13 +16,14 @@ import {
   computeForgedStats, formatTraitEffect,
   nextForgeCost, totalForgeSPSpent,
   WeaponStatKey, WEAPON_STAT_KEYS, WEAPON_STAT_TO_REQUIREMENT,
-  WeaponType, WEAPON_TYPES, WeaponCategory, WEAPON_CATEGORY_LABELS,
+  WeaponType, WEAPON_TYPES, WeaponCategory, WEAPON_CATEGORY_LABELS, DamageType,
   ForgingArmorType, ARMOR_TYPES, ArmorWeight, ARMOR_WEIGHT_MULT,
 } from '../../model/forging.model';
 import { CraftAccessMode } from '../../model/brewing.model';
 import {
   DAMAGE_TYPES, WEAPON_HANDED_LABELS, WEAPON_WEIGHTS, WEAPON_WEIGHT_LABELS,
-  WeaponTypeBlock, createEmptyWeaponType, describeWeaponReach, forgeSizeFor, toBuiltinShape,
+  WeaponTypeBlock, createEmptyWeaponType, describeDamageTypes, describeWeaponReach, forgeSizeFor,
+  toBuiltinShape, toggleDamageType,
 } from '../../model/weapon-type-block.model';
 import { WeaponTypeService } from '../../services/weapon-type.service';
 import { ItemBlock, ItemRequirements } from '../../model/item-block.model';
@@ -369,6 +370,25 @@ export class ForgingComponent implements OnInit {
     return describeWeaponReach(this.customType);
   }
 
+  /** All damage types of the selected/authored type, e.g. "Schnitt / Stich". */
+  get selectedDamageSummary(): string {
+    return this.selectedWeaponTypeBlock ? describeDamageTypes(this.selectedWeaponTypeBlock) : '';
+  }
+
+  hasCustomDamage(t: DamageType): boolean {
+    return this.customType.damageTypes?.includes(t) ?? false;
+  }
+
+  toggleCustomDamage(t: DamageType): void {
+    toggleDamageType(this.customType, t);
+    this.applyCustomType();
+  }
+
+  isOnlyCustomDamage(t: DamageType): boolean {
+    const list = this.customType.damageTypes ?? [];
+    return list.length <= 1 && list.includes(t);
+  }
+
   onArmorTypeChange(): void {
     this.cdr.markForCheck();
   }
@@ -595,6 +615,9 @@ export class ForgingComponent implements OnInit {
         item.weaponTypeName = this.selectedWeaponType.name;
         item.damageType     = this.selectedWeaponType.damageType;
         item.range          = this.selectedWeaponType.range;
+        // A type can deal several kinds of damage; keep the full list alongside the primary.
+        const allDamage = this.selectedWeaponTypeBlock?.damageTypes;
+        if (allDamage?.length) item.damageTypes = [...allDamage];
         // The type's own effect text belongs on the finished weapon, next to the material effects.
         const typeEffect = this.selectedWeaponTypeBlock?.extraEffect?.trim();
         if (typeEffect && !(item.description ?? '').includes(typeEffect)) {

@@ -20,6 +20,7 @@ import {
   WEAPON_WEIGHTS,
   WEAPON_WEIGHT_LABELS,
   builtinWeaponTypes,
+  describeDamageTypes,
   describeWeaponReach,
   weaponTypeKnowledgeTier,
   type WeaponCategory,
@@ -107,6 +108,9 @@ function renderWeapons(attrs: DirectiveAttrs, env: RulebookEnv): string {
   }
 
   const rawDamage = (attrs['damage'] ?? attrs['schaden'] ?? '').trim().toLowerCase();
+  // A weapon can deal several — `damage=` matches when ANY of them fits.
+  const damageTypesOf = (w: WeaponTypeBlock) =>
+    w.damageTypes?.length ? w.damageTypes : w.damageType ? [w.damageType] : [];
   const rawHanded = (attrs['handed'] ?? attrs['fuehrung'] ?? '').trim().toLowerCase();
   if (rawHanded && !/^(one|two|einhändig|einhaendig|zweihändig|zweihaendig)$/.test(rawHanded)) {
     env.warnings.push(`Unbekannte Führung "handed=${rawHanded}"`);
@@ -120,14 +124,14 @@ function renderWeapons(attrs: DirectiveAttrs, env: RulebookEnv): string {
       tiers.includes(weaponTypeKnowledgeTier(w)) &&
       (!rawCategory || w.category === rawCategory) &&
       (!rawWeight || w.weight === rawWeight) &&
-      (!rawDamage || w.damageType.toLowerCase() === rawDamage) &&
+      (!rawDamage || damageTypesOf(w).some((d) => d.toLowerCase() === rawDamage)) &&
       (!rawHanded || (w.handed === 'TWO') === wantsTwo),
   );
   if (!rows.length) return emptyNote('Keine Waffentypen für diese Auswahl.');
 
   const chip = (w: WeaponTypeBlock): string =>
     `<span class="rb-chip"><b>${cell(w.name)}</b>` +
-    `<small>${cell(w.damageType)} · ${cell(describeWeaponReach(w))}</small>` +
+    `<small>${cell(describeDamageTypes(w))} · ${cell(describeWeaponReach(w))}</small>` +
     `<small>${cell(WEAPON_WEIGHT_LABELS[w.weight])} · ${cell(WEAPON_HANDED_LABELS[w.handed])}` +
     `${w.extraEffect ? ` · ${cell(w.extraEffect)}` : ''}</small></span>`;
 
