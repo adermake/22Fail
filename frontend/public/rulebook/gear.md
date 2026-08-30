@@ -67,7 +67,7 @@ Es gibt 3 Schadensarten, die sich nicht direkt auf den Schaden auswirken, aber j
 :::card{title="Handhabung" color=#a76957}
 Bestimmt, ob eine Waffe einhändig oder beidhändig benutzt werden kann. Beidhändige Waffen können in bestimmten Situationen auch einhändig geführt werden, sind aber deutlich schwerer zu handhaben.
 :::
-:::card{title="Nachladezeit" color="#291a1a"}
+:::card{title="Nachladezeit" color="#5c88b9"}
 Die Nachladezeit legt fest, wie lange eine Waffe nach bzw. vor einem Angriff braucht, um angriffsbereit zu sein. Dies kann von einer Bonusaktion, zu mehreren Aktionen reichen.
 :::
 
