@@ -21,12 +21,12 @@ Eine gute Ausrüstung kann den Ausgang einer Schlacht entscheiden. Sowohl die Wa
 :::
 :::card{title="Stiefel"}
 :::
+:::
 :::card{title="Waffe"}
 Je nachdem, ob eine Waffe ein- oder beidhändig geführt wird, können 1-2 Waffen ausgerüstet werden.
 :::
 :::card{title="Extra"}
 Zusätzlich existiert ein Extra-Slot für Accessoires und ähnliche Ausrüstungsgegenstände, die nicht in die anderen Felder passen.
-:::
 :::
 
 :::note{type=tip}
@@ -77,13 +77,16 @@ Alle Waffen können in 3 Waffenarten unterteilt werden:
 Leichte Waffen sind die bevorzugten Waffen für Kämpfer, die auf viele schnelle Angriffe setzen. Wie der Name schon sagt sind sie meist leichter und sind einfacher zu nutzen, büßen dafür aber in ihrem Schaden und der Haltbarkeit ein.
 :::data{source=weapons category=leicht tier=bekannt}
 :::
+:::
 :::card{title="Schwere Waffen" color=#ef4444}
 Schwere Waffen sind unschlagbar wenn es um pures destruktives Potenzial geht. Sie teilen den höchsten Schaden aus und haben mehr Haltbarkeit, aber wiegen mehr und haben höhere Statvoraussetzungen, um sie zu verwenden.
 :::data{source=weapons category=schwer tier=bekannt}
 :::
+:::
 :::card{title="Fernkampfwaffen" color=#22c55e}
 Fernkampfwaffen sind eine spezielle Waffenart und kommen mit vielen eigenen [Regeln](kampf#fernkampf). Zusätzlich sind sie der Waffentyp, der am häufigsten eine Nachladezeit besitzt.
 :::data{source=weapons category=fernkampf tier=bekannt}
+:::
 :::
 
 
