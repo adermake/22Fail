@@ -57,7 +57,8 @@
           [class.revealed]="tab.revealed"
           [class.npc]="tab.kind === 'npc'"
           (click)="selectTab(tab.key)"
-          (dblclick)="tab.kind === 'desk' ? renamingTabId.set(tab.key) : null">
+          (contextmenu)="onTabContextMenu($event, tab)"
+          (dblclick)="renamingTabId.set(tab.key)">
           {{ tab.name }}
           <small>{{ tab.count }}</small>
         </button>
@@ -86,7 +87,8 @@
               <input type="checkbox" [checked]="tab.revealed" (change)="toggleRevealed(tab.key)" />
               <span>Aufgedeckt</span>
             </label>
-            <button class="desk-btn danger" (click)="deleteTab(tab.key)" title="Reiter löschen">✕</button>
+            <button class="desk-btn danger" (click)="clearTab(tab.key)"
+                    title="Reiter leeren (Löschen: Rechtsklick auf den Reiter)">✕ Leeren</button>
           } @else {
             <span class="desk-npc-badge">NSC auf der Karte</span>
           }
@@ -108,11 +110,25 @@
            (cdkDropListDropped)="onEntryDropped($event)">
         @for (entry of activeEntries(); track entry.entryId) {
           <div class="desk-entry" cdkDrag [cdkDragData]="entry"
+               [title]="previewText(entryLabel(entry), entry.data)"
                [class.hidden-entry]="entry.hidden" [class.claimed]="entry.claimedBy">
             <span class="desk-entry-icon app-icon" [class]="typeIcon[entry.type]"></span>
+            @if (isUnidentified(entry.data)) {
+              <span class="desk-unid" title="Unidentifiziert"></span>
+            }
             <div class="desk-entry-info">
-              <span class="desk-entry-name">{{ entryLabel(entry) }}</span>
-              <span class="desk-entry-type">{{ typeLabel[entry.type] }}</span>
+              <span class="desk-entry-name">
+                {{ entryLabel(entry) }}
+                @if (stackCount(entry.data) > 1) {
+                  <span class="desk-entry-amount">×{{ stackCount(entry.data) }}</span>
+                }
+              </span>
+              <span class="desk-entry-type">
+                {{ kindLabel(entry.data) || typeLabel[entry.type] }}
+                @if (goldValue(entry.data); as gold) {
+                  <span class="desk-entry-gold">· {{ gold }} G</span>
+                }
+              </span>
             </div>
 
             @if (entry.claimedBy) {
@@ -128,12 +144,31 @@
               @if (selectedCharacterId()) {
                 <button class="desk-icon-btn" [title]="'An ' + selectedName + ' senden'" (click)="offerEntry(entry)">➜</button>
               }
+              @if (canInspect(entry)) {
+                <button class="desk-icon-btn" title="Details anzeigen" (click)="toggleEntryDetails(entry)">
+                  {{ expandedEntryId() === entry.entryId ? '▾' : '▸' }}
+                </button>
+                <button class="desk-icon-btn" title="Bearbeiten" (click)="openEntryEditor(entry, $event)">✎</button>
+              }
               @if (canStash(entry)) {
                 <button class="desk-icon-btn" title="In den Beutel der Gruppe" (click)="moveToStash(entry)">⇩</button>
               }
               <button class="desk-icon-btn danger" title="Entfernen" (click)="removeEntry(entry.entryId)">✕</button>
             </span>
           </div>
+
+          @if (expandedEntryId() === entry.entryId && canInspect(entry)) {
+            <div class="desk-entry-detail">
+              <app-item
+                [item]="itemOf(entry)"
+                [sheet]="previewSheet"
+                [index]="-1"
+                [startUnfolded]="true"
+                [hideFoldControls]="true"
+                (patch)="onEntryPatch(entry, $any($event))">
+              </app-item>
+            </div>
+          }
         }
       </div>
     }
@@ -193,10 +228,20 @@
               <div
                 class="desk-lib-entry"
                 cdkDrag
-                [cdkDragData]="entry"
+                [cdkDragData]="dragPayload(entry)"
                 [class.just-added]="justAddedId() === entry.id"
+                [title]="previewText(entry.name, entry.data)"
                 (click)="addFromLibrary(entry)">
+                @if (isUnidentified(entry.data)) {
+                  <span class="desk-unid" title="Unidentifiziert"></span>
+                }
                 <span class="desk-lib-name">＋ {{ entry.name }}</span>
+                @if (kindLabel(entry.data); as kind) {
+                  <span class="desk-lib-kind">{{ kind }}</span>
+                }
+                @if (goldValue(entry.data); as gold) {
+                  <span class="desk-lib-gold" title="Goldwert">{{ gold }} G</span>
+                }
                 @if (entry.libraryName) {
                   <span class="desk-lib-origin" [title]="'Aus: ' + entry.libraryName">{{ entry.libraryName }}</span>
                 }
@@ -221,3 +266,24 @@
     </div>
   </div>
 </div>
+
+@if (editingItem(); as item) {
+  <app-item-editor
+    [item]="item"
+    [sheet]="previewSheet"
+    (save)="saveEntryEdit($event)"
+    (cancel)="closeEntryEditor()">
+  </app-item-editor>
+}
+
+@if (tabMenuFor(); as menu) {
+  <div class="desk-menu-backdrop" (click)="closeTabMenu()" (contextmenu)="$event.preventDefault(); closeTabMenu()"></div>
+  <div class="desk-menu" [style.left.px]="menu.x" [style.top.px]="menu.y">
+    <button class="desk-menu-item" (click)="renamingTabId.set(menu.key); closeTabMenu()">
+      {{ isDeskTab(menu.key) ? 'Umbenennen' : 'Kennzeichnung ändern' }}
+    </button>
+    @if (isDeskTab(menu.key)) {
+      <button class="desk-menu-item danger" (click)="deleteTab(menu.key)">Reiter löschen</button>
+    }
+  </div>
+}

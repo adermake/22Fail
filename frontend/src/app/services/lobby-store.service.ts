@@ -597,13 +597,41 @@ export class LobbyStoreService {
   /**
    * Add a token to the current map.
    */
+  /**
+   * Legt ein Token an und nummeriert Gleichnamige durch.
+   *
+   * Fünf Kultisten hießen alle nur "Kultist" — auf der Karte, im Kampf-Tracker und in den
+   * NSC-Reitern des GM-Schreibtischs. Welcher Eintrag zu welchem Token gehört, war nicht zu
+   * erkennen. Das erste Token bleibt unnummeriert; sobald ein zweites dazukommt, bekommt das
+   * erste rückwirkend die 1, sonst stünde "Kultist" neben "Kultist 2".
+   */
   addToken(token: Omit<Token, 'id'>): void {
-    const newToken: Token = {
-      ...token,
-      id: generateId(),
-    };
+    let tokens = [...this.tokens];
+    const sameName = tokens.filter(t => t.name === token.name);
 
-    const tokens = [...this.tokens, newToken];
+    let tag = token.tag;
+    if (!tag && sameName.length > 0) {
+      if (sameName.length === 1 && !sameName[0].tag) {
+        tokens = tokens.map(t => (t.id === sameName[0].id ? { ...t, tag: '1' } : t));
+      }
+      const used = new Set(
+        tokens.filter(t => t.name === token.name)
+              .map(t => Number(t.tag))
+              .filter(n => Number.isFinite(n)),
+      );
+      let next = 1;
+      while (used.has(next)) next++;
+      tag = String(next);
+    }
+
+    tokens.push({ ...token, id: generateId(), tag });
+    this.applyPatch({ path: 'tokens', value: tokens });
+  }
+
+  /** Setzt oder löscht die Kennzeichnung eines Tokens (GM tippt sie von Hand). */
+  setTokenTag(tokenId: string, tag: string): void {
+    const tokens = this.tokens.map(t =>
+      t.id === tokenId ? { ...t, tag: tag.trim() || undefined } : t);
     this.applyPatch({ path: 'tokens', value: tokens });
   }
 

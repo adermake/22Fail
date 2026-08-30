@@ -89,6 +89,17 @@ export class WorldLobbyBridgeService {
     this.socket.sendPatch(this.worldName, data.activeMapId, { path: 'tokens', value: tokens });
   }
 
+  /** Die Kennzeichnung eines Tokens setzen ("Kultist 2" → "Anführer"). */
+  setTokenTag(tokenId: string, tag: string): void {
+    const map = this.activeMap();
+    const data = this.lobby();
+    if (!map || !data) return;
+
+    const tokens = map.tokens.map(t => (t.id === tokenId ? { ...t, tag: tag.trim() || undefined } : t));
+    this.writeTokens(tokens);
+    this.socket.sendPatch(this.worldName, data.activeMapId, { path: 'tokens', value: tokens });
+  }
+
   /** Einen Gegenstand an das Inventar eines Tokens anhängen. */
   addToTokenInventory(tokenId: string, item: ItemBlock): void {
     const token = this.tokens().find(t => t.id === tokenId);

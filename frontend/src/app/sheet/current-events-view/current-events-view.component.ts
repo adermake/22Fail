@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -10,6 +10,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import {
   DeskEntry, DeskTab, GRANT_TYPE_ICON, GRANT_TYPE_LABEL,
 } from '../../model/gm-desk.model';
+import { goldValue, isUnidentified, kindLabel, previewText } from '../../utils/entry-preview.util';
 
 export interface BuyItemEvent {
   eventId: string;
@@ -37,7 +38,7 @@ export class CurrentEventsViewComponent {
   @Input() sheet!: CharacterSheet;
   @Input() characterId: string = '';
   /** Vom Spielleiter freigegebene Reiter des GM-Schreibtischs. */
-  @Input() lootPools: DeskTab[] = [];
+  @Input() set lootPools(value: DeskTab[]) { this.poolsSignal.set(value ?? []); }
   /** entryId, dessen Anfrage gerade beim Server liegt. */
   @Input() claiming: string | null = null;
   /** "Jemand war schneller …" — kommt vom Bogen, wenn der Server ablehnt. */
@@ -54,6 +55,25 @@ export class CurrentEventsViewComponent {
   formatCurrency = formatCurrency;
   readonly typeIcon = GRANT_TYPE_ICON;
   readonly typeLabel = GRANT_TYPE_LABEL;
+  readonly goldValue = goldValue;
+  readonly isUnidentified = isUnidentified;
+  readonly kindLabel = kindLabel;
+  readonly previewText = previewText;
+
+  /**
+   * Die freigegebenen Reiter als Signal — das offene Fenster muss Änderungen mitbekommen,
+   * sonst steht ein bereits genommener Gegenstand weiter darin.
+   */
+  private readonly poolsSignal = signal<DeskTab[]>([]);
+  readonly lootPoolList = this.poolsSignal.asReadonly();
+
+  /** Der Reiter, dessen Fenster gerade offen ist. */
+  private readonly openPoolId = signal<string | null>(null);
+
+  readonly openPool = computed<DeskTab | null>(() => {
+    const id = this.openPoolId();
+    return id ? this.poolsSignal().find(p => p.tabId === id) ?? null : null;
+  });
 
   /** Was in diesem Pool noch zu haben ist: nichts Verstecktes, nichts bereits Genommenes. */
   openEntries(pool: DeskTab): DeskEntry[] {
@@ -81,6 +101,9 @@ export class CurrentEventsViewComponent {
   openPortal(eventId: string) {
     this.openPortalEvent.emit(eventId);
   }
+
+  showPool(tabId: string): void { this.openPoolId.set(tabId); }
+  closePool(): void { this.openPoolId.set(null); }
 
   asShop(event: CurrentEvent): ShopEvent {
     return event as ShopEvent;

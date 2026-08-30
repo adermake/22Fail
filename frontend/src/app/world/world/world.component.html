@@ -183,6 +183,7 @@
         (eventRemoved)="onEventRemoved($event)"
         (eventUpdated)="onEventUpdated($event)"
         (deskEntryRemoved)="onDeskEntryRemoved($event)"
+        (bagDrop)="onBagDrop($event)"
         (navigateToLibrary)="navigateToLibrary($event)">
       </app-current-events-manager>
     </app-card>
@@ -206,6 +207,7 @@
         (deskChanged)="onDeskChanged($event)"
         (offerToCharacter)="onDeskOffer($event)"
         (npcInventoryChanged)="onNpcInventoryChanged($event)"
+        (npcTagChanged)="onNpcTagChanged($event)"
         (depositToStash)="onDepositToStash($event)"
         (openInLibrary)="onOpenInLibrary($event)"
         (openLibrary)="onOpenLibrary($event)"

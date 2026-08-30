@@ -720,8 +720,14 @@ export class AssetBrowserService {
             path.join(diskPath, entry.name),
             'utf-8',
           );
-          const file = JSON.parse(content);
-          files.push(file);
+          const file = JSON.parse(content) as AssetFile;
+          // Same stale-location repair as getFile: this listing already knows the real folder,
+          // so correct what the file claims about itself instead of passing it on.
+          files.push({
+            ...file,
+            folderId: folder.id,
+            path: folder.path ? `${folder.path}/${file.name}` : file.name,
+          });
         } catch (error) {
           console.error(`Error reading file ${entry.name}:`, error);
         }
@@ -748,7 +754,41 @@ export class AssetBrowserService {
       throw new NotFoundException(`File "${fileId}" not found on disk`);
     }
 
-    return JSON.parse(fs.readFileSync(diskPath, 'utf-8'));
+    const file = JSON.parse(fs.readFileSync(diskPath, 'utf-8')) as AssetFile;
+    return this.withCurrentLocation(meta, file, relativePath);
+  }
+
+  /**
+   * Overrides the `path`/`folderId` stored INSIDE the asset's JSON with where the file actually
+   * lives now.
+   *
+   * Those two fields are written once at creation and never touched again — renaming or moving a
+   * folder only rewrites `meta.idToPath` and the folder records. So every file that was not
+   * re-saved afterwards kept pointing at the old folder, and anything grouping by `path` (the GM
+   * desk, the world library) grew a phantom folder under the misspelled name. `idToPath` is the
+   * authoritative location, so the answer is derived from it instead of trusted from the file.
+   */
+  private withCurrentLocation(
+    meta: LibraryMeta,
+    file: AssetFile,
+    relativePath: string,
+  ): AssetFile {
+    const slash = relativePath.lastIndexOf('/');
+    const dir = slash > 0 ? relativePath.slice(0, slash) : '';
+
+    let folderId = 'root';
+    for (const folder of meta.folders.values()) {
+      if (folder.path === dir) {
+        folderId = folder.id;
+        break;
+      }
+    }
+
+    return {
+      ...file,
+      folderId,
+      path: dir ? `${dir}/${file.name}` : file.name,
+    };
   }
 
   /**

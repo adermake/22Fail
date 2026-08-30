@@ -46,6 +46,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SpellCounter } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
+import { goldValue, isUnidentified, kindLabel, previewText } from '../../utils/entry-preview.util';
 
 interface LibFolder { path: string; label: string; files: AssetFile[]; }
 
@@ -136,6 +137,17 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
    */
   justAddedId: string | null = null;
   private justAddedTimer?: number;
+
+  // Kurzinfos beim Überfahren einer Bibliothekszeile — geteilt mit dem GM-Schreibtisch.
+  readonly goldValue = goldValue;
+  readonly isUnidentified = isUnidentified;
+  readonly kindLabel = kindLabel;
+  readonly previewText = previewText;
+
+  /** Tooltip für eine Bibliotheksdatei. */
+  filePreview(file: AssetFile): string {
+    return previewText(file.name, file.data);
+  }
   browseCategory: 'skills' | 'items' | 'spells' = 'skills';
   skillTab: 'tree' | 'library' = 'tree';
   expandedClass: string | null = null;

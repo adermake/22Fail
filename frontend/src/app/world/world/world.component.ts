@@ -407,12 +407,35 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.lobbyBridge.setTokenInventory(event.tokenId, event.inventory);
   }
 
+  onNpcTagChanged(event: { tokenId: string; tag: string }): void {
+    this.lobbyBridge.setTokenTag(event.tokenId, event.tag);
+  }
+
   /** Ein Gegenstand vom Schreibtisch in den gemeinsamen Beutel der Gruppe. */
   async onDepositToStash(item: ItemBlock): Promise<void> {
     const ok = await this.partyStash.deposit(item, { name: 'Spielleiter' });
     if (ok) this.notification.success(`"${item.name}" liegt jetzt im Beutel der Gruppe.`, 2000);
     else this.notification.error('Der Beutel hat den Gegenstand nicht angenommen.', 3000);
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Ein Ding wurde in den Beutel der Gruppe gezogen. Kommt es vom Schreibtisch, verschwindet es
+   * dort — sonst läge derselbe Gegenstand doppelt herum.
+   */
+  async onBagDrop(entry: DeskEntry): Promise<void> {
+    if (entry.type !== 'item') {
+      this.notification.error('Der Beutel nimmt nur Gegenstände auf.', 2500);
+      return;
+    }
+    await this.onDepositToStash(entry.data as ItemBlock);
+    // Aus einem Reiter gezogen: dort entfernen, sonst läge er doppelt herum. Ein frisch aus der
+    // Bibliothek gezogener Eintrag lag nirgends und bleibt dort auch.
+    if (entry.entryId && !(entry as { fromLibrary?: boolean }).fromLibrary) {
+      this.onDeskChanged(this.deskTabs.map(t => ({
+        ...t, entries: t.entries.filter(e => e.entryId !== entry.entryId),
+      })));
+    }
   }
 
   /** Der GM nimmt einen Eintrag aus einem aufgedeckten Reiter wieder heraus. */

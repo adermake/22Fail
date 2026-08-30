@@ -349,7 +349,8 @@
                       @if (isFolderOpen('skill', fol.path)) {
                         <div class="npc-tree-skills">
                           @for (f of fol.files; track f.id) {
-                            <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id" (click)="addSkillFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                            <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id"
+                                    [title]="filePreview(f)" (click)="addSkillFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
                           }
                         </div>
                       }
@@ -373,7 +374,8 @@
                     @if (isFolderOpen('item', fol.path)) {
                       <div class="npc-tree-skills">
                         @for (f of fol.files; track f.id) {
-                          <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id" (click)="addItemFromLibrary(f)">
+                          <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id"
+                                  [title]="filePreview(f)" (click)="addItemFromLibrary(f)">
                             <span>＋ {{ f.name }}</span>
                             @if (itemValue(f); as gold) {
                               <span class="npc-item-value" title="Goldwert">{{ gold }} G</span>
@@ -401,7 +403,8 @@
                     @if (isFolderOpen('spell', fol.path)) {
                       <div class="npc-tree-skills">
                         @for (f of fol.files; track f.id) {
-                          <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id" (click)="addSpellFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                          <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id"
+                                    [title]="filePreview(f)" (click)="addSpellFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
                         }
                       </div>
                     }

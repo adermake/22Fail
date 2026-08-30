@@ -37,6 +37,7 @@ import { isWieldedWeapon } from '../../utils/equip-slot.utils';
 import { applyStability } from '../../utils/stability.util';
 import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { tokenLabel } from '../../utils/entry-preview.util';
 
 interface StatDisplay {
   label: string;
@@ -107,7 +108,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       } @else {
         <div class="token-portrait-placeholder">{{ (token.name || '?').charAt(0).toUpperCase() }}</div>
       }
-      <span class="token-name">{{ token.name }}</span>
+      <span class="token-name">{{ tokenLabel(token) }}</span>
       <button class="deselect-btn" (click)="deselect.emit()" title="Auswahl aufheben">✕</button>
     </div>
 
@@ -1823,6 +1824,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (this.npc)       return this.npc.spells || [];
     return [];
   }
+
+  /** Name samt Kennzeichnung ("Kultist 2") — sonst sehen alle gleichnamigen Token gleich aus. */
+  tokenLabel = tokenLabel;
 
   /** Die Beute des Tokens. Liegt am Token, nicht am geteilten Statblock — siehe `Token.inventory`. */
   get inventory(): ItemBlock[] {

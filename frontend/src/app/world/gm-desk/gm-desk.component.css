@@ -17,7 +17,11 @@
   gap: 8px;
   padding: 10px 12px;
   min-height: 0;
+  /* `min-width: 0` ist der eigentliche Fix: ohne das wächst eine Grid-Spalte auf ihren längsten
+     Inhalt und erzeugt die überflüssige waagerechte Scrollleiste. */
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .desk-col-players,
@@ -500,4 +504,93 @@
 .desk-player.cdk-drop-list-receiving {
   border-color: #34d399;
   box-shadow: 0 0 0 1px #34d399, 0 0 12px rgba(52, 211, 153, 0.5);
+}
+
+
+/* ── Zusatzinfos in den Zeilen ─────────────────────────────────────────── */
+
+/* Gelber Punkt = noch nicht identifiziert. */
+.desk-unid {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 5px rgba(250, 204, 21, 0.8);
+}
+
+.desk-lib-kind {
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--border);
+  color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
+}
+
+.desk-lib-gold,
+.desk-entry-gold {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.desk-entry-amount {
+  margin-left: 4px;
+  font-weight: 600;
+  color: var(--text-muted, #9ca3af);
+}
+
+/* ── Rechtsklick-Menü auf einem Reiter ─────────────────────────────────── */
+
+.desk-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+}
+
+.desk-menu {
+  position: fixed;
+  z-index: 1401;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.desk-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.desk-menu-item:hover { background: var(--bg); }
+.desk-menu-item.danger:hover { color: #f87171; }
+
+/* Aufgeklappte Item-Karte unter einem Eintrag — dieselbe Darstellung wie im Spielerinventar. */
+.desk-entry-detail {
+  margin: -2px 0 4px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+}
+
+/* Ein aufgeklappter Eintrag und seine Karte sollen als ein Block lesen. */
+.desk-entry:has(+ .desk-entry-detail) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }

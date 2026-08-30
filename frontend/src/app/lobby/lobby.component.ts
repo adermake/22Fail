@@ -23,6 +23,7 @@ import { TextureService } from '../services/texture.service';
 import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { LibraryStoreService } from '../services/library-store.service';
+import { tokenLabel } from '../utils/entry-preview.util';
 import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
 import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
@@ -1020,7 +1021,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
       // resolveStatblock also covers Begleiter tokens, whose ids aren't in the NPC library.
       const speed = this.resolveStatblock(token.statblockId)?.speed ?? 10;
       this.battleEngine.registerCharacter(token.characterId, {
-        name: token.name,
+        // Mit Kennzeichnung, damit fünf Kultisten im Tracker unterscheidbar bleiben.
+        name: tokenLabel(token),
         portrait: token.portrait,
         speed,
       });

@@ -1,5 +1,5 @@
 <div class="events-view-container">
-  @if (events.length === 0 && lootPools.length === 0) {
+  @if (events.length === 0 && lootPoolList().length === 0) {
     <div class="no-events">
       <span class="no-events-icon">📜</span>
       <p>Keine aktuellen Ereignisse</p>
@@ -7,40 +7,18 @@
     </div>
   }
 
-  <!-- Freigegebene Beute: gemeinsamer Pool, jeder Eintrag geht nur an eine Person -->
-  @for (pool of lootPools; track pool.tabId) {
-    <div class="loot-pool">
-      <div class="loot-pool-header">
-        <span class="loot-pool-icon app-icon i-item"></span>
-        <h3 class="loot-pool-name">{{ pool.name }}</h3>
-        <span class="loot-pool-count">{{ openEntries(pool).length }} frei</span>
-      </div>
-
-      @if (openEntries(pool).length === 0) {
-        <p class="loot-pool-empty">Alles verteilt.</p>
-      } @else {
-        <div class="loot-pool-list">
-          @for (entry of openEntries(pool); track entry.entryId) {
-            <div class="loot-pool-entry">
-              <span class="loot-pool-entry-icon app-icon" [class]="typeIcon[entry.type]"></span>
-              <div class="loot-pool-entry-info">
-                <span class="loot-pool-entry-name">{{ entryName(entry) }}</span>
-                <span class="loot-pool-entry-type">{{ typeLabel[entry.type] }}</span>
-              </div>
-              <button
-                class="loot-pool-take"
-                [disabled]="claiming === entry.entryId"
-                (click)="claimEntry(pool, entry)">
-                {{ claiming === entry.entryId ? '…' : 'Nehmen' }}
-              </button>
-            </div>
-          }
-        </div>
-      }
-
-      @if (claimNotice) {
-        <p class="loot-pool-notice">{{ claimNotice }}</p>
-      }
+  <!-- Freigegebene Beute: nur eine Karte. Der Inhalt öffnet sich als eigenes Fenster —
+       in die schmale Spalte gequetscht überlappten Namen und Knöpfe einander. -->
+  @for (pool of lootPoolList(); track pool.tabId) {
+    <div class="event-card-portal loot" (click)="showPool(pool.tabId)">
+      <div class="portal-icon-large">💰</div>
+      <h3 class="portal-event-name">{{ pool.name }}</h3>
+      <p class="portal-event-description">
+        {{ openEntries(pool).length }} von {{ pool.entries.length }} noch frei
+      </p>
+      <button class="enter-portal-btn" (click)="showPool(pool.tabId); $event.stopPropagation()">
+        Öffnen
+      </button>
     </div>
   }
 
@@ -57,3 +35,51 @@
     </div>
   }
 </div>
+
+<!-- Beute-Fenster: eigener Platz, damit Namen, Werte und Knöpfe nebeneinander passen. -->
+@if (openPool(); as pool) {
+  <div class="loot-modal-backdrop" (click)="closePool()">
+    <div class="loot-modal" (click)="$event.stopPropagation()">
+      <div class="loot-modal-head">
+        <span class="loot-modal-icon app-icon i-item"></span>
+        <h3 class="loot-modal-title">{{ pool.name }}</h3>
+        <span class="loot-modal-count">{{ openEntries(pool).length }} frei</span>
+        <button class="loot-modal-close" (click)="closePool()" title="Schließen">&times;</button>
+      </div>
+
+      @if (claimNotice) {
+        <p class="loot-modal-notice">{{ claimNotice }}</p>
+      }
+
+      @if (openEntries(pool).length === 0) {
+        <p class="loot-modal-empty">Alles verteilt.</p>
+      } @else {
+        <div class="loot-modal-list">
+          @for (entry of openEntries(pool); track entry.entryId) {
+            <div class="loot-modal-entry" [title]="previewText(entryName(entry), entry.data)">
+              <span class="loot-modal-entry-icon app-icon" [class]="typeIcon[entry.type]"></span>
+              @if (isUnidentified(entry.data)) {
+                <span class="loot-modal-unid" title="Unidentifiziert"></span>
+              }
+              <div class="loot-modal-entry-info">
+                <span class="loot-modal-entry-name">{{ entryName(entry) }}</span>
+                <span class="loot-modal-entry-meta">
+                  {{ kindLabel(entry.data) || typeLabel[entry.type] }}
+                  @if (goldValue(entry.data); as gold) {
+                    <span class="loot-modal-gold">· {{ gold }} G</span>
+                  }
+                </span>
+              </div>
+              <button
+                class="loot-modal-take"
+                [disabled]="claiming === entry.entryId"
+                (click)="claimEntry(pool, entry)">
+                {{ claiming === entry.entryId ? '…' : 'Nehmen' }}
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

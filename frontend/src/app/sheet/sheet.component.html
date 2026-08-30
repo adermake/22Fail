@@ -15,6 +15,30 @@
     <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
   </div>
   
+  <!-- Events - Separate Section -->
+  <div class="grid-events">
+    <div class="events-container">
+      <div class="events-header">
+        <h2>🎪 Ereignisse</h2>
+        @if (currentEvents.length > 0) {
+          <span class="events-count">{{ currentEvents.length }}</span>
+        }
+      </div>
+      <app-current-events-view
+        [events]="currentEvents"
+        [sheet]="sheet"
+        [characterId]="store.characterId"
+        [lootPools]="lootPools"
+        [claiming]="claimingEntryId"
+        [claimNotice]="claimNotice"
+        (buyRequest)="onBuyFromShop($event)"
+        (claimRequest)="onClaimEventLoot($event)"
+        (openPortalEvent)="onOpenPortal($event)"
+        (patch)="store.applyPatch($any($event))">
+      </app-current-events-view>
+    </div>
+  </div>
+
   <!-- Shared party bag — fills the gap under the stats block -->
   <div class="grid-party">
     <app-party-stash
@@ -63,30 +87,6 @@
       (requestCastWindow)="showCastWindow = true"
       (rollWeaponDamage)="openDamageCalcWithEfficiency($event)">
     </app-character-tabs>
-  </div>
-
-  <!-- Events - Separate Section -->
-  <div class="grid-events">
-    <div class="events-container">
-      <div class="events-header">
-        <h2>🎪 Ereignisse</h2>
-        @if (currentEvents.length > 0) {
-          <span class="events-count">{{ currentEvents.length }}</span>
-        }
-      </div>
-      <app-current-events-view
-        [events]="currentEvents"
-        [sheet]="sheet"
-        [characterId]="store.characterId"
-        [lootPools]="lootPools"
-        [claiming]="claimingEntryId"
-        [claimNotice]="claimNotice"
-        (buyRequest)="onBuyFromShop($event)"
-        (claimRequest)="onClaimEventLoot($event)"
-        (openPortalEvent)="onOpenPortal($event)"
-        (patch)="store.applyPatch($any($event))">
-      </app-current-events-view>
-    </div>
   </div>
 
   <!-- Backstory - Standalone Section -->

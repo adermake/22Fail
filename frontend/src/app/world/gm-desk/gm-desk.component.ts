@@ -34,6 +34,12 @@ import {
   KNOWLEDGE_KIND_LABEL,
 } from '../../model/gm-desk.model';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
+import { ItemComponent } from '../../sheet/item/item.component';
+import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
+import { createEmptySheet } from '../../model/character-sheet-model';
+import {
+  goldValue, isUnidentified, kindLabel, previewText, stackCount, tokenLabel,
+} from '../../utils/entry-preview.util';
 
 /** Eine Kategorie im Bibliotheks-Browser (Spalte 3). */
 interface BrowseCategory {
@@ -79,7 +85,8 @@ interface DeskTabView {
 @Component({
   selector: 'app-gm-desk',
   standalone: true,
-  imports: [CommonModule, FormsModule, CdkDrag, CdkDragPreview, CdkDropList, ImageUrlPipe],
+  imports: [CommonModule, FormsModule, CdkDrag, CdkDragPreview, CdkDropList, ImageUrlPipe,
+            ItemComponent, ItemEditorComponent],
   templateUrl: './gm-desk.component.html',
   styleUrl: './gm-desk.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -112,6 +119,8 @@ export class GmDeskComponent implements OnDestroy {
   @Output() offerToCharacter = new EventEmitter<{ characterId: string; entry: DeskEntry }>();
   /** Das Inventar eines NSC-Tokens hat sich geändert. */
   @Output() npcInventoryChanged = new EventEmitter<{ tokenId: string; inventory: ItemBlock[] }>();
+  /** Die Kennzeichnung eines NSC-Tokens wurde geändert ("Kultist 2" → "Anführer"). */
+  @Output() npcTagChanged = new EventEmitter<{ tokenId: string; tag: string }>();
   /** Ein Ding wandert in den gemeinsamen Beutel der Gruppe. */
   @Output() depositToStash = new EventEmitter<ItemBlock>();
   @Output() openLibrarySelector = new EventEmitter<void>();
@@ -133,13 +142,25 @@ export class GmDeskComponent implements OnDestroy {
 
   readonly browseCategoryId = signal<string>('item');
   readonly search = signal<string>('');
-  readonly openFolders = signal<Set<string>>(new Set());
+  /**
+   * Ordner sind standardmäßig OFFEN — hier wird gemerkt, welche der GM zugeklappt hat. Andersherum
+   * (offene merken) begrüßt einen die Bibliothek mit lauter zugeklappten Ordnern, und man klickt
+   * sich erst einmal durch, bevor man irgendetwas sieht.
+   */
+  readonly closedFolders = signal<Set<string>>(new Set());
   /** Zuletzt angeklickte Bibliotheks-ID — blitzt kurz grün als Klick-Quittung. */
   readonly justAddedId = signal<string | null>(null);
   private justAddedTimer?: number;
 
   readonly typeIcon = GRANT_TYPE_ICON;
   readonly typeLabel = GRANT_TYPE_LABEL;
+
+  // Kurzinfos für Zeilen und Tooltips — geteilt mit dem NSC-Editor.
+  readonly goldValue = goldValue;
+  readonly isUnidentified = isUnidentified;
+  readonly kindLabel = kindLabel;
+  readonly previewText = previewText;
+  readonly stackCount = stackCount;
 
   readonly categories: BrowseCategory[] = [
     { id: 'item', label: 'Gegenstände', type: 'item' },
@@ -157,6 +178,80 @@ export class GmDeskComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     if (this.justAddedTimer) clearTimeout(this.justAddedTimer);
+  }
+
+  // ── Ansehen & Bearbeiten (wie im Spielerinventar) ──────────────────────────
+
+  /**
+   * Stub-Bogen, damit `app-item` einen Gegenstand anzeigen kann. Die Werte stehen hoch, damit
+   * Voraussetzungs-Badges nie fälschlich rot leuchten — der Schreibtisch gehört keinem Charakter.
+   */
+  readonly previewSheet = (() => {
+    const sheet = createEmptySheet();
+    for (const key of ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill'] as const) {
+      Object.assign(sheet[key], { current: 999, base: 999 });
+    }
+    return sheet;
+  })();
+
+  /** entryId, dessen Karte gerade aufgeklappt ist. */
+  readonly expandedEntryId = signal<string | null>(null);
+  /** entryId, der gerade im Editor liegt. */
+  readonly editingEntryId = signal<string | null>(null);
+
+  toggleEntryDetails(entry: DeskEntry): void {
+    this.expandedEntryId.update(id => (id === entry.entryId ? null : entry.entryId));
+  }
+
+  /** Nur Gegenstände lassen sich hier voll anzeigen und bearbeiten. */
+  canInspect(entry: DeskEntry): boolean { return entry.type === 'item'; }
+
+  itemOf(entry: DeskEntry): ItemBlock { return entry.data as ItemBlock; }
+
+  openEntryEditor(entry: DeskEntry, event: MouseEvent): void {
+    event.stopPropagation();
+    this.editingEntryId.set(entry.entryId);
+  }
+
+  closeEntryEditor(): void { this.editingEntryId.set(null); }
+
+  /** Der bearbeitete Gegenstand, oder null wenn kein Editor offen ist. */
+  readonly editingItem = computed<ItemBlock | null>(() => {
+    const id = this.editingEntryId();
+    if (!id) return null;
+    const entry = this.activeEntries().find(e => e.entryId === id);
+    return entry ? (entry.data as ItemBlock) : null;
+  });
+
+  /** Speichert die Änderung zurück in den Reiter bzw. ins Token-Inventar. */
+  saveEntryEdit(item: ItemBlock): void {
+    const id = this.editingEntryId();
+    const tab = this.activeTab();
+    if (!id || !tab) return;
+
+    if (tab.kind === 'desk') {
+      this.deskChanged.emit(this.tabs().map(t => t.tabId !== tab.key ? t : {
+        ...t,
+        entries: t.entries.map(e => (e.entryId === id ? { ...e, data: item, name: item.name } : e)),
+      }));
+    } else {
+      const token = this.npcs().find(t => 'npc:' + t.id === tab.key);
+      if (token) {
+        const index = Number(id.split(':').pop());
+        const inventory = [...(token.inventory ?? [])];
+        inventory[index] = item;
+        this.npcInventoryChanged.emit({ tokenId: token.id, inventory });
+      }
+    }
+    this.closeEntryEditor();
+  }
+
+  /** Eine Änderung aus der Item-Karte heraus (z. B. Stückzahl, identifiziert). */
+  onEntryPatch(entry: DeskEntry, patch: { path: string; value: unknown }): void {
+    const item = { ...(entry.data as ItemBlock) } as Record<string, unknown>;
+    item[patch.path.replace(/^\//, '')] = patch.value;
+    this.editingEntryId.set(entry.entryId);
+    this.saveEntryEdit(item as unknown as ItemBlock);
   }
 
   // ── Spalte 1: Spieler ──────────────────────────────────────────────────────
@@ -179,7 +274,9 @@ export class GmDeskComponent implements OnDestroy {
       revealed: t.revealed, count: t.entries.length,
     })),
     ...this.npcs().map(t => ({
-      key: 'npc:' + t.id, name: t.name, kind: 'npc' as const,
+      // Mit Kennzeichnung, sonst heißen fünf Kultisten alle gleich und man weiß nicht,
+      // welcher Reiter zu welchem Token auf der Karte gehört.
+      key: 'npc:' + t.id, name: tokenLabel(t), kind: 'npc' as const,
       revealed: false, count: (t.inventory ?? []).length,
     })),
   ]);
@@ -215,14 +312,45 @@ export class GmDeskComponent implements OnDestroy {
   }
 
   renameTab(tabId: string, name: string): void {
+    // Ein NSC-Reiter heißt wie sein Token — umbenennen heißt hier: die Kennzeichnung ändern.
+    if (tabId.startsWith('npc:')) {
+      const token = this.npcs().find(t => 'npc:' + t.id === tabId);
+      if (token) this.npcTagChanged.emit({ tokenId: token.id, tag: name.replace(token.name, '').trim() });
+      this.renamingTabId.set(null);
+      return;
+    }
     this.deskChanged.emit(this.tabs().map(t => (t.tabId === tabId ? { ...t, name } : t)));
     this.renamingTabId.set(null);
+  }
+
+  /**
+   * Leert den Reiter, ohne ihn zu löschen. Das ✕ oben stand vorher für "Reiter weg" — was
+   * niemand erwartet, der es neben einer Liste sieht. Löschen liegt jetzt im Rechtsklick.
+   */
+  clearTab(tabId: string): void {
+    this.deskChanged.emit(
+      this.tabs().map(t => (t.tabId === tabId ? { ...t, entries: [] } : t)),
+    );
   }
 
   deleteTab(tabId: string): void {
     this.deskChanged.emit(this.tabs().filter(t => t.tabId !== tabId));
     if (this.activeTabKey() === tabId) this.activeTabKey.set(null);
+    this.tabMenuFor.set(null);
   }
+
+  /** Reiter, dessen Rechtsklick-Menü offen ist, samt Position. */
+  readonly tabMenuFor = signal<{ key: string; x: number; y: number } | null>(null);
+
+  onTabContextMenu(event: MouseEvent, tab: DeskTabView): void {
+    event.preventDefault();
+    this.tabMenuFor.set({ key: tab.key, x: event.clientX, y: event.clientY });
+  }
+
+  /** NSC-Reiter lassen sich nicht löschen — sie gehören einem Token auf der Karte. */
+  isDeskTab(key: string): boolean { return !key.startsWith('npc:'); }
+
+  closeTabMenu(): void { this.tabMenuFor.set(null); }
 
   /** Aufdecken: der Reiter erscheint bei den Spielern unter Aktive Events und beginnt zu glühen. */
   toggleRevealed(tabId: string): void {
@@ -301,14 +429,18 @@ export class GmDeskComponent implements OnDestroy {
   /** Wohin aus dem Bibliotheks-Browser gezogen werden darf: der Reiter und jedes Porträt. */
   readonly dropTargets = computed<string[]>(() => [
     'deskEntryList',
+    // Der Beutel der Gruppe liegt in einer ANDEREN Komponente (unter Aktive Events). CDK
+    // verbindet Listen über ihre ID app-weit, deshalb steht er hier als Ziel — der Drop wird
+    // dort behandelt, wo die Liste lebt.
+    'deskStash',
     ...this.members().map(m => 'deskPlayer-' + m.id),
   ]);
 
   onEntryDropped(event: CdkDragDrop<DeskEntry[]>): void {
     // Aus der Bibliothek gezogen: derselbe Weg wie ein Klick auf ＋, nur mit gewähltem Ziel.
     if (event.previousContainer !== event.container) {
-      const browsed = event.item.data as BrowseEntry;
-      if (browsed) this.addToActiveTab(this.entryFromBrowse(browsed));
+      const dragged = event.item.data as (DeskEntry & { fromLibrary?: boolean }) | null;
+      if (dragged) this.addToActiveTab({ ...dragged, entryId: createDeskEntry(dragged.type, dragged.data).entryId });
       return;
     }
 
@@ -325,15 +457,12 @@ export class GmDeskComponent implements OnDestroy {
 
   /** Etwas auf ein Porträt gezogen — geht direkt an diesen Spieler, egal ob er ausgewählt ist. */
   onDropOnPlayer(event: CdkDragDrop<{ id: string; sheet: CharacterSheet }>, characterId: string): void {
-    const dragged = event.item.data as BrowseEntry | DeskEntry;
+    const dragged = event.item.data as (DeskEntry & { fromLibrary?: boolean }) | null;
     if (!dragged) return;
 
-    if ('entryId' in dragged) {
-      this.offerToCharacter.emit({ characterId, entry: dragged });
-      this.removeEntry(dragged.entryId);
-    } else {
-      this.offerToCharacter.emit({ characterId, entry: this.entryFromBrowse(dragged) });
-    }
+    this.offerToCharacter.emit({ characterId, entry: dragged });
+    // Nur was schon auf dem Schreibtisch lag, verschwindet dort — ein Bibliothekseintrag bleibt.
+    if (!dragged.fromLibrary) this.removeEntry(dragged.entryId);
   }
 
   // ── Spalte 3: Bibliothek ───────────────────────────────────────────────────
@@ -392,13 +521,13 @@ export class GmDeskComponent implements OnDestroy {
 
   isFolderOpen(path: string): boolean {
     // Bei einer Suche wird alles aufgeklappt — sonst sucht man und sieht nichts.
-    return !!this.search().trim() || this.openFolders().has(this.browseCategoryId() + '|' + path);
+    return !!this.search().trim() || !this.closedFolders().has(this.browseCategoryId() + '|' + path);
   }
 
   toggleFolder(path: string): void {
     const key = this.browseCategoryId() + '|' + path;
-    this.openFolders.update(open => {
-      const next = new Set(open);
+    this.closedFolders.update(closed => {
+      const next = new Set(closed);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
@@ -408,6 +537,29 @@ export class GmDeskComponent implements OnDestroy {
    * Das ＋ auf einem Bibliothekseintrag: mit ausgewähltem Spieler geht das Ding direkt an ihn,
    * ohne Auswahl landet es im offenen Reiter.
    */
+  /**
+   * Was beim Ziehen mitgereicht wird: IMMER ein fertiger `DeskEntry`.
+   *
+   * Vorher hing an einer Bibliothekszeile die rohe `BrowseEntry`, der Typ und Wissensart fehlen.
+   * Ein Drop-Ziel in einer anderen Komponente — der Beutel der Gruppe — konnte damit nicht
+   * entscheiden, ob es ein Gegenstand ist, und lehnte alles ab. `fromLibrary` unterscheidet den
+   * Neuzugang von einem Eintrag, der schon in einem Reiter liegt und dort verschwinden muss.
+   *
+   * Zwischengespeichert, weil Angular den Ausdruck bei jedem Änderungslauf neu auswertet und ein
+   * frisches Objekt mitten im Ziehen den Bezug reißen würde.
+   */
+  private readonly dragPayloads = new Map<string, DeskEntry & { fromLibrary: true }>();
+
+  dragPayload(entry: BrowseEntry): DeskEntry & { fromLibrary: true } {
+    const key = this.currentCategory.id + '|' + entry.id;
+    let payload = this.dragPayloads.get(key);
+    if (!payload) {
+      payload = { ...this.entryFromBrowse(entry), fromLibrary: true };
+      this.dragPayloads.set(key, payload);
+    }
+    return payload;
+  }
+
   /** Ein Bibliothekseintrag der aktiven Kategorie als Schreibtisch-Eintrag. */
   private entryFromBrowse(browseEntry: BrowseEntry): DeskEntry {
     const cat = this.currentCategory;

@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import {
   CurrentEvent,
   ShopEvent,
@@ -10,6 +11,7 @@ import {
 } from '../../model/current-events.model';
 import { DeskEntry, DeskTab, GRANT_TYPE_ICON, GRANT_TYPE_LABEL } from '../../model/gm-desk.model';
 import { PartyStashService } from '../../services/party-stash.service';
+import { PartyStashEntry } from '../../model/world.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
@@ -20,7 +22,7 @@ import { Library } from '../../model/library.model';
 @Component({
   selector: 'app-current-events-manager',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CdkDropList],
   template: `
     <div class="current-events-manager">
       <div class="events-header">
@@ -88,8 +90,14 @@ import { Library } from '../../model/library.model';
         </div>
       }
 
-      <!-- Beutel der Gruppe: server-autoritativ, dieselbe Ablage wie im Charakterbogen -->
-      <div class="party-bag">
+      <!-- Beutel der Gruppe: server-autoritativ, dieselbe Ablage wie im Charakterbogen.
+           Eigenes CDK-Drop-Ziel, damit Ziehen aus dem Schreibtisch hier landet statt beim
+           nächstbesten Spieler-Porträt. -->
+      <div class="party-bag"
+           cdkDropList
+           id="deskStash"
+           [cdkDropListData]="stash.entries()"
+           (cdkDropListDropped)="onDropInBag($event)">
         <div class="party-bag-head">
           <span class="party-bag-icon app-icon i-item"></span>
           <span class="party-bag-title">Beutel der Gruppe</span>
@@ -102,7 +110,7 @@ import { Library } from '../../model/library.model';
         }
 
         @if (stash.entries().length === 0) {
-          <p class="party-bag-empty">Leer — zieh etwas aus dem Schreibtisch hierher.</p>
+          <p class="party-bag-empty">Leer — zieh einen Gegenstand aus dem Schreibtisch hierher.</p>
         } @else {
           <div class="party-bag-list">
             @for (entry of stash.entries(); track entry.entryId) {
@@ -693,6 +701,21 @@ export class CurrentEventsManagerComponent {
   async removeFromBag(entryId: string): Promise<void> {
     await this.stash.withdraw(entryId);
   }
+
+  /**
+   * Etwas aus dem GM-Schreibtisch in den Beutel gezogen. Nur Gegenstände — der Beutel hält keine
+   * Zauber, kein Wissen und keine Münzen.
+   */
+  onDropInBag(event: CdkDragDrop<PartyStashEntry[]>): void {
+    // Der Schreibtisch reicht immer einen fertigen DeskEntry mit — egal ob aus einem Reiter
+    // oder frisch aus der Bibliothek gezogen (dann mit `fromLibrary`).
+    const entry = event.item.data as (DeskEntry & { fromLibrary?: boolean }) | null;
+    if (!entry?.type) return;
+    this.bagDrop.emit(entry);
+  }
+
+  /** Ein Ding soll in den Beutel — die Welt-Komponente kennt den Server-Weg dorthin. */
+  @Output() bagDrop = new EventEmitter<DeskEntry>();
 
   readonly typeIcon = GRANT_TYPE_ICON;
   readonly typeLabel = GRANT_TYPE_LABEL;

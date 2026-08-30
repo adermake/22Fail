@@ -5,11 +5,11 @@
     "character currentstats currentstats"
     "levelclass stats stats"
     "talents    stats stats"
+    "talents    events events"
     "talents    party party"
     "tabs tabs equipment"
     "tabs tabs equipment"
     "tabs tabs equipment"
-    "events events events"
     "backstory backstory backstory";
   gap: 0.75rem;
   padding: 0.75rem;
@@ -75,9 +75,9 @@
       "character stats"
       "levelclass stats"
       "talents stats"
+      "talents events"
       "talents party"
       "currentstats equipment"
-      "events events"
       "tabs tabs"
       "backstory backstory";
   }
@@ -92,9 +92,9 @@
       "stats"
       "levelclass"
       "talents"
+      "events"
       "party"
       "currentstats"
-      "events"
       "equipment"
       "tabs"
       "backstory";
