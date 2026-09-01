@@ -231,6 +231,7 @@ label {
 .i-material      { -webkit-mask-image: url('/icons/texture_tool.svg');      mask-image: url('/icons/texture_tool.svg'); }
 .i-knowledge     { -webkit-mask-image: url('/icons/passive_icon.svg');      mask-image: url('/icons/passive_icon.svg'); }
 .i-currency      { -webkit-mask-image: url('/icons/effektivity.svg');       mask-image: url('/icons/effektivity.svg'); }
+.i-logo          { -webkit-mask-image: url('/icons/logo.svg');              mask-image: url('/icons/logo.svg'); }
 
 /* ── Dice modifier convention (lower is better) ──
    Every displayed d20 modifier follows one rule: a NEGATIVE value helps the roll (green),

@@ -320,6 +320,14 @@ Ohne `category` werden alle Waffen nach Kategorie gruppiert.
 :::data{source=materials kind=weapon names="Eisen, Holz, Silber"}
 :::
 
+### Brauen — `source=wirkstoffe` / `extraktoren` / `braumerkmale`
+
+Ebenfalls Bibliotheksdaten, mit denselben Filtern wie Materialien
+(`tier=`, `rarity=`, `names=`):
+
+:::data{source=wirkstoffe tier=bekannt}
+:::
+
 Filter für Materialien — alle kombinierbar:
 
 | Attribut | Wirkung |

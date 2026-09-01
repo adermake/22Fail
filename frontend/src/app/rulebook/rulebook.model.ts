@@ -55,6 +55,10 @@ export interface RulebookRenderContext {
   weaponTypes?: import('./../model/weapon-type-block.model').WeaponTypeBlock[];
   /** Forge materials, straight from the libraries — the numbers players actually forge with. */
   materials?: import('./../model/forging.model').MaterialBlock[];
+  /** Brewing: Wirkstoffe, Extraktoren and Braumerkmale, also library assets. */
+  ingredients?: import('./../model/brewing.model').IngredientBlock[];
+  extractors?: import('./../model/brewing.model').ExtractorBlock[];
+  brewTraits?: import('./../model/brewing.model').BrewTrait[];
 }
 
 /** Per-render state handed to markdown-it as its `env`. */

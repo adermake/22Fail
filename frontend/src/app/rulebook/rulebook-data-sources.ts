@@ -30,6 +30,14 @@ import {
 import type { MaterialBlock, MaterialStats } from '../model/forging.model';
 import { KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf } from '../utils/knowledge-tier.util';
 import {
+  BREW_SLOT_LABELS,
+  type BrewEffectSlot,
+  type BrewTrait,
+  type ExtractorBlock,
+  type IngredientBlock,
+  type IngredientEffect,
+} from '../model/brewing.model';
+import {
   RUNE_GROUPS,
   RUNE_GROUP_LABELS,
   RUNE_GROUP_MEMBERS,
@@ -434,6 +442,138 @@ function renderRunes(attrs: DirectiveAttrs, env: RulebookEnv): string {
   return blocks || emptyNote('Keine Runen in dieser Kategorie.');
 }
 
+/**
+ * The three brewing sources — Wirkstoffe, Extraktoren and Braumerkmale. All three are library
+ * assets like Materialien, and carry the same `knowledgeTier` + `rarity` grading, so they take the
+ * same `tier=` / `rarity=` / `names=` filters.
+ *
+ * Unlike Runen and Waffentypen, these have been graded by `isPublic` since they were introduced,
+ * so the shared `knowledgeTierOf` default (ungraded = `geheim`) is the right one here.
+ */
+function gradedRows<T extends { name: string; rarity?: MaterialBlock['rarity'] }>(
+  loaded: readonly T[],
+  attrs: DirectiveAttrs,
+  env: RulebookEnv,
+  what: string,
+): { rows: T[] | null; error?: string } {
+  const tiers = parseTiers(attrs['tier'] ?? attrs['stufe'], env);
+  if (!tiers) {
+    return {
+      rows: null,
+      error:
+        `Unbekannte Wissensstufe. Verfügbar: ` +
+        KNOWLEDGE_TIERS.map((t) => t.value).join(', ') + ', all',
+    };
+  }
+  const rarities = parseRarities(attrs['rarity'] ?? attrs['seltenheit'], env);
+  if (rarities?.length === 0) {
+    return { rows: null, error: `Unbekannte Seltenheit. Verfügbar: ` + RARITY_VALUES.join(', ') + ', all' };
+  }
+
+  const usable = loaded.filter(
+    (r) =>
+      tiers.includes(knowledgeTierOf(r as { knowledgeTier?: KnowledgeTier; isPublic?: boolean })) &&
+      (!rarities || rarities.includes(r.rarity ?? 'COMMON')),
+  );
+  const picked = filterByNames(usable, attrs['names'] ?? attrs['nur'], env, what);
+  const rows = picked ?? [...usable].sort(
+    (a, b) => rarityRank(a.rarity) - rarityRank(b.rarity) || a.name.localeCompare(b.name, 'de'),
+  );
+  return { rows };
+}
+
+/** `Benommen 3 Stapel (2 BP)` — one ingredient slot, or an em dash when unset. */
+function describeEffect(fx: IngredientEffect | undefined, slot: BrewEffectSlot): string {
+  if (!fx?.statusEffectId && !fx?.statusEffectName) return '—';
+  const unit = fx.mode === 'DURATION' ? 'Runden' : 'Stapel';
+  const bp = fx.cost ? ` <span class="rb-scale">(${cell(fx.cost)} BP)</span>` : '';
+  void slot;
+  return `${cell(fx.statusEffectName || '?')} ${cell(fx.amount ?? 0)} ${unit}${bp}`;
+}
+
+/** Wirkstoffe — the three effect slots are the whole point, so each gets a column. */
+function renderIngredients(attrs: DirectiveAttrs, env: RulebookEnv): string {
+  const loaded = env.context?.ingredients;
+  if (!loaded) return emptyNote('Wirkstoffe konnten nicht geladen werden.');
+
+  const { rows, error } = gradedRows(loaded, attrs, env, 'Wirkstoff');
+  if (!rows) return emptyNote(error!);
+  if (!rows.length) return emptyNote('Keine passenden Wirkstoffe gefunden.');
+
+  const slots: BrewEffectSlot[] = ['primary', 'secondary', 'tertiary'];
+  return (
+    `<div class="rb-tablewrap"><table class="rb-table"><thead><tr>` +
+    `<th>Name</th><th>Seltenheit</th>` +
+    slots.map((sl) => `<th>${cell(BREW_SLOT_LABELS[sl])}</th>`).join('') +
+    `<th>Wert</th></tr></thead><tbody>` +
+    rows
+      .map(
+        (i) =>
+          `<tr><td><b>${cell(i.name)}</b></td>` +
+          `<td>${cell(RARITY_LABELS[i.rarity ?? 'COMMON'])}</td>` +
+          slots.map((sl) => `<td>${describeEffect(i[sl], sl)}</td>`).join('') +
+          `<td>${cell(i.cost ?? 0)}</td></tr>`,
+      )
+      .join('') +
+    `</tbody></table></div>`
+  );
+}
+
+/** Extraktoren — percentage cost reductions per slot. */
+function renderExtractors(attrs: DirectiveAttrs, env: RulebookEnv): string {
+  const loaded = env.context?.extractors;
+  if (!loaded) return emptyNote('Extraktoren konnten nicht geladen werden.');
+
+  const { rows, error } = gradedRows(loaded, attrs, env, 'Extraktor');
+  if (!rows) return emptyNote(error!);
+  if (!rows.length) return emptyNote('Keine passenden Extraktoren gefunden.');
+
+  return (
+    `<div class="rb-tablewrap"><table class="rb-table"><thead><tr>` +
+    `<th>Name</th><th>Seltenheit</th><th>Primär</th><th>Sekundär</th><th>Tertiär</th>` +
+    `<th>Wert</th><th>Beschreibung</th></tr></thead><tbody>` +
+    rows
+      .map(
+        (x) =>
+          `<tr><td><b>${cell(x.name)}</b></td>` +
+          `<td>${cell(RARITY_LABELS[x.rarity ?? 'COMMON'])}</td>` +
+          `<td>${cell(x.primaryReductionPercent ?? 0)} %</td>` +
+          `<td>${cell(x.secondaryReductionPercent ?? 0)} %</td>` +
+          `<td>${cell(x.tertiaryReductionPercent ?? 0)} %</td>` +
+          `<td>${cell(x.cost ?? 0)}</td>` +
+          `<td>${cell(x.description || '—')}</td></tr>`,
+      )
+      .join('') +
+    `</tbody></table></div>`
+  );
+}
+
+/** Braumerkmale — flat brew-point cost, optionally stackable up to maxLevel. */
+function renderBrewTraits(attrs: DirectiveAttrs, env: RulebookEnv): string {
+  const loaded = env.context?.brewTraits;
+  if (!loaded) return emptyNote('Braumerkmale konnten nicht geladen werden.');
+
+  const { rows, error } = gradedRows(loaded, attrs, env, 'Braumerkmal');
+  if (!rows) return emptyNote(error!);
+  if (!rows.length) return emptyNote('Keine passenden Braumerkmale gefunden.');
+
+  return (
+    `<div class="rb-tablewrap"><table class="rb-table"><thead><tr>` +
+    `<th>Name</th><th>Braupunkte</th><th>Stufen</th><th>Effekt</th>` +
+    `</tr></thead><tbody>` +
+    rows
+      .map(
+        (t) =>
+          `<tr><td><b>${cell(t.name)}</b></td>` +
+          `<td>${cell(t.braupunktKosten ?? 0)}</td>` +
+          `<td>${t.scalable ? `bis ${cell(t.maxLevel ?? 1)}` : '1'}</td>` +
+          `<td>${cell(t.effect || t.description || '—')}</td></tr>`,
+      )
+      .join('') +
+    `</tbody></table></div>`
+  );
+}
+
 const emptyNote = (msg: string) =>
   `<aside class="rb-note rb-note--warning"><div class="rb-note-title">${msg}</div></aside>`;
 
@@ -448,6 +588,12 @@ export const DATA_SOURCES: Record<string, DataRenderer> = {
   materialien: renderMaterials,
   runes: renderRunes,
   runen: renderRunes,
+  ingredients: renderIngredients,
+  wirkstoffe: renderIngredients,
+  extractors: renderExtractors,
+  extraktoren: renderExtractors,
+  brewtraits: renderBrewTraits,
+  braumerkmale: renderBrewTraits,
 };
 
 export function renderDataDirective(attrs: DirectiveAttrs, env: RulebookEnv): string {

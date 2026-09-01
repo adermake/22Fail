@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T20:12:14.008Z",
+  "generatedAt": "2026-09-01T21:12:39.279Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -553,7 +553,7 @@
       "tab": "Herstellung",
       "icon": "carfting",
       "order": 80,
-      "hash": "1fa5b4a0",
+      "hash": "161eb909",
       "outline": [
         {
           "id": "herstellung",
@@ -570,25 +570,25 @@
         {
           "id": "materialien",
           "text": "Materialien",
-          "level": 2,
+          "level": 3,
           "kind": "heading"
         },
         {
           "id": "waffenmaterialien",
           "text": "Waffenmaterialien",
-          "level": 3,
+          "level": 4,
           "kind": "heading"
         },
         {
           "id": "ruestungsmaterialien",
           "text": "Rüstungsmaterialien",
-          "level": 3,
+          "level": 4,
           "kind": "heading"
         },
         {
-          "id": "nur-allgemein-bekanntes-wissen",
-          "text": "Nur allgemein bekanntes Wissen",
-          "level": 3,
+          "id": "brauen",
+          "text": "Brauen",
+          "level": 2,
           "kind": "heading"
         }
       ]
@@ -600,7 +600,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "24d162c1",
+      "hash": "764f8438",
       "outline": [
         {
           "id": "syntax-beispiel",
@@ -713,6 +713,12 @@
         {
           "id": "materialien-data-source-materials",
           "text": "Materialien — `:::data{source=materials}`",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "brauen-source-wirkstoffe-extraktoren-braumerkmale",
+          "text": "Brauen — `source=wirkstoffe` / `extraktoren` / `braumerkmale`",
           "level": 3,
           "kind": "heading"
         },

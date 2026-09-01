@@ -5,6 +5,7 @@ import { renderMarkdown, stripFrontMatter } from './markdown/rulebook-markdown';
 import type { RuneBlock } from '../model/rune-block.model';
 import type { WeaponTypeBlock } from '../model/weapon-type-block.model';
 import type { MaterialBlock } from '../model/forging.model';
+import type { BrewTrait, ExtractorBlock, IngredientBlock } from '../model/brewing.model';
 
 const md = (...lines: string[]) => lines.join('\n') + '\n';
 
@@ -221,6 +222,56 @@ describe('renderMarkdown', () => {
 
     const bad = await renderMarkdown(md(':::data{source=weapons weight=fernkampf}', ':::'), 'g', { weaponTypes });
     expect(bad.warnings.join()).toContain('Gewichtsklasse');
+  });
+
+  it('renders brewing assets from the library with the shared filters', async () => {
+    const ingredients = [
+      { name: 'Mondkraut', rarity: 'RARE', knowledgeTier: 'bekannt', cost: 12,
+        primary: { statusEffectId: 's1', statusEffectName: 'Benommen', mode: 'STACK', amount: 3, cost: 2 },
+        secondary: { statusEffectId: '', mode: 'STACK', amount: 0, cost: 0 },
+        tertiary: { statusEffectId: 's2', statusEffectName: 'Blind', mode: 'DURATION', amount: 4, cost: 5 } },
+      { name: 'Geheimwurz', rarity: 'LEGENDARY', knowledgeTier: 'geheim', cost: 99,
+        primary: { statusEffectId: 's3', statusEffectName: 'Tod', mode: 'STACK', amount: 9, cost: 9 },
+        secondary: { statusEffectId: '', mode: 'STACK', amount: 0, cost: 0 },
+        tertiary: { statusEffectId: '', mode: 'STACK', amount: 0, cost: 0 } },
+    ] as unknown as IngredientBlock[];
+
+    const { html, warnings } = await renderMarkdown(
+      md(':::data{source=wirkstoffe}', ':::'), 'g', { ingredients },
+    );
+    expect(warnings).toEqual([]);
+    expect(html).toContain('Mondkraut');
+    expect(html).toContain('Benommen 3 Stapel');
+    expect(html).toContain('Blind 4 Runden');
+    // An empty slot shows an em dash, not a blank cell.
+    expect(html).toContain('—');
+    // `geheim` is hidden by default — these have been graded since they existed.
+    expect(html).not.toContain('Geheimwurz');
+
+    const all = await renderMarkdown(md(':::data{source=wirkstoffe tier=all}', ':::'), 'g', { ingredients });
+    expect(all.html).toContain('Geheimwurz');
+
+    const extractors = [
+      { name: 'Destillat', rarity: 'COMMON', isPublic: true, cost: 5,
+        primaryReductionPercent: 20, secondaryReductionPercent: 10, tertiaryReductionPercent: 0 },
+    ] as unknown as ExtractorBlock[];
+    const ex = await renderMarkdown(md(':::data{source=extraktoren}', ':::'), 'g', { extractors });
+    expect(ex.html).toContain('Destillat');
+    expect(ex.html).toContain('20');
+    expect(ex.warnings).toEqual([]);
+
+    const brewTraits = [
+      { name: 'Langanhaltend', braupunktKosten: 2, maxLevel: 3, scalable: true, isPublic: true,
+        effect: 'Wirkt [L] Runden länger' },
+    ] as unknown as BrewTrait[];
+    const bt = await renderMarkdown(md(':::data{source=braumerkmale}', ':::'), 'g', { brewTraits });
+    expect(bt.html).toContain('Langanhaltend');
+    expect(bt.html).toContain('bis 3');
+    expect(bt.warnings).toEqual([]);
+
+    // Without library data each says so rather than rendering an empty table.
+    const none = await renderMarkdown(md(':::data{source=wirkstoffe}', ':::'), 'g');
+    expect(none.html).toContain('konnten nicht geladen werden');
   });
 
   it('renders authored markdown tables with styling and a scroll container', async () => {

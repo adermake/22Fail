@@ -4,6 +4,7 @@ import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { WeaponTypeService } from '../services/weapon-type.service';
 import type { RuneBlock } from '../model/rune-block.model';
 import type { MaterialBlock } from '../model/forging.model';
+import type { BrewTrait, ExtractorBlock, IngredientBlock } from '../model/brewing.model';
 import { firstValueFrom } from 'rxjs';
 import { renderMarkdown } from './markdown/rulebook-markdown';
 import type {
@@ -78,6 +79,13 @@ export class RulebookService {
     // numbers a GM tuned in the Bibliothek are the only ones anyone plays with.
     if (/source\s*=\s*["']?material/i.test(source)) {
       context.materials = await this.loadMaterials();
+    }
+    // Brewing assets, all three in one pass — a Brauen page usually shows more than one of them.
+    if (/source\s*=\s*["']?(?:ingredient|wirkstoff|extract|extrakt|brewtrait|braumerkmal)/i.test(source)) {
+      const brewing = await this.loadBrewing();
+      context.ingredients = brewing.ingredients;
+      context.extractors = brewing.extractors;
+      context.brewTraits = brewing.brewTraits;
     }
 
     const result = await renderMarkdown(source, id, context); // ← markdown-it lazy chunk loads here
@@ -175,6 +183,62 @@ export class RulebookService {
       }
     })();
     return this.materialsPromise;
+  }
+
+  // ── Brewing assets (library) ──────────────────────────────────────
+  private brewingPromise: Promise<{
+    ingredients: IngredientBlock[];
+    extractors: ExtractorBlock[];
+    brewTraits: BrewTrait[];
+  }> | null = null;
+
+  /** Wirkstoffe, Extraktoren und Braumerkmale across all libraries, fetched once per session. */
+  private loadBrewing(): Promise<{
+    ingredients: IngredientBlock[];
+    extractors: ExtractorBlock[];
+    brewTraits: BrewTrait[];
+  }> {
+    this.brewingPromise ??= (async () => {
+      const empty = { ingredients: [], extractors: [], brewTraits: [] };
+      try {
+        const libraries = await firstValueFrom(this.assets.getAllLibraries());
+        const perLibrary = await Promise.all(
+          libraries.map(async (lib) => {
+            try {
+              const files = await firstValueFrom(
+                this.assets.searchFiles(lib.id, '', ['ingredient', 'extractor', 'brew-trait']),
+              );
+              return files;
+            } catch {
+              return [];
+            }
+          }),
+        );
+        const all = perLibrary.flat();
+        // De-duplicate by type + name: the same asset arrives twice via library dependencies.
+        const seen = new Set<string>();
+        const keep = (type: string, name: string) => {
+          const key = `${type}:${(name ?? '').trim().toLowerCase()}`;
+          if (!name || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        };
+        const of = <T>(type: string): T[] =>
+          all
+            .filter((f) => f.type === type && keep(type, (f.data as { name?: string })?.name ?? ''))
+            .map((f) => f.data as T);
+
+        return {
+          ingredients: of<IngredientBlock>('ingredient'),
+          extractors: of<ExtractorBlock>('extractor'),
+          brewTraits: of<BrewTrait>('brew-trait'),
+        };
+      } catch {
+        this.brewingPromise = null; // allow a retry on the next page view
+        return empty;
+      }
+    })();
+    return this.brewingPromise;
   }
 
   // ── Search ────────────────────────────────────────────────────────────────────
