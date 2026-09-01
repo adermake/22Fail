@@ -14,39 +14,40 @@ Ein guter Abenteurer hat stets die passenden Hilfsmittel zur Hand. Doch wenn das
 :::note{type=tip}
 Beim Schmieden werden hauptsächlich Rüstungsteile und Waffen hergestellt. Jedoch können auch andere Konstrukte beim Schmied hergestellt werden.
 :::
-Beim Schmieden erhält der Schmied 10 + D20 (+ weitere eventuelle Boni) Punkte, mit denen er der Ausrüstung Extrastats verleihen kann. Die Effizienz-, Stabilitäts- und Haltbarkeitskosten variieren ja nach Material, die Boni bleiben immer gleich. Waffen und Rüstungen können außerdem spezielle, einzigartige Zusatzeffekte besitzen. Jede Ausrüstung besteht aus einer Primär-, Sekundär- und Zusatzkomponente, deren Stats für die fertige Ausrüstung kombiniert werden.
+Beim Schmieden erhält der Schmied 10 + D20 (+ weitere eventuelle Boni) Punkte, mit denen er Qualität der Ausrüstung erhöhen kann, was Effektivität/Stabilität, Haltbarkeit, aber auch die Waffenvoraussetzung steigert. Diese Werte variieren ja nach Material, sowohl der Grundwert als auch die Rate mit der die Qualität die Werte steigert. 
+:::note{type=tip}
+Die Qualität des Primär- und Sekundärmaterials zu erhöhen kostet jeweils 3 Schmiedepunkte, erhöht sich aber mit jeder weiteren Erhöhung um 1. Beide Materialien im richtigen Verhältnis zu verbessern ist daher der Schlüssel zum optimalen Schmiedevorgang.
+:::
+Waffen und Rüstungen können außerdem spezielle, einzigartige Zusatzeffekte besitzen. Jede Ausrüstung besteht aus mindestens einer Primärkomponente. Sie kann aber zusätzlich um eine Sekundär- und Zusatzkomponente erweitert werden, deren Stats für die fertige Ausrüstung kombiniert werden. Jede Komponente hat leicht unterschiedliche Wirkungen, wie hier aufgelistet:
 
-:::grid{min=150}
-AWDAWD
-AWDAWDAWD
-AWDAWDD
-AWDAWD
-WADWADAWD
-WADAWD
+:::table{color=#a76957}
+| Komponente | Stat-Effizienz | Verbesserbar | Zusatzeffekt |
+| --- | --- | --- | --- |
+Primärkomponente | 100% | ✓ | ✓ |
+Sekundärkomponente | 50% | ✓ | ✓ |
+Zusatzkomponente | 0% | X | ✓ |
 :::
 
-## Materialien
-
-:::note{type=tip title="Direkt aus den Bibliotheken"}
-Alle Werte stammen aus den Materialien, die im **Bibliotheks-Editor** gepflegt werden — also
-genau die Zahlen, mit denen in der Schmiede gerechnet wird. Das orange :hl[(+X)]{color=orange}
-ist die Steigerung **pro Schmiedung**. Als :hl[geheim]{color=rot} eingestufte Materialien
-erscheinen hier nicht.
+:::note{type=tip}
+Zusätzlich kann der Stat, für den die Waffenvoraussetzung gilt, ausgewählt werden.
 :::
 
-### Waffenmaterialien
-
-:::data{source=materials kind=weapon}
+:::card{title="Waffen- und  Rüstungstyp"}
+ Für jede Ausrüstung muss eine Waffen- bzw. Rüstungsart ausgewählt werden, was in beiden Fällen leichten Einfluss auf alle Attribute haben. Der Waffentyp bestimmt außerdem unter anderem die Reichweite und die Schadensart, während der Rüstungstyp bestimmt, in welchen Rüstungsslot die Rüstung ausgerüstet werden kann.
 :::
 
-### Rüstungsmaterialien
+### Materialien
 
-:::data{source=materials kind=armor}
+Es existiert eine Vielfalt an Schmiedematerialien in der Welt, viele sind selbst den erfahrensten Abenteurern unbekannt. Diese schwer zu findenden Materialien sind aber oft für die hochwertigsten Waffen und Rüstungen verantwortlich. Einige Materialien sind sowohl für Rüstungen und Waffen verwendbar, während andere nur für jeweils eine Kategorie benutzt werden können.
+
+#### Waffenmaterialien
+
+:::data{source=materials kind=weapon tier=bekannt rarity=common}
 :::
 
-### Nur allgemein bekanntes Wissen
+#### Rüstungsmaterialien
 
-Beispiel für eine spoilerfreie Liste — nur `bekannt`, ohne Effektspalte:
-
-:::data{source=materials kind=weapon tier=bekannt effects=no}
+:::data{source=materials kind=armor tier=bekannt rarity=common}
 :::
+
+## Brauen
