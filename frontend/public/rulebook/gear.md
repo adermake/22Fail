@@ -9,9 +9,8 @@ order: 70
 
 Eine gute Ausrüstung kann den Ausgang einer Schlacht entscheiden. Sowohl die Wahl einer Waffe als auch der Rüstung muss gut bedacht sein, denn sie bieten unterschiedliche Vor- und Nachteile. Ein Charakter kann pro Rüstungsslot jeweils ein Rüstungsteil ausrüsten (je nach spezifischer Rüstung und Charaktereigenschaften können in seltenen Fällen auch mehrere Rüstungsteile ausgerüstet werden).
 
-:::grid{min=200}
+:::grid{min=150}
 :::card{title="Helm"}
-
 :::
 :::card{title="Brustpanzer"}
 :::
@@ -71,6 +70,9 @@ Bestimmt, ob eine Waffe einhändig oder beidhändig benutzt werden kann. Beidhä
 Die Nachladezeit legt fest, wie lange eine Waffe nach bzw. vor einem Angriff braucht, um angriffsbereit zu sein. Dies kann von einer Bonusaktion, zu mehreren Aktionen reichen.
 :::
 
+
+### Waffenarten
+
 Alle Waffen können in 3 Waffenarten unterteilt werden:
 
 :::card{title="Leichte Waffen" color=#ef9533}
@@ -89,30 +91,34 @@ Fernkampfwaffen sind eine spezielle Waffenart und kommen mit vielen eigenen [Reg
 :::
 :::
 
+## Rüstung
 
+Wie schon oben erklärt gibt es 5 reguläre Rüstungsslots. Auch wenn die sich diese Rüstungsteile in einigen Bereichen unterscheiden, vor allem in Gewicht und Stärke, besitzen sie alle 3 Attribute:
 
-## Materialien
-
-:::note{type=tip title="Direkt aus den Bibliotheken"}
-Alle Werte stammen aus den Materialien, die im **Bibliotheks-Editor** gepflegt werden — also
-genau die Zahlen, mit denen in der Schmiede gerechnet wird. Das orange :hl[(+X)]{color=orange}
-ist die Steigerung **pro Schmiedung**. Als :hl[geheim]{color=rot} eingestufte Materialien
-erscheinen hier nicht.
+:::card{title="Stabilität" color=#838399}
+Die Stabilität einer Rüstung bestimmt, wie stark erhaltener Schaden reduziert wird. Der Durchschnitt aller Stabilitätswerte wird wie folgt in Schadensreduktion umgerechnet:
+:::formula
+Schadensreduktion: 100/(Stabilität+100)
+:::
+:::note{type:tip}
+Leere Rüstungsslots zählen als 0 Stabilität für den Durchschnitt.
+:::
+Mehr zur allgemeinen Schadensberechnung findest du [hier](kampf#Schadensberechnung).
+:::
+:::card{title="Rüstungsmalus" color=#9e1616}
+Der Rüstungsmalus bestimmt, wie stark sich das Gewicht der Rüstung auf die Geschwindigkeit des Trägers auswirkt. Der Durchschnitt aller Rüstungsmali wird von der Geschwindigkeit abgezogen, kann aber von der [Rüstungsnegation](kampf#ruestungsnegation) reduziert werden.
+:::
+:::card{title="Haltbarkeit" color=#ef9533}
+Bestimmt, wie lange ein Rüstungsteil benutzt werden kann, bevor sie kaputtgeht. Ein gegnerischer Angriff verbraucht etwa 1 Haltbarkeit, dieser Wert wird aber erst am Ende eines Kampfes zusammengerechnet und auf alle Rüstungsteile angewandt. Wenn die Haltbarkeit bei einem gegnerischen Angriff unter 10 fällt, muss gewürfelt werden, ob die Rüstung kaputtgeht. Der Würfelbonus für diesen Wurf lautet
+:::formula
++5 - Haltbarkeit
+:::
+Eine kaputte Rüstung bietet keine Stabilität mehr, muss aber abgelegt werden um den Rüstungsmalus loszuwerden. Wie eine Waffe kann ein Rüstungsteil bei einem Schmied mit Beigabe des Primärmaterials repariert werden.
+:::
 :::
 
-### Waffenmaterialien
+:::actions
+:jump[Zurück zu Magie]{to=zauber}
 
-:::data{source=materials kind=weapon}
-:::
-
-### Rüstungsmaterialien
-
-:::data{source=materials kind=armor}
-:::
-
-### Nur allgemein bekanntes Wissen
-
-Beispiel für eine spoilerfreie Liste — nur `bekannt`, ohne Effektspalte:
-
-:::data{source=materials kind=weapon tier=bekannt effects=no}
+:jump[Weiter zur Herstellung]{to=craft}
 :::
