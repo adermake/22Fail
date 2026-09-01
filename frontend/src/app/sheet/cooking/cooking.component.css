@@ -162,3 +162,11 @@
 .ck-chip-msg { background: transparent; border: 1px dashed var(--border, #4a5568); color: var(--muted, #9ca3af); font-weight: 500; }
 
 .ck-item:disabled { opacity: 0.5; cursor: default; }
+
+/* How many units of an ingredient are in the pot */
+.ck-item-inpot {
+  padding: 1px 8px;
+  border-radius: 9px;
+  background: var(--accent, #8b5cf6);
+  color: #fff; font-size: 0.72rem; font-weight: 800;
+}

@@ -1,6 +1,6 @@
 import {
-  COOKED_MARK, cookingOutcome, dividePortions, isCookable, isCookedMeal, mergeConsumableScripts,
-  rollCookingQuality, scaleAllValues, splitAmount, summariseEffects,
+  COOKED_MARK, buildMealScript, cookingOutcome, describeMealEffects, isCookable, isCookedMeal,
+  mergeConsumableScripts, rollCookingQuality, scaleSummary, summariseEffects,
 } from './cooking.util';
 import { ItemBlock } from '../model/item-block.model';
 
@@ -33,68 +33,6 @@ describe('Kochen', () => {
 
     it('returns nothing for an empty pot', () => {
       expect(mergeConsumableScripts([])).toBe('');
-    });
-  });
-
-  describe('splitting across portions', () => {
-    it('divides evenly', () => {
-      expect(splitAmount(20, 4)).toBe(5);
-    });
-
-    it('truncates rather than inflating a portion', () => {
-      expect(splitAmount(10, 3)).toBe(3);
-    });
-
-    it('never divides an effect out of existence', () => {
-      expect(splitAmount(2, 5)).toBe(1);
-      expect(splitAmount(-2, 5)).toBe(-1);
-    });
-
-    it('leaves zero at zero', () => {
-      expect(splitAmount(0, 3)).toBe(0);
-    });
-  });
-
-  describe('dividePortions', () => {
-    it('scales gainResource and loseResource', () => {
-      const out = dividePortions('gainResource(health, 20) loseResource(mana, 8)', 4);
-      expect(out).toContain('gainResource(health, 5)');
-      expect(out).toContain('loseResource(mana, 2)');
-    });
-
-    it('scales applyStatus stacks and duration', () => {
-      const out = dividePortions('applyStatus("fx_kraft", 8, 12)', 4);
-      expect(out).toBe('applyStatus("fx_kraft", 2, 3)');
-    });
-
-    it('scales a stacks-only applyStatus', () => {
-      expect(dividePortions('applyStatus("fx_kraft", 6)', 3)).toBe('applyStatus("fx_kraft", 2)');
-    });
-
-    it('leaves a single portion untouched', () => {
-      const src = 'gainResource(health, 20)';
-      expect(dividePortions(src, 1)).toBe(src);
-    });
-
-    it('passes comments and unknown calls through unchanged', () => {
-      const src = '// Eintopf\nif (level > 3) { display("Sättigend") }\ngiveStatus("Satt", "", 1, 5, "", buff) { }';
-      expect(dividePortions(src, 4)).toBe(src);
-    });
-
-    it('keeps onRest blocks working, scaled like everything else', () => {
-      const out = dividePortions('onRest { gainResource(health, 12) }', 3);
-      expect(out).toBe('onRest { gainResource(health, 4) }');
-    });
-
-    it('handles a real two-ingredient meal end to end', () => {
-      const merged = mergeConsumableScripts([
-        item('Heiltrank', 'gainResource(health, 30)'),
-        item('Rauschtrank', 'applyStatus("fx_rausch", 4) onRest { loseResource(health, 6) }'),
-      ]);
-      const out = dividePortions(merged, 2);
-      expect(out).toContain('gainResource(health, 15)');
-      expect(out).toContain('applyStatus("fx_rausch", 2)');
-      expect(out).toContain('loseResource(health, 3)');
     });
   });
 
@@ -190,38 +128,6 @@ describe('Kochen', () => {
     });
   });
 
-  describe('scaling the whole dish', () => {
-    it('scales immediate effects as well as onRest ones', () => {
-      const out = scaleAllValues('gainResource(mana, 10) onRest { gainResource(health, 10) }', 1.5);
-      expect(out).toContain('gainResource(mana, 15)');
-      expect(out).toContain('gainResource(health, 15)');
-    });
-
-    it('scales down on a bad roll', () => {
-      expect(scaleAllValues('gainResource(health, 20)', 0.75)).toBe('gainResource(health, 15)');
-    });
-
-    it('scales applyStatus stacks and duration', () => {
-      const out = scaleAllValues('applyStatus("fx_satt", 2, 4)', 2);
-      expect(out).toBe('applyStatus("fx_satt", 4, 8)');
-    });
-
-    it('never rounds a real effect away to nothing', () => {
-      expect(scaleAllValues('gainResource(health, 1)', 0.05)).toBe('gainResource(health, 1)');
-    });
-
-    it('is a no-op at a multiplier of one', () => {
-      const src = 'onRest { gainResource(health, 7) }';
-      expect(scaleAllValues(src, 1)).toBe(src);
-    });
-
-    it('combines with the portion split: both shrink the dish', () => {
-      const perPortion = dividePortions('onRest { gainResource(health, 40) }', 4);
-      expect(perPortion).toContain('gainResource(health, 10)');
-      expect(scaleAllValues(perPortion, 0.75)).toContain('gainResource(health, 8)');
-    });
-  });
-
   describe('adding up what a dish does', () => {
     it('sums repeated changes to the same pool', () => {
       const sum = summariseEffects({
@@ -280,6 +186,124 @@ describe('Kochen', () => {
 
     it('reports an empty dish as empty', () => {
       expect(summariseEffects({ resourceChanges: [], statusOps: [], displays: [] }).empty).toBe(true);
+    });
+  });
+
+  describe('adding up repeats', () => {
+    it('merges the same status from two ingredients into one, with the stacks added', () => {
+      const sum = summariseEffects({
+        resourceChanges: [],
+        statusOps: [
+          { op: 'apply', id: 'fx_satt', stacks: 2, duration: 4 },
+          { op: 'apply', id: 'fx_satt', stacks: 3, duration: 6 },
+        ],
+        displays: [],
+      });
+      expect(sum.statuses).toEqual([{ id: 'fx_satt', stacks: 5, duration: 6 }]);
+    });
+
+    it('does not repeat the same message twice', () => {
+      const sum = summariseEffects({
+        resourceChanges: [], statusOps: [],
+        displays: [{ type: 'text', text: 'Lecker' }, { type: 'text', text: 'Lecker' }],
+      });
+      expect(sum.messages).toEqual(['Lecker']);
+    });
+  });
+
+  describe('scaling the finished dish', () => {
+    const summary = () => summariseEffects({
+      resourceChanges: [{ resource: 'health', amount: 40 }, { resource: 'mana', amount: -8 }],
+      statusOps: [{ op: 'apply', id: 'fx_satt', stacks: 4, duration: 8 }],
+      displays: [],
+    });
+
+    it('divides by the portions', () => {
+      const out = scaleSummary(summary(), 1 / 4);
+      expect(out.resources).toEqual([
+        { key: 'health', label: 'Leben', amount: 10 },
+        { key: 'mana', label: 'Mana', amount: -2 },
+      ]);
+      expect(out.statuses[0]).toEqual({ id: 'fx_satt', stacks: 1, duration: 2 });
+    });
+
+    it('applies the roll on top of the portions', () => {
+      // 4 portions of a dish cooked at +50 %: 40 → 10 → 15
+      const out = scaleSummary(summary(), (1 / 4) * 1.5);
+      expect(out.resources[0].amount).toBe(15);
+    });
+
+    it('shrinks a bad dish', () => {
+      expect(scaleSummary(summary(), 0.75).resources[0].amount).toBe(30);
+    });
+
+    it('never scales a real effect away to nothing', () => {
+      const tiny = summariseEffects({
+        resourceChanges: [{ resource: 'health', amount: 1 }], statusOps: [], displays: [],
+      });
+      expect(scaleSummary(tiny, 0.01).resources[0].amount).toBe(1);
+    });
+
+    it('keeps a status at one stack at minimum', () => {
+      const out = scaleSummary(summary(), 0.01);
+      expect(out.statuses[0].stacks).toBe(1);
+    });
+  });
+
+  describe('building the meal', () => {
+    it('writes gains, losses and statuses, splitting immediate from onRest', () => {
+      const script = buildMealScript({
+        immediate: summariseEffects({
+          resourceChanges: [{ resource: 'health', amount: 12 }],
+          statusOps: [{ op: 'apply', id: 'fx_satt', stacks: 2, duration: 6 }],
+          displays: [],
+        }),
+        onRest: summariseEffects({
+          resourceChanges: [{ resource: 'mana', amount: -3 }], statusOps: [], displays: [],
+        }),
+      });
+
+      expect(script).toContain('gainResource(health, 12)');
+      expect(script).toContain('applyStatus("fx_satt", 2, 6)');
+      expect(script).toContain('onRest {');
+      expect(script).toContain('loseResource(mana, 3)');
+    });
+
+    it('leaves out an onRest block when nothing happens at rest', () => {
+      const script = buildMealScript({
+        immediate: summariseEffects({
+          resourceChanges: [{ resource: 'health', amount: 5 }], statusOps: [], displays: [],
+        }),
+        onRest: summariseEffects({ resourceChanges: [], statusOps: [], displays: [] }),
+      });
+      expect(script).toBe('gainResource(health, 5)');
+    });
+
+    it('produces an empty script for a dish that does nothing', () => {
+      const nothing = summariseEffects({ resourceChanges: [], statusOps: [], displays: [] });
+      expect(buildMealScript({ immediate: nothing, onRest: nothing })).toBe('');
+    });
+  });
+
+  describe('describing the meal for its item card', () => {
+    it('reads as one line covering both halves', () => {
+      const text = describeMealEffects({
+        immediate: summariseEffects({
+          resourceChanges: [{ resource: 'health', amount: 12 }], statusOps: [], displays: [],
+        }),
+        onRest: summariseEffects({
+          resourceChanges: [{ resource: 'mana', amount: 4 }],
+          statusOps: [{ op: 'apply', id: 'fx_satt', stacks: 2 }],
+          displays: [],
+        }),
+      }, id => (id === 'fx_satt' ? 'Satt' : id));
+
+      expect(text).toBe('Sofort: +12 Leben · Bei der Rast: +4 Mana, Satt ×2');
+    });
+
+    it('says nothing for a dish that does nothing', () => {
+      const nothing = summariseEffects({ resourceChanges: [], statusOps: [], displays: [] });
+      expect(describeMealEffects({ immediate: nothing, onRest: nothing }, id => id)).toBe('');
     });
   });
 });

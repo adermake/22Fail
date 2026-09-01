@@ -9,8 +9,9 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import {
-  COOKED_MARK, CookingRoll, MealEffectSummary, cookingOutcome, dividePortions, isCookable,
-  mergeConsumableScripts, rollCookingQuality, scaleAllValues, summariseEffects,
+  COOKED_MARK, CookingRoll, MealEffects, MealEffectSummary, buildMealScript, cookingOutcome,
+  describeMealEffects, isCookable, mergeConsumableScripts, rollCookingQuality, scaleSummary,
+  summariseEffects,
 } from '../../utils/cooking.util';
 import { REST_TRIGGER, runScript } from '../../scripting/interpreter';
 import { createPlayerContext } from '../../scripting/character-context';
@@ -52,6 +53,8 @@ export class CookingComponent implements OnInit, OnDestroy {
   spinningDie = 1;
   /** The finished dish, so the result screen can name it. */
   cookedName = '';
+  /** The finished dish's effects, frozen — the ingredients are gone by the time it is shown. */
+  cookedEffects: MealEffects | null = null;
   private spinTimer: ReturnType<typeof setInterval> | null = null;
   private prevBodyOverflow = '';
 
@@ -71,6 +74,7 @@ export class CookingComponent implements OnInit, OnDestroy {
       .filter(entry => isCookable(entry.item));
   }
 
+  /** What is in the pot, one entry per unit — the same ingredient may appear several times. */
   get pot(): CookEntry[] {
     return this.picked
       .map(index => ({ index, item: this.sheet.inventory?.[index] as ItemBlock }))
@@ -79,18 +83,41 @@ export class CookingComponent implements OnInit, OnDestroy {
 
   isPicked(index: number): boolean { return this.picked.includes(index); }
 
-  toggle(index: number): void {
-    this.picked = this.isPicked(index)
-      ? this.picked.filter(i => i !== index)
-      : [...this.picked, index];
+  /** How many units of this slot are in the pot. */
+  pickedCount(index: number): number {
+    return this.picked.filter(i => i === index).length;
+  }
+
+  /** Units of this slot the character actually owns. */
+  availableCount(index: number): number {
+    const item = this.sheet.inventory?.[index];
+    if (!item) return 0;
+    return item.stackable ? Math.max(1, item.amount ?? 1) : 1;
+  }
+
+  /** Left click: one more of this ingredient, up to what is owned. */
+  addOne(index: number): void {
+    if (this.phase !== 'pot') return;
+    if (this.pickedCount(index) >= this.availableCount(index)) return;
+    this.picked = [...this.picked, index];
+    this.cdr.markForCheck();
+  }
+
+  /** Right click: one fewer. */
+  removeOne(index: number, event?: Event): void {
+    event?.preventDefault();
+    if (this.phase !== 'pot') return;
+    const at = this.picked.lastIndexOf(index);
+    if (at < 0) return;
+    this.picked = this.picked.filter((_, i) => i !== at);
     this.cdr.markForCheck();
   }
 
   // ── The meal ───────────────────────────────────────────────────────────────
 
-  /** Combined script of everything in the pot, divided by the portion count. */
-  get resultScript(): string {
-    return dividePortions(mergeConsumableScripts(this.pot.map(e => e.item)), this.portions);
+  /** The ingredients' combined script, before portions or the Kochprobe touch it. */
+  private get rawScript(): string {
+    return mergeConsumableScripts(this.pot.map(e => e.item));
   }
 
   // ── Scroll lock ────────────────────────────────────────────────────────────
@@ -108,21 +135,43 @@ export class CookingComponent implements OnInit, OnDestroy {
 
   // ── What the dish will do ──────────────────────────────────────────────────
 
-  /** The dish as it stands: merged, divided by portions, and scaled if it has been cooked. */
-  private get finalScript(): string {
-    const base = this.resultScript;
-    return this.lastRoll ? scaleAllValues(base, this.lastRoll.multiplier) : base;
+  /**
+   * What one portion of the dish does: the ingredients run once, added up, then divided by the
+   * portions and scaled by the Kochprobe. Both adjustments happen on NUMBERS here rather than on
+   * the ingredients' script text, which is why they now always take effect.
+   */
+  private effectsFor(factor: number): MealEffects {
+    const script = this.rawScript;
+    return {
+      immediate: scaleSummary(this.summarise(script), factor),
+      onRest: scaleSummary(this.summarise(script, REST_TRIGGER), factor),
+    };
+  }
+
+  /** Everything portions and the roll do to the dish, as one factor. */
+  private get portionFactor(): number {
+    const perPortion = 1 / Math.max(1, this.portions);
+    return this.lastRoll ? perPortion * this.lastRoll.multiplier : perPortion;
+  }
+
+  /** The forecast while the pot is still being filled. */
+  get mealEffects(): MealEffects {
+    return this.effectsFor(this.portionFactor);
+  }
+
+  /**
+   * What the panel shows. After cooking this MUST be the frozen result: the ingredients have been
+   * used up by then, so recomputing from the pot would show an empty dish.
+   */
+  get shownEffects(): MealEffects {
+    return this.phase === 'done' && this.cookedEffects ? this.cookedEffects : this.mealEffects;
   }
 
   /** Effects that land the moment a portion is eaten. */
-  get immediateEffects(): MealEffectSummary {
-    return this.summarise(this.finalScript);
-  }
+  get immediateEffects(): MealEffectSummary { return this.shownEffects.immediate; }
 
   /** Effects that land at the next Rast. */
-  get restEffects(): MealEffectSummary {
-    return this.summarise(this.finalScript, REST_TRIGGER);
-  }
+  get restEffects(): MealEffectSummary { return this.shownEffects.onRest; }
 
   get hasAnyEffect(): boolean {
     return !this.immediateEffects.empty || !this.restEffects.empty;
@@ -210,13 +259,19 @@ export class CookingComponent implements OnInit, OnDestroy {
     meal.id = `meal_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     meal.name = this.mealName.trim();
     meal.itemType = 'consumable';
-    meal.description = `Gekocht aus: ${ingredients.map(e => e.item.name).join(', ')}\n`
-      + `${this.portions} Portion(en) — Wirkung je Portion geteilt.`;
     // How well it turned out: 5 × (15 − W20) %, applied to the whole dish.
     const roll = rollCookingQuality(this.cookingBonus);
     this.lastRoll = roll;
     this.spinningDie = roll.die;
-    meal.script = scaleAllValues(this.resultScript, roll.multiplier);
+
+    // Build the meal from the SUMMED, scaled effects rather than by rewriting the ingredients'
+    // script text — that is what makes portions and the roll actually land.
+    const effects = this.effectsFor(this.portionFactor);
+    this.cookedEffects = effects;
+    meal.script = buildMealScript(effects);
+    // Carried on the item so the inventory card can say what a portion does.
+    meal.primaryEffect = describeMealEffects(effects, id => this.statusName(id));
+    meal.description = `Gekocht aus: ${ingredients.map(e => e.item.name).join(', ')}`;
     meal.stackable = true;
     meal.amount = this.portions;
     meal.weight = Math.round(
@@ -256,6 +311,7 @@ export class CookingComponent implements OnInit, OnDestroy {
     this.mealName = '';
     this.portions = 1;
     this.lastRoll = null;
+    this.cookedEffects = null;
     this.phase = 'pot';
     this.cdr.markForCheck();
   }

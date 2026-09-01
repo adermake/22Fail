@@ -2,13 +2,10 @@ import { ItemBlock } from '../model/item-block.model';
 import { hasRestBlock } from '../scripting/interpreter';
 
 /**
- * Kochen merges the action code of several consumables into one meal and splits it across the
- * portions. Since a consumable's effect IS its script, merging is concatenation and "dividing"
- * means scaling the numeric argument of every effect call.
+ * Kochen: several ingredients go in the pot, their effects are added up, divided by the portions
+ * and scaled by the Kochprobe, and a single new dish comes out.
  *
- * Only the well-known effect calls are scaled — `gainResource`, `loseResource` and the stack/
- * duration arguments of `applyStatus`. Anything else (conditions, display text, giveStatus bodies)
- * is copied through untouched: a cook can divide a portion, not rewrite an author's logic.
+ * The scaling is done on NUMBERS, never on the ingredients' script text — see `MealEffects`.
  */
 
 /** Concatenate the scripts of everything in the pot, keeping each source recognisable. */
@@ -22,52 +19,9 @@ export function mergeConsumableScripts(items: readonly ItemBlock[]): string {
     .join('\n');
 }
 
-/** Split a value across portions: always at least 1 when the original was positive. */
-export function splitAmount(amount: number, portions: number): number {
-  const per = amount / Math.max(1, portions);
-  if (amount === 0) return 0;
-  const rounded = Math.trunc(per);
-  if (rounded !== 0) return rounded;
-  return amount > 0 ? 1 : -1; // never divide an effect out of existence entirely
-}
-
 /**
- * Scale every effect amount in a script by 1/portions. Comments and unknown calls pass through.
- */
-export function dividePortions(script: string, portions: number): string {
-  const count = Math.max(1, Math.floor(portions) || 1);
-  if (!script.trim() || count === 1) return script;
-  return mapEffectValues(script, value => splitAmount(value, count));
-}
-
-/**
- * Rewrite every effect amount in a script through `map`. One place that knows which calls carry
- * numbers worth scaling, shared by the portion split and the cooking-quality multiplier.
- */
-function mapEffectValues(script: string, map: (value: number) => number): string {
-  // gainResource(health, 20) / loseResource(mana, 5) → the second argument
-  let out = script.replace(
-    /\b(gainResource|loseResource)\s*\(\s*([A-Za-z_]\w*)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g,
-    (_m, fn: string, res: string, amount: string) => `${fn}(${res}, ${map(Number(amount))})`,
-  );
-
-  // applyStatus("id", stacks) and applyStatus("id", stacks, duration) → both numbers
-  out = out.replace(
-    /\bapplyStatus\s*\(\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\)/g,
-    (_m, id: string, stacks: string, duration?: string) => {
-      const s = map(Number(stacks));
-      if (duration === undefined) return `applyStatus(${id}, ${s})`;
-      return `applyStatus(${id}, ${s}, ${map(Number(duration))})`;
-    },
-  );
-
-  return out;
-}
-
-/**
- * A cooked meal is marked so it can never go back in the pot. Cooking merges and DIVIDES
- * effects; cooking a meal again would let a stack of one portion be split into ten, so the loop
- * has to be closed at the ingredient level.
+ * A cooked meal is marked so it can never go back in the pot: cooking a meal again would let one
+ * portion be split into ten, so the loop is closed at the ingredient level.
  */
 export const COOKED_MARK = 'cooked';
 
@@ -130,23 +84,6 @@ export function rollCookingQuality(bonus: number, rng: () => number = Math.rando
   return cookingOutcome(Math.floor(rng() * 20) + 1, bonus);
 }
 
-/**
- * Scale everything the dish does by the cooking multiplier — immediate effects and `onRest`
- * alike. How well you cooked changes the whole dish, not just the part that keeps overnight.
- */
-export function scaleAllValues(script: string, multiplier: number): string {
-  if (!script.trim() || multiplier === 1) return script;
-  return mapEffectValues(script, value => scaleAmount(value, multiplier));
-}
-
-/** Scale one value, never rounding a real effect away to nothing. */
-function scaleAmount(amount: number, multiplier: number): number {
-  if (amount === 0) return 0;
-  const scaled = Math.round(amount * multiplier);
-  if (scaled !== 0) return scaled;
-  return amount > 0 ? 1 : -1;
-}
-
 // ── Was das Gericht tut ─────────────────────────────────────────────────────
 
 /** The pools a meal can move, in the order they are shown. */
@@ -179,13 +116,26 @@ export function summariseEffects(result: {
     .filter(r => !!totals.get(r.key))
     .map(r => ({ key: r.key, label: r.label, amount: totals.get(r.key)! }));
 
-  const statuses = (result.statusOps ?? [])
-    .filter(op => op.op === 'apply')
-    .map(op => ({ id: op.id, stacks: op.stacks ?? 1, duration: op.duration }));
+  // The same effect from two ingredients (or two of the same ingredient) is one entry with the
+  // stacks added up, not the same name listed twice.
+  const byId = new Map<string, { id: string; stacks: number; duration?: number }>();
+  for (const op of result.statusOps ?? []) {
+    if (op.op !== 'apply') continue;
+    const seen = byId.get(op.id);
+    if (!seen) {
+      byId.set(op.id, { id: op.id, stacks: op.stacks ?? 1, duration: op.duration });
+      continue;
+    }
+    seen.stacks += op.stacks ?? 1;
+    if (op.duration !== undefined) {
+      seen.duration = Math.max(seen.duration ?? 0, op.duration);
+    }
+  }
+  const statuses = [...byId.values()];
 
-  const messages = (result.displays ?? [])
+  const messages = [...new Set((result.displays ?? [])
     .map(d => d.text ?? (d.label ? `${d.label}: ${d.value ?? ''}` : ''))
-    .filter(Boolean) as string[];
+    .filter(Boolean) as string[])];
 
   return {
     resources,
@@ -193,4 +143,95 @@ export function summariseEffects(result: {
     messages,
     empty: resources.length === 0 && statuses.length === 0 && messages.length === 0,
   };
+}
+
+// ── Vom Topf zum Gericht ────────────────────────────────────────────────────
+
+/**
+ * A finished dish, as numbers rather than as code.
+ *
+ * Cooking used to rewrite the ingredients' script text with a regex, which only ever matched
+ * literal numbers in exactly the expected shape — so portions and the Kochprobe silently did
+ * nothing to anything written even slightly differently. Now the ingredients are RUN once, their
+ * effects are added up, those numbers are scaled, and a fresh, plain script is generated from
+ * them. What the kitchen promises and what the meal does are the same numbers.
+ *
+ * The trade: an ingredient's conditional logic (`if (level > 3) { … }`) is resolved at cooking
+ * time rather than at eating time. For a merged stew that is the more predictable behaviour.
+ */
+export interface MealEffects {
+  immediate: MealEffectSummary;
+  onRest: MealEffectSummary;
+}
+
+/** Scale one summary by a factor, never rounding a real effect away to nothing. */
+export function scaleSummary(summary: MealEffectSummary, factor: number): MealEffectSummary {
+  const scale = (value: number): number => {
+    if (!value) return 0;
+    const scaled = Math.round(value * factor);
+    if (scaled !== 0) return scaled;
+    return value > 0 ? 1 : -1;
+  };
+
+  const resources = summary.resources
+    .map(r => ({ ...r, amount: scale(r.amount) }))
+    .filter(r => r.amount !== 0);
+  const statuses = summary.statuses.map(fx => ({
+    ...fx,
+    stacks: Math.max(1, scale(fx.stacks)),
+    duration: fx.duration === undefined ? undefined : Math.max(1, scale(fx.duration)),
+  }));
+
+  return {
+    resources,
+    statuses,
+    messages: summary.messages,
+    empty: resources.length === 0 && statuses.length === 0 && summary.messages.length === 0,
+  };
+}
+
+/** Turn the computed effects back into a script the meal can carry. */
+export function buildMealScript(effects: MealEffects): string {
+  const lines = [...effectLines(effects.immediate)];
+  const rest = effectLines(effects.onRest);
+  if (rest.length) {
+    lines.push('onRest {');
+    lines.push(...rest.map(line => `  ${line}`));
+    lines.push('}');
+  }
+  return lines.join('\n');
+}
+
+function effectLines(summary: MealEffectSummary): string[] {
+  const lines: string[] = [];
+  for (const res of summary.resources) {
+    lines.push(res.amount > 0
+      ? `gainResource(${res.key}, ${res.amount})`
+      : `loseResource(${res.key}, ${Math.abs(res.amount)})`);
+  }
+  for (const fx of summary.statuses) {
+    lines.push(fx.duration === undefined
+      ? `applyStatus(${JSON.stringify(fx.id)}, ${fx.stacks})`
+      : `applyStatus(${JSON.stringify(fx.id)}, ${fx.stacks}, ${fx.duration})`);
+  }
+  for (const msg of summary.messages) lines.push(`display(${JSON.stringify(msg)})`);
+  return lines;
+}
+
+/**
+ * One readable line describing a dish, for the item card — so a cooked meal in the inventory is
+ * not an anonymous black box.
+ */
+export function describeMealEffects(effects: MealEffects, statusName: (id: string) => string): string {
+  const part = (summary: MealEffectSummary): string => [
+    ...summary.resources.map(r => `${r.amount > 0 ? '+' : ''}${r.amount} ${r.label}`),
+    ...summary.statuses.map(fx => statusName(fx.id) + (fx.stacks > 1 ? ` ×${fx.stacks}` : '')),
+  ].join(', ');
+
+  const now = part(effects.immediate);
+  const later = part(effects.onRest);
+  const chunks: string[] = [];
+  if (now) chunks.push(`Sofort: ${now}`);
+  if (later) chunks.push(`Bei der Rast: ${later}`);
+  return chunks.join(' · ');
 }

@@ -7,6 +7,9 @@
   <!-- ── Identify (signed out) ── -->
   @else if (!user()) {
     <div class="identify">
+      <div class="hero-logo" aria-hidden="true">
+        <i class="app-icon i-logo hero-mark"></i>
+      </div>
       <h1 class="brand">22Fail</h1>
 
       @if (needsBootstrap()) {

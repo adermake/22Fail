@@ -24,11 +24,14 @@
           @for (entry of availableItems; track entry.index) {
             <button class="ck-item" [class.on]="isPicked(entry.index)"
                     [disabled]="phase !== 'pot'"
-                    (click)="toggle(entry.index)">
+                    title="Klick: eines in den Topf · Rechtsklick: eines zurück"
+                    (click)="addOne(entry.index)"
+                    (contextmenu)="removeOne(entry.index, $event)">
               <span class="app-icon i-brewing"></span>
               <span class="ck-item-name">{{ entry.item.name }}</span>
-              @if (entry.item.stackable && (entry.item.amount ?? 1) > 1) {
-                <span class="ck-item-amount">&times;{{ entry.item.amount }}</span>
+              <span class="ck-item-amount">{{ availableCount(entry.index) }} da</span>
+              @if (pickedCount(entry.index); as inPot) {
+                <span class="ck-item-inpot">&times;{{ inPot }}</span>
               }
             </button>
           }
@@ -94,7 +97,7 @@
       }
 
       <!-- Wirkung: keine Skripte, nur was es tut -->
-      @if (pot.length) {
+      @if (pot.length || phase === 'done') {
         <div class="ck-effects">
           <span class="ck-label">
             {{ phase === 'done' ? 'Wirkung je Portion' : 'Voraussichtlich je Portion' }}
