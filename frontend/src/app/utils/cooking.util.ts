@@ -96,42 +96,47 @@ export function isCookable(item: ItemBlock | null | undefined): boolean {
 // ── Kochprobe ───────────────────────────────────────────────────────────────
 
 /**
- * How well the cooking went: `(1d20 + 5 + bonus) / 10`, applied as a multiplier to everything the
- * meal restores. A bad roll still leaves a meal worth eating (0.6× at worst without a bonus), a
- * great one is worth planning around (2.5×).
+ * How well the cooking went, as a percentage change to the whole dish:
+ *
+ *   5 × (15 − W20) %
+ *
+ * Lower is better, like every roll in this game: a 1 is +70 %, a 15 is exactly neutral, a 20 is
+ * −25 %. The kitchen bonus lowers the die, so a bonus of 3 turns a 15 into a 12 (+15 %).
  */
-export const COOKING_ROLL_BASE = 5;
-export const COOKING_ROLL_DIVISOR = 10;
+export const COOKING_NEUTRAL_ROLL = 15;
+export const COOKING_PERCENT_PER_POINT = 5;
 
 export interface CookingRoll {
   /** The raw d20. */
   die: number;
-  /** The character's own kitchen bonus. */
+  /** The character's kitchen bonus, which lowers the effective die. */
   bonus: number;
-  /** (die + 5 + bonus) / 10, rounded to two decimals. */
+  /** Percentage change to the dish, e.g. -25 or +70. */
+  percent: number;
+  /** The same thing as a factor: 1 + percent / 100. */
   multiplier: number;
 }
 
-export function rollCookingQuality(bonus: number, rng: () => number = Math.random): CookingRoll {
-  const die = Math.floor(rng() * 20) + 1;
-  return { die, bonus: Math.floor(bonus) || 0, ...cookingMultiplier(die, bonus) };
+/** The outcome for a known die, split out so it can be tested without randomness. */
+export function cookingOutcome(die: number, bonus: number): CookingRoll {
+  const b = Math.floor(bonus) || 0;
+  const percent = COOKING_PERCENT_PER_POINT * (COOKING_NEUTRAL_ROLL - die + b);
+  // A dish can be ruined but never turned into nothing.
+  const multiplier = Math.max(0.05, Math.round((1 + percent / 100) * 100) / 100);
+  return { die, bonus: b, percent, multiplier };
 }
 
-/** The multiplier for a known die result — split out so it can be tested without randomness. */
-export function cookingMultiplier(die: number, bonus: number): { multiplier: number } {
-  const raw = (die + COOKING_ROLL_BASE + (Math.floor(bonus) || 0)) / COOKING_ROLL_DIVISOR;
-  return { multiplier: Math.max(0.1, Math.round(raw * 100) / 100) };
+export function rollCookingQuality(bonus: number, rng: () => number = Math.random): CookingRoll {
+  return cookingOutcome(Math.floor(rng() * 20) + 1, bonus);
 }
 
 /**
- * Scale everything an `onRest { … }` block restores by the cooking multiplier. Only the rest
- * block is touched: an instant effect is not "how well you cooked", it is what the ingredient
- * already was.
+ * Scale everything the dish does by the cooking multiplier — immediate effects and `onRest`
+ * alike. How well you cooked changes the whole dish, not just the part that keeps overnight.
  */
-export function scaleRestValues(script: string, multiplier: number): string {
+export function scaleAllValues(script: string, multiplier: number): string {
   if (!script.trim() || multiplier === 1) return script;
-  return replaceRestBlocks(script, body =>
-    mapEffectValues(body, value => scaleAmount(value, multiplier)));
+  return mapEffectValues(script, value => scaleAmount(value, multiplier));
 }
 
 /** Scale one value, never rounding a real effect away to nothing. */
@@ -142,33 +147,50 @@ function scaleAmount(amount: number, multiplier: number): number {
   return amount > 0 ? 1 : -1;
 }
 
-/** Run `transform` over the body of every `onRest { … }` block, leaving the rest of the script. */
-function replaceRestBlocks(script: string, transform: (body: string) => string): string {
-  let out = '';
-  let index = 0;
+// ── Was das Gericht tut ─────────────────────────────────────────────────────
 
-  for (;;) {
-    const start = script.indexOf('onRest', index);
-    if (start < 0) { out += script.slice(index); return out; }
+/** The pools a meal can move, in the order they are shown. */
+export const MEAL_RESOURCES: { key: string; label: string }[] = [
+  { key: 'health', label: 'Leben' },
+  { key: 'energy', label: 'Ausdauer' },
+  { key: 'mana', label: 'Mana' },
+  { key: 'fokus', label: 'Fokus' },
+];
 
-    const open = script.indexOf('{', start);
-    if (open < 0) { out += script.slice(index); return out; }
+export interface MealEffectSummary {
+  resources: { key: string; label: string; amount: number }[];
+  statuses: { id: string; stacks: number; duration?: number }[];
+  messages: string[];
+  empty: boolean;
+}
 
-    // Walk to the matching brace so a nested block inside onRest is included.
-    let depth = 0;
-    let end = -1;
-    for (let i = open; i < script.length; i++) {
-      if (script[i] === '{') depth++;
-      else if (script[i] === '}') {
-        depth--;
-        if (depth === 0) { end = i; break; }
-      }
-    }
-    if (end < 0) { out += script.slice(index); return out; }
-
-    out += script.slice(index, open + 1);
-    out += transform(script.slice(open + 1, end));
-    out += '}';
-    index = end + 1;
+/** What one script run adds up to — the readable version of a meal, instead of its code. */
+export function summariseEffects(result: {
+  resourceChanges: { resource: string; amount: number }[];
+  statusOps: { op: 'apply' | 'remove'; id: string; stacks?: number; duration?: number }[];
+  displays: { type: string; text?: string; label?: string; value?: string }[];
+}): MealEffectSummary {
+  const totals = new Map<string, number>();
+  for (const change of result.resourceChanges ?? []) {
+    totals.set(change.resource, (totals.get(change.resource) ?? 0) + change.amount);
   }
+
+  const resources = MEAL_RESOURCES
+    .filter(r => !!totals.get(r.key))
+    .map(r => ({ key: r.key, label: r.label, amount: totals.get(r.key)! }));
+
+  const statuses = (result.statusOps ?? [])
+    .filter(op => op.op === 'apply')
+    .map(op => ({ id: op.id, stacks: op.stacks ?? 1, duration: op.duration }));
+
+  const messages = (result.displays ?? [])
+    .map(d => d.text ?? (d.label ? `${d.label}: ${d.value ?? ''}` : ''))
+    .filter(Boolean) as string[];
+
+  return {
+    resources,
+    statuses,
+    messages,
+    empty: resources.length === 0 && statuses.length === 0 && messages.length === 0,
+  };
 }

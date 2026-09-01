@@ -2,7 +2,7 @@
 
   <div class="ck-topbar">
     <span class="ck-title"><span class="app-icon i-brewing"></span> Kochen</span>
-    <span class="ck-hint">Zutaten mit <code>onRest</code>-Wirkung zusammenwerfen &mdash; die Wirkung teilt sich auf die Portionen.</span>
+    <span class="ck-hint">Zutaten mit <b>onRest</b>-Wirkung zusammenwerfen &mdash; die Wirkung teilt sich auf die Portionen.</span>
   </div>
 
   <div class="ck-body">
@@ -15,20 +15,21 @@
       </div>
       @if (!availableItems.length) {
         <p class="ck-empty">
-          Nichts Kochbares im Inventar. In den Topf darf nur, was einen <code>onRest</code>-Effekt
-          hat &mdash; ein Sofort-Trank hat nichts, was sich auf Portionen verteilen lie&szlig;e.
-          Fertige Gerichte lassen sich nicht erneut kochen.
+          Nichts Kochbares im Inventar. In den Topf darf nur Essbares mit einer
+          <b>onRest</b>-Wirkung &mdash; ein Sofort-Trank hat nichts, was sich auf Portionen
+          verteilen lie&szlig;e. Fertige Gerichte lassen sich nicht erneut kochen.
         </p>
       } @else {
         <div class="ck-list">
           @for (entry of availableItems; track entry.index) {
-            <button class="ck-item" [class.on]="isPicked(entry.index)" (click)="toggle(entry.index)">
+            <button class="ck-item" [class.on]="isPicked(entry.index)"
+                    [disabled]="phase !== 'pot'"
+                    (click)="toggle(entry.index)">
               <span class="app-icon i-brewing"></span>
               <span class="ck-item-name">{{ entry.item.name }}</span>
               @if (entry.item.stackable && (entry.item.amount ?? 1) > 1) {
-                <span class="ck-item-amount">×{{ entry.item.amount }}</span>
+                <span class="ck-item-amount">&times;{{ entry.item.amount }}</span>
               }
-              <span class="ck-item-note" title="Wirkt bei der nächsten Rast">onRest</span>
             </button>
           }
         </div>
@@ -39,49 +40,114 @@
     <section class="ck-card">
       <div class="ck-card-hdr"><span class="ck-card-title">Gericht</span></div>
 
-      <label class="ck-field">
-        <span class="ck-label">Name</span>
-        <input class="ck-input" type="text" [(ngModel)]="mealName" placeholder="Eintopf, Reiseproviant...">
-      </label>
+      @if (phase === 'pot') {
+        <label class="ck-field">
+          <span class="ck-label">Name</span>
+          <input class="ck-input" type="text" [(ngModel)]="mealName" placeholder="Eintopf, Reiseproviant...">
+        </label>
 
-      <label class="ck-field">
-        <span class="ck-label">Portionen</span>
-        <span class="ck-field-row">
-          <input class="ck-input ck-input-num" type="number" min="1"
-                 [ngModel]="portions" (ngModelChange)="setPortions($event)">
-          <span class="ck-hint">Die Wirkung wird durch die Portionen geteilt.</span>
-        </span>
-      </label>
-
-      <label class="ck-field">
-        <span class="ck-label">Kochbonus (X)</span>
-        <span class="ck-field-row">
-          <input class="ck-input ck-input-num" type="number"
-                 [ngModel]="cookingBonus" (ngModelChange)="setCookingBonus($event)">
-          <span class="ck-hint">
-            Kochprobe: (1W20 + 5 + X) / 10 &mdash; zwischen
-            <b>{{ rollRange.min }}&times;</b> und <b>{{ rollRange.max }}&times;</b> auf alles,
-            was das Gericht bei der Rast wiederherstellt.
+        <label class="ck-field">
+          <span class="ck-label">Portionen</span>
+          <span class="ck-field-row">
+            <input class="ck-input ck-input-num" type="number" min="1"
+                   [ngModel]="portions" (ngModelChange)="setPortions($event)">
+            <span class="ck-hint">Die Wirkung wird durch die Portionen geteilt.</span>
           </span>
-        </span>
-      </label>
+        </label>
 
-      @if (lastRoll; as roll) {
-        <div class="ck-roll">
-          <span class="ck-roll-die">W20: {{ roll.die }}</span>
-          <span class="ck-roll-sum">+ 5 + {{ roll.bonus }}</span>
-          <span class="ck-roll-mult" [class.good]="roll.multiplier >= 1.5"
-                [class.bad]="roll.multiplier < 1">&times;{{ roll.multiplier }}</span>
+        <label class="ck-field">
+          <span class="ck-label">Kochbonus</span>
+          <span class="ck-field-row">
+            <input class="ck-input ck-input-num" type="number"
+                   [ngModel]="cookingBonus" (ngModelChange)="setCookingBonus($event)">
+            <span class="ck-hint">
+              Kochprobe: 5 &times; (15 &minus; W20) % &mdash; niedrig ist gut.
+              Zwischen <b class="ck-good">{{ rollRange.best > 0 ? '+' : '' }}{{ rollRange.best }}&nbsp;%</b>
+              und <b class="ck-bad">{{ rollRange.worst }}&nbsp;%</b>.
+            </span>
+          </span>
+        </label>
+      }
+
+      <!-- Die Kochprobe -->
+      @if (phase !== 'pot') {
+        <div class="ck-roll-stage" [class.settled]="phase === 'done'">
+          <div class="ck-die" [class.spinning]="phase === 'rolling'">{{ spinningDie }}</div>
+          @if (phase === 'done' && lastRoll) {
+            <div class="ck-roll-out">
+              <span class="ck-roll-name">{{ cookedName }}</span>
+              <span class="ck-roll-percent"
+                    [class.good]="lastRoll.percent > 0"
+                    [class.bad]="lastRoll.percent < 0">
+                {{ lastRoll.percent > 0 ? '+' : '' }}{{ lastRoll.percent }}&nbsp;%
+              </span>
+              @if (lastRoll.bonus) {
+                <span class="ck-roll-bonus">W20 {{ lastRoll.die }} &minus; Bonus {{ lastRoll.bonus }}</span>
+              } @else {
+                <span class="ck-roll-bonus">W20 {{ lastRoll.die }}</span>
+              }
+            </div>
+          } @else {
+            <span class="ck-roll-name">Kochprobe&hellip;</span>
+          }
         </div>
       }
 
+      <!-- Wirkung: keine Skripte, nur was es tut -->
       @if (pot.length) {
-        <div class="ck-preview">
-          <span class="ck-label">Wirkung je Portion</span>
-          @if (resultScript.trim()) {
-            <pre class="ck-script">{{ resultScript }}</pre>
-          } @else {
+        <div class="ck-effects">
+          <span class="ck-label">
+            {{ phase === 'done' ? 'Wirkung je Portion' : 'Voraussichtlich je Portion' }}
+          </span>
+
+          @if (!hasAnyEffect) {
             <p class="ck-empty">Die Zutaten haben keine Wirkung &mdash; das Gericht s&auml;ttigt nur.</p>
+          }
+
+          @if (!immediateEffects.empty) {
+            <div class="ck-effect-group">
+              <span class="ck-effect-when">Sofort</span>
+              <div class="ck-effect-chips">
+                @for (res of immediateEffects.resources; track res.key) {
+                  <span class="ck-chip" [attr.data-res]="res.key" [class.loss]="res.amount < 0">
+                    {{ res.amount > 0 ? '+' : '' }}{{ res.amount }} {{ res.label }}
+                  </span>
+                }
+                @for (fx of immediateEffects.statuses; track $index) {
+                  <span class="ck-chip ck-chip-fx">
+                    {{ statusName(fx.id) }}
+                    @if (fx.stacks > 1) { <b>&times;{{ fx.stacks }}</b> }
+                    @if (fx.duration) { <i>{{ fx.duration }} Rd</i> }
+                  </span>
+                }
+                @for (msg of immediateEffects.messages; track $index) {
+                  <span class="ck-chip ck-chip-msg">{{ msg }}</span>
+                }
+              </div>
+            </div>
+          }
+
+          @if (!restEffects.empty) {
+            <div class="ck-effect-group">
+              <span class="ck-effect-when">Bei der Rast</span>
+              <div class="ck-effect-chips">
+                @for (res of restEffects.resources; track res.key) {
+                  <span class="ck-chip" [attr.data-res]="res.key" [class.loss]="res.amount < 0">
+                    {{ res.amount > 0 ? '+' : '' }}{{ res.amount }} {{ res.label }}
+                  </span>
+                }
+                @for (fx of restEffects.statuses; track $index) {
+                  <span class="ck-chip ck-chip-fx">
+                    {{ statusName(fx.id) }}
+                    @if (fx.stacks > 1) { <b>&times;{{ fx.stacks }}</b> }
+                    @if (fx.duration) { <i>{{ fx.duration }} Rd</i> }
+                  </span>
+                }
+                @for (msg of restEffects.messages; track $index) {
+                  <span class="ck-chip ck-chip-msg">{{ msg }}</span>
+                }
+              </div>
+            </div>
           }
         </div>
       } @else {
@@ -89,10 +155,17 @@
       }
 
       <div class="ck-actions">
-        <button class="ck-btn" (click)="onClose()">Abbrechen</button>
-        <button class="ck-btn ck-btn-primary" [disabled]="!canCook" (click)="cook()">
-          Kochen ({{ portions }} Portion{{ portions === 1 ? '' : 'en' }})
-        </button>
+        @if (phase === 'done') {
+          <button class="ck-btn" (click)="cookAgain()">Noch etwas kochen</button>
+          <button class="ck-btn ck-btn-primary" (click)="onClose()">Fertig</button>
+        } @else {
+          <button class="ck-btn" [disabled]="phase === 'rolling'" (click)="onClose()">Abbrechen</button>
+          <button class="ck-btn ck-btn-primary"
+                  [disabled]="!canCook || phase === 'rolling'"
+                  (click)="cook()">
+            Kochen ({{ portions }} Portion{{ portions === 1 ? '' : 'en' }})
+          </button>
+        }
       </div>
     </section>
   </div>

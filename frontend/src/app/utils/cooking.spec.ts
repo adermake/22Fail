@@ -1,6 +1,6 @@
 import {
-  COOKED_MARK, cookingMultiplier, dividePortions, isCookable, isCookedMeal,
-  mergeConsumableScripts, rollCookingQuality, scaleRestValues, splitAmount,
+  COOKED_MARK, cookingOutcome, dividePortions, isCookable, isCookedMeal, mergeConsumableScripts,
+  rollCookingQuality, scaleAllValues, splitAmount, summariseEffects,
 } from './cooking.util';
 import { ItemBlock } from '../model/item-block.model';
 
@@ -154,26 +154,31 @@ describe('Kochen', () => {
   });
 
   describe('Kochprobe', () => {
-    it('turns the die into a multiplier: (die + 5 + bonus) / 10', () => {
-      expect(cookingMultiplier(1, 0).multiplier).toBe(0.6);
-      expect(cookingMultiplier(5, 0).multiplier).toBe(1);
-      expect(cookingMultiplier(20, 0).multiplier).toBe(2.5);
+    it('is 5 × (15 − W20) percent, so low rolls are good', () => {
+      expect(cookingOutcome(15, 0).percent).toBe(0);
+      expect(cookingOutcome(1, 0).percent).toBe(70);
+      expect(cookingOutcome(20, 0).percent).toBe(-25);
     });
 
-    it('counts the kitchen bonus', () => {
-      expect(cookingMultiplier(10, 5).multiplier).toBe(2);
-      expect(cookingMultiplier(1, -4).multiplier).toBe(0.2);
+    it('turns the percentage into a factor', () => {
+      expect(cookingOutcome(15, 0).multiplier).toBe(1);
+      expect(cookingOutcome(20, 0).multiplier).toBe(0.75);
+      expect(cookingOutcome(5, 0).multiplier).toBe(1.5);
     });
 
-    it('never drops to zero, however bad it goes', () => {
-      expect(cookingMultiplier(1, -99).multiplier).toBeGreaterThan(0);
+    it('lets the kitchen bonus lower the die', () => {
+      expect(cookingOutcome(18, 3).percent).toBe(cookingOutcome(15, 0).percent);
+      expect(cookingOutcome(15, 2).percent).toBe(10);
+    });
+
+    it('never ruins a dish down to nothing', () => {
+      expect(cookingOutcome(20, -99).multiplier).toBeGreaterThan(0);
     });
 
     it('rolls a d20 and reports what it rolled', () => {
-      const roll = rollCookingQuality(3, () => 0.5);
+      const roll = rollCookingQuality(0, () => 0.5);
       expect(roll.die).toBe(11);
-      expect(roll.bonus).toBe(3);
-      expect(roll.multiplier).toBe(1.9);
+      expect(roll.percent).toBe(20);
     });
 
     it('stays inside 1..20 across the whole random range', () => {
@@ -185,55 +190,96 @@ describe('Kochen', () => {
     });
   });
 
-  describe('scaling what a meal restores', () => {
-    it('multiplies the values inside onRest', () => {
-      const out = scaleRestValues('onRest { gainResource(health, 10) }', 2);
-      expect(out).toBe('onRest { gainResource(health, 20) }');
+  describe('scaling the whole dish', () => {
+    it('scales immediate effects as well as onRest ones', () => {
+      const out = scaleAllValues('gainResource(mana, 10) onRest { gainResource(health, 10) }', 1.5);
+      expect(out).toContain('gainResource(mana, 15)');
+      expect(out).toContain('gainResource(health, 15)');
     });
 
-    it('leaves instant effects alone — they are the ingredient, not the cooking', () => {
-      const out = scaleRestValues('gainResource(mana, 10) onRest { gainResource(health, 10) }', 2);
-      expect(out).toContain('gainResource(mana, 10)');
-      expect(out).toContain('gainResource(health, 20)');
+    it('scales down on a bad roll', () => {
+      expect(scaleAllValues('gainResource(health, 20)', 0.75)).toBe('gainResource(health, 15)');
     });
 
-    it('scales applyStatus stacks and duration inside onRest', () => {
-      const out = scaleRestValues('onRest { applyStatus("fx_satt", 2, 4) }', 2);
-      expect(out).toBe('onRest { applyStatus("fx_satt", 4, 8) }');
-    });
-
-    it('handles several onRest blocks from several ingredients', () => {
-      const out = scaleRestValues(
-        ['onRest { gainResource(health, 4) }', 'onRest { gainResource(mana, 6) }'].join('\n'),
-        0.5,
-      );
-      expect(out).toContain('gainResource(health, 2)');
-      expect(out).toContain('gainResource(mana, 3)');
-    });
-
-    it('keeps a nested block inside onRest', () => {
-      const out = scaleRestValues('onRest { if (level > 2) { gainResource(health, 10) } }', 2);
-      expect(out).toBe('onRest { if (level > 2) { gainResource(health, 20) } }');
+    it('scales applyStatus stacks and duration', () => {
+      const out = scaleAllValues('applyStatus("fx_satt", 2, 4)', 2);
+      expect(out).toBe('applyStatus("fx_satt", 4, 8)');
     });
 
     it('never rounds a real effect away to nothing', () => {
-      const out = scaleRestValues('onRest { gainResource(health, 1) }', 0.1);
-      expect(out).toBe('onRest { gainResource(health, 1) }');
+      expect(scaleAllValues('gainResource(health, 1)', 0.05)).toBe('gainResource(health, 1)');
     });
 
     it('is a no-op at a multiplier of one', () => {
       const src = 'onRest { gainResource(health, 7) }';
-      expect(scaleRestValues(src, 1)).toBe(src);
+      expect(scaleAllValues(src, 1)).toBe(src);
     });
 
-    it('leaves a script with no onRest untouched', () => {
-      const src = 'gainResource(health, 7)';
-      expect(scaleRestValues(src, 3)).toBe(src);
+    it('combines with the portion split: both shrink the dish', () => {
+      const perPortion = dividePortions('onRest { gainResource(health, 40) }', 4);
+      expect(perPortion).toContain('gainResource(health, 10)');
+      expect(scaleAllValues(perPortion, 0.75)).toContain('gainResource(health, 8)');
+    });
+  });
+
+  describe('adding up what a dish does', () => {
+    it('sums repeated changes to the same pool', () => {
+      const sum = summariseEffects({
+        resourceChanges: [
+          { resource: 'health', amount: 5 },
+          { resource: 'health', amount: 7 },
+          { resource: 'mana', amount: 3 },
+        ],
+        statusOps: [],
+        displays: [],
+      });
+      expect(sum.resources).toEqual([
+        { key: 'health', label: 'Leben', amount: 12 },
+        { key: 'mana', label: 'Mana', amount: 3 },
+      ]);
+      expect(sum.empty).toBe(false);
     });
 
-    it('survives an unclosed onRest block', () => {
-      const src = 'onRest { gainResource(health, 7)';
-      expect(() => scaleRestValues(src, 2)).not.toThrow();
+    it('drops pools that net out to nothing', () => {
+      const sum = summariseEffects({
+        resourceChanges: [{ resource: 'health', amount: 5 }, { resource: 'health', amount: -5 }],
+        statusOps: [],
+        displays: [],
+      });
+      expect(sum.resources).toEqual([]);
+      expect(sum.empty).toBe(true);
+    });
+
+    it('keeps losses as negative numbers', () => {
+      const sum = summariseEffects({
+        resourceChanges: [{ resource: 'energy', amount: -4 }], statusOps: [], displays: [],
+      });
+      expect(sum.resources[0].amount).toBe(-4);
+    });
+
+    it('lists applied statuses and ignores removals', () => {
+      const sum = summariseEffects({
+        resourceChanges: [],
+        statusOps: [
+          { op: 'apply', id: 'fx_satt', stacks: 2, duration: 6 },
+          { op: 'remove', id: 'fx_hunger' },
+        ],
+        displays: [],
+      });
+      expect(sum.statuses).toEqual([{ id: 'fx_satt', stacks: 2, duration: 6 }]);
+    });
+
+    it('carries display text through', () => {
+      const sum = summariseEffects({
+        resourceChanges: [], statusOps: [],
+        displays: [{ type: 'text', text: 'Schmeckt herrlich' }],
+      });
+      expect(sum.messages).toEqual(['Schmeckt herrlich']);
+      expect(sum.empty).toBe(false);
+    });
+
+    it('reports an empty dish as empty', () => {
+      expect(summariseEffects({ resourceChanges: [], statusOps: [], displays: [] }).empty).toBe(true);
     });
   });
 });

@@ -373,11 +373,9 @@ export class EquipmentComponent {
       return false;
     }
 
-    const currentSlotItems = this.getArmorSlot(targetSlot as any);
-    if (currentSlotItems.length > 0 && !currentSlotItems.includes(item)) {
-      return false;
-    }
-
+    // Armour slots stack, like weapons and Extra already do: several pieces may share a slot and
+    // their stability is summed and divided by 5 (calculateTotalStability), so nothing here needs
+    // to cap a slot at one piece.
     return true;
   }
 }
