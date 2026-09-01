@@ -123,10 +123,45 @@ export class WorldSocketService {
 
   // ── Shared party stash ──────────────────────────────────────────────────
   // Every change goes through the server and comes back as an ack, so a client only ever acts
-  // on what the server actually did. `emitWithAck` rejects if we are not connected.
+  // on what the server actually did.
 
+  /**
+   * Wartet, bis die Verbindung steht — begrenzt, damit ein wirklich toter Socket nicht ewig hängt.
+   *
+   * Der Aufbau läuft asynchron und beginnt oft erst, nachdem eine Ansicht ihre Daten per HTTP
+   * geladen hat. Wer direkt danach fragt, traf vorher auf `isConnected === false`.
+   */
+  private whenConnected(timeoutMs = 8000): Promise<boolean> {
+    if (this.isConnected) return Promise.resolve(true);
+
+    // Idempotent: baut die Verbindung auf, falls das noch niemand getan hat.
+    this.connect();
+    if (this.isConnected) return Promise.resolve(true);
+
+    return new Promise<boolean>(resolve => {
+      const sub = this.connectionReady$.subscribe(() => {
+        clearTimeout(timer);
+        sub.unsubscribe();
+        resolve(true);
+      });
+      const timer = setTimeout(() => {
+        sub.unsubscribe();
+        resolve(false);
+      }, timeoutMs);
+    });
+  }
+
+  /**
+   * Eine Frage an den Server, deren Antwort abgewartet wird.
+   *
+   * Wartet erst auf die Verbindung. Vorher gab es hier ein `if (!isConnected) return fallback` —
+   * und weil der Socket erst am Ende von `WorldStoreService.load()` aufgebaut wird, lieferte ein
+   * unmittelbar danach gestelltes `partyStashRead` still den leeren Ersatzwert. Der Beutel sah
+   * nach jedem Neuladen leer aus, bis das nächste Broadcast ihn zufällig füllte.
+   */
   private async ask<T>(event: string, payload: unknown, fallback: T): Promise<T> {
-    if (!this.socket || !this.isConnected) return fallback;
+    if (!(await this.whenConnected())) return fallback;
+    if (!this.socket) return fallback;
     try {
       return (await this.socket.timeout(8000).emitWithAck(event, payload)) as T;
     } catch (e) {
