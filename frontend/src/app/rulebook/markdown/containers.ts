@@ -150,6 +150,33 @@ const data: ContainerDirective = {
   render: (attrs, env) => ({ open: renderDataDirective(attrs, env), close: '' }),
 };
 
+/**
+ * `:::table{title= color=}` — an optional frame around an authored markdown table: a caption, a
+ * colour, and `compact` for dense stat blocks. The table inside is plain markdown; this only
+ * dresses it, so a bare table without the wrapper still works.
+ */
+const table: ContainerDirective = {
+  name: 'table',
+  render: (attrs, env) => {
+    const custom = safeColor(attrs['color']);
+    if (attrs['color'] && !custom) env.warnings.push(`Unbekannte Farbe "{color=${attrs['color']}}"`);
+    const style = custom ? ` style="--rb-table-color:${custom}"` : '';
+    const compact = 'compact' in attrs ? ' rb-tablebox--compact' : '';
+    const title = attrs['title'];
+    const id = attrs['id'] || (title ? `tabelle-${slugify(title)}` : '');
+    // Register as a jump point so a named table is reachable from search and the tab dropdown.
+    if (id && title) env.headings?.push({ id, level: 3, text: title, kind: 'section' });
+    return {
+      open:
+        `<figure class="rb-tablebox${compact}"${id ? ` id="${esc(id)}"` : ''}${style}>` +
+        (title
+          ? `<figcaption class="rb-tablebox-title">${iconSpan(attrs['icon'])}${esc(title)}</figcaption>`
+          : ''),
+      close: `</figure>`,
+    };
+  },
+};
+
 /** Rune chains: one per line, `Feuer -> Kreis -> Ziel`. Body is raw (own mini-syntax). */
 const runeflow: ContainerDirective = {
   name: 'runeflow',
@@ -168,6 +195,7 @@ export const CONTAINER_DIRECTIVES: ContainerDirective[] = [
   card,
   actions,
   data,
+  table,
   runeflow,
 ];
 

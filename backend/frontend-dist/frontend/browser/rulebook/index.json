@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T23:47:35.689Z",
+  "generatedAt": "2026-09-01T20:12:14.008Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -393,7 +393,7 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "548cf01c",
+      "hash": "c8ce8be4",
       "outline": [
         {
           "id": "magiesystem",
@@ -518,7 +518,7 @@
       "tab": "Ausrüstung",
       "icon": "equipment",
       "order": 70,
-      "hash": "634641a1",
+      "hash": "944de8ef",
       "outline": [
         {
           "id": "ausruestung",
@@ -529,6 +529,41 @@
         {
           "id": "waffen",
           "text": "Waffen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "waffenarten",
+          "text": "Waffenarten",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "ruestung",
+          "text": "Rüstung",
+          "level": 2,
+          "kind": "heading"
+        }
+      ]
+    },
+    {
+      "id": "craft",
+      "file": "craft.md",
+      "title": "Herstellung",
+      "tab": "Herstellung",
+      "icon": "carfting",
+      "order": 80,
+      "hash": "1fa5b4a0",
+      "outline": [
+        {
+          "id": "herstellung",
+          "text": "Herstellung",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "schmieden",
+          "text": "Schmieden",
           "level": 2,
           "kind": "heading"
         },
@@ -565,7 +600,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "65f1d267",
+      "hash": "24d162c1",
       "outline": [
         {
           "id": "syntax-beispiel",
@@ -624,6 +659,18 @@
         {
           "id": "eigene-farben-fuer-kaesten",
           "text": "Eigene Farben für Kästen",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "5b-tabellen",
+          "text": "5b. Tabellen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "mit-rahmen-table",
+          "text": "Mit Rahmen — `:::table`",
           "level": 3,
           "kind": "heading"
         },

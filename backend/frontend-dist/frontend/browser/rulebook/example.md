@@ -150,6 +150,41 @@ Und Karten — `color=` übersteuert dabei ein gesetztes `accent=`:
 :::
 ::::
 
+## 5b. Tabellen
+
+Ganz normales Markdown — Spalten mit `|`, Trennzeile mit `---`:
+
+| Stufe | Kosten | Effekt |
+| --- | ---: | --- |
+| 1 | 2 | Leicht |
+| 2 | 4 | Mittel |
+| 3 | 8 | Schwer |
+
+`---:` richtet eine Spalte **rechts** aus, `:---:` **zentriert** — praktisch für Zahlen.
+Breite Tabellen scrollen in ihrem eigenen Kasten, die Seite selbst verrutscht nie.
+
+### Mit Rahmen — `:::table`
+
+Optional bekommt eine Tabelle eine Überschrift, eine Farbe und ein Icon. Der Titel wird zur
+Sprungmarke, ist also über die Suche und das Tab-Menü erreichbar.
+
+:::table{title="Schmiedekosten" icon=forge color=orange}
+| Stufe | Kosten | Effekt |
+| --- | ---: | --- |
+| 1 | 2 | Leicht |
+| 2 | 4 | Mittel |
+:::
+
+Mit `{compact}` wird es enger — gut für lange Wertetabellen:
+
+:::table{title="Kompakt" compact}
+| Würfel | Ergebnis |
+| --- | --- |
+| 1–3 | Nichts |
+| 4–5 | Trank |
+| 6 | Waffe |
+:::
+
 ## 6. Raster und Karten
 
 :::grid{cols=3}

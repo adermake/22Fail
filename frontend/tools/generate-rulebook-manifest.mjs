@@ -58,7 +58,7 @@ const attr = (params, key) => {
 };
 
 const KNOWN_DIRECTIVES = new Set([
-  'section', 'note', 'formula', 'warning', 'tip', 'grid', 'card', 'actions', 'data', 'runeflow',
+  'section', 'note', 'formula', 'warning', 'tip', 'grid', 'card', 'actions', 'data', 'runeflow', 'table',
 ]);
 
 /**

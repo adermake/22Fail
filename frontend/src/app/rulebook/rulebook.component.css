@@ -379,6 +379,40 @@
   color: var(--text-muted, #9ca3af);
 }
 .rb-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+/* Markdown's own alignment (`| ---: |`) arrives as an inline style; keep it winning. */
+.rb-table th[style*="right"], .rb-table td[style*="right"] { text-align: right; }
+.rb-table th[style*="center"], .rb-table td[style*="center"] { text-align: center; }
+/* Zebra striping makes a wide authored table readable across the row. */
+.rb-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.018); }
+.rb-table tbody tr:last-child td { border-bottom: none; }
+/* Numbers line up when they share a width. */
+.rb-table td { font-variant-numeric: tabular-nums; }
+
+/* ── :::table — an optional frame with a caption ─────────────────────────── */
+.rb-tablebox {
+  --rb-table-color: var(--accent, #8b5cf6);
+  margin: 1.3rem 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--rb-table-color) 35%, var(--border, #374151));
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  scroll-margin-top: 1rem;
+}
+.rb-tablebox-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--rb-table-color);
+}
+/* The frame already supplies the spacing; the table inside must not add its own. */
+.rb-tablebox .rb-tablewrap { margin: 0; }
+.rb-tablebox .rb-table th { color: color-mix(in srgb, var(--rb-table-color) 65%, var(--text-muted, #9ca3af)); }
+.rb-tablebox--compact .rb-table { font-size: 0.78rem; }
+.rb-tablebox--compact .rb-table th,
+.rb-tablebox--compact .rb-table td { padding: 0.25rem 0.45rem; }
 
 @media (max-width: 768px) {
   .rb-grid { grid-template-columns: 1fr; }

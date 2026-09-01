@@ -34,3 +34,6 @@ Thumbs.db
 # graphify knowledge graph (regenerable locally)
 graphify-out/
 
+
+# Scratch folder for previewing/rendering SVG assets locally (regenerable)
+.logo-preview/

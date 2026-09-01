@@ -2,6 +2,7 @@
  * Renderer overrides:
  *  - headings get slug ids so `[…](seite#anker)` works without an explicit jumpmark
  *  - internal links become data-attributes for click delegation (no SPA reload)
+ *  - markdown tables get the app's table styling and their own scroll container
  */
 import type { MarkdownIt } from 'markdown-it';
 import { splitTarget } from './attrs';
@@ -11,6 +12,12 @@ import type { RulebookEnv } from '../rulebook.model';
 const EXPLICIT_ID_RE = /\s*\{#([\w-]+)\}\s*$/;
 
 export function registerRenderers(md: MarkdownIt): void {
+  // Authored `| a | b |` tables render as a bare <table>: unstyled, and wide ones push the whole
+  // page sideways. Wrap every one in the same scroll container the :::data listings use, so a
+  // table can be as wide as it needs to be without the page scrolling horizontally.
+  md.renderer.rules['table_open'] = () => '<div class="rb-tablewrap"><table class="rb-table">';
+  md.renderer.rules['table_close'] = () => '</table></div>';
+
   md.renderer.rules['heading_open'] = (tokens, idx, options, e, self) => {
     const env = e as unknown as RulebookEnv;
     const inline = tokens[idx + 1];

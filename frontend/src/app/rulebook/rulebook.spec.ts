@@ -223,6 +223,44 @@ describe('renderMarkdown', () => {
     expect(bad.warnings.join()).toContain('Gewichtsklasse');
   });
 
+  it('renders authored markdown tables with styling and a scroll container', async () => {
+    const { html, warnings } = await renderMarkdown(
+      md('| Stufe | Kosten |', '| --- | ---: |', '| 1 | 2 |', '| 2 | 4 |'),
+      'g',
+    );
+    expect(warnings).toEqual([]);
+    // Wide tables must scroll inside their own box, never push the page sideways.
+    expect(html).toContain('<div class="rb-tablewrap"><table class="rb-table">');
+    expect(html).toContain('</table></div>');
+    expect(html).toContain('<th style="text-align:right">Kosten</th>');
+    expect(html).toContain('<td>1</td>');
+  });
+
+  it('frames a table with :::table, giving it a caption, colour and a jump point', async () => {
+    const { html, headings, warnings } = await renderMarkdown(
+      md(
+        ':::table{title="Schmiedekosten" color=orange}',
+        '| Stufe | Kosten |',
+        '| --- | --- |',
+        '| 1 | 2 |',
+        ':::',
+      ),
+      'g',
+    );
+    expect(warnings).toEqual([]);
+    expect(html).toContain('rb-tablebox');
+    expect(html).toContain('--rb-table-color:#f59e0b');
+    expect(html).toContain('Schmiedekosten');
+    // The table still renders normally inside the frame.
+    expect(html).toContain('class="rb-table"');
+    // …and the caption is reachable from search / the tab dropdown.
+    expect(headings.some((h) => h.id === 'tabelle-schmiedekosten')).toBe(true);
+
+    const bad = await renderMarkdown(md(':::table{color=javascript:alert(1)}', 'x', ':::'), 'g');
+    expect(bad.html).not.toContain('javascript');
+    expect(bad.warnings.join()).toContain('Unbekannte Farbe');
+  });
+
   it('supports several damage types on one weapon type', async () => {
     const weaponTypes = [
       // A sword cuts AND thrusts.
