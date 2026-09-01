@@ -51,3 +51,24 @@ Es existiert eine Vielfalt an Schmiedematerialien in der Welt, viele sind selbst
 :::
 
 ## Brauen
+
+Beim Brauen werden hauptsächlich Tränke hergestellt, deren Effekte sowohl positiv als auch negativ ausfallen können. Um aus Pflanzen Tränke herzustellen, wird mindestens ein Wirkstoff benötigt, kann jedoch auf bis zu 3 erweitert werden. Jeder Wirkstoff besitzt 3 Effekte. In den meisten Fällen ist der Primäreffekt der stärkste, gefolgt vom Sekundäreffekt. Der Tertiäreffekt ist demnach der schwächste, hat aber oft ungewöhnliche oder besonders seltene Effekte. 
+:::note{type=warning}
+Manche Wirkstoffe lösen ihren Primäreffekt auch schon unverarbeitet aus, zum Beispiel bei Berührung, Konsum oder schon dem Einatmen ihrer Sporen. Es ist also Vorsicht im Umgang mit einigen Wirkstoffen geboten.
+:::
+Der Brauer erhält 10 + D20 (+ weitere eventuelle Boni) Punkte, mit denen er die Qualität der Effekte verbessern kann. Jeder Trank muss sowohl einen Primär-, einen Sekundär- als auch einen Tertiäreffekt besitzen, diese müssen aber nicht vom selben Wirkstoff stammen. Ein Trank kann beispielsweise den Primäreffekt einer Hagelnuss, aber den Sekundär- und Tertiäreffekt einer Kettenranke besitzen. Jeder Effekt kann einmal ausgewählt werden, ohne Braupunkte zu verbrauchen. Nachdem es einmal ausgewählt wurde, erhöhen sich die Braupunkte allerdings um einen Wert, der von jedem Effekt für jeden Wirkstoff seperat festegelegt wird.
+:::note{title="Puffer" type=tip}
+Der Puffer ist ein weit verbreitetes Braumaterial, dessen Effekte nichts bewirken. Er kann also benutzt werden, um negative Effekte von Tränken zu annulieren, gibt dafür aber an potenziellen Effekten auf, die andere Wirkstoffe liefern würden.
+:::
+
+### Extraktoren
+
+Extraktoren sind ein zusätzliches Hilfsmittel beim Brauchen, das die erforderlichen Braupunkte für den angegebenen Effektrang reduzieren. Sie sind oft ziemlich schwer zu besorgen und dementsprechend teuer, können aber helfen gebraute Tränke merklich zu verbessern. Jeder Trank kann maximal einen Extraktor verwenden, welcher nach der Benutzung verbraucht wird.
+
+### Braumaterialien
+
+:::data{source=ingredients tier=bekannt rarity=common}
+
+### Merkmale
+
+Sowohl beim Schmieden als auch beim Brauen können die jeweiligen Punkte anstelle der Ausrüstungs- und Trankstats stattdessen in Merkmale investiert werden. Diese bieten einzigartige Effekte an, die das hergestellte Item auf andere Weise verbessern können als mit den oben genannten Vorgängen. Merkmale sind meist nicht sehr gängig und können nur bei bestimmten Experten in ihrem Feld oder seltenen Büchern aufgefunden werden.
