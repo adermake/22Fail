@@ -20,7 +20,7 @@ Die Qualität des Primär- und Sekundärmaterials zu erhöhen kostet jeweils 3 S
 :::
 Waffen und Rüstungen können außerdem spezielle, einzigartige Zusatzeffekte besitzen. Jede Ausrüstung besteht aus mindestens einer Primärkomponente. Sie kann aber zusätzlich um eine Sekundär- und Zusatzkomponente erweitert werden, deren Stats für die fertige Ausrüstung kombiniert werden. Jede Komponente hat leicht unterschiedliche Wirkungen, wie hier aufgelistet:
 
-:::table{color=#a76957}
+:::table{color="#8db3cc"}
 | Komponente | Stat-Effizienz | Verbesserbar | Zusatzeffekt |
 | --- | --- | --- | --- |
 Primärkomponente | 100% | ✓ | ✓ |
@@ -72,3 +72,20 @@ Extraktoren sind ein zusätzliches Hilfsmittel beim Brauchen, das die erforderli
 ### Merkmale
 
 Sowohl beim Schmieden als auch beim Brauen können die jeweiligen Punkte anstelle der Ausrüstungs- und Trankstats stattdessen in Merkmale investiert werden. Diese bieten einzigartige Effekte an, die das hergestellte Item auf andere Weise verbessern können als mit den oben genannten Vorgängen. Merkmale sind meist nicht sehr gängig und können nur bei bestimmten Experten in ihrem Feld oder seltenen Büchern aufgefunden werden.
+
+## Kochen
+
+Kochen ist eine essenzielle Fähigkeit, um in jeder Lebenslage zu überleben. Rohe Zutaten zu Essen mag einen über die Runden bringen, aber ein ordentliche zubereitetes Mahl ist deutlich mehr wert. Die Regeln hierbei sind recht simpel. Jede Zutat besitzt eine bestimmte Anzahl an Leben, Ausdauer oder Mana, die bei Konsum dazu führt, beim nächsten Schlaf die Konditionsstats des Konsumenten um diesen Betrag erhöht werden. Wenn die Zutat gekocht wird, kann allerdings zusätzlich ein Würfel geworfen werden, der die Zutat um folgenden Prozentsatz anpasst:
+:::formula
+5 * (15 - D20)%
+:::
+:::note{type=tip}
+Der Wert liegt damit zwischen -25% und +70% der ursprünglichen Zutat. Im Durchschnitt verbessert Kochen also die Effektivität aller Zutaten. Durch häufiges Kochen und lernen kann man zusätzlich Würfelboni beim Kochen erhalten, was das Endergebnis noch besser machen kann.
+:::
+Es können so viele Zutaten kombiniert werden, wie es das Inventar und der Appetit hergibt. Außerdem kann das Gekochte in mehrere Portionen unterteilt werden, entweder um sie unter Kameraden zu verteilen oder Portionen für später aufzuheben. Der Originalwert des Essens wird dabei durch die Anzahl Portionen geteilt.
+
+:::actions
+:jump[Zurück zur Ausrüstung]{to=gear}
+
+:jump[Weiter zu Begleiter]{to=begleiter}
+:::
