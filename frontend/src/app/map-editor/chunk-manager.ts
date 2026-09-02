@@ -716,7 +716,6 @@ export class ChunkManager {
     onProgress?: (done: number, total: number) => void,
     cancel?: { cancelled: boolean },
   ): Promise<void> {
-    const layers = [...new Set(passes.map(p => p.layer))];
     const targets = [tier, ...coarserTiers(tier)];
 
     let total = 0;
@@ -724,6 +723,43 @@ export class ChunkManager {
     let done = 0;
     onProgress?.(0, total);
 
+    for (const t of targets) {
+      await this.stampCells(passes, this.cellsIn(bounds, t), t, {
+        cancel,
+        onProgress: n => onProgress?.(done + n, total),
+      });
+      if (cancel?.cancelled) return;
+      done += this.cellsIn(bounds, t).length;
+    }
+  }
+
+  /**
+   * Stamp an explicit list of cells at one tier, and nothing else.
+   *
+   * Split out of `stampRegion` for the boundary of a replaced region. A chunk the region's
+   * edge crosses cannot be cleared by deleting its file — it also holds map outside the
+   * region that has to survive — so it has to be loaded, subtracted from, and written back.
+   * There are only ever O(perimeter) of those, but they are the difference between a clean
+   * replacement and a stale band 23 hexes wide at `med`, or 182 at `low`.
+   *
+   * `skipEmpty` keeps that affordable. An erase over ground nothing was ever painted on has
+   * no work to do, and without the check the pass would *create* the chunk, upload a blank
+   * PNG, and leave a file where there had rightly been none — thousands of them at `high`.
+   */
+  async stampCells(
+    passes: StampPass[],
+    cells: { cx: number; cy: number }[],
+    tier: DetailTier,
+    opts: {
+      skipEmpty?: boolean;
+      onProgress?: (done: number, total: number) => void;
+      cancel?: { cancelled: boolean };
+    } = {},
+  ): Promise<void> {
+    const { skipEmpty, onProgress, cancel } = opts;
+    const layers = [...new Set(passes.map(p => p.layer))];
+
+    let done = 0;
     /*
      * Four cells at a time: enough concurrency to keep the network busy while the renderer
      * works, small enough that the transient residency (cells × layers × 3 MB) stays well
@@ -731,16 +767,25 @@ export class ChunkManager {
      */
     const CELL_BATCH = 4;
 
-    for (const t of targets) {
-      const cells = this.cellsIn(bounds, t);
-
+    {
       for (let i = 0; i < cells.length; i += CELL_BATCH) {
         if (cancel?.cancelled) return;
         const batch = cells.slice(i, i + CELL_BATCH);
+        const t = tier;
 
         const recs: ChunkRecord[] = [];
         for (const cell of batch) {
-          for (const layer of layers) recs.push(this.get(layer, t, cell.cx, cell.cy));
+          for (const layer of layers) {
+            // Nothing stored and nothing painted locally: there is nothing to modify, and
+            // touching it would only manufacture an empty chunk.
+            if (skipEmpty && !this.isPainted(layer, t, cell.cx, cell.cy)) continue;
+            recs.push(this.get(layer, t, cell.cx, cell.cy));
+          }
+        }
+        if (recs.length === 0) {
+          done += batch.length;
+          onProgress?.(done, cells.length);
+          continue;
         }
 
         // Stored pixels first — the stamp merges with them rather than replacing the chunk.
@@ -768,9 +813,21 @@ export class ChunkManager {
         }
 
         done += batch.length;
-        onProgress?.(done, total);
+        onProgress?.(done, cells.length);
       }
     }
+  }
+
+  /**
+   * Whether a chunk holds anything — stored on the server, or painted here and not yet saved.
+   *
+   * The unsaved half matters: an erase running straight after a stamp must still see the
+   * chunk the stamp just created, or it would decide there was nothing to erase.
+   */
+  private isPainted(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): boolean {
+    if (this.store.chunkExists(layer, tier, cx, cy)) return true;
+    const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
+    return !!rec && (rec.dirty || rec.uploading);
   }
 
   /**

@@ -5,8 +5,10 @@ import {
   MAX_MASK_TEXELS,
   applyThreshold,
   cellsCovering,
+  edgeCells,
   fitScale,
   importCellCount,
+  innerCellRect,
   maskResolution,
   placementBounds,
   recommendedTier,
@@ -117,6 +119,71 @@ describe('Landmassen-Import', () => {
         20000,
       );
       expect(Math.max(res.w, res.h)).toBe(MAX_MASK_TEXELS);
+    });
+  });
+
+  describe('Ersetzen: Innenbereich und Randkacheln', () => {
+    /*
+     * Der Bereich zerfällt in zwei Sorten Kacheln, und beide müssen behandelt werden.
+     * Ganz innenliegende lassen sich als Datei löschen; angeschnittene halten auch Karte
+     * *außerhalb* und müssen echt ausradiert werden.
+     *
+     * Sie zu überspringen war der Fehler: eine Kachel ist bei `med` 23 Hex breit und bei
+     * `low` 182 — „ein kachelbreiter Rand“ ist damit ein Streifen alter Karte quer über die
+     * neue, der auf jeder Zoomstufe darüberliegt.
+     */
+    it('teilt jede berührte Kachel entweder dem Innenbereich oder dem Rand zu', () => {
+      const span = TIER_WORLD_SIZE.med;
+      const bounds = { minX: span * 0.5, minY: span * 0.5, maxX: span * 3.5, maxY: span * 3.5 };
+
+      const all = cellsCovering(bounds, 'med').length;
+      const inner = innerCellRect(bounds, 'med')!;
+      const innerCount = (inner.maxCx - inner.minCx + 1) * (inner.maxCy - inner.minCy + 1);
+
+      // Keine Kachel fällt durch, keine wird doppelt behandelt.
+      expect(innerCount + edgeCells(bounds, 'med').length).toBe(all);
+    });
+
+    it('erkennt bei kachelgenauem Rechteck gar keinen Rand', () => {
+      const span = TIER_WORLD_SIZE.med;
+      const bounds = { minX: 0, minY: 0, maxX: span * 3, maxY: span * 2 };
+
+      expect(innerCellRect(bounds, 'med')).toEqual({ minCx: 0, minCy: 0, maxCx: 2, maxCy: 1 });
+      expect(edgeCells(bounds, 'med')).toEqual([]);
+    });
+
+    it('zählt bei angeschnittenem Rechteck jede Randkachel', () => {
+      const span = TIER_WORLD_SIZE.med;
+      // 0,5 bis 2,5 Kacheln: nur Kachel 1 liegt ganz innen, die 8 drumherum sind Rand.
+      const bounds = { minX: span * 0.5, minY: span * 0.5, maxX: span * 2.5, maxY: span * 2.5 };
+
+      expect(innerCellRect(bounds, 'med')).toEqual({ minCx: 1, minCy: 1, maxCx: 1, maxCy: 1 });
+      expect(edgeCells(bounds, 'med')).toHaveLength(8);
+    });
+
+    it('behandelt ein Bild kleiner als eine Kachel komplett als Rand', () => {
+      const span = TIER_WORLD_SIZE.low;
+      const bounds = { minX: span * 0.2, minY: span * 0.2, maxX: span * 0.8, maxY: span * 0.8 };
+
+      // Nichts zu löschen — und ohne Randbehandlung bliebe die ganze grobe Kachel stehen.
+      expect(innerCellRect(bounds, 'low')).toBeNull();
+      expect(edgeCells(bounds, 'low')).toEqual([{ cx: 0, cy: 0 }]);
+    });
+
+    it('wächst der Rand mit dem Umfang, nicht mit der Fläche', () => {
+      // Das ist der Grund, warum Randkacheln echt radiert werden dürfen: bei `high` deckt ein
+      // großer Import tausende Kacheln ab, aber nur ein Bruchteil davon ist Rand.
+      const span = TIER_WORLD_SIZE.high;
+      const bounds = { minX: span * 0.5, minY: span * 0.5, maxX: span * 40.5, maxY: span * 40.5 };
+
+      const all = cellsCovering(bounds, 'high').length;
+      const ring = edgeCells(bounds, 'high').length;
+
+      // Berührt werden die Spalten 0..40; ganz innen liegen 1..39, weil an *beiden* Rändern
+      // eine Spalte angeschnitten ist.
+      expect(all).toBe(41 * 41);
+      expect(ring).toBe(41 * 41 - 39 * 39);
+      expect(ring / all).toBeLessThan(0.1);
     });
   });
 

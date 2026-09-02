@@ -673,12 +673,20 @@ Editor neu gesetzt. Bedienung im Reiter *Karte*.
   Pinselstrich). Kachelzahl je Stufe steht in der Auswahl, `recommendedTier` schlägt die
   feinste Stufe vor, die das Bild noch auflöst und unter `IMPORT_CELL_WARN` (400) bleibt.
 - **"Bereich ersetzen" löscht auf allen Stufen**, auch feineren (`clearImportArea`) — sonst
-  könnte ein Re-Import einen früheren nicht reparieren. Es löscht *Dateien* über
-  `DELETE …/map-editor/chunks/:layer/:tier?minCx…` statt Transparenz zu rendern: das ist ein
-  paar Requests statt tausender Uploads, egal wie groß die Fläche. Kachelgenau und bewusst
-  konservativ — nur ganz innenliegende Kacheln fallen, weil eine angeschnittene noch Karte
-  außerhalb hält. Kehrseite: ein **Randstreifen von einer Kachel Breite** kann alten Inhalt
-  feinerer Stufen behalten.
+  könnte ein Re-Import einen früheren nicht reparieren. Der Bereich zerfällt dabei in zwei
+  Sorten Kacheln, und **beide** müssen behandelt werden:
+  - *ganz innen*: Dateien löschen über `DELETE …/map-editor/chunks/:layer/:tier?minCx…` —
+    ein paar Requests statt tausender Uploads, egal wie groß die Fläche.
+  - *vom Rand angeschnitten* (`edgeCells`): echt ausradieren über
+    `ChunkManager.stampCells(..., { skipEmpty: true })`. Löschen geht hier nicht, weil die
+    Kachel auch Karte *außerhalb* hält.
+
+  Die erste Fassung übersprang die Randkacheln und nannte das einen „kachelbreiten Rand“.
+  **Das war falsch:** eine Kachel ist bei `med` 23 Hex (91 km) und bei `low` 182 Hex (728 km)
+  breit — kein Artefakt, sondern ein Streifen alter Karte quer über die neue, der auf jeder
+  Zoomstufe darüberliegt. Der Rand wächst mit dem *Umfang*, nicht mit der Fläche (bei `high`
+  <10 % der Kacheln), und `skipEmpty` fasst nur an, wo überhaupt etwas liegt — sonst würde die
+  Radierung leere Chunks *erzeugen*.
 - `ChunkManager.stampRegion()` ist der Bulk-Pfad: pro Zelle laden → malen → hochladen →
   freigeben, vier Zellen gleichzeitig. `paintWorld` ginge nicht — es hielte alle Kacheln
   resident, was bei ~3 MB/Zelle den GPU-Speicher sprengt. Deshalb **kein Undo** (ein

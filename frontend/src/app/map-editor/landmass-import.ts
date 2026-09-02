@@ -77,6 +77,51 @@ export function cellsCovering(bounds: Bounds, tier: DetailTier): { cx: number; c
 }
 
 /**
+ * Chunk rectangle of `tier` lying wholly inside a world rectangle, or null if none does.
+ *
+ * These can be cleared by deleting their files outright, which costs nothing whatever the
+ * area. Returned as a rectangle rather than a list because that is what the delete endpoint
+ * takes, and because at `high` the list can run to thousands of entries.
+ */
+export function innerCellRect(
+  bounds: Bounds,
+  tier: DetailTier,
+): { minCx: number; minCy: number; maxCx: number; maxCy: number } | null {
+  const span = TIER_WORLD_SIZE[tier];
+  const rect = {
+    minCx: Math.ceil(bounds.minX / span),
+    minCy: Math.ceil(bounds.minY / span),
+    maxCx: Math.floor(bounds.maxX / span) - 1,
+    maxCy: Math.floor(bounds.maxY / span) - 1,
+  };
+  if (rect.maxCx < rect.minCx || rect.maxCy < rect.minCy) return null;
+  return rect;
+}
+
+/**
+ * Cells the rectangle's edge crosses — overlapped, but not wholly contained.
+ *
+ * These are the ones a file delete cannot touch, because they also hold map *outside* the
+ * rectangle that has to survive. Skipping them was a real bug rather than a rounding detail:
+ * one chunk is 23 hexes at `med` and 182 at `low`, so "a chunk-wide fringe of stale content"
+ * is most of a continent, and it composites straight over the freshly imported ground.
+ *
+ * They have to be erased the expensive way — load, subtract the rectangle, upload — but there
+ * are only ever O(perimeter) of them, against O(area) for the interior.
+ */
+export function edgeCells(bounds: Bounds, tier: DetailTier): { cx: number; cy: number }[] {
+  const inner = innerCellRect(bounds, tier);
+  return cellsCovering(bounds, tier).filter(
+    c =>
+      inner === null ||
+      c.cx < inner.minCx ||
+      c.cx > inner.maxCx ||
+      c.cy < inner.minCy ||
+      c.cy > inner.maxCy,
+  );
+}
+
+/**
  * Cells an import at `tier` writes, counting the coarser tiers it also fills.
  *
  * This is the number that decides whether an import is a click or a coffee break: each cell

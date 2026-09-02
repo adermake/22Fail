@@ -47,15 +47,16 @@ import {
   MapSymbol,
   OBJECT_COLLECTIONS,
   TIERS,
-  TIER_WORLD_SIZE,
 } from './map-editor.model';
 import {
   IMPORT_CELL_WARN,
   LandmassPlacement,
   LandmassSource,
   buildLandmassMasks,
+  edgeCells,
   fitScale,
   importCellCount,
+  innerCellRect,
   loadLandmassImage,
   placementBounds,
   recommendedTier,
@@ -791,20 +792,54 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private async clearImportArea(bounds: Bounds): Promise<void> {
-    for (const tier of TIERS) {
-      const span = TIER_WORLD_SIZE[tier];
-      const rect = {
-        minCx: Math.ceil(bounds.minX / span),
-        minCy: Math.ceil(bounds.minY / span),
-        maxCx: Math.floor(bounds.maxX / span) - 1,
-        maxCy: Math.floor(bounds.maxY / span) - 1,
-      };
-      if (rect.maxCx < rect.minCx || rect.maxCy < rect.minCy) continue;
+    const edgeNodes: Container[] = [];
+    try {
+      for (const tier of TIERS) {
+        if (this.importCancel.cancelled) return;
 
-      for (const layer of ['height', 'landColor'] as const) {
-        const cells = await this.store.clearChunks(layer, tier, rect);
-        this.chunks?.dropChunks(layer, tier, cells);
+        // Wholly inside: delete the files. Free whatever the area.
+        const inner = innerCellRect(bounds, tier);
+        if (inner) {
+          for (const layer of ['height', 'landColor'] as const) {
+            const cells = await this.store.clearChunks(layer, tier, inner);
+            this.chunks?.dropChunks(layer, tier, cells);
+          }
+        }
+
+        /*
+         * Crossed by the edge: erase the rectangle out of them.
+         *
+         * These cannot be deleted — they hold map outside the region too — and they cannot be
+         * skipped either, which is what the first version did. One chunk spans 23 hexes at
+         * `med` and 182 at `low`, so leaving them is not a fringe artifact but a band of the
+         * old map straight across the new one, composited over it at every zoom.
+         *
+         * `skipEmpty` keeps the cost honest: only cells that actually hold something are
+         * touched, so an import onto empty ocean does no work here at all.
+         */
+        const ring = edgeCells(bounds, tier);
+        if (!ring.length) continue;
+
+        const rect = new Container();
+        rect.addChild(
+          new Graphics()
+            .rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)
+            .fill({ color: 0xffffff }),
+        );
+        edgeNodes.push(rect);
+
+        await this.chunks?.stampCells(
+          [
+            { layer: 'height', node: rect, erase: true },
+            { layer: 'landColor', node: rect, erase: true },
+          ],
+          ring,
+          tier,
+          { skipEmpty: true, cancel: this.importCancel },
+        );
       }
+    } finally {
+      for (const node of edgeNodes) node.destroy({ children: true });
     }
   }
 
