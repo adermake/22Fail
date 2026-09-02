@@ -124,15 +124,30 @@ export class MapEditorStoreService {
     const data = this.data();
     if (!data) return;
 
-    applyMapOp(data, op);
-    this.revision.update(n => n + 1);
-
-    if (op.t === 'add' || op.t === 'upd' || op.t === 'del') {
-      this.objectOpSubject.next(op);
-      return;
-    }
-
+    /*
+     * Drops are filtered *before* being applied, unlike every other op.
+     *
+     * A drop is the one op that can arrive after it has already been superseded. An import
+     * clears an area and then immediately repaints it, and the clear's own echo travels back
+     * over the socket while the repaint is uploading over HTTP — two channels with no
+     * ordering between them. Applied blindly, that echo deletes the version records of
+     * chunks the stamp had already published and frees their textures, leaving part of a
+     * freshly stamped region wiped with a hard boundary wherever the echo happened to land.
+     *
+     * `ownChunkVersions` is the discriminator: `clearChunks` removes the entry for every
+     * dropped cell, so an entry existing again means this client has uploaded that cell
+     * since the drop was issued, and the newer content wins.
+     */
     if (op.t === 'chunkDrop') {
+      const stale: [number, number][] = [];
+      for (const [cx, cy] of op.cells) {
+        const key = chunkKey(op.layer, op.tier, cx, cy);
+        if (this.ownChunkVersions.has(key)) continue;
+        delete data.chunkVersions[key];
+        stale.push([cx, cy]);
+      }
+      this.revision.update(n => n + 1);
+
       /*
        * Not routed through `chunkInvalidations$`.
        *
@@ -141,7 +156,17 @@ export class MapEditorStoreService {
        * what stops a late 404 wiping fresh paint). So a drop has to be its own signal, or
        * deleted ground would keep showing its old pixels until it happened to be evicted.
        */
-      this.chunkDropSubject.next({ layer: op.layer, tier: op.tier, cells: op.cells });
+      if (stale.length) {
+        this.chunkDropSubject.next({ layer: op.layer, tier: op.tier, cells: stale });
+      }
+      return;
+    }
+
+    applyMapOp(data, op);
+    this.revision.update(n => n + 1);
+
+    if (op.t === 'add' || op.t === 'upd' || op.t === 'del') {
+      this.objectOpSubject.next(op);
       return;
     }
 

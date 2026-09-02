@@ -939,6 +939,23 @@
                 </p>
               }
 
+              <label
+                class="check-row"
+                title="Löscht auch Symbole, Beschriftungen, Regionen und Notizen im Bildbereich"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="importReplaceObjects()"
+                  [disabled]="importBusy()"
+                  (change)="importReplaceObjects.set($any($event.target).checked)"
+                />
+                <span>Symbole im Bereich löschen</span>
+              </label>
+              <p class="hint">
+                Symbole und Beschriftungen sind keine Kacheln, sondern eigene Objekte — sie
+                bleiben sonst über der neuen Küste stehen.
+              </p>
+
               <div class="panel-title">Form auf Stufe</div>
               <div class="profile-row">
                 @for (t of importTierOptions(); track t.id) {

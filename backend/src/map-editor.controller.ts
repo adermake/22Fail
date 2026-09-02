@@ -52,7 +52,10 @@ export class MapEditorController {
 
   /** Wholesale document save. Used for imports and recovery, not the editing hot path. */
   @Post()
-  saveMap(@Param('worldName') worldName: string, @Body() body: any): any {
+  async saveMap(
+    @Param('worldName') worldName: string,
+    @Body() body: any,
+  ): Promise<any> {
     return this.mapEditor.saveMap(worldName, body);
   }
 
@@ -109,7 +112,14 @@ export class MapEditorController {
     const body = await readRawBody(req);
     if (!body?.length) return { success: false };
 
-    const ver = this.mapEditor.writeChunk(worldName, layer, tier, cx, cy, body);
+    const ver = await this.mapEditor.writeChunk(
+      worldName,
+      layer,
+      tier,
+      cx,
+      cy,
+      body,
+    );
     return ver == null ? { success: false } : { success: true, ver };
   }
 

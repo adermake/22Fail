@@ -37,7 +37,8 @@ export type TerrainTool =
   | 'landPaint'
   | 'waterPaint'
   | 'landColorEraser'
-  | 'waterColorEraser';
+  | 'waterColorEraser'
+  | 'tierEraser';
 
 export const TERRAIN_TOOLS: readonly TerrainTool[] = [
   'landBrush',
@@ -50,6 +51,7 @@ export const TERRAIN_TOOLS: readonly TerrainTool[] = [
   'waterPaint',
   'landColorEraser',
   'waterColorEraser',
+  'tierEraser',
 ];
 
 /** Which raster a tool writes into. For multi-pass tools this is the primary one. */
@@ -67,7 +69,8 @@ function toolErases(tool: TerrainTool): boolean {
     tool === 'lower' ||
     tool === 'lakeStamp' ||
     tool === 'landColorEraser' ||
-    tool === 'waterColorEraser'
+    tool === 'waterColorEraser' ||
+    tool === 'tierEraser'
   );
 }
 
@@ -125,7 +128,34 @@ export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
       return [{ layer: 'landColor', erase: true, tint: 0xffffff }];
     case 'waterColorEraser':
       return [{ layer: 'waterColor', erase: true, tint: 0xffffff }];
+    /*
+     * Every raster at once — the tier's own "make this spot hold nothing".
+     *
+     * Distinct from `landEraser`, which means "there should be no land here" and therefore
+     * *writes* sea into the height field. This writes no opinion at all: the tier goes fully
+     * transparent, so the composite falls through to whatever coarser tier is underneath.
+     * That is the only way to hand an area back after a finer tier has claimed it, and it is
+     * meaningless without knowing which tier you are on — hence its home next to the tier pin.
+     */
+    case 'tierEraser':
+      return [
+        { layer: 'height', erase: true, tint: 0xffffff },
+        { layer: 'landColor', erase: true, tint: 0xffffff },
+        { layer: 'waterColor', erase: true, tint: 0xffffff },
+      ];
   }
+}
+
+/**
+ * Tools that write their own tier and never the coarser ones, whatever mode is active.
+ *
+ * For `tierEraser` this is not a preference but its meaning: cascading would clear the very
+ * tiers it exists to expose, so "erase this tier" would erase everything underneath and show
+ * open sea instead of the coarse version. Ordinary brushes cascade by default and only stop
+ * when isolating.
+ */
+export function toolIsTierLocal(tool: TerrainTool): boolean {
+  return tool === 'tierEraser';
 }
 
 /** Whether a tool's falloff is broken up by noise. */

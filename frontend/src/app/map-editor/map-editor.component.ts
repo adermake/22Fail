@@ -29,12 +29,26 @@ import { AuthService } from '../services/auth.service';
 import { MapRenderer } from './map-renderer';
 import { ChunkManager, StampPass } from './chunk-manager';
 import { CoastSettings, TerrainView, defaultCoast, hexToRgb } from './terrain-view';
-import { BrushEngine, BrushSettings, TerrainTool, defaultBrush, toolLayer } from './brush-engine';
+import {
+  BrushEngine,
+  BrushSettings,
+  TerrainTool,
+  defaultBrush,
+  toolIsTierLocal,
+  toolLayer,
+} from './brush-engine';
 import { Bounds } from './map-camera';
 import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
-import { DetailTier, MapSymbol, TIERS, TIER_WORLD_SIZE } from './map-editor.model';
+import {
+  AnyMapObject,
+  DetailTier,
+  MapSymbol,
+  OBJECT_COLLECTIONS,
+  TIERS,
+  TIER_WORLD_SIZE,
+} from './map-editor.model';
 import {
   IMPORT_CELL_WARN,
   LandmassPlacement,
@@ -302,6 +316,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   setTierIsolate(on: boolean): void {
     this.tierIsolate.set(on);
     this.terrain?.setIsolate(on);
+    /*
+     * Symbols, labels and regions come off with it.
+     *
+     * They are vector objects with no tier at all — one list for the whole map — so drawing
+     * them over an isolated tier says nothing about what that tier holds and actively misleads:
+     * a mountain range standing over open sea reads as terrain that failed to load rather than
+     * as a tier that legitimately stores nothing there.
+     */
+    this.renderer.objectLayer.visible = !on;
     this.scheduleStream();
   }
 
@@ -416,6 +439,16 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly importWithColor = signal(true);
   /** Whether the covered rectangle is cleared first, so the image replaces what was there. */
   readonly importReplace = signal(true);
+  /**
+   * Whether symbols, labels and regions inside the rectangle go too.
+   *
+   * Separate from `importReplace`, and off by default, because they are a different kind of
+   * thing: the rasters being replaced are a traced copy of the source image, while symbols are
+   * placed by hand and are usually the work worth keeping. Clearing the rasters alone does
+   * leave the old map's mountains standing over the new coastline, though, so replacing a map
+   * wholesale needs this — which is why it is offered rather than assumed.
+   */
+  readonly importReplaceObjects = signal(false);
   readonly importTier = signal<DetailTier>('med');
   /**
    * Tier the imported *colour* lands on, independently of the shape.
@@ -625,8 +658,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const ok = confirm(
       `Das Bild wird fest in die Karte gestempelt (${total} Kacheln; Form ab „${label(tier)}“` +
         (withColor ? `, Farbe ab „${label(colorTier)}“` : ', ohne Farbe') +
-        (this.importReplace() ? ', vorhandener Inhalt im Bereich wird auf allen Stufen ' +
-          'gelöscht' : '') +
+        (this.importReplace()
+          ? ', vorhandener Inhalt im Bereich wird auf allen Stufen gelöscht'
+          : '') +
+        (this.importReplaceObjects() ? ', Symbole im Bereich werden gelöscht' : '') +
         '). Das lässt sich nicht rückgängig machen. Fortfahren?',
     );
     if (!ok) return;
@@ -640,6 +675,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const nodes: Container[] = [];
     try {
       if (this.importReplace()) await this.clearImportArea(bounds);
+      if (this.importReplaceObjects()) this.clearImportObjects(bounds);
       if (this.importCancel.cancelled) return;
 
       // Progress spans both stamps, so each run's own count is offset by what came before.
@@ -726,6 +762,34 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * consequence is a chunk-wide fringe at the rectangle's edge where older fine-tier content
    * can remain.
    */
+  /**
+   * Remove symbols, labels, regions and markers standing inside the import rectangle.
+   *
+   * A separate pass from `clearImportArea` because these are not rasters and share nothing
+   * with the tier machinery: they are one flat list for the whole map, which is why clearing
+   * every tier still left the previous map's mountains sitting over the new coastline.
+   *
+   * Deleted through ordinary object ops, so other sessions see them go one at a time, exactly
+   * as if they had been selected and deleted by hand. Not put on the undo stack — the import
+   * it belongs to is not undoable either, and half-undoable would be worse than neither.
+   */
+  private clearImportObjects(bounds: Bounds): void {
+    const data = this.store.data();
+    if (!data) return;
+
+    const inside = (o: { x: number; y: number }) =>
+      o.x >= bounds.minX && o.x <= bounds.maxX && o.y >= bounds.minY && o.y <= bounds.maxY;
+
+    for (const collection of OBJECT_COLLECTIONS) {
+      // Snapshotted before deleting: the ops mutate the very arrays being walked.
+      const doomed = (data[collection] as AnyMapObject[]).filter(inside).map(o => o.id);
+      for (const id of doomed) this.store.deleteObject(collection, id);
+    }
+
+    this.setSelection([]);
+    this.setLabelSelection([]);
+  }
+
   private async clearImportArea(bounds: Bounds): Promise<void> {
     for (const tier of TIERS) {
       const span = TIER_WORLD_SIZE[tier];
@@ -895,7 +959,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           if (op.t === 'add') this.symbols?.add(op.v as MapSymbol);
           else if (op.t === 'del') this.symbols?.remove(op.id);
           else {
-            const sym = data?.symbols.find(s => s.id === op.id);
+            const sym = this.symbolById(op.id);
             if (sym) this.symbols?.update(sym);
           }
         } else if (op.c === 'regions') {
@@ -1173,7 +1237,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.undoStack?.begin();
     for (const id of this.selectedIds()) {
-      const sym = data.symbols.find(s => s.id === id);
+      const sym = this.symbolById(id);
       if (!sym) continue;
       this.undoStack?.recordObject({ c: 'symbols', id, before: clone(sym), after: null });
       this.store.deleteObject('symbols', id);
@@ -1217,7 +1281,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.undoStack?.begin();
     for (const id of this.selectedIds()) {
-      const sym = data.symbols.find(s => s.id === id);
+      const sym = this.symbolById(id);
       if (!sym) continue;
       const patch = patchFor(sym);
       this.undoStack?.recordObject({
@@ -1714,7 +1778,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.strokeTier = this.chunks?.detailTier ?? 'high';
     // Fixed at stroke start alongside the tier, for the same reason: toggling isolation
     // mid-drag would put the first half of one stroke in a different set of tiers.
-    this.strokeOnlyTier = this.onlyTier();
+    this.strokeOnlyTier = this.onlyTier() || toolIsTierLocal(this.terrainTool());
     this.noteStrokeExtent(world);
     this.undoStack?.begin();
     this.brushes?.beginStroke();
@@ -1853,7 +1917,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.undoStack?.begin();
     for (const c of changed) {
-      const sym = data.symbols.find(s => s.id === c.id);
+      const sym = this.symbolById(c.id);
       if (!sym) continue;
       const patch = { tint: c.tint || undefined };
       this.undoStack?.recordObject({
@@ -2010,10 +2074,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       if (hit) {
         // Snapshot positions now: the drag mutates them in place, so capturing later
         // would record the already-moved state and undo to nothing.
-        const data = this.store.data();
         const origins = new Map<string, MapSymbol>();
         for (const id of this.selectedIds()) {
-          const sym = data?.symbols.find(s => s.id === id);
+          const sym = this.symbolById(id);
           if (sym) origins.set(id, clone(sym));
         }
         this.dragSymbols = { startWorld: world, moved: false, origins };
@@ -2222,6 +2285,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.endPaint();
   };
 
+  /**
+   * The symbol with this id.
+   *
+   * Goes through the spatial index rather than scanning `data.symbols`. The index keys
+   * objects by id already and holds the very same instances the document array does, so
+   * mutating through either is the same act — but the scan was O(total) per lookup, and the
+   * selection drag below performs one per selected symbol per pointer move. On a map with
+   * tens of thousands of symbols that is the difference between a smooth drag and a stall.
+   */
+  private symbolById(id: string): MapSymbol | undefined {
+    return this.symbols?.index.get(id);
+  }
+
   private dragSelection(world: { x: number; y: number }): void {
     const drag = this.dragSymbols;
     const data = this.store.data();
@@ -2234,7 +2310,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     drag.startWorld = world;
 
     for (const id of this.selectedIds()) {
-      const sym = data.symbols.find(s => s.id === id);
+      const sym = this.symbolById(id);
       if (!sym) continue;
       sym.x += dx;
       sym.y += dy;
@@ -2250,7 +2326,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.undoStack?.begin();
     for (const id of this.selectedIds()) {
-      const sym = data.symbols.find(s => s.id === id);
+      const sym = this.symbolById(id);
       const before = origins.get(id);
       if (!sym || !before) continue;
       this.undoStack?.recordObject({ c: 'symbols', id, before, after: clone(sym) });

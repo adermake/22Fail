@@ -26,6 +26,52 @@ describe('spatial index', () => {
     expect(posHits).toEqual(['pos']);
   });
 
+  /*
+   * `get` replaced `data.symbols.find(...)` on the selection-drag path, where the scan cost
+   * selection × total symbols on every pointer move. It has to survive the object moving, and
+   * it has to hand back the *same instance* the document array holds — the drag mutates what
+   * it gets back and expects the document to change with it.
+   */
+  describe('Nachschlagen per id', () => {
+    it('findet ein Objekt und liefert dieselbe Instanz zurück', () => {
+      const ix = new SpatialIndex();
+      const o = obj('a', 100, 100);
+      ix.insert(o);
+
+      expect(ix.get('a')).toBe(o);
+    });
+
+    it('findet es auch nach einem Zellenwechsel wieder', () => {
+      const ix = new SpatialIndex();
+      const o = obj('mover', 100, 100);
+      ix.insert(o);
+
+      o.x = CELL_SIZE * 5 + 10;
+      ix.update(o);
+
+      expect(ix.get('mover')).toBe(o);
+    });
+
+    it('liefert undefined für Unbekanntes und für Entferntes', () => {
+      const ix = new SpatialIndex();
+      ix.insert(obj('a', 0, 0));
+
+      expect(ix.get('gibtsnicht')).toBeUndefined();
+      ix.remove('a');
+      expect(ix.get('a')).toBeUndefined();
+    });
+
+    it('gibt nach rebuild die neuen Instanzen zurück', () => {
+      const ix = new SpatialIndex();
+      ix.insert(obj('a', 0, 0));
+
+      const replacement = obj('a', 999, 999);
+      ix.rebuild([replacement]);
+
+      expect(ix.get('a')).toBe(replacement);
+    });
+  });
+
   it('re-files an object when it moves to another cell', () => {
     const ix = new SpatialIndex();
     const o = obj('mover', 100, 100);

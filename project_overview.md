@@ -687,6 +687,53 @@ Editor neu gesetzt. Bedienung im Reiter *Karte*.
   Randkacheln nur teilweise ab und muss deren gespeicherte Pixel abwarten, ein Pinsel nicht.
 - Klicks im Reiter *Karte* malen nicht mehr (fielen vorher auf `beginPaint` durch).
 
+## Karteneditor v2 — Skalierung bei vielen Symbolen
+
+Symbole werden **nie** in die Raster gestempelt; nur der Landmassen-Import stempelt. Sie
+bleiben dauerhaft Vektorobjekte — nur so lassen sie sich später verschieben, umfärben und
+löschen, und nur so kann der Server geheime aus Spieler-Payloads streichen.
+
+**Das Zeichnen skaliert von sich aus** (`SpatialIndex` 4096-px-Raster → nur sichtbare Buckets,
+Cull unter 3 Bildschirm-px, Sprite-Pool + Atlas-Batching, Deckel `MAX_VISIBLE = 12000`). Die
+Grenze lag woanders — beim einen JSON-Dokument. Gemessen (50k / 200k Symbole):
+
+| | map.json | stringify | gzip |
+| --- | --- | --- | --- |
+| 50k | 12,7 MB → **8,4 MB** ohne Einrückung | 22 ms | **0,61 MB** |
+| 200k | 51,2 MB → 34,0 MB | 89 ms | 2,44 MB |
+
+- **Schreiben ist asynchron und atomar** (`writeDoc`: Temp-Datei + `rename`). Synchron blockierte
+  es die gesamte Node-Event-Loop — nicht nur den Karteneditor, sondern jeden Socket-Client im
+  Prozess (Lobby, Charakterbögen, Würfel), ~70 ms bei 50k Symbolen, jede Sekunde beim Setzen von
+  Symbolen. Atomar, weil ein In-place-Schreiben die Datei zuerst kürzt: ein Absturz mittendrin
+  hinterließe eine halbe `map.json` — also die ganze Welt.
+- **`flushAsync` deckt alle noch geschuldeten Schreibvorgänge ab**, nicht nur das laufende
+  (`do…while` über `writeAgain`). Eine frühere Fassung reihte den Folgeschreibvorgang als
+  fire-and-forget ein, wodurch `onModuleDestroy` zurückkehrte, während der Schreibvorgang mit
+  den neuesten Änderungen noch lief — genau der Verlust, den der Hook verhindern soll.
+- **`onModuleDestroy` + `app.enableShutdownHooks()`**: die Speicherung ist um 1 s verzögert, ohne
+  Hook ginge bei jedem Neustart bis zu eine Sekunde Arbeit verloren. `MapEditorService` ist der
+  einzige Dienst mit einem solchen Hook.
+- **Ohne Einrückung** serialisiert (`JSON.stringify(doc)`): ein Drittel der Datei war Padding.
+  Zum Lesen formatiert jeder Editor oder `jq` sie.
+- **`compression`-Middleware** in `main.ts`: Symbol-JSON ist extrem repetitiv, gzip schafft ~14×.
+  Chunk-PNGs überspringt `compression` anhand des Content-Type von selbst.
+- **Chunk-PNGs schreiben ebenfalls asynchron** — ein Import schickt hunderte PUTs hintereinander.
+- **`SpatialIndex.get(id)`** ersetzt die `data.symbols.find(...)`-Scans. Beim Ziehen einer
+  Auswahl kostete das Auswahl × Gesamtzahl pro Mausbewegung (300 Symbole auf 30k = 9 Mio.
+  Vergleiche je Frame). Der Index hält dieselben Instanzen wie das Dokument-Array, Mutieren ist
+  also identisch.
+- `saveMap` (POST, Import/Recovery) **wartet** aufs Schreiben; der Op-Pfad bleibt verzögert.
+- Regressionstests: `map-editor.service.spec.ts` (erster Backend-Spec überhaupt).
+
+**Nicht gemacht, bewusst:** die O(n)-Dedupe in `applyMapOp` case `add` (`list.some`). Gemessen
+0,22 ms bei 50k und einmal pro Klick — der saubere Fix (Id-Sets neben zwei getrennten
+Switch-Implementierungen) kostet mehr Komplexität, als er einbringt.
+
+**Echte Obergrenze**, falls je nötig: Objekte räumlich in Dateien pro Zelle aufteilen, genau wie
+die Chunks schon (`objects/<cx>_<cy>.json`) — Speichern fasst eine Zelle an, Beitreten streamt
+nur nahe Zellen. Bis ~100k Symbolen nicht erforderlich.
+
 ## Karteneditor v2 — Grundfarben & Detailstufen von Hand
 
 **Grundfarben** (Reiter *Karte*): `settings.waterBase` und `settings.landBase` (Pergament
@@ -723,3 +770,29 @@ leerer Fetch lässt die Textur absichtlich stehen (das schützt frische Farbe vo
 404). Ein Drop muss den Record stattdessen freigeben: `chunkDrops$` → `ChunkManager.dropChunks`.
 Die REST-Löschung läuft **vor** dem Broadcast, weil sie als einzige Mutation hier nicht
 optimistisch anwendbar ist.
+
+**Der Drop ist der einzige Op, der zu spät kommen kann** — und das ist keine Theorie, sondern
+die Ursache abgeschnittener Import-Bereiche mit harter Kante mittendrin. Ein Import löscht den
+Bereich (Socket) und stempelt ihn sofort neu (HTTP); zwischen beiden Kanälen gibt es keine
+Reihenfolge, das Echo des eigenen Löschens trifft also mitten im Hochladen ein.
+
+- **Server:** `applyOp` behandelt `chunkDrop` als **reinen Relay** und ändert nichts. Gelöscht
+  hat schon `clearChunks` über REST; ein erneutes Anwenden würde die Version einer Kachel
+  löschen, deren Datei aktuell auf der Platte liegt.
+- **Client:** `applyRemoteOp` filtert den Drop **vor** `applyMapOp` gegen `ownChunkVersions`
+  (`clearChunks` löscht dort jeden betroffenen Eintrag, ein wieder vorhandener bedeutet also
+  „seither selbst hochgeladen“ → Drop überspringen). Sonst gäbe der Renderer Texturen frei, die
+  er gerade bemalt hat. Regressionstest: `chunk-drop.spec.ts`.
+
+**Symbole sind keine Kacheln.** `symbols`/`labels`/`regions`/`markers` sind Vektorobjekte in
+einer flachen Liste ohne jede Stufe — Stempeln und Stufen-Löschen fassen sie nie an. Deshalb:
+- optionales „Symbole im Bereich löschen“ beim Import (`clearImportObjects`, Default **aus**,
+  weil Symbole Handarbeit sind, die Raster dagegen eine Kopie der Bildvorlage),
+- in der Einzelstufen-Ansicht wird `objectLayer` **ausgeblendet**: Symbole über einer isolierten
+  Stufe sagen nichts über deren Inhalt und lesen sich wie nicht geladenes Terrain.
+
+**`tierEraser` („Stufe radieren“, in beiden Terrain-Reitern):** radiert `height` + `landColor` +
+`waterColor` und schreibt **immer nur die aktive Stufe** (`toolIsTierLocal`, unabhängig von der
+Isolierung — ein Kaskadieren würde genau die Stufen leeren, die es freilegen soll). Unterschied
+zu `landEraser`: der bedeutet „hier ist kein Land“ und *schreibt* Meer ins Höhenfeld, dieser
+macht die Stufe transparent, sodass die gröbere durchkommt.

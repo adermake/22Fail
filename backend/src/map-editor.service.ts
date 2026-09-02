@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -69,7 +69,7 @@ export type MapOp =
 const MAP_FORMAT_VERSION = 2;
 
 @Injectable()
-export class MapEditorService {
+export class MapEditorService implements OnModuleDestroy {
   private readonly logger = new Logger(MapEditorService.name);
   /** Matches DataService's layout so both write under the same `data/worlds` tree. */
   private readonly worldsDir = path.join(__dirname, '../../../data', 'worlds');
@@ -246,7 +246,7 @@ export class MapEditorService {
    * Chunk versions are deliberately *not* taken from the client: they describe files the
    * server owns, and accepting a stale copy would orphan painted terrain.
    */
-  saveMap(worldName: string, doc: any): any {
+  async saveMap(worldName: string, doc: any): Promise<any> {
     const known = this.getMap(worldName).chunkVersions ?? {};
     const incoming = doc?.chunkVersions ?? {};
 
@@ -257,8 +257,32 @@ export class MapEditorService {
     doc.chunkVersions = merged;
 
     this.cache.set(worldName, doc);
-    this.flush(worldName);
+    // Awaited, unlike the debounced op path: this is the explicit "save the whole document"
+    // route used for imports and recovery, where the caller is entitled to assume that a
+    // successful response means it is on disk.
+    await this.flushAsync(worldName);
     return doc;
+  }
+
+  /**
+   * Write out everything still owed before the process goes away.
+   *
+   * A save is debounced by a second, so at any moment up to a second of edits exists only in
+   * `cache`. That was survivable while writes were synchronous and rare; with a debounce it
+   * means an ordinary restart during editing silently drops the last symbols placed. Nest
+   * awaits this hook, so the writes actually complete.
+   */
+  async onModuleDestroy(): Promise<void> {
+    const owed = new Set([...this.saveTimers.keys(), ...this.writing.keys()]);
+
+    for (const [worldName, timer] of this.saveTimers) {
+      clearTimeout(timer);
+      this.saveTimers.delete(worldName);
+    }
+
+    // `flushAsync` resolves only once nothing further is owed for that world, so this covers
+    // both the debounced saves just cancelled and any write already in flight.
+    await Promise.all([...owed].map(w => this.flushAsync(w)));
   }
 
   /** Debounced write — brush strokes emit ops far faster than disk should be touched. */
@@ -274,18 +298,93 @@ export class MapEditorService {
     );
   }
 
+  /** Worlds with a write in flight, so a second flush queues instead of interleaving. */
+  private writing = new Map<string, Promise<void>>();
+  /** Worlds edited while their write was in flight, and so still owed one. */
+  private writeAgain = new Set<string>();
+
+  /**
+   * Persist a world's document.
+   *
+   * **Asynchronous and atomic**, and both matter more than they look on a map with a lot of
+   * symbols. The document holds every symbol on the map in one array, so serialising and
+   * writing it is ~70 ms at 50k symbols and ~250 ms at 200k. Doing that synchronously blocked
+   * the entire Node event loop — not just the map editor, but every socket client on the
+   * process: the lobby, character sheets, dice, all of it froze for that long, once a second,
+   * the whole time somebody was placing symbols.
+   *
+   * Atomic because the alternative risks the map itself. Writing in place truncates the file
+   * first, so a crash, a full disk or a container stop mid-write leaves a half-written
+   * `map.json` — and that is the entire world's symbols, labels and regions, unrecoverable.
+   * Writing a temp file and renaming means the old document stays intact until a complete new
+   * one exists; `rename` within a directory is atomic, so a reader sees one or the other and
+   * never a fragment.
+   */
   private flush(worldName: string): void {
+    void this.flushAsync(worldName);
+  }
+
+  private flushAsync(worldName: string): Promise<void> {
+    /*
+     * One write at a time per world, and the returned promise covers *all* of the writes
+     * still owed — not merely the one already running.
+     *
+     * Two overlapping writes race on the same temp path, and the loser can rename a stale
+     * document over a newer one. Queueing instead means the follow-up picks up the cache as
+     * it stands when it runs, which is by definition at least as new.
+     *
+     * The loop matters for shutdown. A version of this that queued the follow-up as
+     * fire-and-forget resolved as soon as the *first* write finished, so `onModuleDestroy`
+     * returned while the write holding the newest edits was still in flight — which is the
+     * exact data loss the hook exists to prevent.
+     */
+    const inFlight = this.writing.get(worldName);
+    if (inFlight) {
+      this.writeAgain.add(worldName);
+      return inFlight;
+    }
+
+    const run = (async () => {
+      try {
+        do {
+          // Cleared before the write, so edits arriving *during* it re-arm the flag.
+          this.writeAgain.delete(worldName);
+          await this.writeDoc(worldName);
+          // No await between this check and the `finally` below, so a save requested here
+          // cannot slip through the gap between "nothing owed" and "no longer writing".
+        } while (this.writeAgain.has(worldName));
+      } finally {
+        this.writing.delete(worldName);
+      }
+    })();
+
+    this.writing.set(worldName, run);
+    return run;
+  }
+
+  private async writeDoc(worldName: string): Promise<void> {
     const doc = this.cache.get(worldName);
     if (!doc) return;
+
+    const file = this.mapFile(worldName);
+    // Same directory as the target: `rename` is only atomic within one filesystem.
+    const temp = `${file}.tmp`;
+
     try {
-      fs.mkdirSync(this.mapDir(worldName), { recursive: true });
-      fs.writeFileSync(
-        this.mapFile(worldName),
-        JSON.stringify(doc, null, 2),
-        'utf-8',
-      );
+      await fs.promises.mkdir(this.mapDir(worldName), { recursive: true });
+      /*
+       * Serialised without indentation.
+       *
+       * Nothing reads this by eye — it is machine-written and machine-read — and the padding
+       * is a third of the file: 12.7 MB against 8.4 MB at 50k symbols, on every save and every
+       * join. Any editor or `jq` will format it if it ever needs reading.
+       */
+      await fs.promises.writeFile(temp, JSON.stringify(doc), 'utf-8');
+      await fs.promises.rename(temp, file);
     } catch (err) {
       this.logger.error(`Failed to write map for ${worldName}:`, err as Error);
+      // Leave no partial temp file behind to be mistaken for anything later.
+      await fs.promises.rm(temp, { force: true }).catch(() => undefined);
     }
   }
 
@@ -325,19 +424,19 @@ export class MapEditorService {
       }
       case 'chunkDrop': {
         /*
-         * Bookkeeping only — the files were already deleted by `clearChunks` through the
-         * REST route, which is where the GM check lives. This op exists so the *other*
-         * sessions learn what went away; applying it here just keeps the document in step
-         * with the broadcast, exactly as `chunk` does after a PUT.
+         * Pure relay — deliberately changes nothing here.
+         *
+         * The deletion already happened, authoritatively, in `clearChunks` via the REST
+         * route (which is also where the GM check lives). Re-applying it on arrival would be
+         * worse than redundant: this op travels over the socket while the client that sent it
+         * repaints the same area over HTTP, and the two channels have no ordering between
+         * them. A drop landing after a `PUT` would delete the version of a chunk whose file
+         * is on disk and current, so the map would report that ground as never painted until
+         * the next `scanChunkVersions` on load contradicted it.
+         *
+         * Forwarding it unchanged is the whole job: other sessions need to know what went
+         * away, and the document is already right.
          */
-        if (!TIERS.includes(op.tier)) return;
-        if (!Array.isArray(op.cells)) return;
-        for (const cell of op.cells) {
-          if (!Array.isArray(cell) || cell.length !== 2) continue;
-          const [cx, cy] = cell;
-          if (!Number.isInteger(cx) || !Number.isInteger(cy)) continue;
-          delete doc.chunkVersions[`${op.layer}/${op.tier}/${cx}/${cy}`];
-        }
         break;
       }
       case 'set': {
@@ -435,20 +534,26 @@ export class MapEditorService {
     }
   }
 
-  /** Persist a chunk and bump its version. Returns the new version for broadcasting. */
-  writeChunk(
+  /**
+   * Persist a chunk and bump its version. Returns the new version for broadcasting.
+   *
+   * Asynchronous for the same reason the document write is: a landmass import PUTs hundreds
+   * of chunks back to back, and a synchronous write per chunk turns that into hundreds of
+   * event-loop stalls while every other client waits.
+   */
+  async writeChunk(
     worldName: string,
     layer: RasterLayer,
     tier: DetailTier,
     cx: number,
     cy: number,
     data: Buffer,
-  ): number | null {
+  ): Promise<number | null> {
     const file = this.chunkFile(worldName, layer, tier, cx, cy);
     if (!file) return null;
     try {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, data);
+      await fs.promises.mkdir(path.dirname(file), { recursive: true });
+      await fs.promises.writeFile(file, data);
     } catch (err) {
       this.logger.error(
         `Failed to write chunk ${layer}/${tier}/${cx}_${cy}:`,

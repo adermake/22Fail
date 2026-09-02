@@ -61,6 +61,7 @@ export const WATER_TOOL_DEFS: ToolDef<TerrainTool>[] = [
   { id: 'lakeStamp', icon: 'lake_tool_64', label: 'See' },
   { id: 'waterPaint', icon: 'color_brush', label: 'Wasserfarbe' },
   { id: 'waterColorEraser', icon: 'ground_color_eraser_normal', label: 'Wasserfarbe radieren' },
+  { id: 'tierEraser', icon: 'landmass_wizard_64', label: 'Stufe radieren' },
 ];
 
 export const LAND_TOOL_DEFS: ToolDef<TerrainTool>[] = [
@@ -72,6 +73,9 @@ export const LAND_TOOL_DEFS: ToolDef<TerrainTool>[] = [
   // Colour off, land intact — the way to hand an area back to the base colour, or to a
   // coarser tier whose paint a finer one is covering.
   { id: 'landColorEraser', icon: 'ground_color_eraser_normal', label: 'Landfarbe radieren' },
+  // Everything off, so the tier holds nothing here and a coarser one shows through. Listed
+  // in both terrain tabs because it belongs to neither: it is a tier operation.
+  { id: 'tierEraser', icon: 'landmass_wizard_64', label: 'Stufe radieren' },
 ];
 
 export const SYMBOL_TOOL_DEFS: ToolDef<SymbolTool>[] = [

@@ -89,6 +89,23 @@ export class SpatialIndex<T extends IndexedObject> {
   }
 
   /**
+   * The object with this id, or undefined.
+   *
+   * Two map lookups, against the linear `symbols.find(...)` scans this replaces. That
+   * mattered in exactly one place and mattered a lot: dragging a selection re-resolved every
+   * selected id on every pointer move, so the cost was selection × total symbols per mouse
+   * move — 9 million comparisons for 300 symbols on a 30k map, every frame of the drag.
+   *
+   * The returned object is the same instance the document array holds, so mutating it and
+   * mutating `data.symbols[i]` are the same act; the index stores references, not copies.
+   */
+  get(id: string): T | undefined {
+    const key = this.placement.get(id);
+    if (key === undefined) return undefined;
+    return this.cells.get(key)?.get(id);
+  }
+
+  /**
    * Objects in cells overlapping `bounds`.
    *
    * Returns whole buckets, so results can lie slightly outside the query — callers that
