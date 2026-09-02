@@ -20,7 +20,7 @@ Diese Stats sind allerdings nur grobe Verallgemeinerungen und können je nach Ch
 :::section{title= Rassenfähigkeiten icon=ability id=race_abilities}
 Zusätzlich lernt jede Rasse auf bestimmten Leveln (meist zwischen 1 und 30) spezielle Fähigkeiten, die für jede Rasse einzigartig sind. Jede Rasse kann dreimal jeweils eine von zwei verschiedenen Fähigkeiten lernen, die sie für den Rest des Abenteuers behalten und signifikante Auswirkungen auf ihr Spielverhalten haben können.
 
-## Vor- und Nachteile
+### Vor- und Nachteile
 Einige Rassen besitzen außerdem bestimmte Vor- oder Nachteile, die für alle Mitglieder der Rasse gelten. Sie wirken von Geburt an und können auch nicht gelernt oder verlernt werden. 
 
 :::actions
