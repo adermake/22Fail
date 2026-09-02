@@ -34,10 +34,12 @@ import {
   LAYER_TEXELS,
   RASTER_LAYERS,
   RasterLayer,
+  TARGET_CHUNKS_ON_SCREEN,
   TIERS,
   TIER_WORLD_SIZE,
   chooseTier,
   chunkKey,
+  chunksOnScreen,
   coarserTiers,
 } from './map-editor.model';
 import { Bounds } from './map-camera';
@@ -146,6 +148,46 @@ export class ChunkManager {
     return chooseTier(this.tier, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
   }
 
+  /**
+   * Tier the GM has pinned, or null to follow the zoom.
+   *
+   * Pinning exists because the tier decides what a *stroke* writes, not just what is drawn —
+   * and those two wants do not always agree. Recolouring the coarse base while zoomed in
+   * close enough to see what you are aligning against is impossible otherwise, and it is
+   * exactly the job that sends people looking for a per-tier eraser.
+   */
+  tierPin: DetailTier | null = null;
+
+  /**
+   * Whether the pin is currently being ignored because the view cannot afford it.
+   *
+   * Read by the UI: silently falling back would leave the panel claiming to edit `high`
+   * while strokes actually land on `low`, which is worse than not offering the pin at all.
+   */
+  get tierPinBlocked(): boolean {
+    return this.tierPin !== null && this.tier !== this.tierPin;
+  }
+
+  /**
+   * The tier to stream and draw: the pin if it fits on screen, otherwise the zoom's choice.
+   *
+   * The pin is *clamped*, not obeyed. Pinning `high` and zooming out to the whole world asks
+   * for tens of thousands of 3 MB cells — the precise failure the tiers exist to prevent, and
+   * one that ends in a lost WebGL context rather than a slow frame. `TARGET_CHUNKS_ON_SCREEN`
+   * is the same budget the automatic chooser respects, so a pin can never buy more than
+   * zooming in would.
+   */
+  private resolveTier(view: Bounds): DetailTier {
+    const auto = this.tierFor(view);
+    const pin = this.tierPin;
+    if (!pin) return auto;
+
+    const w = view.maxX - view.minX;
+    const h = view.maxY - view.minY;
+    if (chunksOnScreen(w, h, pin) > TARGET_CHUNKS_ON_SCREEN) return auto;
+    return pin;
+  }
+
   private create(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): ChunkRecord {
     const texels = this.texelsFor(layer);
     /*
@@ -217,11 +259,15 @@ export class ChunkManager {
    * Unsaved local paint counts. Checking only the document's version record would leave a
    * stroke on virgin ground invisible until its upload landed — the brush would appear to do
    * nothing for a second, on exactly the ground where you can least afford to doubt it.
+   *
+   * `onlyTier` matches the isolating view: with the coarser tiers unsampled, their content is
+   * no reason to build a cell, and counting it would draw empty squares over open sea while
+   * hiding the fact that the isolated tier is blank there — the one thing isolation is for.
    */
-  hasContentUnder(tier: DetailTier, cx: number, cy: number): boolean {
+  hasContentUnder(tier: DetailTier, cx: number, cy: number, onlyTier = false): boolean {
     const span = TIER_WORLD_SIZE[tier];
 
-    for (const source of [tier, ...coarserTiers(tier)]) {
+    for (const source of onlyTier ? [tier] : [tier, ...coarserTiers(tier)]) {
       const srcSpan = TIER_WORLD_SIZE[source];
       const sx = Math.floor((cx * span) / srcSpan);
       const sy = Math.floor((cy * span) / srcSpan);
@@ -362,7 +408,7 @@ export class ChunkManager {
     const prevTier = this.tier;
     // Chosen from the screen itself, not the padded rectangle: the lead is loading policy,
     // and letting it feed back into the tier choice would coarsen the view for no reason.
-    this.tier = this.tierFor(view);
+    this.tier = this.resolveTier(view);
     if (prevTier !== this.tier) {
       mapDiag.log('tier:change', '', `${prevTier} -> ${this.tier}`);
     }
@@ -601,14 +647,24 @@ export class ChunkManager {
    * Writing the coarse copies here, in the stroke, is the whole design: it is what makes the
    * tiers consistent by construction, so zooming out needs no derived tiles and the server
    * never rebuilds anything. Finer tiers are deliberately *not* touched — see `coarserTiers`.
+   *
+   * `onlyTier` suppresses the coarse copies. It is for hand-editing one tier in isolation,
+   * where writing the others is the opposite of what is wanted: the whole reason to isolate
+   * is that some tier holds content that should be there and no other should copy it.
    */
-  paintWorld(layer: RasterLayer, node: Container, bounds: Bounds, tier: DetailTier): ChunkRecord[] {
+  paintWorld(
+    layer: RasterLayer,
+    node: Container,
+    bounds: Bounds,
+    tier: DetailTier,
+    onlyTier = false,
+  ): ChunkRecord[] {
     const touched: ChunkRecord[] = [];
 
     this.stampHost.removeChildren();
     this.stampHost.addChild(node);
 
-    for (const target of [tier, ...coarserTiers(tier)]) {
+    for (const target of onlyTier ? [tier] : [tier, ...coarserTiers(tier)]) {
       const span = TIER_WORLD_SIZE[target];
       const minCx = Math.floor(bounds.minX / span);
       const maxCx = Math.floor(bounds.maxX / span);
@@ -1043,6 +1099,26 @@ export class ChunkManager {
     const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
     // Local unsaved paint wins; our own flush will publish it shortly.
     if (rec && !rec.dirty && !rec.uploading) void this.fetchInto(rec);
+  }
+
+  /**
+   * Free chunks that no longer exist on the server.
+   *
+   * Deliberately not `invalidate`. A refetch of a deleted chunk comes back empty, and
+   * `fetchIntoInner` leaves the texture untouched in that case on purpose — that is what
+   * stops a late 404 from wiping paint that landed while the request was in flight. Applied
+   * to a real deletion the same rule is wrong: the pixels would stay on screen until the
+   * chunk happened to be evicted. So a drop frees the record outright and lets the streamer
+   * decide whether that ground still needs a cell at all.
+   */
+  dropChunks(layer: RasterLayer, tier: DetailTier, cells: [number, number][]): void {
+    for (const [cx, cy] of cells) {
+      const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
+      if (rec) this.dispose(rec);
+      // A pinned "recently painted" entry would keep the freed position unevictable and,
+      // worse, claim content is there when the files are gone.
+      this.hotCells.delete(this.hotKey(tier, cx, cy));
+    }
   }
 
   hasPendingWork(): boolean {

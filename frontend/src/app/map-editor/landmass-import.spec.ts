@@ -13,6 +13,7 @@ import {
   worldPerTexel,
 } from './landmass-import';
 import { TIER_WORLD_SIZE } from './map-editor.model';
+import { Bounds } from './map-camera';
 
 /** A stand-in source; only the dimensions matter to the sizing rules. */
 const source = (width: number, height: number): LandmassSource => ({
@@ -116,6 +117,47 @@ describe('Landmassen-Import', () => {
         20000,
       );
       expect(Math.max(res.w, res.h)).toBe(MAX_MASK_TEXELS);
+    });
+  });
+
+  describe('Innenrechteck beim Ersetzen', () => {
+    /*
+     * „Bereich ersetzen“ löscht nur Kacheln, die *ganz* im Bild liegen — eine angeschnittene
+     * hält auch Karte außerhalb, die stehen bleiben muss. Das ist genau der Randstreifen, der
+     * als bekannte Kehrseite dokumentiert ist.
+     */
+    const innerRect = (bounds: Bounds, span: number) => ({
+      minCx: Math.ceil(bounds.minX / span),
+      minCy: Math.ceil(bounds.minY / span),
+      maxCx: Math.floor(bounds.maxX / span) - 1,
+      maxCy: Math.floor(bounds.maxY / span) - 1,
+    });
+
+    it('nimmt bei kachelgenauem Rechteck jede Kachel', () => {
+      const span = TIER_WORLD_SIZE.high;
+      const r = innerRect({ minX: 0, minY: 0, maxX: span * 3, maxY: span * 2 }, span);
+      expect(r).toEqual({ minCx: 0, minCy: 0, maxCx: 2, maxCy: 1 });
+    });
+
+    it('lässt angeschnittene Randkacheln aus', () => {
+      const span = TIER_WORLD_SIZE.high;
+      // Von der Mitte einer Kachel bis in die Mitte der übernächsten: nur Kachel 1 liegt ganz
+      // innen, 0 und 2 sind angeschnitten.
+      const r = innerRect(
+        { minX: span * 0.5, minY: span * 0.5, maxX: span * 2.5, maxY: span * 2.5 },
+        span,
+      );
+      expect(r).toEqual({ minCx: 1, minCy: 1, maxCx: 1, maxCy: 1 });
+    });
+
+    it('ergibt ein leeres Rechteck, wenn keine Kachel ganz überdeckt ist', () => {
+      const span = TIER_WORLD_SIZE.low;
+      // Ein Bild, das kleiner als eine grobe Kachel ist, darf keine davon löschen.
+      const r = innerRect(
+        { minX: span * 0.2, minY: span * 0.2, maxX: span * 0.8, maxY: span * 0.8 },
+        span,
+      );
+      expect(r.maxCx < r.minCx || r.maxCy < r.minCy).toBe(true);
     });
   });
 

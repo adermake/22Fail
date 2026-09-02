@@ -105,4 +105,33 @@ export class MapEditorApiService {
       return null;
     }
   }
+
+  /**
+   * Delete every stored chunk of a layer and tier inside a chunk-coordinate rectangle.
+   *
+   * Resolves the cells the server actually removed — usually far fewer than the rectangle,
+   * because most of a map has never been painted. Callers broadcast exactly those, so other
+   * sessions drop only ground that really changed.
+   */
+  async clearChunks(
+    worldName: string,
+    layer: RasterLayer,
+    tier: DetailTier,
+    rect: { minCx: number; minCy: number; maxCx: number; maxCy: number },
+  ): Promise<[number, number][]> {
+    const query =
+      `minCx=${rect.minCx}&minCy=${rect.minCy}` + `&maxCx=${rect.maxCx}&maxCy=${rect.maxCy}`;
+    try {
+      const res = await fetch(`${this.base(worldName)}/chunks/${layer}/${tier}?${query}`, {
+        method: 'DELETE',
+        headers: identityHeaders(),
+      });
+      if (!res.ok) return [];
+      const json = (await res.json()) as { success: boolean; cells?: [number, number][] };
+      return json.success ? (json.cells ?? []) : [];
+    } catch (err) {
+      console.error('[MapEditorAPI] Chunk clear failed:', err);
+      return [];
+    }
+  }
 }

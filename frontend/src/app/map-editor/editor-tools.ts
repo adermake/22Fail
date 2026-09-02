@@ -60,6 +60,7 @@ export const WATER_TOOL_DEFS: ToolDef<TerrainTool>[] = [
   { id: 'waterBrush', icon: 'freshwater_brush_64', label: 'Wasser' },
   { id: 'lakeStamp', icon: 'lake_tool_64', label: 'See' },
   { id: 'waterPaint', icon: 'color_brush', label: 'Wasserfarbe' },
+  { id: 'waterColorEraser', icon: 'ground_color_eraser_normal', label: 'Wasserfarbe radieren' },
 ];
 
 export const LAND_TOOL_DEFS: ToolDef<TerrainTool>[] = [
@@ -68,6 +69,9 @@ export const LAND_TOOL_DEFS: ToolDef<TerrainTool>[] = [
   { id: 'heighten', icon: 'raise_landmass_tool_64', label: 'Anheben' },
   { id: 'lower', icon: 'lower_landmass_tool_64', label: 'Absenken' },
   { id: 'landPaint', icon: 'ground_color_normal', label: 'Landfarbe' },
+  // Colour off, land intact — the way to hand an area back to the base colour, or to a
+  // coarser tier whose paint a finer one is covering.
+  { id: 'landColorEraser', icon: 'ground_color_eraser_normal', label: 'Landfarbe radieren' },
 ];
 
 export const SYMBOL_TOOL_DEFS: ToolDef<SymbolTool>[] = [
@@ -89,6 +93,10 @@ export function isBrushTool(tool: TerrainTool): boolean {
   return tool !== 'lakeStamp';
 }
 
+/*
+ * The colour erasers are absent from both: an eraser takes colour away, so offering a swatch
+ * for it would suggest it puts one down.
+ */
 export function usesLandPalette(tool: TerrainTool): boolean {
   return tool === 'landBrush' || tool === 'landPaint';
 }

@@ -34,7 +34,7 @@ import { Bounds } from './map-camera';
 import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
-import { DetailTier, MapSymbol, TIERS } from './map-editor.model';
+import { DetailTier, MapSymbol, TIERS, TIER_WORLD_SIZE } from './map-editor.model';
 import {
   IMPORT_CELL_WARN,
   LandmassPlacement,
@@ -199,6 +199,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   /** Open sea's colour — the canvas nothing has been drawn on yet. */
   readonly waterBase = signal('#3f6d8c');
+  /**
+   * Bare ground's colour — land that has been raised but never coloured.
+   *
+   * The way to restyle a whole map's ground: it shows only where colour coverage is zero, so
+   * it repaints nothing deliberate, and it applies at every tier at once instead of being
+   * baked into whichever one happened to be active.
+   */
+  readonly landBase = signal('#e4d5b7');
 
   readonly paperOptions = signal<PaperTextureMeta[]>([]);
   readonly paperTexture = signal('');
@@ -249,6 +257,53 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly detailTierLabel = computed(
     () => ({ high: 'Hoch', med: 'Mittel', low: 'Grob' })[this.detailTier()],
   );
+
+  // ── working tier ──
+
+  /**
+   * Tier the GM has pinned, or null to follow the zoom.
+   *
+   * The tier decides what a stroke *writes*, not merely what is drawn, so following the zoom
+   * alone leaves one job impossible: correcting the coarse base while zoomed in far enough to
+   * see what you are matching it against.
+   */
+  readonly tierPin = signal<DetailTier | null>(null);
+  /** Draw only the pinned tier instead of the coarse-under-fine composite. */
+  readonly tierIsolate = signal(false);
+  /** True while the pin cannot be honoured at this zoom — the UI must say so. */
+  readonly tierPinBlocked = signal(false);
+
+  readonly tierOptions: { id: DetailTier | null; label: string }[] = [
+    { id: null, label: 'Auto' },
+    { id: 'low', label: 'Grob' },
+    { id: 'med', label: 'Mittel' },
+    { id: 'high', label: 'Hoch' },
+  ];
+
+  /**
+   * Whether brushes write this tier alone.
+   *
+   * Tied to isolation rather than to the pin. Pinning is also just a way to look at a tier,
+   * and silently changing what every brush writes the moment you pin would be a trap;
+   * isolating is the explicit "I am hand-managing tiers" mode, so it is the honest place for
+   * the rule to change.
+   */
+  readonly onlyTier = computed(() => this.tierPin() !== null && this.tierIsolate());
+
+  setTierPin(tier: DetailTier | null): void {
+    this.tierPin.set(tier);
+    if (this.chunks) this.chunks.tierPin = tier;
+    // Isolating without a pin would mean isolating whatever tier the zoom lands on, which
+    // changes under you as you move — the opposite of a stable thing to edit.
+    if (tier === null) this.setTierIsolate(false);
+    this.applyView();
+  }
+
+  setTierIsolate(on: boolean): void {
+    this.tierIsolate.set(on);
+    this.terrain?.setIsolate(on);
+    this.scheduleStream();
+  }
 
   // ── diagnostics ──
 
@@ -362,6 +417,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   /** Whether the covered rectangle is cleared first, so the image replaces what was there. */
   readonly importReplace = signal(true);
   readonly importTier = signal<DetailTier>('med');
+  /**
+   * Tier the imported *colour* lands on, independently of the shape.
+   *
+   * Coarse by default, and that is the whole point. Colour composites fine-over-coarse, so
+   * colour written into a detail tier permanently outranks every coarser one — which is what
+   * made a base colour, imported across a whole continent, impossible to change afterwards:
+   * the edit went in at Grob and the import's copy at Hoch kept winning on zoom.
+   *
+   * Grob costs almost nothing in fidelity here. A landmass export runs about 8 px per hex and
+   * Grob resolves ~4 texels per hex, so the source barely out-resolves it — while the finer
+   * tiers stay empty and free for colour work that really is detail.
+   */
+  readonly importColorTier = signal<DetailTier>('low');
   readonly importBusy = signal(false);
   readonly importProgress = signal({ done: 0, total: 0 });
   readonly importError = signal<string | null>(null);
@@ -532,9 +600,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   /**
    * Burn the placed image into the terrain rasters.
    *
-   * Both rasters come from the same mask, so shape and colour cannot disagree, and the write
-   * goes to the chosen tier plus every coarser one — the same rule a brush stroke follows,
-   * which is what keeps a zoomed-out view showing the import rather than empty sea.
+   * Shape and colour go in as **two separate stamps at two tiers**, both cut from the same
+   * mask so they cannot disagree about where land is. Shape wants the finer tier — that is
+   * what a coastline is — while colour belongs on Grob, because the composite reads fine over
+   * coarse and colour left in a detail tier can never be overridden from a coarser one again.
    *
    * There is no undo. The chunk manager streams the area a few cells at a time precisely so
    * an import far larger than VRAM is possible at all, and snapshotting every touched chunk
@@ -545,65 +614,46 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (!src || !this.chunks || this.importBusy()) return;
 
     const tier = this.importTier();
+    const colorTier = this.importColorTier();
+    const withColor = this.importWithColor();
     const bounds = placementBounds(src, this.importPlacement());
-    const cells = importCellCount(bounds, tier);
-    const tierLabel = this.importTierOptions().find(o => o.id === tier)?.label ?? tier;
+
+    const total =
+      importCellCount(bounds, tier) + (withColor ? importCellCount(bounds, colorTier) : 0);
+    const label = (t: DetailTier) => this.importTierOptions().find(o => o.id === t)?.label ?? t;
 
     const ok = confirm(
-      `Das Bild wird fest in die Karte gestempelt (${cells} Kacheln, alle Detailstufen ab ` +
-        `„${tierLabel}“). Das lässt sich nicht rückgängig machen. Fortfahren?`,
+      `Das Bild wird fest in die Karte gestempelt (${total} Kacheln; Form ab „${label(tier)}“` +
+        (withColor ? `, Farbe ab „${label(colorTier)}“` : ', ohne Farbe') +
+        (this.importReplace() ? ', vorhandener Inhalt im Bereich wird auf allen Stufen ' +
+          'gelöscht' : '') +
+        '). Das lässt sich nicht rückgängig machen. Fortfahren?',
     );
     if (!ok) return;
 
     this.importError.set(null);
     this.importBusy.set(true);
     this.importCancel = { cancelled: false };
-    this.importProgress.set({ done: 0, total: cells });
+    this.importProgress.set({ done: 0, total });
 
     // Nodes are built once and reused for every chunk the stamp walks — see `StampPass`.
     const nodes: Container[] = [];
     try {
-      const masks = buildLandmassMasks(src.bitmap, {
-        threshold: this.importThreshold(),
-        withColor: this.importWithColor(),
-        worldPerTexel: worldPerTexel(tier),
-        worldWidth: bounds.maxX - bounds.minX,
-      });
+      if (this.importReplace()) await this.clearImportArea(bounds);
+      if (this.importCancel.cancelled) return;
 
-      const passes: StampPass[] = [];
+      // Progress spans both stamps, so each run's own count is offset by what came before.
+      let done = 0;
+      const report = (n: number, runTotal: number) => {
+        this.importProgress.set({ done: done + n, total: Math.max(total, done + runTotal) });
+      };
 
-      /*
-       * Clearing first is what makes this a *replacement* rather than an overlay.
-       *
-       * Without it the sea in the image is simply "no paint", so land already drawn under
-       * the rectangle survives inside the imported bays — which reads as the import having
-       * failed in patches. With it, the rectangle afterwards holds exactly the image.
-       */
-      if (this.importReplace()) {
-        for (const layer of ['height', 'landColor'] as const) {
-          const rect = new Container();
-          rect.addChild(
-            new Graphics()
-              .rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)
-              .fill({ color: 0xffffff }),
-          );
-          nodes.push(rect);
-          passes.push({ layer, node: rect, erase: true });
-        }
+      await this.stampMask(src, bounds, tier, 'height', false, nodes, report);
+      done += importCellCount(bounds, tier);
+
+      if (withColor && !this.importCancel.cancelled) {
+        await this.stampMask(src, bounds, colorTier, 'landColor', true, nodes, report);
       }
-
-      passes.push({ layer: 'height', node: this.maskNode(masks.heightCanvas, bounds, nodes) });
-      if (masks.colorCanvas) {
-        passes.push({ layer: 'landColor', node: this.maskNode(masks.colorCanvas, bounds, nodes) });
-      }
-
-      await this.chunks.stampRegion(
-        passes,
-        bounds,
-        tier,
-        (done, total) => this.importProgress.set({ done, total }),
-        this.importCancel,
-      );
     } catch (err) {
       console.error('[MapEditor] Landmassen-Import fehlgeschlagen', err);
       this.importError.set('Import fehlgeschlagen — Details in der Konsole.');
@@ -621,6 +671,77 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // left dirty, which would otherwise sit unsaved until the editor is closed.
     this.scheduleFlush();
     this.scheduleStream();
+  }
+
+  /**
+   * One layer of the import, at its own tier.
+   *
+   * The mask is rebuilt per run rather than shared, because its working resolution is derived
+   * from the target tier's texel density — the same canvas serving both would be wasteful at
+   * Grob and blurry at Hoch.
+   */
+  private async stampMask(
+    src: LandmassSource,
+    bounds: Bounds,
+    tier: DetailTier,
+    layer: 'height' | 'landColor',
+    color: boolean,
+    nodes: Container[],
+    report: (done: number, total: number) => void,
+  ): Promise<void> {
+    const masks = buildLandmassMasks(src.bitmap, {
+      threshold: this.importThreshold(),
+      withColor: color,
+      worldPerTexel: worldPerTexel(tier),
+      worldWidth: bounds.maxX - bounds.minX,
+    });
+
+    const canvas = color ? masks.colorCanvas : masks.heightCanvas;
+    if (!canvas) return;
+
+    await this.chunks!.stampRegion(
+      [{ layer, node: this.maskNode(canvas, bounds, nodes) }],
+      bounds,
+      tier,
+      report,
+      this.importCancel,
+    );
+  }
+
+  /**
+   * Clear the import rectangle on **every** tier before stamping.
+   *
+   * The old erase pass only covered the write tier and coarser, which made "Bereich ersetzen"
+   * a half-truth: re-importing at Mittel left the previous import's Hoch content untouched, so
+   * the map reverted to it the moment you zoomed in — the exact failure this whole change is
+   * about. Finer tiers have to go too, or a re-import cannot repair anything.
+   *
+   * Done by deleting chunk *files* on the server rather than by rendering transparency into
+   * them. Rendering would be thousands of readbacks and uploads to produce emptiness; deleting
+   * is a handful of requests whatever the area, which is the only reason clearing Hoch across
+   * a continent is affordable at all.
+   *
+   * Chunk-aligned, and deliberately conservative: only chunks lying wholly inside the
+   * rectangle are dropped, since a partly-covered one still holds map that must survive. The
+   * consequence is a chunk-wide fringe at the rectangle's edge where older fine-tier content
+   * can remain.
+   */
+  private async clearImportArea(bounds: Bounds): Promise<void> {
+    for (const tier of TIERS) {
+      const span = TIER_WORLD_SIZE[tier];
+      const rect = {
+        minCx: Math.ceil(bounds.minX / span),
+        minCy: Math.ceil(bounds.minY / span),
+        maxCx: Math.floor(bounds.maxX / span) - 1,
+        maxCy: Math.floor(bounds.maxY / span) - 1,
+      };
+      if (rect.maxCx < rect.minCx || rect.maxCy < rect.minCy) continue;
+
+      for (const layer of ['height', 'landColor'] as const) {
+        const cells = await this.store.clearChunks(layer, tier, rect);
+        this.chunks?.dropChunks(layer, tier, cells);
+      }
+    }
   }
 
   /**
@@ -668,6 +789,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * leave the first half of one stroke in a different grid from the second.
    */
   private strokeTier: DetailTier = 'high';
+  /** Whether the stroke in progress writes its tier alone. Fixed with `strokeTier`. */
+  private strokeOnlyTier = false;
   private cursorGraphic = new Graphics();
   private previewSprite = new Sprite();
   private lastWorld: { x: number; y: number } | null = null;
@@ -709,6 +832,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const waterRgb = hexToRgb(this.waterBase(), [0.25, 0.43, 0.55]);
     this.terrain.setWaterDefault(waterRgb);
     this.renderer.setOceanColor(waterRgb);
+
+    // Maps written before `landBase` existed fall back to the parchment the shader used as
+    // a constant, so they look identical after the upgrade.
+    this.landBase.set(data.settings.landBase ?? '#e4d5b7');
+    this.terrain.setLandDefault(hexToRgb(this.landBase(), [0.894, 0.835, 0.718]));
 
     const s = data.settings;
     const coast: CoastSettings = {
@@ -753,6 +881,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.store.chunkInvalidations$.subscribe(inv =>
         this.chunks?.invalidate(inv.layer, inv.tier, inv.cx, inv.cy),
       ),
+      // Another session cleared ground: free it rather than refetching, since there is
+      // nothing left on the server to fetch.
+      this.store.chunkDrops$.subscribe(drop => {
+        this.chunks?.dropChunks(drop.layer, drop.tier, drop.cells);
+        this.scheduleStream();
+      }),
       this.store.objectOps$.subscribe(op => {
         if (op.t !== 'add' && op.t !== 'upd' && op.t !== 'del') return;
         const data = this.store.data();
@@ -850,6 +984,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.chunks?.update(view);
       const tier = this.chunks?.detailTier ?? 'high';
       if (tier !== this.detailTier()) this.detailTier.set(tier);
+
+      // The pin is clamped to what the view can afford, so it can silently not apply. Saying
+      // so matters: otherwise the panel claims one working tier while strokes land on another.
+      const blocked = this.chunks?.tierPinBlocked ?? false;
+      if (blocked !== this.tierPinBlocked()) this.tierPinBlocked.set(blocked);
       // The tier is whatever the streamer settled on, so the two never disagree about what
       // is loaded, and the view's shorter lead stays inside the streamer's.
       this.terrain?.update(view, tier, zoom);
@@ -1573,6 +1712,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
      * stroke one or two chunks, plus its coarse copies.
      */
     this.strokeTier = this.chunks?.detailTier ?? 'high';
+    // Fixed at stroke start alongside the tier, for the same reason: toggling isolation
+    // mid-drag would put the first half of one stroke in a different set of tiers.
+    this.strokeOnlyTier = this.onlyTier();
     this.noteStrokeExtent(world);
     this.undoStack?.begin();
     this.brushes?.beginStroke();
@@ -1585,6 +1727,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.lakeSeed,
         this.activeBrushColor(),
         this.strokeTier,
+        this.onlyTier(),
       );
       this.lakeSeed = Math.floor(Math.random() * 1e9);
       this.lastWorld = world;
@@ -1598,14 +1741,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.brushes?.stroke(world, this.brush(), this.strokeTier);
+    this.brushes?.stroke(world, this.brush(), this.strokeTier, this.strokeOnlyTier);
     this.scheduleStream();
   }
 
   private continuePaint(world: { x: number; y: number }): void {
     if (!this.isPainting || this.terrainTool() === 'lakeStamp') return;
     this.noteStrokeExtent(world);
-    this.brushes?.stroke(world, this.brush(), this.strokeTier);
+    this.brushes?.stroke(world, this.brush(), this.strokeTier, this.strokeOnlyTier);
 
     /*
      * A stroke can create ground that had no terrain cell at all.
@@ -2300,6 +2443,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.terrain?.setWaterDefault(rgb);
     // The backdrop is the same water, so it has to follow or the seam becomes visible.
     this.renderer.setOceanColor(rgb);
+  }
+
+  setLandBase(color: string): void {
+    this.landBase.set(color);
+    this.store.setPath('settings.landBase', color);
+    // A uniform, so every cell picks it up on the next frame — no chunks are rewritten and
+    // nothing has to be re-uploaded. That is the whole point of it being a setting.
+    this.terrain?.setLandDefault(hexToRgb(color, [0.894, 0.835, 0.718]));
+    this.scheduleStream();
   }
 
   private async applyPaper(id: string): Promise<void> {

@@ -1,12 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
   ParseIntPipe,
   Post,
   Put,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
@@ -109,6 +111,46 @@ export class MapEditorController {
 
     const ver = this.mapEditor.writeChunk(worldName, layer, tier, cx, cy, body);
     return ver == null ? { success: false } : { success: true, ver };
+  }
+
+  /**
+   * Delete every stored chunk of one layer and tier inside a chunk-coordinate rectangle.
+   *
+   * The cheap way to clear a large area: chunks are plain files, so removing them is the
+   * erase, and it costs the same whether the region is one chunk or a continent. Rendering
+   * transparency into each one and PUTting it back would be thousands of round trips for a
+   * result that is by definition empty.
+   *
+   * GM-only, and checked here rather than left to the UI: this is the most destructive route
+   * in the map API, and unlike `putChunk` there is nothing to undo it with.
+   *
+   * Returns the cells actually removed — normally far fewer than the rectangle, since most
+   * of a map was never painted — so the caller can tell other sessions exactly what to drop.
+   */
+  @Delete('chunks/:layer/:tier')
+  clearChunks(
+    @Param('worldName') worldName: string,
+    @Param('layer') layer: RasterLayer,
+    @Param('tier') tier: DetailTier,
+    @Query('minCx', ParseIntPipe) minCx: number,
+    @Query('minCy', ParseIntPipe) minCy: number,
+    @Query('maxCx', ParseIntPipe) maxCx: number,
+    @Query('maxCy', ParseIntPipe) maxCy: number,
+    @Headers('x-user-id') userId: string,
+    @Headers('x-user-code') userCode: string,
+  ): { success: boolean; cells: [number, number][] } {
+    if (!this.isGM(userId, userCode)) return { success: false, cells: [] };
+
+    const cells = this.mapEditor.clearChunks(
+      worldName,
+      layer,
+      tier,
+      minCx,
+      minCy,
+      maxCx,
+      maxCy,
+    );
+    return { success: true, cells };
   }
 }
 

@@ -660,15 +660,25 @@ Editor neu gesetzt. Bedienung im Reiter *Karte*.
   und bleibt beim Reiterwechsel sichtbar, taugt also auch zum reinen Nachzeichnen.
 - Die Quell-Alpha wird an einer einstellbaren Schwelle **hart** zu einer Maske; ein weicher
   Verlauf landete sonst genau auf dem Cutoff des Küsten-Shaders und flackerte dort.
-- Dieselbe Maske schreibt beide Raster: `height` (weiß, Alpha = Maske) und `landColor`
-  (Quell-RGB, Alpha = Maske) — Form und Farbe können so nicht auseinanderlaufen. Farbe ist
-  abschaltbar. "Bereich ersetzen" löscht das Rechteck vorher, sonst überlebt altes Land in
-  den importierten Buchten.
-- Detailstufe wählbar; gestempelt wird sie **und jede gröbere** (gleiche Regel wie ein
-  Pinselstrich). Die Kachelzahl je Stufe steht in der Auswahl, `recommendedTier` schlägt die
+- Dieselbe Maske speist beide Raster, aber als **zwei Stempel auf zwei Stufen**: `height`
+  (weiß, Alpha = Maske) auf *Form auf Stufe*, `landColor` (Quell-RGB, Alpha = Maske) auf
+  *Farbe auf Stufe* (Default `low`). Form und Farbe können nicht auseinanderlaufen, weil beide
+  aus derselben Schwelle kommen. Farbe ist abschaltbar → Land nimmt dann `settings.landBase`.
+- **Warum Farbe auf Grob:** der Shader komponiert fein über grob, also überdeckt Farbe in einer
+  Detailstufe jede gröbere dauerhaft. Ein Import, der Farbe nach `med`/`high` schrieb, machte
+  die Grundfarbe unveränderbar — eine Korrektur bei Grob war herausgezoomt sichtbar und kippte
+  beim Hineinzoomen zurück. Ein Landmassen-Export löst ~8 px/Hex auf, Grob ~4 Texel/Hex: der
+  Verlust ist minimal, und die feinen Stufen bleiben für echtes Detail frei.
+- Stufe für die Form wählbar; gestempelt wird sie **und jede gröbere** (gleiche Regel wie ein
+  Pinselstrich). Kachelzahl je Stufe steht in der Auswahl, `recommendedTier` schlägt die
   feinste Stufe vor, die das Bild noch auflöst und unter `IMPORT_CELL_WARN` (400) bleibt.
-  Feinere Stufen bleiben unberührt — auf einer Karte, auf der schon in `high` gemalt wurde,
-  taucht dieses alte Land beim Hineinzoomen wieder auf (bekannte Kehrseite der Tier-Regel).
+- **"Bereich ersetzen" löscht auf allen Stufen**, auch feineren (`clearImportArea`) — sonst
+  könnte ein Re-Import einen früheren nicht reparieren. Es löscht *Dateien* über
+  `DELETE …/map-editor/chunks/:layer/:tier?minCx…` statt Transparenz zu rendern: das ist ein
+  paar Requests statt tausender Uploads, egal wie groß die Fläche. Kachelgenau und bewusst
+  konservativ — nur ganz innenliegende Kacheln fallen, weil eine angeschnittene noch Karte
+  außerhalb hält. Kehrseite: ein **Randstreifen von einer Kachel Breite** kann alten Inhalt
+  feinerer Stufen behalten.
 - `ChunkManager.stampRegion()` ist der Bulk-Pfad: pro Zelle laden → malen → hochladen →
   freigeben, vier Zellen gleichzeitig. `paintWorld` ginge nicht — es hielte alle Kacheln
   resident, was bei ~3 MB/Zelle den GPU-Speicher sprengt. Deshalb **kein Undo** (ein
@@ -677,5 +687,39 @@ Editor neu gesetzt. Bedienung im Reiter *Karte*.
   Randkacheln nur teilweise ab und muss deren gespeicherte Pixel abwarten, ein Pinsel nicht.
 - Klicks im Reiter *Karte* malen nicht mehr (fielen vorher auf `beginPaint` durch).
 
-**Unbemaltes Land ist pergamentfarben** (`TerrainView.landDefault`, `#e4d5b7`) statt weiß —
-reines Weiß las sich wie ein Loch in der Karte.
+## Karteneditor v2 — Grundfarben & Detailstufen von Hand
+
+**Grundfarben** (Reiter *Karte*): `settings.waterBase` und `settings.landBase` (Pergament
+`#e4d5b7`). Der Shader rechnet `mix(uLandDefault, lc.rgb, lc.a)` — die Grundfarbe erscheint
+**nur**, wo keine Farbdeckung liegt, kann also nie bewusst gemaltes Land übermalen. Genau
+deshalb ist sie eine Einstellung: „die ganze Karte umfärben“ war vorher nur durch *Malen*
+möglich, was die Grundfarbe in irgendeiner Detailstufe vergrub. Ein Uniform, kein Chunk wird
+neu geschrieben.
+
+**Arbeitsstufe** (Statusleiste, `Auto | Grob | Mittel | Hoch`): Die Stufe bestimmt nicht nur
+die Ansicht, sondern worauf ein Strich *schreibt* — `beginPaint` liest `chunks.detailTier`.
+Ohne Pin ist beides an den Zoom gekoppelt, und „grobe Basis korrigieren, während man nah genug
+dran ist, um etwas zu erkennen“ war unmöglich.
+
+- `ChunkManager.tierPin` wird **geklemmt**, nicht befolgt: übersteigt die Stufe
+  `TARGET_CHUNKS_ON_SCREEN`, greift wieder die Automatik und `tierPinBlocked` sagt es in der
+  Statusleiste. Ein Pin kann nie mehr Kacheln kosten als die automatische Wahl (`tier-pin.spec.ts`).
+- **„Nur diese Stufe“** (`TerrainView.setIsolate`): `sampled` wird `[tier]` statt
+  `[tier, ...coarserTiers]`. Zeigt, was wirklich gespeichert ist — eine leere Stufe liest sich
+  als offenes Meer, auch wo die Karte sichtbar Land hat. `hasContentUnder(..., onlyTier)` zieht
+  mit, sonst würden Zellen anhand fremder Stufen gebaut. Deutliches Badge, denn die Ansicht ist
+  bewusst nicht die echte Karte.
+- Beim Isolieren schreiben Pinsel **nur diese Stufe** (`paintWorld(..., onlyTier)`), inklusive
+  Radierer. Bewusst an die Isolierung gekoppelt und nicht an den Pin: der Pin ist auch nur eine
+  Art hinzusehen, und still das Verhalten jedes Pinsels zu ändern wäre eine Falle. Wird zusammen
+  mit `strokeTier` beim Strichbeginn eingefroren.
+- Neue Werkzeuge `landColorEraser` / `waterColorEraser` („Farbe radieren“, Icon
+  `ground_color_eraser_normal`): nehmen Farbe weg, ohne das Land zu entfernen — der Weg, eine
+  Fläche wieder der Grundfarbe oder einer gröberen Stufe zu überlassen.
+
+**Sync:** `MapOp` `chunkDrop` (`{layer, tier, cells}`) meldet server-seitig gelöschte Chunks.
+Bewusst **nicht** über `chunkInvalidations$` — eine Invalidierung heißt „neu holen“, und ein
+leerer Fetch lässt die Textur absichtlich stehen (das schützt frische Farbe vor einem späten
+404). Ein Drop muss den Record stattdessen freigeben: `chunkDrops$` → `ChunkManager.dropChunks`.
+Die REST-Löschung läuft **vor** dem Broadcast, weil sie als einzige Mutation hier nicht
+optimistisch anwendbar ist.

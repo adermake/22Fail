@@ -58,6 +58,12 @@ export type MapOp =
       cy: number;
       ver: number;
     }
+  | {
+      t: 'chunkDrop';
+      layer: RasterLayer;
+      tier: DetailTier;
+      cells: [number, number][];
+    }
   | { t: 'set'; path: string; value: unknown };
 
 const MAP_FORMAT_VERSION = 2;
@@ -317,6 +323,23 @@ export class MapEditorService {
         doc.chunkVersions[`${op.layer}/${op.tier}/${op.cx}/${op.cy}`] = op.ver;
         break;
       }
+      case 'chunkDrop': {
+        /*
+         * Bookkeeping only — the files were already deleted by `clearChunks` through the
+         * REST route, which is where the GM check lives. This op exists so the *other*
+         * sessions learn what went away; applying it here just keeps the document in step
+         * with the broadcast, exactly as `chunk` does after a PUT.
+         */
+        if (!TIERS.includes(op.tier)) return;
+        if (!Array.isArray(op.cells)) return;
+        for (const cell of op.cells) {
+          if (!Array.isArray(cell) || cell.length !== 2) continue;
+          const [cx, cy] = cell;
+          if (!Number.isInteger(cx) || !Number.isInteger(cy)) continue;
+          delete doc.chunkVersions[`${op.layer}/${op.tier}/${cx}/${cy}`];
+        }
+        break;
+      }
       case 'set': {
         const parts = String(op.path).split('.').filter(Boolean);
         // Block prototype-poisoning paths — `path` arrives straight off the socket.
@@ -448,5 +471,86 @@ export class MapEditorService {
     doc.updatedAt = Date.now();
     this.scheduleSave(worldName);
     return ver;
+  }
+
+  /**
+   * Delete every stored chunk of one layer and tier inside a chunk-coordinate rectangle.
+   *
+   * Erasing a large area the other way round — render a transparent rect into each chunk and
+   * PUT it back — is thousands of GPU readbacks and PNG encodes for a result that is, by
+   * definition, "nothing". Because a chunk is a plain file and `scanChunkVersions` rebuilds
+   * the version map from disk, deleting the files *is* the erase, and it costs a few
+   * milliseconds however much map it covers.
+   *
+   * That is what makes "replace this region" affordable across every tier at once: an import
+   * can clear the fine detail it is about to supersede without ever paying to render it.
+   *
+   * Returns the cells actually removed, so the caller can tell other sessions precisely what
+   * to drop rather than making them reload the map.
+   */
+  clearChunks(
+    worldName: string,
+    layer: RasterLayer,
+    tier: DetailTier,
+    minCx: number,
+    minCy: number,
+    maxCx: number,
+    maxCy: number,
+  ): [number, number][] {
+    if (!RASTER_LAYERS.includes(layer)) return [];
+    if (!TIERS.includes(tier)) return [];
+    for (const n of [minCx, minCy, maxCx, maxCy]) {
+      if (!Number.isInteger(n)) return [];
+    }
+
+    // `getMap` is untyped like the rest of the document, but everything touched here is
+    // known, so naming it locally keeps this method off the file's `any` treadmill.
+    const doc = this.getMap(worldName) as {
+      chunkVersions: Record<string, number>;
+      updatedAt: number;
+    };
+    const removed: [number, number][] = [];
+
+    /*
+     * Driven by the version map, not by the requested rectangle.
+     *
+     * The rectangle can span millions of `high` positions while only a few hundred were ever
+     * painted, so walking it would be unbounded work to `unlink` files that do not exist.
+     * `chunkVersions` already lists exactly what is stored.
+     */
+    for (const key of Object.keys(doc.chunkVersions)) {
+      const parts = key.split('/');
+      if (parts.length !== 4) continue;
+      if (parts[0] !== layer || parts[1] !== tier) continue;
+
+      const cx = Number(parts[2]);
+      const cy = Number(parts[3]);
+      if (!Number.isInteger(cx) || !Number.isInteger(cy)) continue;
+      if (cx < minCx || cx > maxCx || cy < minCy || cy > maxCy) continue;
+
+      const file = this.chunkFile(worldName, layer, tier, cx, cy);
+      if (file) {
+        try {
+          fs.rmSync(file, { force: true });
+        } catch (err) {
+          this.logger.error(
+            `Failed to delete chunk ${layer}/${tier}/${cx}_${cy}:`,
+            err as Error,
+          );
+          // Leave the version entry in place: the file may still be readable, and claiming
+          // it is gone would leave clients showing empty ground over real stored pixels.
+          continue;
+        }
+      }
+
+      delete doc.chunkVersions[key];
+      removed.push([cx, cy]);
+    }
+
+    if (removed.length) {
+      doc.updatedAt = Date.now();
+      this.scheduleSave(worldName);
+    }
+    return removed;
   }
 }

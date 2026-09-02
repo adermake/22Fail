@@ -286,14 +286,22 @@ export type AnyMapObject = MapSymbol | MapLabel | MapRegion | MapMarker;
 // ============================================
 
 export interface MapSettings {
-  /**
-   * Colour of open sea — the canvas nothing has been drawn on yet.
-   *
-   * There is deliberately no land equivalent. Land colour is baked as terrain is drawn, so
-   * what you drew keeps the colour you drew it with; a global "land base" would let a later
-   * setting retroactively repaint ground you had already coloured on purpose.
-   */
+  /** Colour of open sea — the canvas nothing has been drawn on yet. */
   waterBase: string;
+  /**
+   * Colour of land nothing has painted yet.
+   *
+   * This was long left out on the theory that a global land base would retroactively repaint
+   * ground the user had coloured on purpose. It cannot: the shader resolves land as
+   * `mix(uLandDefault, lc.rgb, lc.a)`, so the base only ever shows through where colour
+   * coverage is zero. Painted ground is untouched by definition.
+   *
+   * Its absence was the real problem. Wanting to restyle the whole map's ground meant
+   * *painting* every part of it, which buries base colour in whichever detail tier happened
+   * to be active — and a finer tier occludes every coarser one, so the change then reverted
+   * on zoom. A setting changes the ground everywhere, at every tier, for free.
+   */
+  landBase: string;
   /** Paper texture asset key, multiplied over the whole terrain stack. */
   paperTexture: string;
   paperOpacity: number;
@@ -315,6 +323,9 @@ export interface MapSettings {
 export function defaultSettings(): MapSettings {
   return {
     waterBase: '#3f6d8c',
+    // Parchment. On a paper map bare ground is the paper; pure white read as a hole punched
+    // in the map wherever land had been raised but not yet coloured.
+    landBase: '#e4d5b7',
     paperTexture: '',
     paperOpacity: 0.35,
     coastNoiseScale: 260,
@@ -389,6 +400,15 @@ export type MapOp =
   | { t: 'upd'; c: ObjectCollection; id: string; v: Record<string, unknown> }
   | { t: 'del'; c: ObjectCollection; id: string }
   | { t: 'chunk'; layer: RasterLayer; tier: DetailTier; cx: number; cy: number; ver: number }
+  /**
+   * Chunks deleted outright on the server — the bulk counterpart to `chunk`.
+   *
+   * Carries the cells rather than a rectangle because the server clears only the positions
+   * that actually held a file, which over an unpainted region is a tiny fraction of the
+   * rectangle asked for. Sending what was really removed keeps receivers from invalidating
+   * ground that never had anything on it.
+   */
+  | { t: 'chunkDrop'; layer: RasterLayer; tier: DetailTier; cells: [number, number][] }
   /** Small scalar state: palettes, settings, fog, presets. Dot path into `MapEditorData`. */
   | { t: 'set'; path: string; value: unknown };
 
@@ -414,6 +434,15 @@ export function applyMapOp(data: MapEditorData, op: MapOp): void {
     }
     case 'chunk': {
       data.chunkVersions[chunkKey(op.layer, op.tier, op.cx, op.cy)] = op.ver;
+      break;
+    }
+    case 'chunkDrop': {
+      // Removed rather than set to 0. Both read as "unpainted" through `chunkExists`, but
+      // the server rebuilds this map by scanning the chunk directory, so a key with no file
+      // behind it is a fiction that would reappear as a difference on every load.
+      for (const [cx, cy] of op.cells) {
+        delete data.chunkVersions[chunkKey(op.layer, op.tier, cx, cy)];
+      }
       break;
     }
     case 'set': {

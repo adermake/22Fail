@@ -179,6 +179,44 @@
         <span class="status-tier" [class.coarse]="detailTier() !== 'high'"
           >Detail: {{ detailTierLabel() }}</span
         >
+
+        @if (isGM()) {
+          <!-- Die Arbeitsstufe entscheidet, was ein Strich *schreibt*, nicht nur was zu sehen
+               ist — deshalb steht sie hier und nicht in einem Reiter. -->
+          <span class="tier-pick" title="Arbeitsstufe: worauf gemalt und was gezeigt wird">
+            @for (t of tierOptions; track t.label) {
+              <button
+                type="button"
+                [class.active]="tierPin() === t.id"
+                (click)="setTierPin(t.id)"
+              >
+                {{ t.label }}
+              </button>
+            }
+          </span>
+
+          @if (tierPin()) {
+            <label
+              class="tier-isolate"
+              title="Zeigt nur diese Stufe; Pinsel schreiben dann auch nur sie"
+            >
+              <input
+                type="checkbox"
+                [checked]="tierIsolate()"
+                (change)="setTierIsolate($any($event.target).checked)"
+              />
+              <span>Nur diese Stufe</span>
+            </label>
+          }
+
+          @if (tierPinBlocked()) {
+            <span class="tier-warn" title="Zu weit herausgezoomt für diese Stufe — es gälten zu
+              viele Kacheln auf einmal. Näher heranzoomen.">Stufe greift nicht</span>
+          }
+          @if (tierIsolate() && !tierPinBlocked()) {
+            <span class="tier-warn isolating">Einzelstufe — nicht die echte Karte</span>
+          }
+        }
         <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>
         <span>Hex {{ cursorHex().q }},{{ cursorHex().r }}</span>
         <span>{{ kmPerHex }} km / Hex</span>
@@ -858,9 +896,33 @@
                 <span>Farben übernehmen</span>
               </label>
 
+              @if (importWithColor()) {
+                <div class="panel-title">Farbe auf Stufe</div>
+                <div class="profile-row">
+                  @for (t of importTierOptions(); track t.id) {
+                    <button
+                      type="button"
+                      class="profile-btn"
+                      [class.active]="importColorTier() === t.id"
+                      [disabled]="importBusy()"
+                      [title]="t.cells + ' Kacheln'"
+                      (click)="importColorTier.set(t.id)"
+                    >
+                      {{ t.label }}
+                    </button>
+                  }
+                </div>
+                <p class="hint">
+                  Grob ist richtig: Farbe einer feinen Stufe überdeckt jede gröbere dauerhaft,
+                  eine spätere Farbänderung käme beim Hineinzoomen nicht mehr durch.
+                </p>
+              } @else {
+                <p class="hint">Land nimmt die globale Landfarbe an (Reiter Karte).</p>
+              }
+
               <label
                 class="check-row"
-                title="Löscht vorhandenes Land im Bildbereich, bevor gestempelt wird"
+                title="Löscht vorhandenes Land im Bildbereich auf allen Detailstufen"
               >
                 <input
                   type="checkbox"
@@ -870,8 +932,14 @@
                 />
                 <span>Bereich ersetzen</span>
               </label>
+              @if (importReplace()) {
+                <p class="hint">
+                  Löscht Höhe und Landfarbe im Bildbereich auf <em>allen</em> Stufen — auch
+                  feineren. Ein Randstreifen von einer Kachel Breite kann stehen bleiben.
+                </p>
+              }
 
-              <div class="panel-title">Detailstufe</div>
+              <div class="panel-title">Form auf Stufe</div>
               <div class="profile-row">
                 @for (t of importTierOptions(); track t.id) {
                   <button
@@ -887,7 +955,8 @@
                 }
               </div>
               <p class="hint">
-                Gestempelt wird diese Stufe und jede gröbere. {{ importCells() }} Kacheln.
+                Küstenlinie: gestempelt wird diese Stufe und jede gröbere.
+                {{ importCells() }} Kacheln.
               </p>
               @if (importTooLarge()) {
                 <p class="hint import-warn">
@@ -920,7 +989,7 @@
           </div>
 
           <div class="panel-section">
-            <div class="panel-title">Meerfarbe</div>
+            <div class="panel-title">Grundfarben</div>
             <label class="base-row" title="Farbe von offenem Wasser">
               <span>Offenes Wasser</span>
               <input
@@ -929,6 +998,21 @@
                 (input)="setWaterBase($any($event.target).value)"
               />
             </label>
+            <label
+              class="base-row"
+              title="Farbe von Land, auf das noch keine Farbe gemalt wurde"
+            >
+              <span>Unbemaltes Land</span>
+              <input
+                type="color"
+                [value]="landBase()"
+                (input)="setLandBase($any($event.target).value)"
+              />
+            </label>
+            <p class="hint">
+              Gilt auf jeder Detailstufe und ändert nur Boden ohne eigene Farbe — bewusst
+              gemaltes Land bleibt, wie es ist.
+            </p>
           </div>
 
           <div class="panel-section">

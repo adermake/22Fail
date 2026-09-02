@@ -112,6 +112,7 @@ export class MapEditorGateway {
 
     switch (op.t) {
       case 'chunk':
+      case 'chunkDrop':
       case 'set':
         // Terrain and shared state (palettes, fog, settings) are never secret.
         toEveryone();

@@ -715,3 +715,52 @@
   outline: none;
   border-color: #6d9fd0;
 }
+
+/* ── Arbeitsstufe ─────────────────────────────────────────────────────────────
+   Sitzt in der Statusleiste, weil die Stufe nicht nur die Ansicht bestimmt, sondern
+   auch, worauf ein Pinselstrich landet — das gehört neben die Detail-Anzeige und nicht
+   in einen Reiter. Die Leiste selbst ist klickdurchlässig, die Bedienelemente nicht. */
+
+.tier-pick {
+  display: flex;
+  gap: 2px;
+  pointer-events: auto;
+}
+
+.tier-pick button {
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tier-pick button:hover {
+  background: #343440;
+}
+
+.tier-pick button.active {
+  background: #3d5a80;
+  border-color: #6d9fd0;
+}
+
+.tier-isolate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Eine festgenagelte Stufe kann stillschweigend nicht greifen, und die Einzelstufen-Ansicht
+   zeigt bewusst nicht die echte Karte — beides muss auffallen, sonst hält man das Ergebnis
+   für den Kartenstand. */
+.tier-warn {
+  color: #ffc46b;
+}
+
+.tier-warn.isolating {
+  color: #8fd0ff;
+}

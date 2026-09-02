@@ -349,12 +349,12 @@ export class TerrainView {
   private geometry = quad();
 
   /**
-   * Colour of land nothing has painted yet.
+   * Colour of land nothing has painted yet — `settings.landBase`, parchment by default.
    *
-   * Parchment rather than white: on a paper map bare ground is the paper, and pure white
-   * read as a hole punched in the map wherever a landmass had been raised but not yet
-   * coloured. The land brush still bakes real colour as it paints, so this only ever shows
-   * through where no colour has been laid down.
+   * Only ever visible where colour coverage is zero, so changing it cannot disturb ground
+   * that was coloured on purpose. That is what makes it safe as a *setting* rather than
+   * something that has to be painted, and painting it is what used to bury base colour in a
+   * detail tier where a coarser edit could no longer reach it.
    */
   private landDefault: [number, number, number] = [0.894, 0.835, 0.718];
   /** Open sea still needs *a* colour — it is the canvas nothing has been drawn on yet. */
@@ -363,6 +363,8 @@ export class TerrainView {
   private paperOpacity = 0;
   private paperScale = 1024;
   private edge = 0.08;
+  /** Draw only the viewing tier, not the composite. See `setIsolate`. */
+  private isolate = false;
 
   /** Coastline character. Defaults are a starting point; the Karte tab tunes them. */
   private coast: CoastSettings = defaultCoast();
@@ -411,6 +413,32 @@ export class TerrainView {
   setEdgeSoftness(edge: number): void {
     this.edge = Math.max(0.001, edge);
     this.refreshUniforms();
+  }
+
+  /**
+   * Show one tier alone instead of the coarse-under-fine composite.
+   *
+   * The normal view answers "what does the map look like", which is the wrong question while
+   * hand-editing tiers: content can sit in a tier and be permanently invisible under a finer
+   * one, and there is otherwise no way to see that from inside the editor. Isolating answers
+   * "what is actually stored here" — a tier with nothing in it reads as open sea, which is
+   * the truth about that tier even where the map plainly has land.
+   *
+   * Which tiers a cell samples is baked into its shader's resources, so every cell has to be
+   * rebuilt — same as a paper-texture change.
+   */
+  setIsolate(isolate: boolean): void {
+    if (this.isolate === isolate) return;
+    this.isolate = isolate;
+    for (const key of [...this.cells.keys()]) {
+      const c = this.cells.get(key)!;
+      this.destroyCell(c);
+      this.cells.delete(key);
+    }
+  }
+
+  get isolating(): boolean {
+    return this.isolate;
   }
 
   setCoast(coast: Partial<CoastSettings>): void {
@@ -472,7 +500,9 @@ export class TerrainView {
 
   private build(cx: number, cy: number, tier: DetailTier): Cell {
     const span = TIER_WORLD_SIZE[tier];
-    const sampled = [tier, ...coarserTiers(tier)];
+    // Isolating drops the coarser tiers from the composite, so what shows is exactly what
+    // this tier stores — including, importantly, nothing where it stores nothing.
+    const sampled = this.isolate ? [tier] : [tier, ...coarserTiers(tier)];
 
     const uniformValues: Record<string, UniformData> = {
       uLandDefault: { value: this.landDefault, type: 'vec3<f32>' },
@@ -628,7 +658,7 @@ export class TerrainView {
        * pure cost. Anything painted at *any* sampled tier, including a stroke that has not
        * been uploaded yet, counts as content.
        */
-      if (!this.chunks.hasContentUnder(tier, cx, cy)) continue;
+      if (!this.chunks.hasContentUnder(tier, cx, cy, this.isolate)) continue;
 
       const key = this.key(tier, cx, cy);
       live.add(key);

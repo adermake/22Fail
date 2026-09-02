@@ -35,7 +35,9 @@ export type TerrainTool =
   | 'lower'
   | 'lakeStamp'
   | 'landPaint'
-  | 'waterPaint';
+  | 'waterPaint'
+  | 'landColorEraser'
+  | 'waterColorEraser';
 
 export const TERRAIN_TOOLS: readonly TerrainTool[] = [
   'landBrush',
@@ -46,18 +48,27 @@ export const TERRAIN_TOOLS: readonly TerrainTool[] = [
   'lakeStamp',
   'landPaint',
   'waterPaint',
+  'landColorEraser',
+  'waterColorEraser',
 ];
 
 /** Which raster a tool writes into. For multi-pass tools this is the primary one. */
 export function toolLayer(tool: TerrainTool): RasterLayer {
-  if (tool === 'landPaint') return 'landColor';
-  if (tool === 'waterPaint') return 'waterColor';
+  if (tool === 'landPaint' || tool === 'landColorEraser') return 'landColor';
+  if (tool === 'waterPaint' || tool === 'waterColorEraser') return 'waterColor';
   return 'height';
 }
 
 /** Whether a tool subtracts (erase blend) rather than adds. */
 function toolErases(tool: TerrainTool): boolean {
-  return tool === 'landEraser' || tool === 'waterBrush' || tool === 'lower' || tool === 'lakeStamp';
+  return (
+    tool === 'landEraser' ||
+    tool === 'waterBrush' ||
+    tool === 'lower' ||
+    tool === 'lakeStamp' ||
+    tool === 'landColorEraser' ||
+    tool === 'waterColorEraser'
+  );
 }
 
 /** Mirror a stamp horizontally — bound to Alt while placing. */
@@ -102,6 +113,18 @@ export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
       return [{ layer: 'landColor', erase: false, tint: color }];
     case 'waterPaint':
       return [{ layer: 'waterColor', erase: false, tint: color }];
+    /*
+     * Colour erasers take paint off without touching the land it sits on.
+     *
+     * `landEraser` removes both, which is right for "this landmass should not be here", but
+     * useless for "this ground should go back to the base colour" — and that second job is
+     * the only way to hand a coarser tier back control of an area a finer one has painted
+     * over, since the composite reads fine paint over coarse.
+     */
+    case 'landColorEraser':
+      return [{ layer: 'landColor', erase: true, tint: 0xffffff }];
+    case 'waterColorEraser':
+      return [{ layer: 'waterColor', erase: true, tint: 0xffffff }];
   }
 }
 
@@ -248,7 +271,12 @@ export class BrushEngine {
    * so a continent drawn zoomed out costs one or two chunks instead of three hundred. The
    * chunk manager writes the coarser tiers from the same node; nothing here has to know.
    */
-  stroke(p: { x: number; y: number }, brush: BrushSettings, tier: DetailTier): void {
+  stroke(
+    p: { x: number; y: number },
+    brush: BrushSettings,
+    tier: DetailTier,
+    onlyTier = false,
+  ): void {
     const from = this.lastPoint ?? p;
     const dx = p.x - from.x;
     const dy = p.y - from.y;
@@ -259,14 +287,14 @@ export class BrushEngine {
 
     for (let i = 1; i <= steps; i++) {
       const t = steps === 0 ? 1 : i / steps;
-      this.dab({ x: from.x + dx * t, y: from.y + dy * t }, brush, tier);
+      this.dab({ x: from.x + dx * t, y: from.y + dy * t }, brush, tier, onlyTier);
     }
 
     this.lastPoint = p;
   }
 
   /** Single stamp at a point, applying every raster pass the tool performs. */
-  dab(p: { x: number; y: number }, brush: BrushSettings, tier: DetailTier): void {
+  dab(p: { x: number; y: number }, brush: BrushSettings, tier: DetailTier, onlyTier = false): void {
     const color = parseHex(brush.color);
     const r = brush.size;
     const bounds: Bounds = { minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r };
@@ -286,7 +314,7 @@ export class BrushEngine {
 
       this.host.blendMode = pass.erase ? 'erase' : 'normal';
 
-      for (const rec of this.chunks.paintWorld(pass.layer, this.host, bounds, tier)) {
+      for (const rec of this.chunks.paintWorld(pass.layer, this.host, bounds, tier, onlyTier)) {
         this.strokeTouched.add(rec);
       }
     }
@@ -361,6 +389,7 @@ export class BrushEngine {
     seed: number,
     _color: string,
     tier: DetailTier,
+    onlyTier = false,
   ): ChunkRecord[] {
     const rand = seeded(seed ^ 0x9e3779b9);
     const reach = radius * 2.2; // satellites and feathering push well past the main body
@@ -392,7 +421,7 @@ export class BrushEngine {
     this.host.blendMode = 'erase';
     this.host.addChild(g);
 
-    const touched = this.chunks.paintWorld('height', this.host, bounds, tier);
+    const touched = this.chunks.paintWorld('height', this.host, bounds, tier, onlyTier);
 
     this.host.removeChildren();
     g.destroy();

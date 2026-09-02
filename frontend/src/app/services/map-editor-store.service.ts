@@ -22,6 +22,13 @@ export interface ChunkInvalidation {
   ver: number;
 }
 
+/** Chunks deleted on the server; receivers free them rather than refetching. */
+export interface ChunkDrop {
+  layer: RasterLayer;
+  tier: DetailTier;
+  cells: [number, number][];
+}
+
 /**
  * Authoritative client-side map document, kept in step with the server by ops.
  *
@@ -52,6 +59,10 @@ export class MapEditorStoreService {
   private chunkInvalidationSubject = new Subject<ChunkInvalidation>();
   /** Chunks changed by *other* clients; the chunk manager refetches these. */
   chunkInvalidations$ = this.chunkInvalidationSubject.asObservable();
+
+  private chunkDropSubject = new Subject<ChunkDrop>();
+  /** Chunks deleted server-side; the chunk manager frees them instead of refetching. */
+  chunkDrops$ = this.chunkDropSubject.asObservable();
 
   private objectOpSubject = new Subject<MapOp>();
   /**
@@ -121,6 +132,19 @@ export class MapEditorStoreService {
       return;
     }
 
+    if (op.t === 'chunkDrop') {
+      /*
+       * Not routed through `chunkInvalidations$`.
+       *
+       * An invalidation means "refetch this"; a dropped chunk has nothing to fetch, and a
+       * fetch that comes back empty deliberately leaves the existing texture alone (that is
+       * what stops a late 404 wiping fresh paint). So a drop has to be its own signal, or
+       * deleted ground would keep showing its old pixels until it happened to be evicted.
+       */
+      this.chunkDropSubject.next({ layer: op.layer, tier: op.tier, cells: op.cells });
+      return;
+    }
+
     if (op.t === 'chunk') {
       const key = chunkKey(op.layer, op.tier, op.cx, op.cy);
       /*
@@ -182,6 +206,32 @@ export class MapEditorStoreService {
   ): void {
     this.ownChunkVersions.set(chunkKey(layer, tier, cx, cy), ver);
     this.emit({ t: 'chunk', layer, tier, cx, cy, ver });
+  }
+
+  /**
+   * Delete stored chunks of a layer and tier over a chunk-coordinate rectangle.
+   *
+   * The server deletes the files and reports back which cells actually held one, and only
+   * those are broadcast — over an unpainted region that is usually none at all.
+   *
+   * The REST call comes first, unlike every other mutation here: deletion is the one thing
+   * that cannot be applied optimistically and reconciled later, because a failed request
+   * would leave every other session with ground this one had already thrown away.
+   */
+  async clearChunks(
+    layer: RasterLayer,
+    tier: DetailTier,
+    rect: { minCx: number; minCy: number; maxCx: number; maxCy: number },
+  ): Promise<[number, number][]> {
+    const cells = await this.api.clearChunks(this.worldName, layer, tier, rect);
+    if (!cells.length) return cells;
+
+    // Our own upload records would otherwise keep suppressing refetches of ground that has
+    // since been deleted and repainted by somebody else.
+    for (const [cx, cy] of cells) this.ownChunkVersions.delete(chunkKey(layer, tier, cx, cy));
+
+    this.emit({ t: 'chunkDrop', layer, tier, cells });
+    return cells;
   }
 
   chunkVersion(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): number {
