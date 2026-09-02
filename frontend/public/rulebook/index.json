@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T21:22:53.030Z",
+  "generatedAt": "2026-09-02T07:47:08.795Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -553,7 +553,7 @@
       "tab": "Herstellung",
       "icon": "carfting",
       "order": 80,
-      "hash": "161eb909",
+      "hash": "97a84c20",
       "outline": [
         {
           "id": "herstellung",
@@ -590,8 +590,42 @@
           "text": "Brauen",
           "level": 2,
           "kind": "heading"
+        },
+        {
+          "id": "extraktoren",
+          "text": "Extraktoren",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "braumaterialien",
+          "text": "Braumaterialien",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "merkmale",
+          "text": "Merkmale",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "kochen",
+          "text": "Kochen",
+          "level": 2,
+          "kind": "heading"
         }
       ]
+    },
+    {
+      "id": "begleiter",
+      "file": "begleiter.md",
+      "title": "Begleiter",
+      "tab": "Begleiter",
+      "icon": "companion",
+      "order": 90,
+      "hash": "7c0e1f75",
+      "outline": []
     },
     {
       "id": "example",

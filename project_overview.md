@@ -648,3 +648,34 @@ Bibliothek), Index in `trash/index.json`.
 - Restore bricht ab, statt zu überschreiben, wenn es den Namen wieder gibt.
 - Die `characterIds` der Welt bleiben beim Löschen stehen (Lobby/World prüfen auf `null`),
   damit ein wiederhergestellter Charakter direkt wieder in der Party ist.
+
+## Karteneditor v2 — Landmassen-Import (`map-editor/landmass-import.ts`)
+
+Übernimmt eine in einem anderen Werkzeug fertig gezeichnete Karte: **transparent = Wasser,
+farbig = Land**. Nur die Landmasse, nicht die Grafik — Symbole und Beschriftungen werden im
+Editor neu gesetzt. Bedienung im Reiter *Karte*.
+
+- Ablauf: Bild wählen → Overlay auf der Karte ziehen (Strg + Mausrad skaliert, "An Ansicht
+  anpassen" setzt Startgröße) → *Stempeln*. Das Overlay liegt in `MapRenderer.overlayLayer`
+  und bleibt beim Reiterwechsel sichtbar, taugt also auch zum reinen Nachzeichnen.
+- Die Quell-Alpha wird an einer einstellbaren Schwelle **hart** zu einer Maske; ein weicher
+  Verlauf landete sonst genau auf dem Cutoff des Küsten-Shaders und flackerte dort.
+- Dieselbe Maske schreibt beide Raster: `height` (weiß, Alpha = Maske) und `landColor`
+  (Quell-RGB, Alpha = Maske) — Form und Farbe können so nicht auseinanderlaufen. Farbe ist
+  abschaltbar. "Bereich ersetzen" löscht das Rechteck vorher, sonst überlebt altes Land in
+  den importierten Buchten.
+- Detailstufe wählbar; gestempelt wird sie **und jede gröbere** (gleiche Regel wie ein
+  Pinselstrich). Die Kachelzahl je Stufe steht in der Auswahl, `recommendedTier` schlägt die
+  feinste Stufe vor, die das Bild noch auflöst und unter `IMPORT_CELL_WARN` (400) bleibt.
+  Feinere Stufen bleiben unberührt — auf einer Karte, auf der schon in `high` gemalt wurde,
+  taucht dieses alte Land beim Hineinzoomen wieder auf (bekannte Kehrseite der Tier-Regel).
+- `ChunkManager.stampRegion()` ist der Bulk-Pfad: pro Zelle laden → malen → hochladen →
+  freigeben, vier Zellen gleichzeitig. `paintWorld` ginge nicht — es hielte alle Kacheln
+  resident, was bei ~3 MB/Zelle den GPU-Speicher sprengt. Deshalb **kein Undo** (ein
+  Undo-Snapshot hielte den ganzen Import im VRAM) → Sicherheitsabfrage vor dem Stempeln.
+- `fetching` im ChunkManager hält jetzt die Promise statt nur ein Flag: Ein Stempel deckt
+  Randkacheln nur teilweise ab und muss deren gespeicherte Pixel abwarten, ein Pinsel nicht.
+- Klicks im Reiter *Karte* malen nicht mehr (fielen vorher auf `beginPaint` durch).
+
+**Unbemaltes Land ist pergamentfarben** (`TerrainView.landDefault`, `#e4d5b7`) statt weiß —
+reines Weiß las sich wie ein Loch in der Karte.

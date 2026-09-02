@@ -20,21 +20,33 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { Subscription } from 'rxjs';
 
 import { MapEditorStoreService } from '../services/map-editor-store.service';
 import { MapEditorApiService } from '../services/map-editor-api.service';
 import { AuthService } from '../services/auth.service';
 import { MapRenderer } from './map-renderer';
-import { ChunkManager } from './chunk-manager';
+import { ChunkManager, StampPass } from './chunk-manager';
 import { CoastSettings, TerrainView, defaultCoast, hexToRgb } from './terrain-view';
 import { BrushEngine, BrushSettings, TerrainTool, defaultBrush, toolLayer } from './brush-engine';
 import { Bounds } from './map-camera';
 import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
-import { DetailTier, MapSymbol } from './map-editor.model';
+import { DetailTier, MapSymbol, TIERS } from './map-editor.model';
+import {
+  IMPORT_CELL_WARN,
+  LandmassPlacement,
+  LandmassSource,
+  buildLandmassMasks,
+  fitScale,
+  importCellCount,
+  loadLandmassImage,
+  placementBounds,
+  recommendedTier,
+  worldPerTexel,
+} from './landmass-import';
 import { DiagEvent, mapDiag } from './map-diagnostics';
 import { generateId } from '../model/lobby.model';
 import {
@@ -58,7 +70,7 @@ import { RegionView, centroid, distanceToPath } from './region-view';
 import { LabelView, defaultLabelStyle } from './label-view';
 import { LabelPreset, LabelStyle, MapLabel, MapRegion, Point } from './map-editor.model';
 import { MIN_ZOOM, MAX_ZOOM } from './map-camera';
-import { KM_PER_HEX, worldToHex } from './map-hex';
+import { HEX_X_SPACING, KM_PER_HEX, worldToHex } from './map-hex';
 
 @Component({
   selector: 'app-map-editor',
@@ -318,6 +330,305 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.selectedLabelIds().length === 1 ? this.selectedLabelIds()[0] : null,
   );
 
+  // ── landmass import ──
+
+  /**
+   * Bringing a finished map in from another tool.
+   *
+   * The map that already exists on paper is the one the group knows, and retracing its
+   * coastline by hand is the single largest piece of work in moving to this editor. The
+   * import deliberately does not try to reproduce the artwork — only the landmass, which is
+   * the part that cannot be redrawn quickly. Symbols, labels and colouring are still done
+   * here, which is the whole reason for switching tools.
+   *
+   * It lives in the Karte tab rather than among the land tools because it is a whole-map
+   * operation with its own placement gesture, not something dragged across the canvas.
+   */
+  private importSource: LandmassSource | null = null;
+  /** On-map preview, parented to the renderer's overlay layer while an image is loaded. */
+  private importSprite: Sprite | null = null;
+  /** Set by the pointer handler while the overlay is being dragged into position. */
+  private importDrag: { startWorld: Point; origin: Point } | null = null;
+  /** Checked between batches, so a long import can be called off. */
+  private importCancel = { cancelled: false };
+
+  readonly importName = signal<string | null>(null);
+  readonly importPlacement = signal<LandmassPlacement>({ x: 0, y: 0, scale: 1 });
+  /** Preview opacity — the point of the overlay is to be seen *against* what is drawn. */
+  readonly importOpacity = signal(0.65);
+  /** Source alpha at or above which a pixel counts as land. */
+  readonly importThreshold = signal(0.5);
+  readonly importWithColor = signal(true);
+  /** Whether the covered rectangle is cleared first, so the image replaces what was there. */
+  readonly importReplace = signal(true);
+  readonly importTier = signal<DetailTier>('med');
+  readonly importBusy = signal(false);
+  readonly importProgress = signal({ done: 0, total: 0 });
+  readonly importError = signal<string | null>(null);
+
+  readonly hasImport = computed(() => this.importName() !== null);
+
+  /** Cells each tier would write, so the cost of the choice is visible before making it. */
+  readonly importTierOptions = computed(() => {
+    const src = this.importSource;
+    const placement = this.importPlacement();
+    const labels: Record<DetailTier, string> = { high: 'Hoch', med: 'Mittel', low: 'Grob' };
+    return TIERS.map(id => ({
+      id,
+      label: labels[id],
+      cells: src ? importCellCount(placementBounds(src, placement), id) : 0,
+    }));
+  });
+
+  readonly importCells = computed(
+    () => this.importTierOptions().find(o => o.id === this.importTier())?.cells ?? 0,
+  );
+  readonly importTooLarge = computed(() => this.importCells() > IMPORT_CELL_WARN);
+  readonly importWarnLimit = IMPORT_CELL_WARN;
+
+  readonly importPercent = computed(() => {
+    const { done, total } = this.importProgress();
+    return total > 0 ? Math.round((done / total) * 100) : 0;
+  });
+
+  /** Size the placed image covers in map terms, so the alignment can be sanity-checked. */
+  readonly importSizeLabel = computed(() => {
+    const src = this.importSource;
+    if (!src) return '';
+    const p = this.importPlacement();
+    const km = (worldPx: number) => Math.round((worldPx / HEX_X_SPACING) * KM_PER_HEX);
+    return `${km(src.width * p.scale)} × ${km(src.height * p.scale)} km`;
+  });
+
+  async pickImportImage(files: FileList | null): Promise<void> {
+    const file = files?.[0];
+    if (!file) return;
+
+    this.importError.set(null);
+    try {
+      const src = await loadLandmassImage(file);
+      this.clearImportSprite();
+      this.importSource = src;
+      this.importName.set(src.fileName);
+
+      // Land on screen at a usable size straight away: an image placed at scale 1 on a map
+      // this large is a speck, and hunting for it is the worst possible first step.
+      this.fitImportToView();
+
+      this.importSprite = new Sprite(Texture.from(src.bitmap));
+      this.importSprite.anchor.set(0.5);
+      this.renderer.overlayLayer.addChild(this.importSprite);
+      this.syncImportSprite();
+    } catch {
+      this.importError.set('Bild konnte nicht gelesen werden.');
+    }
+  }
+
+  /** Centre the image on the current view and scale it to fit without cropping. */
+  fitImportToView(): void {
+    const src = this.importSource;
+    if (!src) return;
+    const view = this.renderer.camera.visibleBounds(0);
+    const placement: LandmassPlacement = {
+      x: (view.minX + view.maxX) / 2,
+      y: (view.minY + view.maxY) / 2,
+      // A little inside the view, so the image and its edges are both visible.
+      scale: fitScale(src, view) * 0.9,
+    };
+    this.importPlacement.set(placement);
+    this.importTier.set(recommendedTier(src, placement));
+    this.syncImportSprite();
+  }
+
+  setImportScale(value: string | number): void {
+    if (!this.importSource) return;
+    this.importPlacement.update(p => ({ ...p, scale: Math.max(0.001, Number(value)) }));
+    this.syncImportSprite();
+  }
+
+  /**
+   * The size slider runs on a log scale.
+   *
+   * A useful scale spans three orders of magnitude — a 500 px sketch and a 8000 px poster
+   * both have to reach the same world size — and a linear slider spends nearly all of its
+   * travel above the range anyone wants.
+   */
+  readonly importScaleLog = computed(() => Math.log10(this.importPlacement().scale));
+
+  setImportScaleLog(value: string | number): void {
+    this.setImportScale(Math.pow(10, Number(value)));
+  }
+
+  /** Zoom the overlay about its own centre; steps are relative, so any scale stays usable. */
+  scaleImportBy(factor: number): void {
+    if (!this.importSource) return;
+    this.importPlacement.update(p => ({ ...p, scale: Math.max(0.001, p.scale * factor) }));
+    this.syncImportSprite();
+  }
+
+  setImportOpacity(value: string | number): void {
+    this.importOpacity.set(Number(value));
+    this.syncImportSprite();
+  }
+
+  setImportThreshold(value: string | number): void {
+    this.importThreshold.set(Number(value));
+  }
+
+  setImportTier(tier: DetailTier): void {
+    this.importTier.set(tier);
+  }
+
+  clearImport(): void {
+    this.clearImportSprite();
+    this.importSource = null;
+    this.importName.set(null);
+    this.importError.set(null);
+    this.importProgress.set({ done: 0, total: 0 });
+    this.scheduleStream();
+  }
+
+  private clearImportSprite(): void {
+    if (!this.importSprite) return;
+    this.renderer.overlayLayer.removeChild(this.importSprite);
+    // The texture wraps the decoded bitmap and nothing else shares it, so it goes too —
+    // otherwise every image tried out during alignment stays in VRAM for the session.
+    this.importSprite.destroy({ texture: true, textureSource: true });
+    this.importSprite = null;
+  }
+
+  /** Push placement and opacity onto the preview sprite. */
+  private syncImportSprite(): void {
+    const src = this.importSource;
+    const sprite = this.importSprite;
+    if (!src || !sprite) return;
+    const p = this.importPlacement();
+    sprite.position.set(p.x, p.y);
+    sprite.width = src.width * p.scale;
+    sprite.height = src.height * p.scale;
+    sprite.alpha = this.importOpacity();
+    this.scheduleStream();
+  }
+
+  cancelImport(): void {
+    this.importCancel.cancelled = true;
+  }
+
+  /**
+   * Burn the placed image into the terrain rasters.
+   *
+   * Both rasters come from the same mask, so shape and colour cannot disagree, and the write
+   * goes to the chosen tier plus every coarser one — the same rule a brush stroke follows,
+   * which is what keeps a zoomed-out view showing the import rather than empty sea.
+   *
+   * There is no undo. The chunk manager streams the area a few cells at a time precisely so
+   * an import far larger than VRAM is possible at all, and snapshotting every touched chunk
+   * for the undo stack would put the whole thing back in memory. Hence the confirmation.
+   */
+  async stampImport(): Promise<void> {
+    const src = this.importSource;
+    if (!src || !this.chunks || this.importBusy()) return;
+
+    const tier = this.importTier();
+    const bounds = placementBounds(src, this.importPlacement());
+    const cells = importCellCount(bounds, tier);
+    const tierLabel = this.importTierOptions().find(o => o.id === tier)?.label ?? tier;
+
+    const ok = confirm(
+      `Das Bild wird fest in die Karte gestempelt (${cells} Kacheln, alle Detailstufen ab ` +
+        `„${tierLabel}“). Das lässt sich nicht rückgängig machen. Fortfahren?`,
+    );
+    if (!ok) return;
+
+    this.importError.set(null);
+    this.importBusy.set(true);
+    this.importCancel = { cancelled: false };
+    this.importProgress.set({ done: 0, total: cells });
+
+    // Nodes are built once and reused for every chunk the stamp walks — see `StampPass`.
+    const nodes: Container[] = [];
+    try {
+      const masks = buildLandmassMasks(src.bitmap, {
+        threshold: this.importThreshold(),
+        withColor: this.importWithColor(),
+        worldPerTexel: worldPerTexel(tier),
+        worldWidth: bounds.maxX - bounds.minX,
+      });
+
+      const passes: StampPass[] = [];
+
+      /*
+       * Clearing first is what makes this a *replacement* rather than an overlay.
+       *
+       * Without it the sea in the image is simply "no paint", so land already drawn under
+       * the rectangle survives inside the imported bays — which reads as the import having
+       * failed in patches. With it, the rectangle afterwards holds exactly the image.
+       */
+      if (this.importReplace()) {
+        for (const layer of ['height', 'landColor'] as const) {
+          const rect = new Container();
+          rect.addChild(
+            new Graphics()
+              .rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)
+              .fill({ color: 0xffffff }),
+          );
+          nodes.push(rect);
+          passes.push({ layer, node: rect, erase: true });
+        }
+      }
+
+      passes.push({ layer: 'height', node: this.maskNode(masks.heightCanvas, bounds, nodes) });
+      if (masks.colorCanvas) {
+        passes.push({ layer: 'landColor', node: this.maskNode(masks.colorCanvas, bounds, nodes) });
+      }
+
+      await this.chunks.stampRegion(
+        passes,
+        bounds,
+        tier,
+        (done, total) => this.importProgress.set({ done, total }),
+        this.importCancel,
+      );
+    } catch (err) {
+      console.error('[MapEditor] Landmassen-Import fehlgeschlagen', err);
+      this.importError.set('Import fehlgeschlagen — Details in der Konsole.');
+    } finally {
+      // The mask textures own their working canvases, so they are freed with the nodes.
+      for (const node of nodes) {
+        node.destroy({ children: true, texture: true, textureSource: true });
+      }
+      this.importBusy.set(false);
+    }
+
+    // A cancelled or failed run keeps the overlay, so the placement is not lost.
+    if (!this.importCancel.cancelled && !this.importError()) this.clearImport();
+    // The stamp saves as it goes; this only picks up chunks whose upload failed and were
+    // left dirty, which would otherwise sit unsaved until the editor is closed.
+    this.scheduleFlush();
+    this.scheduleStream();
+  }
+
+  /**
+   * Wrap a mask canvas as a world-positioned node for the stamp.
+   *
+   * Linear filtering rather than nearest: the mask is binary, so the interpolation across
+   * its edge is exactly the antialiasing the coastline wants, and without it every source
+   * pixel shows as a square along the shore.
+   */
+  private maskNode(canvas: HTMLCanvasElement, bounds: Bounds, own: Container[]): Container {
+    const texture = Texture.from(canvas);
+    texture.source.scaleMode = 'linear';
+    const sprite = new Sprite(texture);
+    sprite.position.set(bounds.minX, bounds.minY);
+    sprite.width = bounds.maxX - bounds.minX;
+    sprite.height = bounds.maxY - bounds.minY;
+
+    const node = new Container();
+    node.addChild(sprite);
+    own.push(node);
+    return node;
+  }
+
   private isPanning = false;
   private isPainting = false;
   private lastPointer = { x: 0, y: 0 };
@@ -479,6 +790,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     const host = this.pixiHost?.nativeElement;
     if (host) this.detachInput(host);
+
+    // A stamp in flight holds the chunk manager; stop it before anything is torn down.
+    this.importCancel.cancelled = true;
+    this.clearImportSprite();
 
     void this.chunks?.flushDirty().finally(() => {
       this.undoStack?.destroy();
@@ -1515,6 +1830,23 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    /*
+     * The Karte tab owns no brush, so a click there must not paint.
+     *
+     * It used to fall straight through to `beginPaint`, which meant adjusting the coastline
+     * sliders and then clicking on the map laid down land with whichever brush the Land tab
+     * happened to have selected. With the landmass overlay the same click now has a real
+     * job — dragging the image into alignment — so the fall-through has to stop here either
+     * way.
+     */
+    if (this.tab() === 'map') {
+      if (this.hasImport() && !this.importBusy()) {
+        const p = this.importPlacement();
+        this.importDrag = { startWorld: world, origin: { x: p.x, y: p.y } };
+      }
+      return;
+    }
+
     if (this.isSelecting()) {
       const hit = this.selectSymbolAt(world, e.shiftKey);
       if (hit) {
@@ -1562,6 +1894,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     this.drawCursor(world);
+
+    if (this.importDrag) {
+      // Anchored to the grab point rather than accumulated per move, so the image never
+      // drifts away from the cursor over a long drag.
+      const { startWorld, origin } = this.importDrag;
+      this.importPlacement.update(p => ({
+        ...p,
+        x: origin.x + (world.x - startWorld.x),
+        y: origin.y + (world.y - startWorld.y),
+      }));
+      this.syncImportSprite();
+      return;
+    }
 
     if (this.dragHandle) {
       const region = this.regionView.selected;
@@ -1637,6 +1982,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private onPointerUp = (): void => {
     this.isPanning = false;
+
+    if (this.importDrag) {
+      this.importDrag = null;
+      return;
+    }
 
     if (this.dragHandle) {
       const region = this.regionView.selected;
@@ -1763,6 +2113,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     if (e.ctrlKey) {
+      // Ctrl+wheel already means "resize the thing you are placing"; on the Karte tab the
+      // thing being placed is the landmass overlay.
+      if (this.tab() === 'map' && this.hasImport()) {
+        this.scaleImportBy(e.deltaY > 0 ? 1 / 1.1 : 1.1);
+        return;
+      }
       if (this.isPlacingSymbols()) {
         const next = this.symbolScale() * (e.deltaY > 0 ? 1 / 1.15 : 1.15);
         this.symbolScale.set(Math.min(8, Math.max(0.05, Math.round(next * 100) / 100)));

@@ -197,8 +197,8 @@ void main() {
 
     // Colour is baked when terrain is drawn, so these fallbacks are constants rather than
     // adjustable "theme" colours: changing a global default would retroactively repaint
-    // ground the user already coloured deliberately. Land falls back to white — a freshly
-    // drawn landmass is blank paper to be coloured, not a preset green.
+    // ground the user already coloured deliberately. Land falls back to parchment — a
+    // freshly drawn landmass is blank paper to be coloured, not a preset green.
     vec3 land  = mix(uLandDefault,  lc.rgb, lc.a);
     vec3 water = mix(uWaterDefault, wc.rgb, wc.a);
 
@@ -348,8 +348,15 @@ export class TerrainView {
   private cells = new Map<string, Cell>();
   private geometry = quad();
 
-  /** Freshly drawn land is white; the land brush bakes real colour as it paints. */
-  private landDefault: [number, number, number] = [1, 1, 1];
+  /**
+   * Colour of land nothing has painted yet.
+   *
+   * Parchment rather than white: on a paper map bare ground is the paper, and pure white
+   * read as a hole punched in the map wherever a landmass had been raised but not yet
+   * coloured. The land brush still bakes real colour as it paints, so this only ever shows
+   * through where no colour has been laid down.
+   */
+  private landDefault: [number, number, number] = [0.894, 0.835, 0.718];
   /** Open sea still needs *a* colour — it is the canvas nothing has been drawn on yet. */
   private waterDefault: [number, number, number] = [0.25, 0.43, 0.55];
   private paper: Texture = Texture.WHITE;

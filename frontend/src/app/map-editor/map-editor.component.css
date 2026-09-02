@@ -642,3 +642,53 @@
 .status-tier.coarse {
   color: #ffc46b;
 }
+
+/* ── landmass import ──────────────────────────────────────────────────────────
+   The file picker is a styled label because a bare <input type="file"> cannot be
+   made to match the rest of the panel's buttons. */
+
+.file-button {
+  display: block;
+  text-align: center;
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 6px 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.file-button:hover {
+  background: #343440;
+}
+
+.hidden-file {
+  display: none;
+}
+
+.import-file {
+  opacity: 0.75;
+  word-break: break-all;
+}
+
+/* An import that will take minutes is worth flagging before it is started, not after. */
+.import-warn {
+  color: #ffc46b;
+  opacity: 0.85;
+}
+
+.import-progress {
+  height: 6px;
+  margin: 8px 0 6px;
+  border-radius: 3px;
+  background: #2a2a33;
+  overflow: hidden;
+}
+
+.import-bar {
+  height: 100%;
+  background: #6d9fd0;
+  transition: width 0.15s linear;
+}

@@ -48,6 +48,14 @@ export class MapRenderer {
   /** Vector content (regions, symbols, labels) lands here in later phases. */
   objectLayer = new Container();
   private gridLayer = new Graphics();
+  /**
+   * Alignment overlays drawn over the finished map — currently the landmass image waiting
+   * to be stamped.
+   *
+   * Above the terrain and its objects because the point of it is to be lined up against
+   * them, and under the grid and cursor because those are the tools you line it up *with*.
+   */
+  overlayLayer = new Container();
   /** Brush outline / lake preview, drawn in world space above everything. */
   cursorLayer = new Container();
 
@@ -96,6 +104,7 @@ export class MapRenderer {
     this.worldRoot.addChild(this.oceanBackdrop);
     this.worldRoot.addChild(this.terrainLayer);
     this.worldRoot.addChild(this.objectLayer);
+    this.worldRoot.addChild(this.overlayLayer);
     this.worldRoot.addChild(this.gridLayer);
     this.worldRoot.addChild(this.cursorLayer);
 
@@ -182,6 +191,7 @@ export class MapRenderer {
   destroy(): void {
     this.oceanBackdrop.destroy();
     this.gridLayer.destroy();
+    this.overlayLayer.destroy({ children: true });
     this.cursorLayer.destroy({ children: true });
     this.app.destroy(true, { children: true });
   }

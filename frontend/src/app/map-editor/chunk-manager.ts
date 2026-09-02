@@ -63,6 +63,19 @@ export interface ChunkRecord {
   lastSeen: number;
 }
 
+/**
+ * One raster write of a bulk stamp: a world-space node, and whether it subtracts.
+ *
+ * Passes for the same layer are applied in the order given, which is how "replace this
+ * rectangle" gets expressed — an erasing rect, then the image over the hole it left.
+ */
+export interface StampPass {
+  layer: RasterLayer;
+  /** World-coordinate content. Reused across every chunk, so it must not be mutated. */
+  node: Container;
+  erase?: boolean;
+}
+
 /*
  * Residency budget.
  *
@@ -222,15 +235,40 @@ export class ChunkManager {
     return false;
   }
 
-  private async fetchInto(rec: ChunkRecord): Promise<void> {
+  /**
+   * Fetch a chunk's stored pixels, coalescing concurrent requests for the same one.
+   *
+   * The in-flight promise is *kept* rather than merely flagged, so a caller that genuinely
+   * has to wait — the landmass import, which must not paint over a chunk before its stored
+   * content arrives — can await the same load the streamer already started.
+   */
+  private fetchInto(rec: ChunkRecord): Promise<void> {
     const inflightKey = this.recKey(rec.layer, rec.tier, rec.cx, rec.cy);
-    if (this.fetching.has(inflightKey)) return;
-    this.fetching.add(inflightKey);
-    try {
-      await this.fetchIntoInner(rec);
-    } finally {
-      this.fetching.delete(inflightKey);
-    }
+    const inflight = this.fetching.get(inflightKey);
+    if (inflight) return inflight;
+
+    const pending = this.fetchIntoInner(rec)
+      // Callers mostly fire and forget, so a rejection here would surface as an unhandled
+      // one rather than as anything actionable.
+      .catch(err => {
+        mapDiag.log('fetch:error', tileLabel(rec.layer, rec.tier, rec.cx, rec.cy), String(err));
+      })
+      .finally(() => this.fetching.delete(inflightKey));
+
+    this.fetching.set(inflightKey, pending);
+    return pending;
+  }
+
+  /**
+   * Resolve once a chunk holds whatever the server had for it.
+   *
+   * Only the bulk paths need this. A brush deliberately does not wait — `fetchIntoInner`
+   * drops a late response onto a chunk painted meanwhile — but a stamp that only covers
+   * *part* of a chunk has to merge with what is already there, so it must see it first.
+   */
+  private async ensureLoaded(rec: ChunkRecord): Promise<void> {
+    const inflight = this.fetching.get(this.recKey(rec.layer, rec.tier, rec.cx, rec.cy));
+    if (inflight) await inflight;
   }
 
   private async fetchIntoInner(rec: ChunkRecord): Promise<void> {
@@ -319,6 +357,7 @@ export class ChunkManager {
    */
   update(view: Bounds): void {
     this.frame++;
+    this.lastView = view;
 
     const prevTier = this.tier;
     // Chosen from the screen itself, not the padded rectangle: the lead is loading policy,
@@ -424,12 +463,20 @@ export class ChunkManager {
    * Overlapping flushes were each requesting the same chunk, so one could be pulled several
    * times in the same millisecond.
    */
-  private fetching = new Set<string>();
+  private fetching = new Map<string, Promise<void>>();
 
   /** Detail tier the last `update` settled on. */
   get detailTier(): DetailTier {
     return this.tier;
   }
+
+  /**
+   * Visible rectangle the last `update` was given.
+   *
+   * Kept so a bulk stamp can tell the handful of chunks the user is actually looking at from
+   * the thousands it is only passing through, and free the latter as it goes.
+   */
+  private lastView: Bounds | null = null;
 
   private tier: DetailTier = 'high';
 
@@ -583,6 +630,123 @@ export class ChunkManager {
 
     this.stampHost.removeChildren();
     return touched;
+  }
+
+  /**
+   * Stamp fixed content over a world rectangle of any size, at `tier` and every coarser one.
+   *
+   * `paintWorld` cannot do this. It creates every chunk it touches and leaves them resident,
+   * which is correct for a brush — a stroke covers a handful of chunks and you are about to
+   * paint over them again — but a landmass import covers hundreds, at ~3 MB a cell, and the
+   * residency budget exists precisely because that exhausts the GPU. So this walks the area
+   * a few cells at a time and, for each, loads → paints → uploads → frees, keeping only what
+   * the camera is actually showing. Peak cost is the batch, not the import.
+   *
+   * Three deliberate differences from a brush stroke:
+   *
+   *  - It **waits for each chunk's stored pixels**. A stamp usually covers only part of the
+   *    edge chunks, so painting before the load lands would blit the server's copy back over
+   *    the imported half a moment later.
+   *  - It **uploads as it goes** rather than leaving the work for `flushDirty`, because
+   *    nothing else would keep the chunk alive long enough to be flushed.
+   *  - It is **not undoable**. `onBeforePaint` is skipped on purpose: capturing a snapshot of
+   *    every touched chunk would put the whole import in VRAM, which is the one thing this
+   *    method exists to avoid. Callers must confirm with the user first.
+   */
+  async stampRegion(
+    passes: StampPass[],
+    bounds: Bounds,
+    tier: DetailTier,
+    onProgress?: (done: number, total: number) => void,
+    cancel?: { cancelled: boolean },
+  ): Promise<void> {
+    const layers = [...new Set(passes.map(p => p.layer))];
+    const targets = [tier, ...coarserTiers(tier)];
+
+    let total = 0;
+    for (const t of targets) total += this.cellsIn(bounds, t).length;
+    let done = 0;
+    onProgress?.(0, total);
+
+    /*
+     * Four cells at a time: enough concurrency to keep the network busy while the renderer
+     * works, small enough that the transient residency (cells × layers × 3 MB) stays well
+     * inside the budget even at the coarsest tier.
+     */
+    const CELL_BATCH = 4;
+
+    for (const t of targets) {
+      const cells = this.cellsIn(bounds, t);
+
+      for (let i = 0; i < cells.length; i += CELL_BATCH) {
+        if (cancel?.cancelled) return;
+        const batch = cells.slice(i, i + CELL_BATCH);
+
+        const recs: ChunkRecord[] = [];
+        for (const cell of batch) {
+          for (const layer of layers) recs.push(this.get(layer, t, cell.cx, cell.cy));
+        }
+
+        // Stored pixels first — the stamp merges with them rather than replacing the chunk.
+        await Promise.all(recs.map(rec => this.ensureLoaded(rec)));
+        if (cancel?.cancelled) return;
+
+        for (const rec of recs) {
+          if (!this.isUsable(rec)) continue;
+          for (const pass of passes) {
+            if (pass.layer !== rec.layer) continue;
+            pass.node.blendMode = pass.erase ? 'erase' : 'normal';
+            this.stampHost.removeChildren();
+            this.stampHost.addChild(pass.node);
+            this.stamp(rec);
+            this.stampHost.removeChildren();
+          }
+          rec.dirty = true;
+        }
+
+        await Promise.all(recs.map(rec => this.uploadChunk(rec)));
+
+        // Free everything the camera is not showing; the import is far larger than the view.
+        for (const rec of recs) {
+          if (!rec.dirty && !rec.uploading && !this.overlapsView(rec)) this.dispose(rec);
+        }
+
+        done += batch.length;
+        onProgress?.(done, total);
+      }
+    }
+  }
+
+  /**
+   * Chunk positions of `tier` a world rectangle covers.
+   *
+   * The far edge is nudged inwards, unlike `paintWorld`'s: a brush stamp is a soft blob
+   * inside a generous bounding box, so one chunk too many costs nothing, but a rectangle
+   * ending exactly on a chunk boundary must not claim the empty column beyond it — the
+   * count is shown to the user and drives the progress bar.
+   */
+  private cellsIn(bounds: Bounds, tier: DetailTier): { cx: number; cy: number }[] {
+    const span = TIER_WORLD_SIZE[tier];
+    const minCx = Math.floor(bounds.minX / span);
+    const maxCx = Math.floor((bounds.maxX - 1e-6) / span);
+    const minCy = Math.floor(bounds.minY / span);
+    const maxCy = Math.floor((bounds.maxY - 1e-6) / span);
+
+    const cells: { cx: number; cy: number }[] = [];
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      for (let cx = minCx; cx <= maxCx; cx++) cells.push({ cx, cy });
+    }
+    return cells;
+  }
+
+  /** Whether a chunk covers any part of the last streamed view. */
+  private overlapsView(rec: ChunkRecord): boolean {
+    const v = this.lastView;
+    if (!v) return false;
+    const span = TIER_WORLD_SIZE[rec.tier];
+    const x = rec.cx * span;
+    const y = rec.cy * span;
+    return x < v.maxX && x + span > v.minX && y < v.maxY && y + span > v.minY;
   }
 
   /** Render the current stamp host into one chunk, in that chunk's own texel space. */

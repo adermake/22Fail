@@ -323,7 +323,7 @@
                 />
               </label>
             </div>
-            <p class="hint">Ohne Auswahl wird neues Land weiß gezeichnet.</p>
+            <p class="hint">Ohne Auswahl bleibt neues Land pergamentfarben.</p>
           </div>
         }
 
@@ -755,6 +755,159 @@
         }
 
         @if (tab() === 'map') {
+          <!-- Übernimmt eine fertige Karte aus einem anderen Werkzeug: Transparenz = Wasser,
+               Farbe = Land. Symbole und Beschriftungen werden hier neu gesetzt. -->
+          <div class="panel-section">
+            <div class="panel-title">Landmasse importieren</div>
+
+            @if (!hasImport()) {
+              <p class="hint">
+                Bild wählen, in dem Wasser transparent und Land farbig ist. Das Bild lässt sich
+                danach verschieben und skalieren, bevor es gestempelt wird.
+              </p>
+              <label class="file-button">
+                Bild wählen …
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="hidden-file"
+                  (change)="
+                    pickImportImage($any($event.target).files); $any($event.target).value = ''
+                  "
+                />
+              </label>
+            } @else {
+              <p class="hint import-file">{{ importName() }} · {{ importSizeLabel() }}</p>
+
+              <label class="slider-row" title="Ziehen auf der Karte verschiebt das Bild">
+                <span>Größe</span>
+                <input
+                  type="range"
+                  min="-3"
+                  max="3"
+                  step="0.005"
+                  [disabled]="importBusy()"
+                  [value]="importScaleLog()"
+                  (input)="setImportScaleLog($any($event.target).value)"
+                />
+                <em>{{ importPlacement().scale.toFixed(2) }}</em>
+              </label>
+
+              <label class="slider-row">
+                <span>Deckkraft</span>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  [value]="importOpacity()"
+                  (input)="setImportOpacity($any($event.target).value)"
+                />
+                <em>{{ (importOpacity() * 100).toFixed(0) }}%</em>
+              </label>
+
+              <label
+                class="slider-row"
+                title="Ab welcher Deckkraft ein Bildpunkt als Land zählt"
+              >
+                <span>Landgrenze</span>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="0.95"
+                  step="0.05"
+                  [disabled]="importBusy()"
+                  [value]="importThreshold()"
+                  (input)="setImportThreshold($any($event.target).value)"
+                />
+                <em>{{ (importThreshold() * 100).toFixed(0) }}%</em>
+              </label>
+
+              <p class="hint">
+                Ziehen verschiebt das Bild · Strg + Mausrad skaliert es. Es bleibt auch in
+                anderen Reitern sichtbar, lässt sich also zum Nachzeichnen liegen lassen.
+              </p>
+
+              <div class="history-row">
+                <button type="button" [disabled]="importBusy()" (click)="fitImportToView()">
+                  An Ansicht anpassen
+                </button>
+                <button type="button" [disabled]="importBusy()" (click)="clearImport()">
+                  Verwerfen
+                </button>
+              </div>
+
+              <label class="check-row" title="Übernimmt auch die Farben des Bildes als Landfarbe">
+                <input
+                  type="checkbox"
+                  [checked]="importWithColor()"
+                  [disabled]="importBusy()"
+                  (change)="importWithColor.set($any($event.target).checked)"
+                />
+                <span>Farben übernehmen</span>
+              </label>
+
+              <label
+                class="check-row"
+                title="Löscht vorhandenes Land im Bildbereich, bevor gestempelt wird"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="importReplace()"
+                  [disabled]="importBusy()"
+                  (change)="importReplace.set($any($event.target).checked)"
+                />
+                <span>Bereich ersetzen</span>
+              </label>
+
+              <div class="panel-title">Detailstufe</div>
+              <div class="profile-row">
+                @for (t of importTierOptions(); track t.id) {
+                  <button
+                    type="button"
+                    class="profile-btn"
+                    [class.active]="importTier() === t.id"
+                    [disabled]="importBusy()"
+                    [title]="t.cells + ' Kacheln'"
+                    (click)="setImportTier(t.id)"
+                  >
+                    {{ t.label }}
+                  </button>
+                }
+              </div>
+              <p class="hint">
+                Gestempelt wird diese Stufe und jede gröbere. {{ importCells() }} Kacheln.
+              </p>
+              @if (importTooLarge()) {
+                <p class="hint import-warn">
+                  Über {{ importWarnLimit }} Kacheln — das dauert lange. Eine gröbere Stufe
+                  reicht meist, da das Bild nicht mehr Details enthält.
+                </p>
+              }
+
+              @if (importBusy()) {
+                <div class="import-progress">
+                  <div class="import-bar" [style.width.%]="importPercent()"></div>
+                </div>
+                <div class="history-row">
+                  <span class="hint"
+                    >{{ importProgress().done }} / {{ importProgress().total }}</span
+                  >
+                  <button type="button" (click)="cancelImport()">Abbrechen</button>
+                </div>
+              } @else {
+                <div class="history-row">
+                  <button type="button" (click)="stampImport()">Stempeln</button>
+                </div>
+                <p class="hint">Stempeln lässt sich nicht rückgängig machen.</p>
+              }
+            }
+
+            @if (importError(); as err) {
+              <p class="asset-error">{{ err }}</p>
+            }
+          </div>
+
           <div class="panel-section">
             <div class="panel-title">Meerfarbe</div>
             <label class="base-row" title="Farbe von offenem Wasser">
