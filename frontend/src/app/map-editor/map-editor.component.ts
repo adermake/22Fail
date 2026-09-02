@@ -442,7 +442,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   setImportScale(value: string | number): void {
     if (!this.importSource) return;
-    this.importPlacement.update(p => ({ ...p, scale: Math.max(0.001, Number(value)) }));
+    const scale = Number(value);
+    // A half-typed or cleared field reads as NaN; keep the last good scale rather than
+    // collapsing the overlay to nothing.
+    if (!Number.isFinite(scale)) return;
+    this.importPlacement.update(p => ({ ...p, scale: Math.max(0.001, scale) }));
     this.syncImportSprite();
   }
 
@@ -458,6 +462,17 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   setImportScaleLog(value: string | number): void {
     this.setImportScale(Math.pow(10, Number(value)));
   }
+
+  /**
+   * The scale as text for the number field beside the slider.
+   *
+   * Rounded to four significant figures and back through `Number`, so a scale that is
+   * exactly 8 shows as "8" rather than "8.000" — the field is there to be *read* as much as
+   * typed into, and trailing zeros make an exact value look like a rounded one. Significant
+   * figures rather than decimals because the scale spans 0.001 to 1000, where a fixed
+   * decimal count is either useless at one end or noise at the other.
+   */
+  readonly importScaleText = computed(() => String(Number(this.importPlacement().scale.toPrecision(4))));
 
   /** Zoom the overlay about its own centre; steps are relative, so any scale stays usable. */
   scaleImportBy(factor: number): void {

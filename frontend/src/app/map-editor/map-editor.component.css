@@ -692,3 +692,26 @@
   background: #6d9fd0;
   transition: width 0.15s linear;
 }
+
+/* Ein Regler allein trifft runde Werte nie: der Maßstab des Landmassen-Bildes muss auch
+   exakt eingetippt werden können, also bekommt diese Zeile statt des Nur-Lese-<em> ein
+   Zahlenfeld — und dafür etwas mehr Platz. */
+.slider-row.wide-value {
+  grid-template-columns: 58px 1fr 64px;
+}
+
+.value-input {
+  background: #23232b;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 4px;
+  padding: 3px 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.value-input:focus {
+  outline: none;
+  border-color: #6d9fd0;
+}

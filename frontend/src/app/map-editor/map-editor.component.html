@@ -779,7 +779,9 @@
             } @else {
               <p class="hint import-file">{{ importName() }} · {{ importSizeLabel() }}</p>
 
-              <label class="slider-row" title="Ziehen auf der Karte verschiebt das Bild">
+              <!-- Der Regler ist logarithmisch und trifft runde Werte nie genau; das Feld
+                   daneben nimmt den exakten Maßstab entgegen. -->
+              <label class="slider-row wide-value" title="Ziehen auf der Karte verschiebt das Bild">
                 <span>Größe</span>
                 <input
                   type="range"
@@ -790,7 +792,16 @@
                   [value]="importScaleLog()"
                   (input)="setImportScaleLog($any($event.target).value)"
                 />
-                <em>{{ importPlacement().scale.toFixed(2) }}</em>
+                <input
+                  type="number"
+                  class="value-input"
+                  min="0.001"
+                  step="any"
+                  title="Weltpixel pro Bildpunkt — exakter Wert eingebbar"
+                  [disabled]="importBusy()"
+                  [value]="importScaleText()"
+                  (change)="setImportScale($any($event.target).value)"
+                />
               </label>
 
               <label class="slider-row">

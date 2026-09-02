@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T07:47:08.795Z",
+  "generatedAt": "2026-09-02T08:00:24.383Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -323,7 +323,7 @@
       "tab": "Klassen",
       "icon": "ability",
       "order": 40,
-      "hash": "1d574e2a",
+      "hash": "0bae4c3e",
       "outline": [
         {
           "id": "klassen",
@@ -358,7 +358,7 @@
       "tab": "Rassen",
       "icon": "races",
       "order": 50,
-      "hash": "00c9c48b",
+      "hash": "30dd5f5c",
       "outline": [
         {
           "id": "rassen",
@@ -381,7 +381,7 @@
         {
           "id": "vor-und-nachteile",
           "text": "Vor- und Nachteile",
-          "level": 2,
+          "level": 3,
           "kind": "heading"
         }
       ]
@@ -518,7 +518,7 @@
       "tab": "Ausrüstung",
       "icon": "equipment",
       "order": 70,
-      "hash": "944de8ef",
+      "hash": "5c8dd588",
       "outline": [
         {
           "id": "ausruestung",
@@ -553,7 +553,7 @@
       "tab": "Herstellung",
       "icon": "carfting",
       "order": 80,
-      "hash": "97a84c20",
+      "hash": "5dbb825f",
       "outline": [
         {
           "id": "herstellung",
