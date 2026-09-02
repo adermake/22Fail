@@ -17,14 +17,22 @@ import {
 } from './map-editor.model';
 import { Bounds } from './map-camera';
 
-/** Mirrors `ChunkManager.resolveTier`. */
-function resolveTier(current: DetailTier, pin: DetailTier | null, view: Bounds): DetailTier {
+/** Mirrors `ChunkManager.resolveTier`, hysteresis included. */
+function resolveTier(
+  current: DetailTier,
+  pin: DetailTier | null,
+  view: Bounds,
+  pinFresh = false,
+): DetailTier {
   const w = view.maxX - view.minX;
   const h = view.maxY - view.minY;
   const auto = chooseTier(current, w, h);
   if (!pin) return auto;
-  if (chunksOnScreen(w, h, pin) > TARGET_CHUNKS_ON_SCREEN) return auto;
-  return pin;
+
+  const holding = current === pin;
+  const budget =
+    holding || pinFresh ? TARGET_CHUNKS_ON_SCREEN : TARGET_CHUNKS_ON_SCREEN * 0.6;
+  return chunksOnScreen(w, h, pin) > budget ? auto : pin;
 }
 
 const view = (w: number, h = w): Bounds => ({ minX: 0, minY: 0, maxX: w, maxY: h });
@@ -75,5 +83,66 @@ describe('Arbeitsstufe festnageln', () => {
         );
       }
     }
+  });
+
+  /*
+   * Der Grund für die Hysterese, und der gemeldete Fehler.
+   *
+   * Ohne Totband kippt eine festgenagelte Stufe dicht an der Budgetgrenze bei jeder
+   * Mausrad-Raste hin und her. Beim automatischen Wähler kostet das nur Neuaufbauten; bei
+   * einer festgenagelten Stufe entscheidet sie, *was isoliert gezeichnet* und *worauf gemalt*
+   * wird — das Bild springt also zwischen zwei Stufen, was aussieht wie Terrain, das von
+   * selbst auftaucht und verschwindet.
+   */
+  describe('Hysterese', () => {
+    /** Kleinste Ansichtsbreite, bei der `pin` das Budget gerade reißt. */
+    const thresholdWidth = (pin: DetailTier): number => {
+      let w = TIER_WORLD_SIZE[pin];
+      while (chunksOnScreen(w, w, pin) <= TARGET_CHUNKS_ON_SCREEN) w *= 1.02;
+      return w;
+    };
+
+    it('kippt an der Grenze nicht hin und her', () => {
+      const pin: DetailTier = 'med';
+      const edge = thresholdWidth(pin);
+
+      // Um die Grenze herum wackeln, wie es ein Mausrad tut.
+      let current: DetailTier = pin;
+      const seen = new Set<DetailTier>();
+      for (let i = 0; i < 40; i++) {
+        const w = edge * (i % 2 === 0 ? 0.995 : 1.005);
+        current = resolveTier(current, pin, view(w));
+        seen.add(current);
+      }
+
+      // Genau eine Stufe über den ganzen Schwung — kein Flackern zwischen zweien.
+      expect(seen.size).toBe(1);
+    });
+
+    it('gibt die Stufe erst auf, wenn sie wirklich nicht mehr passt', () => {
+      const pin: DetailTier = 'med';
+      const edge = thresholdWidth(pin);
+
+      expect(resolveTier(pin, pin, view(edge * 0.98))).toBe(pin);
+      expect(resolveTier(pin, pin, view(edge * 1.6))).not.toBe(pin);
+    });
+
+    it('nimmt sie erst mit Luft nach oben zurück', () => {
+      const pin: DetailTier = 'med';
+      const edge = thresholdWidth(pin);
+
+      // Knapp unter der Grenze, aber ohne Reserve: noch nicht zurücknehmen …
+      expect(resolveTier('low', pin, view(edge * 0.95))).toBe('low');
+      // … eng genug herangezoomt dagegen schon.
+      expect(resolveTier('low', pin, view(TIER_WORLD_SIZE[pin] * 2))).toBe(pin);
+    });
+
+    it('greift eine frisch gewählte Stufe sofort, wenn sie ins Budget passt', () => {
+      const pin: DetailTier = 'med';
+      const edge = thresholdWidth(pin);
+
+      // Ohne diese Ausnahme täte ein Klick auf eine gerade noch passende Stufe scheinbar nichts.
+      expect(resolveTier('low', pin, view(edge * 0.95), true)).toBe(pin);
+    });
   });
 });

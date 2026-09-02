@@ -305,6 +305,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    */
   readonly onlyTier = computed(() => this.tierPin() !== null && this.tierIsolate());
 
+  /** Label of the pinned tier, for the warning that names which one is not applying. */
+  readonly tierPinLabel = computed(
+    () => this.tierOptions.find(o => o.id === this.tierPin())?.label ?? '',
+  );
+
   setTierPin(tier: DetailTier | null): void {
     this.tierPin.set(tier);
     if (this.chunks) this.chunks.tierPin = tier;
@@ -1799,6 +1804,17 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private beginPaint(world: { x: number; y: number }): void {
+    /*
+     * Refuse to paint while a pinned tier is not being honoured.
+     *
+     * The tier decides what a stroke *writes*. If the pin has been clamped away because the
+     * view cannot afford it, the panel still shows the tier you chose while the stroke would
+     * land on a coarser one — silently putting work somewhere you did not ask for, on a map
+     * where content in the wrong tier is exactly the thing that is hard to undo. Zooming in
+     * lifts the block, and the status bar says so.
+     */
+    if (this.tierPinBlocked()) return;
+
     this.isPainting = true;
     this.strokeBounds = null;
     /*

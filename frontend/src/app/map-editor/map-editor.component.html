@@ -210,8 +210,14 @@
           }
 
           @if (tierPinBlocked()) {
-            <span class="tier-warn" title="Zu weit herausgezoomt für diese Stufe — es gälten zu
-              viele Kacheln auf einmal. Näher heranzoomen.">Stufe greift nicht</span>
+            <!-- Laut, nicht beiläufig: solange das greift, wird nicht gemalt, und die
+                 angezeigte Stufe ist nicht die, auf der ein Strich landen würde. -->
+            <span
+              class="tier-warn blocked"
+              title="Zu weit herausgezoomt für Stufe {{ tierPinLabel() }} — es wären zu viele
+                Kacheln auf einmal. Näher heranzoomen; bis dahin ist das Malen gesperrt."
+              >Stufe {{ tierPinLabel() }} greift nicht — Malen gesperrt, näher heranzoomen</span
+            >
           }
           @if (tierIsolate() && !tierPinBlocked()) {
             <span class="tier-warn isolating">Einzelstufe — nicht die echte Karte</span>

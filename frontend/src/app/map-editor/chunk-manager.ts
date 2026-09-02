@@ -156,7 +156,19 @@ export class ChunkManager {
    * close enough to see what you are aligning against is impossible otherwise, and it is
    * exactly the job that sends people looking for a per-tier eraser.
    */
-  tierPin: DetailTier | null = null;
+  private pin: DetailTier | null = null;
+  /** Set when the pin changes, so a fresh choice is judged against the full budget. */
+  private pinFresh = false;
+
+  get tierPin(): DetailTier | null {
+    return this.pin;
+  }
+
+  set tierPin(tier: DetailTier | null) {
+    if (this.pin === tier) return;
+    this.pin = tier;
+    this.pinFresh = true;
+  }
 
   /**
    * Whether the pin is currently being ignored because the view cannot afford it.
@@ -165,7 +177,7 @@ export class ChunkManager {
    * while strokes actually land on `low`, which is worse than not offering the pin at all.
    */
   get tierPinBlocked(): boolean {
-    return this.tierPin !== null && this.tier !== this.tierPin;
+    return this.pin !== null && this.tier !== this.pin;
   }
 
   /**
@@ -179,13 +191,32 @@ export class ChunkManager {
    */
   private resolveTier(view: Bounds): DetailTier {
     const auto = this.tierFor(view);
-    const pin = this.tierPin;
+    const pin = this.pin;
     if (!pin) return auto;
 
     const w = view.maxX - view.minX;
     const h = view.maxY - view.minY;
-    if (chunksOnScreen(w, h, pin) > TARGET_CHUNKS_ON_SCREEN) return auto;
-    return pin;
+    const cost = chunksOnScreen(w, h, pin);
+
+    /*
+     * Hysteresis, exactly as `chooseTier` has it, and for a sharper reason.
+     *
+     * A bare threshold makes the pin chatter: a zoom sitting near the budget flips it on and
+     * off with every wheel notch. That is bad enough for the automatic chooser, which merely
+     * rebuilds cells — but a pinned tier decides what is *drawn in isolation* and what a
+     * stroke *writes*, so chattering swaps the visible content between two tiers as you
+     * scroll, and it looks exactly like terrain appearing and disappearing on its own.
+     *
+     * So: give the pin up as soon as it no longer fits, and take it back only once it fits
+     * with room to spare. A pin the user has just chosen is judged against the full budget,
+     * or clicking a tier that only just fits would appear to do nothing.
+     */
+    const holding = this.tier === pin;
+    const budget =
+      holding || this.pinFresh ? TARGET_CHUNKS_ON_SCREEN : TARGET_CHUNKS_ON_SCREEN * 0.6;
+    this.pinFresh = false;
+
+    return cost > budget ? auto : pin;
   }
 
   private create(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): ChunkRecord {

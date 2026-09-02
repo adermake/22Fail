@@ -757,8 +757,17 @@ Ohne Pin ist beides an den Zoom gekoppelt, und „grobe Basis korrigieren, währ
 dran ist, um etwas zu erkennen“ war unmöglich.
 
 - `ChunkManager.tierPin` wird **geklemmt**, nicht befolgt: übersteigt die Stufe
-  `TARGET_CHUNKS_ON_SCREEN`, greift wieder die Automatik und `tierPinBlocked` sagt es in der
-  Statusleiste. Ein Pin kann nie mehr Kacheln kosten als die automatische Wahl (`tier-pin.spec.ts`).
+  `TARGET_CHUNKS_ON_SCREEN`, greift wieder die Automatik. Ein Pin kann nie mehr Kacheln kosten
+  als die automatische Wahl (`tier-pin.spec.ts`).
+- **Mit Hysterese**, wie `chooseTier` selbst. Eine reine Schwelle ließ den Pin dicht an der
+  Grenze bei jeder Mausrad-Raste umkippen — beim automatischen Wähler nur Neuaufbauten, beim
+  Pin aber ein Wechsel dessen, *was isoliert gezeichnet* und *worauf gemalt* wird: das Bild
+  sprang zwischen zwei Stufen und sah aus wie Terrain, das von selbst kommt und geht. Aufgeben
+  sobald es nicht mehr passt, zurücknehmen erst mit Reserve (×0,6); eine gerade *neu gewählte*
+  Stufe wird am vollen Budget gemessen, sonst täte der Klick scheinbar nichts.
+- Solange der Pin geklemmt ist, **wird nicht gemalt** (`beginPaint` bricht ab). Die Anzeige
+  nennt sonst eine andere Stufe als die, auf der ein Strich landen würde — und Inhalt auf der
+  falschen Stufe ist genau das, was sich hier so schlecht rückgängig machen lässt.
 - **„Nur diese Stufe“** (`TerrainView.setIsolate`): `sampled` wird `[tier]` statt
   `[tier, ...coarserTiers]`. Zeigt, was wirklich gespeichert ist — eine leere Stufe liest sich
   als offenes Meer, auch wo die Karte sichtbar Land hat. `hasContentUnder(..., onlyTier)` zieht
