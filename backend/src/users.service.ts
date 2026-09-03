@@ -35,6 +35,7 @@ const ADJECTIVES = [
   'azure',
   'jolly',
   'noble',
+  'intimidating'
 ];
 const NOUNS = [
   'otter',
@@ -53,6 +54,7 @@ const NOUNS = [
   'toad',
   'crane',
   'boar',
+  'horse'
 ];
 
 /**
