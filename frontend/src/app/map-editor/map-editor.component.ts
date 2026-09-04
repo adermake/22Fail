@@ -865,26 +865,53 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
          * `skipEmpty` keeps the cost honest: only cells that actually hold something are
          * touched, so an import onto empty ocean does no work here at all.
          */
+        /*
+         * Crossed by the edge: erase the rectangle out of them.
+         *
+         * These cannot be deleted — they hold map outside the region too — and they cannot be
+         * skipped either. One chunk spans 23 hexes at `med` and 182 at `low`, so leaving them
+         * is not a fringe artifact but a band of the old map straight across the new one.
+         *
+         * Which of them actually hold anything is **the server's** answer, not this client's.
+         * Deciding it from the local `chunkVersions` — a cache that can lose entries — skipped
+         * chunks that really did hold content: the old pixels stayed, and the next stamp wrote
+         * a partly transparent image over them and republished the lot. That is a square of
+         * previously deleted map reappearing, which is exactly what it looked like.
+         */
         const ring = edgeCells(bounds, tier);
         if (!ring.length) continue;
 
-        const rect = new Container();
-        rect.addChild(
-          new Graphics()
-            .rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)
-            .fill({ color: 0xffffff }),
-        );
-        edgeNodes.push(rect);
+        const bound = {
+          minCx: Math.min(...ring.map(c => c.cx)),
+          minCy: Math.min(...ring.map(c => c.cy)),
+          maxCx: Math.max(...ring.map(c => c.cx)),
+          maxCy: Math.max(...ring.map(c => c.cy)),
+        };
 
-        await this.chunks?.stampCells(
-          [
-            { layer: 'height', node: rect, erase: true },
-            { layer: 'landColor', node: rect, erase: true },
-          ],
-          ring,
-          tier,
-          { skipEmpty: true, cancel: this.importCancel },
-        );
+        for (const layer of ['height', 'landColor'] as const) {
+          const stored = await this.api.listChunks(this.worldName(), layer, tier, bound);
+          const live = new Set(stored.map(([cx, cy]) => `${cx}/${cy}`));
+
+          // Unioned with local work the server cannot know about yet.
+          const cells = ring.filter(
+            c =>
+              live.has(`${c.cx}/${c.cy}`) ||
+              this.chunks!.hasUnsavedPaint(layer, tier, c.cx, c.cy),
+          );
+          if (!cells.length) continue;
+
+          const rect = new Container();
+          rect.addChild(
+            new Graphics()
+              .rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)
+              .fill({ color: 0xffffff }),
+          );
+          edgeNodes.push(rect);
+
+          await this.chunks?.stampCells([{ layer, node: rect, erase: true }], cells, tier, {
+            cancel: this.importCancel,
+          });
+        }
       }
     } finally {
       for (const node of edgeNodes) node.destroy({ children: true });

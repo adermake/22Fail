@@ -741,21 +741,21 @@ export class ChunkManager {
    * There are only ever O(perimeter) of those, but they are the difference between a clean
    * replacement and a stale band 23 hexes wide at `med`, or 182 at `low`.
    *
-   * `skipEmpty` keeps that affordable. An erase over ground nothing was ever painted on has
-   * no work to do, and without the check the pass would *create* the chunk, upload a blank
-   * PNG, and leave a file where there had rightly been none — thousands of them at `high`.
+   * The caller passes exactly the cells that need work — an erase over ground nothing was ever
+   * painted on has nothing to do, and touching it would *create* the chunk and upload a blank
+   * PNG where there had rightly been no file. Which cells those are is the server's answer,
+   * not this client's: see `MapEditorApiService.listChunks`.
    */
   async stampCells(
     passes: StampPass[],
     cells: { cx: number; cy: number }[],
     tier: DetailTier,
     opts: {
-      skipEmpty?: boolean;
       onProgress?: (done: number, total: number) => void;
       cancel?: { cancelled: boolean };
     } = {},
   ): Promise<void> {
-    const { skipEmpty, onProgress, cancel } = opts;
+    const { onProgress, cancel } = opts;
     const layers = [...new Set(passes.map(p => p.layer))];
 
     let done = 0;
@@ -774,12 +774,7 @@ export class ChunkManager {
 
         const recs: ChunkRecord[] = [];
         for (const cell of batch) {
-          for (const layer of layers) {
-            // Nothing stored and nothing painted locally: there is nothing to modify, and
-            // touching it would only manufacture an empty chunk.
-            if (skipEmpty && !this.isPainted(layer, t, cell.cx, cell.cy)) continue;
-            recs.push(this.get(layer, t, cell.cx, cell.cy));
-          }
+          for (const layer of layers) recs.push(this.get(layer, t, cell.cx, cell.cy));
         }
         if (recs.length === 0) {
           done += batch.length;
@@ -818,13 +813,13 @@ export class ChunkManager {
   }
 
   /**
-   * Whether a chunk holds anything — stored on the server, or painted here and not yet saved.
+   * Whether this client holds paint for a chunk that the server has not seen yet.
    *
-   * The unsaved half matters: an erase running straight after a stamp must still see the
-   * chunk the stamp just created, or it would decide there was nothing to erase.
+   * The server's chunk listing is authoritative for what is *stored*, but it cannot know about
+   * a stroke that has not been uploaded. A bulk erase unions the two, or it would walk past
+   * work done seconds ago.
    */
-  private isPainted(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): boolean {
-    if (this.store.chunkExists(layer, tier, cx, cy)) return true;
+  hasUnsavedPaint(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): boolean {
     const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
     return !!rec && (rec.dirty || rec.uploading);
   }

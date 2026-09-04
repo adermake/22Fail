@@ -124,6 +124,37 @@ export class MapEditorController {
   }
 
   /**
+   * Which chunks of one layer and tier are stored inside a chunk-coordinate rectangle.
+   *
+   * The authoritative answer, and that is why it exists. A client's `chunkVersions` is a cache
+   * that can lose entries; deciding "nothing is stored here, so there is nothing to erase"
+   * from it leaves real content in place, which then gets republished by the next stamp. Any
+   * bulk erase asks here instead.
+   */
+  @Get('chunks/:layer/:tier')
+  listChunks(
+    @Param('worldName') worldName: string,
+    @Param('layer') layer: RasterLayer,
+    @Param('tier') tier: DetailTier,
+    @Query('minCx', ParseIntPipe) minCx: number,
+    @Query('minCy', ParseIntPipe) minCy: number,
+    @Query('maxCx', ParseIntPipe) maxCx: number,
+    @Query('maxCy', ParseIntPipe) maxCy: number,
+  ): { cells: [number, number][] } {
+    return {
+      cells: this.mapEditor.listChunks(
+        worldName,
+        layer,
+        tier,
+        minCx,
+        minCy,
+        maxCx,
+        maxCy,
+      ),
+    };
+  }
+
+  /**
    * Delete every stored chunk of one layer and tier inside a chunk-coordinate rectangle.
    *
    * The cheap way to clear a large area: chunks are plain files, so removing them is the

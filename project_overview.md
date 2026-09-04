@@ -678,8 +678,13 @@ Editor neu gesetzt. Bedienung im Reiter *Karte*.
   - *ganz innen*: Dateien löschen über `DELETE …/map-editor/chunks/:layer/:tier?minCx…` —
     ein paar Requests statt tausender Uploads, egal wie groß die Fläche.
   - *vom Rand angeschnitten* (`edgeCells`): echt ausradieren über
-    `ChunkManager.stampCells(..., { skipEmpty: true })`. Löschen geht hier nicht, weil die
-    Kachel auch Karte *außerhalb* hält.
+    `ChunkManager.stampCells`. Löschen geht hier nicht, weil die Kachel auch Karte
+    *außerhalb* hält. **Welche Randkacheln überhaupt Inhalt haben, sagt der Server**
+    (`GET …/chunks/:layer/:tier?minCx…`), nicht der lokale `chunkVersions`-Cache: der kann
+    Einträge verlieren, das Radieren wurde dann übersprungen, die alten Pixel blieben liegen —
+    und der nächste Stempel schrieb sein teils transparentes Bild darüber und veröffentlichte
+    sie wieder. Ergebnis: ein **Quadrat vorher gelöschter Karte kam zurück**. Vereinigt wird
+    die Serverliste mit `ChunkManager.hasUnsavedPaint`, das der Server nicht kennen kann.
 
   Die erste Fassung übersprang die Randkacheln und nannte das einen „kachelbreiten Rand“.
   **Das war falsch:** eine Kachel ist bei `med` 23 Hex (91 km) und bei `low` 182 Hex (728 km)

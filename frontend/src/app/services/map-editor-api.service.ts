@@ -107,6 +107,34 @@ export class MapEditorApiService {
   }
 
   /**
+   * Which chunks of a layer and tier the server actually holds inside a rectangle.
+   *
+   * Asked before any bulk erase. The local `chunkVersions` is a cache and can lose entries;
+   * skipping an erase because it says "nothing here" leaves real pixels in place, which the
+   * next stamp then republishes — a square of deleted map coming back.
+   */
+  async listChunks(
+    worldName: string,
+    layer: RasterLayer,
+    tier: DetailTier,
+    rect: { minCx: number; minCy: number; maxCx: number; maxCy: number },
+  ): Promise<[number, number][]> {
+    const query =
+      `minCx=${rect.minCx}&minCy=${rect.minCy}` + `&maxCx=${rect.maxCx}&maxCy=${rect.maxCy}`;
+    try {
+      const res = await fetch(`${this.base(worldName)}/chunks/${layer}/${tier}?${query}`, {
+        headers: identityHeaders(),
+      });
+      if (!res.ok) return [];
+      const json = (await res.json()) as { cells?: [number, number][] };
+      return json.cells ?? [];
+    } catch (err) {
+      console.error('[MapEditorAPI] Chunk list failed:', err);
+      return [];
+    }
+  }
+
+  /**
    * Delete every stored chunk of a layer and tier inside a chunk-coordinate rectangle.
    *
    * Resolves the cells the server actually removed — usually far fewer than the rectangle,

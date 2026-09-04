@@ -123,4 +123,48 @@ describe('MapEditorService — Persistenz', () => {
 
     expect(fs.existsSync(mapFile() + '.tmp')).toBe(false);
   });
+
+  describe('Chunk-Liste (maßgeblich für Bulk-Löschungen)', () => {
+    /*
+     * Warum das eine eigene Route ist: der Client entschied früher aus seiner *eigenen* Kopie
+     * von `chunkVersions`, ob in einer Kachel etwas liegt. Diese Kopie ist ein Cache und kann
+     * Einträge verlieren — dann wurde das Radieren übersprungen, die alten Pixel blieben
+     * liegen, und der nächste Stempel veröffentlichte sie wieder. Ein Quadrat gelöschter
+     * Karte kam zurück. Hier auf dem Server ist die Liste mit der Platte abgeglichen.
+     */
+    const write = (layer: any, tier: any, cx: number, cy: number) =>
+      svc.writeChunk('Testwelt', layer, tier, cx, cy, Buffer.from([1, 2, 3]));
+
+    it('nennt nur Kacheln, die es wirklich gibt', async () => {
+      await write('landColor', 'med', 2, 2);
+      await write('landColor', 'med', 9, 9);
+
+      const cells = svc.listChunks('Testwelt', 'landColor', 'med', 0, 0, 5, 5);
+      expect(cells).toEqual([[2, 2]]);
+    });
+
+    it('trennt Layer und Stufe', async () => {
+      await write('landColor', 'med', 1, 1);
+      await write('height', 'med', 1, 1);
+      await write('landColor', 'low', 1, 1);
+
+      expect(svc.listChunks('Testwelt', 'landColor', 'med', 0, 0, 3, 3)).toEqual([[1, 1]]);
+      expect(svc.listChunks('Testwelt', 'height', 'med', 0, 0, 3, 3)).toEqual([[1, 1]]);
+      expect(svc.listChunks('Testwelt', 'waterColor', 'med', 0, 0, 3, 3)).toEqual([]);
+    });
+
+    it('funktioniert bei negativen Koordinaten', async () => {
+      await write('height', 'high', -3, -2);
+      expect(svc.listChunks('Testwelt', 'height', 'high', -5, -5, 0, 0)).toEqual([[-3, -2]]);
+      expect(svc.listChunks('Testwelt', 'height', 'high', 0, 0, 5, 5)).toEqual([]);
+    });
+
+    it('meldet nach dem Löschen nichts mehr', async () => {
+      await write('landColor', 'low', 0, 0);
+      expect(svc.listChunks('Testwelt', 'landColor', 'low', 0, 0, 1, 1)).toHaveLength(1);
+
+      svc.clearChunks('Testwelt', 'landColor', 'low', 0, 0, 1, 1);
+      expect(svc.listChunks('Testwelt', 'landColor', 'low', 0, 0, 1, 1)).toEqual([]);
+    });
+  });
 });

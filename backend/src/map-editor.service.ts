@@ -593,7 +593,19 @@ export class MapEditorService implements OnModuleDestroy {
    * Returns the cells actually removed, so the caller can tell other sessions precisely what
    * to drop rather than making them reload the map.
    */
-  clearChunks(
+  /**
+   * Chunks of one layer and tier stored inside a chunk-coordinate rectangle.
+   *
+   * Authoritative, which is the entire point of exposing it. `chunkVersions` here is
+   * reconciled against the files actually on disk when the document loads, whereas a client's
+   * copy is a cache that can silently lose entries. A client deciding "there is nothing here,
+   * so nothing to erase" from its own copy will skip a chunk that really does hold content,
+   * leave the old pixels in place, and then republish them on the next stamp.
+   *
+   * Driven by the version map rather than by the rectangle: the rectangle can span millions of
+   * `high` positions while only a few hundred were ever painted.
+   */
+  listChunks(
     worldName: string,
     layer: RasterLayer,
     tier: DetailTier,
@@ -608,21 +620,9 @@ export class MapEditorService implements OnModuleDestroy {
       if (!Number.isInteger(n)) return [];
     }
 
-    // `getMap` is untyped like the rest of the document, but everything touched here is
-    // known, so naming it locally keeps this method off the file's `any` treadmill.
-    const doc = this.getMap(worldName) as {
-      chunkVersions: Record<string, number>;
-      updatedAt: number;
-    };
-    const removed: [number, number][] = [];
+    const doc = this.getMap(worldName) as { chunkVersions: Record<string, number> };
+    const found: [number, number][] = [];
 
-    /*
-     * Driven by the version map, not by the requested rectangle.
-     *
-     * The rectangle can span millions of `high` positions while only a few hundred were ever
-     * painted, so walking it would be unbounded work to `unlink` files that do not exist.
-     * `chunkVersions` already lists exactly what is stored.
-     */
     for (const key of Object.keys(doc.chunkVersions)) {
       const parts = key.split('/');
       if (parts.length !== 4) continue;
@@ -632,7 +632,38 @@ export class MapEditorService implements OnModuleDestroy {
       const cy = Number(parts[3]);
       if (!Number.isInteger(cx) || !Number.isInteger(cy)) continue;
       if (cx < minCx || cx > maxCx || cy < minCy || cy > maxCy) continue;
+      found.push([cx, cy]);
+    }
+    return found;
+  }
 
+  clearChunks(
+    worldName: string,
+    layer: RasterLayer,
+    tier: DetailTier,
+    minCx: number,
+    minCy: number,
+    maxCx: number,
+    maxCy: number,
+  ): [number, number][] {
+    // `getMap` is untyped like the rest of the document, but everything touched here is
+    // known, so naming it locally keeps this method off the file's `any` treadmill.
+    const doc = this.getMap(worldName) as {
+      chunkVersions: Record<string, number>;
+      updatedAt: number;
+    };
+    const removed: [number, number][] = [];
+
+    for (const [cx, cy] of this.listChunks(
+      worldName,
+      layer,
+      tier,
+      minCx,
+      minCy,
+      maxCx,
+      maxCy,
+    )) {
+      const key = `${layer}/${tier}/${cx}/${cy}`;
       const file = this.chunkFile(worldName, layer, tier, cx, cy);
       if (file) {
         try {
