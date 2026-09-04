@@ -6,6 +6,7 @@ import {
   toolLayer,
   TERRAIN_TOOLS,
 } from './brush-engine';
+import { toolIsTierLocal } from './brush-engine';
 import { hexToRgb } from './terrain-view';
 
 describe('terrain tools', () => {
@@ -29,10 +30,21 @@ describe('terrain tools', () => {
     }
   });
 
-  it('offers no water eraser', () => {
-    // Painting land over water is how water is removed; both are authored into the same
-    // field. A third verb would only invite the state that is neither.
-    expect(TERRAIN_TOOLS).not.toContain('waterEraser' as never);
+  it('gives the two erasers opposite reach', () => {
+    /*
+     * The distinction is the whole reason both exist.
+     *
+     * "No land here" has to remove it from every tier, or a coarser one supplies it again —
+     * so `landEraser` cascades. "This water I drew should go" must withdraw only *this*
+     * tier's opinion, so the land beneath comes back; cascading would erase the landmass
+     * along with the river.
+     */
+    expect(toolIsTierLocal('waterEraser')).toBe(true);
+    expect(toolIsTierLocal('landEraser')).toBe(false);
+
+    expect(paintPasses('waterEraser', 0x336699)).toEqual([
+      { layer: 'height', erase: true, tint: 0xffffff },
+    ]);
   });
 
   it('starts on a land brush painting white, not a preset colour', () => {

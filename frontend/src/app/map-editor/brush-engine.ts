@@ -41,9 +41,12 @@ import { Bounds } from './map-camera';
 import { ChunkManager, ChunkRecord } from './chunk-manager';
 
 /**
- * There is deliberately no *water* eraser: painting land over water is how water is removed,
- * and both are authored into the same field, so offering a third verb would only invite the
- * state that is neither. `landEraser` is the one that withdraws an opinion altogether.
+ * `landEraser` and `waterEraser` differ in reach, not just in name.
+ *
+ * "There should be no land here" has to remove the land from *every* tier, or a coarser one
+ * supplies it again — so the land eraser cascades. "This water I drew should not be here"
+ * must do the opposite: withdraw only this tier's opinion, so whatever the coarser tier says
+ * comes back. Cascading it would erase the land under the river along with the river.
  */
 export type TerrainTool =
   | 'landBrush'
@@ -54,6 +57,7 @@ export type TerrainTool =
   | 'lakeStamp'
   | 'landPaint'
   | 'waterPaint'
+  | 'waterEraser'
   | 'landColorEraser'
   | 'waterColorEraser'
   | 'tierEraser';
@@ -67,6 +71,7 @@ export const TERRAIN_TOOLS: readonly TerrainTool[] = [
   'lakeStamp',
   'landPaint',
   'waterPaint',
+  'waterEraser',
   'landColorEraser',
   'waterColorEraser',
   'tierEraser',
@@ -117,6 +122,15 @@ export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
       return [{ layer: 'height', erase: false, tint: 0x000000 }];
     case 'lakeStamp':
       return [{ layer: 'height', erase: false, tint: 0x000000 }];
+    /*
+     * Take back drawn water without touching the land underneath.
+     *
+     * Erasing withdraws this tier's opinion, so the composite falls through to the coarser
+     * tier — a river carved at Mittel over a Grob landmass gives the land back. Tier-local for
+     * exactly that reason: cascading would erase the landmass too.
+     */
+    case 'waterEraser':
+      return [{ layer: 'height', erase: true, tint: 0xffffff }];
     // Raise/lower reshape the coastline without touching colour already laid down. `lower`
     // stays subtractive: it lowers terrain toward background water rather than drawing water.
     case 'heighten':
@@ -166,7 +180,7 @@ export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
  * when isolating.
  */
 export function toolIsTierLocal(tool: TerrainTool): boolean {
-  return tool === 'tierEraser';
+  return tool === 'tierEraser' || tool === 'waterEraser';
 }
 
 /** Whether a tool's falloff is broken up by noise. */
@@ -405,8 +419,8 @@ export class BrushEngine {
   }
 
   /** See `lakeOutline`. Exposed on the engine so the cursor preview can call it directly. */
-  lakeOutline(cx: number, cy: number, radius: number, seed: number): number[] {
-    return lakeOutline(cx, cy, radius, seed);
+  lakeOutline(cx: number, cy: number, radius: number, seed: number, noise = 0.6): number[] {
+    return lakeOutline(cx, cy, radius, seed, noise);
   }
 
   /**
@@ -431,6 +445,7 @@ export class BrushEngine {
     _color: string,
     tier: DetailTier,
     onlyTier = false,
+    noise = 0.6,
   ): ChunkRecord[] {
     const rand = seeded(seed ^ 0x9e3779b9);
     const reach = radius * 2.2; // satellites and feathering push well past the main body
@@ -444,7 +459,7 @@ export class BrushEngine {
     const g = new Graphics();
 
     // Main body, feathered from the outside in.
-    this.appendFeathered(g, this.lakeOutline(cx, cy, radius, seed));
+    this.appendFeathered(g, this.lakeOutline(cx, cy, radius, seed, noise));
 
     // Satellites: smaller pools offset from the main body, a few of them just detached.
     const satellites = 1 + Math.floor(rand() * 4);
@@ -454,7 +469,7 @@ export class BrushEngine {
       const sr = radius * (0.12 + rand() * 0.28);
       this.appendFeathered(
         g,
-        this.lakeOutline(cx + Math.cos(a) * dist, cy + Math.sin(a) * dist, sr, seed + i * 7717),
+        this.lakeOutline(cx + Math.cos(a) * dist, cy + Math.sin(a) * dist, sr, seed + i * 7717, noise),
       );
     }
 
@@ -492,14 +507,24 @@ export class BrushEngine {
     cx /= n;
     cy /= n;
 
+    /*
+     * Outside in, with the alpha *rising* toward the middle.
+     *
+     * Ten flat 0.16 fills relied on every one of them compositing against the last to reach
+     * water, which makes the whole lake hostage to how the renderer batches identical fills:
+     * merge them and the result is a single 16% wash that never crosses the coastline
+     * threshold, and no lake appears. Ramping to a solid core means the middle is
+     * unambiguously water however the fills are drawn, and the rings only shape the shore.
+     */
     for (let s = 0; s < steps; s++) {
       // 1.12 → 0.55 of the outline, so the softest ring sits outside the nominal edge.
       const t = 1.12 - (s / (steps - 1)) * 0.57;
+      const alpha = 0.12 + (s / (steps - 1)) * 0.88;
       const pts: number[] = [];
       for (let i = 0; i < outline.length; i += 2) {
         pts.push(cx + (outline[i] - cx) * t, cy + (outline[i + 1] - cy) * t);
       }
-      g.poly(pts).fill({ color: 0x000000, alpha: 0.16 });
+      g.poly(pts).fill({ color: 0x000000, alpha });
     }
   }
 
@@ -532,7 +557,13 @@ const LAKE_STEPS = 256;
  * direction, which naturally yields inlets where two lobes meet and a long axis that
  * follows the spine.
  */
-export function lakeOutline(cx: number, cy: number, radius: number, seed: number): number[] {
+export function lakeOutline(
+  cx: number,
+  cy: number,
+  radius: number,
+  seed: number,
+  noise = 0.6,
+): number[] {
   const rand = seeded(seed);
 
   // Spine: a gently curving walk, so the lake has a long axis instead of a centre.
@@ -568,10 +599,26 @@ export function lakeOutline(cx: number, cy: number, radius: number, seed: number
   ax /= lobes.length;
   ay /= lobes.length;
 
-  // Fine shoreline crenulation on top of the lobe silhouette.
-  const crenFreq = 5 + Math.floor(rand() * 7);
-  const crenPhase = rand() * Math.PI * 2;
-  const crenAmp = 0.04 + rand() * 0.05;
+  /*
+   * Shoreline crenulation, as stacked octaves rather than one sine.
+   *
+   * A single sine wave is a *regular* wobble — the silhouette reads as a slightly squashed
+   * circle however the amplitude is tuned, because every bay is the same size and evenly
+   * spaced. Four octaves at roughly doubling frequency give large bays with smaller inlets cut
+   * into them, which is what makes a shoreline look unplanned.
+   *
+   * Frequencies stay whole numbers so the outline closes seamlessly at the wrap-around; a
+   * fractional one leaves a visible notch where the last vertex meets the first.
+   */
+  const octaves: { freq: number; phase: number; amp: number }[] = [];
+  for (let i = 0; i < 4; i++) {
+    octaves.push({
+      freq: (2 + Math.floor(rand() * 4)) * Math.pow(2, i),
+      phase: rand() * Math.PI * 2,
+      // Halving per octave, and the knob scales the lot. Even at 0 the shore is not a circle.
+      amp: (0.11 / Math.pow(1.9, i)) * (0.35 + Math.max(0, Math.min(1, noise)) * 1.65),
+    });
+  }
 
   const points: number[] = [];
   let maxReach = 0;
@@ -594,7 +641,10 @@ export function lakeOutline(cx: number, cy: number, radius: number, seed: number
     }
     if (reach <= 0) reach = radius * 0.25;
 
-    reach *= 1 + crenAmp * Math.sin(a * crenFreq + crenPhase);
+    let wobble = 0;
+    for (const o of octaves) wobble += o.amp * Math.sin(a * o.freq + o.phase);
+    // Clamped so a loud setting cannot fold the outline through its own centre.
+    reach *= Math.max(0.25, 1 + wobble);
     maxReach = Math.max(maxReach, reach);
     points.push(reach * ux, reach * uy);
   }

@@ -27,6 +27,14 @@ import { SpatialIndex } from './spatial-index';
  */
 const MIN_SCREEN_PX = 3;
 
+/**
+ * Fallback colour for a tintable symbol carrying no choice of its own.
+ *
+ * A dark sepia ink: these are map markers — towns, ports, compass roses — and they have to
+ * read against parchment, which white or a light tint would not.
+ */
+export const DEFAULT_SYMBOL_TINT = 0x4a3524;
+
 /** Hard ceiling on sprites per frame, so a pathological view degrades instead of stalling. */
 const MAX_VISIBLE = 12000;
 
@@ -156,8 +164,14 @@ export class SymbolView {
       // Sort on the base, not the sprite centre, so overlap follows ground position.
       sprite.zIndex = sym.y;
 
-      // `sample_color` symbols are drawn in the land colour; the rest keep their own.
-      sprite.tint = meta.colorable ? (parseTint(sym.tint) ?? this.landColor) : 0xffffff;
+      /*
+       * Three cases, not two. `sample_color` symbols take the ground colour; the flattened
+       * multi-slot symbols take a colour the user picked and stored on the symbol; everything
+       * else keeps its baked artwork.
+       */
+      if (meta.colorable) sprite.tint = parseTint(sym.tint) ?? this.landColor;
+      else if (meta.tintable) sprite.tint = parseTint(sym.tint) ?? DEFAULT_SYMBOL_TINT;
+      else sprite.tint = 0xffffff;
 
       if (this.selected.has(sym.id)) sprite.alpha = 0.65;
       else if (sym.vis === 'secret') sprite.alpha = 0.85;

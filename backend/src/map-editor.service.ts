@@ -77,6 +77,8 @@ export class MapEditorService implements OnModuleDestroy {
   /** In-memory documents, so op application does not hit disk per stroke. */
   private cache = new Map<string, any>();
   private saveTimers = new Map<string, NodeJS.Timeout>();
+  /** Highest chunk version this process has issued; keeps them strictly increasing. */
+  private lastChunkVersion = 0;
 
   // ── paths ──
 
@@ -183,12 +185,22 @@ export class MapEditorService implements OnModuleDestroy {
       doc = this.emptyDoc(worldName);
     }
 
-    // The chunk files on disk are the ground truth for what has been painted; reconcile so
-    // a document that predates them cannot hide terrain that actually exists.
-    const versions = {
-      ...this.scanChunkVersions(worldName),
-      ...(doc.chunkVersions ?? {}),
-    };
+    /*
+     * The chunk files on disk are the ground truth for what has been painted; reconcile so a
+     * document that predates them cannot hide terrain that actually exists.
+     *
+     * Merged by taking the *higher* version rather than letting the document win outright.
+     * Documents written before versions were timestamps hold small counters — 1, 2, 3 — and
+     * those are exactly the values a year-old `immutable` cache entry is keyed on. Lifting
+     * them to the file's mtime changes the URL once, which is what shakes a poisoned cache
+     * loose; after that both sides are timestamps and the max is a no-op.
+     */
+    const scanned = this.scanChunkVersions(worldName);
+    const stored: Record<string, number> = doc.chunkVersions ?? {};
+    const versions: Record<string, number> = { ...scanned };
+    for (const [key, ver] of Object.entries(stored)) {
+      versions[key] = Math.max(Number(ver) || 0, versions[key] ?? 0);
+    }
 
     /*
      * Drop keys that are not `{layer}/{tier}/{cx}/{cy}`.
@@ -233,7 +245,22 @@ export class MapEditorService implements OnModuleDestroy {
         }
         for (const name of names) {
           const m = /^(-?\d+)_(-?\d+)\.png$/.exec(name);
-          if (m) out[`${layer}/${tier}/${m[1]}/${m[2]}`] = 1;
+          if (!m) continue;
+          /*
+           * The file's own mtime, never a constant.
+           *
+           * This used to hand every chunk version `1`, which combined with the year-long
+           * `immutable` cache on the chunk route to serve *stale bytes forever*: two different
+           * generations of the same chunk both answered to `?v=1`, so a browser that had ever
+           * cached the first one kept showing it. An mtime cannot be reused by a later write.
+           */
+          let ver = 1;
+          try {
+            ver = Math.round(fs.statSync(path.join(dir, name)).mtimeMs);
+          } catch {
+            // Raced with a delete; the entry is dropped on the next scan anyway.
+          }
+          out[`${layer}/${tier}/${m[1]}/${m[2]}`] = ver;
         }
       }
     }
@@ -571,7 +598,26 @@ export class MapEditorService implements OnModuleDestroy {
      */
     const doc = this.getMap(worldName);
     const key = `${layer}/${tier}/${cx}/${cy}`;
-    const ver = (doc.chunkVersions[key] ?? 0) + 1;
+    /*
+     * A wall-clock version, never a counter.
+     *
+     * `previous + 1` restarts at 1 the moment the entry is missing — which `clearChunks` does
+     * deliberately, and a disk rescan used to do wholesale. The chunk route is served
+     * `immutable` for a year, so a repeated version means the browser answers a *new* chunk
+     * with bytes it cached for an older one, and old terrain reappears out of nowhere with
+     * nothing on the server to show for it.
+     *
+     * Three terms, because the clock alone is not enough: a delete followed by a rewrite
+     * inside the same millisecond - ordinary during an import - hands out the same number
+     * twice. The per-chunk term covers a plain rewrite, and the process-wide floor covers the
+     * case where the entry was deleted and no per-chunk history is left to beat.
+     */
+    const ver = Math.max(
+      Date.now(),
+      (doc.chunkVersions[key] ?? 0) + 1,
+      this.lastChunkVersion + 1,
+    );
+    this.lastChunkVersion = ver;
     doc.chunkVersions[key] = ver;
     doc.updatedAt = Date.now();
     this.scheduleSave(worldName);
@@ -684,6 +730,16 @@ export class MapEditorService implements OnModuleDestroy {
     }
 
     if (removed.length) {
+      /*
+       * Logged loudly, because this is the only operation that destroys terrain and until now
+       * it left no trace whatsoever. Chunks vanishing in a rectangle was diagnosed three times
+       * from screenshots and guesswork; one line here turns the next occurrence into evidence
+       * — which layer and tier, which cells, and how many.
+       */
+      this.logger.warn(
+        `Cleared ${removed.length} chunk(s) of ${layer}/${tier} in ` +
+          `[${minCx}..${maxCx}, ${minCy}..${maxCy}] for ${worldName}`,
+      );
       doc.updatedAt = Date.now();
       this.scheduleSave(worldName);
     }

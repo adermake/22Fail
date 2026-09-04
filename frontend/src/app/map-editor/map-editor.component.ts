@@ -195,8 +195,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly brushNoise = signal(0.6);
 
   /** Only the terrain-reshaping brushes are noisy. */
-  readonly showNoiseSetting = computed(
-    () => this.terrainTool() === 'heighten' || this.terrainTool() === 'lower',
+  readonly showNoiseSetting = computed(() =>
+    ['heighten', 'lower', 'lakeStamp'].includes(this.terrainTool()),
   );
 
   readonly brushProfiles = BRUSH_PROFILES;
@@ -257,6 +257,50 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly placeSecret = signal(false);
   /** Auto-advance to another variation after each placement. */
   readonly autoVary = signal(true);
+  /**
+   * Colour for tintable symbols — Wonderdraft's multi-slot markers, flattened to silhouettes.
+   *
+   * Separate from the land palette: those swatches colour *ground*, while this colours a
+   * marker that has to read against it. Applied at placement and stored on the symbol, so
+   * two towns can differ.
+   */
+  readonly symbolTint = signal('#4a3524');
+
+  /** Whether the sprite about to be placed takes a chosen colour. */
+  readonly symbolIsTintable = computed(
+    () => !!this.assets.meta(this.currentSprite())?.tintable,
+  );
+
+  setSymbolTint(color: string): void {
+    this.symbolTint.set(color);
+    this.redrawCursor();
+
+    // Recolour anything selected, so the picker doubles as "change these".
+    const ids = this.selectedIds().filter(id => {
+      const sym = this.symbolById(id);
+      return sym && this.assets.meta(sym.asset)?.tintable;
+    });
+    if (!ids.length) return;
+
+    this.undoStack?.begin();
+    for (const id of ids) {
+      const sym = this.symbolById(id);
+      if (!sym) continue;
+      this.undoStack?.recordObject({
+        c: 'symbols',
+        id,
+        before: clone(sym),
+        after: clone({ ...sym, tint: color }),
+      });
+      sym.tint = color;
+      this.symbols?.update(sym);
+      this.store.updateObject('symbols', id, { tint: color });
+    }
+    this.undoStack?.commit('Symbolfarbe');
+    this.refreshHistoryState();
+    this.scheduleStream();
+  }
+
   readonly selectedIds = signal<string[]>([]);
   readonly assetsReady = signal(false);
   readonly assetsError = signal<string | null>(null);
@@ -1179,6 +1223,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       // Another session cleared ground: free it rather than refetching, since there is
       // nothing left on the server to fetch.
       this.store.chunkDrops$.subscribe(drop => {
+        // Loud on purpose: terrain disappearing because *another* session deleted it is
+        // otherwise indistinguishable from it disappearing for no reason at all.
+        console.warn(
+          `[MapEditor] ${drop.cells.length} chunk(s) of ${drop.layer}/${drop.tier} dropped ` +
+            'by another session',
+          drop.cells,
+        );
         this.chunks?.dropChunks(drop.layer, drop.tier, drop.cells);
         this.scheduleStream();
       }),
@@ -1411,6 +1462,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (meta?.colorable) {
       const tint = this.groundTintHex(this.chunks?.sampleWorld('landColor', world.x, world.y) ?? null);
       if (tint) symbol.tint = tint;
+    } else if (meta?.tintable) {
+      // A chosen colour, not the ground: these are markers meant to stand out against it.
+      symbol.tint = this.symbolTint();
     }
 
     this.undoStack?.begin();
@@ -1911,7 +1965,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (!this.isTerrainTab()) return;
 
     if (this.terrainTool() === 'lakeStamp') {
-      const outline = this.brushes?.lakeOutline(world.x, world.y, this.brushSize(), this.lakeSeed);
+      const outline = this.brushes?.lakeOutline(
+        world.x,
+        world.y,
+        this.brushSize(),
+        this.lakeSeed,
+        this.brushNoise(),
+      );
       if (outline?.length) {
         g.poly(outline).stroke({ width: 1.5 / zoom, color: 0x8fd0ff, alpha: 0.9 });
         // The satellites are seeded separately, so the preview shows the body only.
@@ -1968,7 +2028,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Negative x scale mirrors, so the preview shows the Alt state before committing.
     sprite.scale.set(this.mirrorStamp() ? -scale : scale, scale);
 
-    sprite.tint = meta.colorable ? this.groundTintAt(world.x, world.y) : 0xffffff;
+    if (meta.colorable) sprite.tint = this.groundTintAt(world.x, world.y);
+    else if (meta.tintable) sprite.tint = parseHex(this.symbolTint());
+    else sprite.tint = 0xffffff;
 
     sprite.alpha = 0.8;
     sprite.visible = true;
@@ -2019,6 +2081,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.activeBrushColor(),
         this.strokeTier,
         this.onlyTier(),
+        this.brushNoise(),
       );
       this.lakeSeed = Math.floor(Math.random() * 1e9);
       this.lastWorld = world;

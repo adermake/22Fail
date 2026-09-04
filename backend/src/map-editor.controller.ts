@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Headers,
+  Logger,
   Param,
   ParseIntPipe,
   Post,
@@ -31,6 +32,8 @@ import { UsersService } from './users.service';
  */
 @Controller('api/worlds/:worldName/map-editor')
 export class MapEditorController {
+  private readonly logger = new Logger(MapEditorController.name);
+
   constructor(
     private readonly mapEditor: MapEditorService,
     private readonly users: UsersService,
@@ -180,7 +183,17 @@ export class MapEditorController {
     @Headers('x-user-id') userId: string,
     @Headers('x-user-code') userCode: string,
   ): { success: boolean; cells: [number, number][] } {
-    if (!this.isGM(userId, userCode)) return { success: false, cells: [] };
+    if (!this.isGM(userId, userCode)) {
+      this.logger.warn(
+        `Refused chunk clear on ${worldName} (${layer}/${tier}) — caller is not a GM.`,
+      );
+      return { success: false, cells: [] };
+    }
+
+    // Who asked, so the service's line about *what* went has a name against it.
+    this.logger.warn(
+      `Chunk clear requested by "${userId}" on ${worldName}: ${layer}/${tier}`,
+    );
 
     const cells = this.mapEditor.clearChunks(
       worldName,

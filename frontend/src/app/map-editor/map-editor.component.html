@@ -445,6 +445,22 @@
               }
             </div>
             <p class="hint">Shift + Mausrad wechselt zum nächsten Symbol.</p>
+
+            @if (symbolIsTintable()) {
+              <!-- Wonderdrafts Mehrfarb-Symbole: die RGB-Kanäle sind Slot-Gewichte, keine
+                   Farben — flach als Silhouette abgelegt und hier eingefärbt. -->
+              <label class="base-row" title="Farbe für dieses Symbol">
+                <span>Symbolfarbe</span>
+                <input
+                  type="color"
+                  [value]="symbolTint()"
+                  (input)="setSymbolTint($any($event.target).value)"
+                />
+              </label>
+              <p class="hint">
+                Gilt für neu gesetzte Symbole und färbt eine bestehende Auswahl gleich mit um.
+              </p>
+            }
           </div>
 
           <div class="panel-section">

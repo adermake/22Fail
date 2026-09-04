@@ -1275,6 +1275,15 @@ export class ChunkManager {
   dropChunks(layer: RasterLayer, tier: DetailTier, cells: [number, number][]): void {
     for (const [cx, cy] of cells) {
       const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
+      /*
+       * Never discard paint this client has not saved yet.
+       *
+       * A drop can arrive from another session while a stroke here is still waiting on its
+       * debounced flush. Freeing the record then throws the stroke away before it was ever
+       * uploaded — work lost with no error and no way to get it back. The upload republishes
+       * the chunk a moment later, which is the correct resolution: newer content wins.
+       */
+      if (rec?.dirty || rec?.uploading) continue;
       if (rec) this.dispose(rec);
       // A pinned "recently painted" entry would keep the freed position unevictable and,
       // worse, claim content is there when the files are gone.

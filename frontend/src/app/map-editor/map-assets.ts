@@ -34,6 +34,14 @@ export interface SpriteMeta {
   drawMode: string;
   /** `sample_color` symbols are drawn in the land colour; the rest keep their own. */
   colorable: boolean;
+  /**
+   * Wonderdraft's multi-slot recolour symbols, flattened to a white silhouette.
+   *
+   * Deliberately *not* `colorable`: that means "take the colour of the ground beneath", which
+   * for a town marker sitting on land would paint it the same colour as the land and make it
+   * disappear. These take a colour the user chooses instead.
+   */
+  tintable?: boolean;
 }
 
 export interface GroupMeta {

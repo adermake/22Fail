@@ -74,7 +74,7 @@ function metaFor(sidecar, stem) {
 async function collectSprites() {
   const sprites = [];
   const groups = new Map();
-  let skippedCustomColor = 0;
+  let flattenedCustomColor = 0;
 
   for (const [folder, category] of Object.entries(CATEGORIES)) {
     const catDir = join(SRC, folder);
@@ -109,16 +109,26 @@ async function collectSprites() {
         const drawMode = meta.draw_mode ?? 'normal';
 
         /*
-         * Skip Wonderdraft's multi-slot recolour sprites.
+         * Wonderdraft's multi-slot recolour sprites, flattened to a tintable silhouette.
          *
-         * Their RGB channels hold per-slot coverage masks rather than literal colours, so
-         * drawing one as an ordinary image produces a garish, over-saturated mess. Until
-         * the slot palettes are implemented they cannot be rendered correctly, and an
-         * unusable entry in the picker is worse than no entry at all.
+         * Their RGB channels are not colours: they are per-slot *weights* that sum to 255,
+         * saying which colour slot each pixel belongs to. Measured across the library, R+G+B
+         * is 255 to within a rounding error, so the channels carry no brightness whatsoever —
+         * the shape lives entirely in the (antialiased) alpha. Drawn as an ordinary image
+         * that reads as a garish red/blue mask, which is why these were dropped outright.
+         *
+         * Whiting out the RGB and keeping the alpha is therefore lossless for a single-colour
+         * render, and single-colour is what Wonderdraft itself shows when the slots are set
+         * to one colour. The tint is then chosen per symbol at placement.
+         *
+         * What is genuinely lost is *per-slot* colouring — a town whose roofs and walls take
+         * different colours comes out in one. That needs a second tint on the symbol model
+         * and a two-channel shader; until then one colour beats no symbol.
          */
-        if (drawMode === 'custom_colors' || drawMode === 'custom_colors_2') {
-          skippedCustomColor++;
-          continue;
+        const multiSlot = drawMode === 'custom_colors' || drawMode === 'custom_colors_2';
+        if (multiSlot) {
+          flattenSlotMask(png);
+          flattenedCustomColor++;
         }
 
         const id = `${groupId}/${stem}`;
@@ -136,6 +146,12 @@ async function collectSprites() {
           offsetY: meta.offset_y ?? 0,
           drawMode,
           colorable: drawMode === 'sample_color',
+          /*
+           * Distinct from `colorable`, which means "take the colour of the ground beneath".
+           * These are drawn in a colour the user picks, so tinting them to the land would
+           * make them vanish into it.
+           */
+          tintable: multiSlot,
         });
         members.push(id);
       }
@@ -155,9 +171,10 @@ async function collectSprites() {
     }
   }
 
-  if (skippedCustomColor) {
+  if (flattenedCustomColor) {
     console.log(
-      `[map-atlas] skipped ${skippedCustomColor} multi-slot recolour sprites (unsupported)`,
+      `[map-atlas] flattened ${flattenedCustomColor} multi-slot recolour sprites to tintable ` +
+        'silhouettes',
     );
   }
   return { sprites, groups };
@@ -507,6 +524,7 @@ async function main() {
       offsetY: s.offsetY,
       drawMode: s.drawMode,
       colorable: s.colorable,
+      tintable: s.tintable,
     };
   }
 
@@ -520,3 +538,20 @@ async function main() {
 }
 
 await main();
+
+/**
+ * Turn a Wonderdraft slot-weight mask into a plain tintable silhouette.
+ *
+ * The RGB channels are per-slot weights summing to 255, so they say *which* colour a pixel
+ * takes and nothing about how bright it is. White RGB with the alpha untouched therefore
+ * reproduces exactly what Wonderdraft draws when every slot is set to the same colour, and
+ * leaves the sprite ready for the renderer's ordinary tint.
+ */
+function flattenSlotMask(png) {
+  for (let i = 0; i < png.data.length; i += 4) {
+    png.data[i] = 255;
+    png.data[i + 1] = 255;
+    png.data[i + 2] = 255;
+  }
+}
+

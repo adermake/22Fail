@@ -60,6 +60,8 @@ export const WATER_TOOL_DEFS: ToolDef<TerrainTool>[] = [
   { id: 'waterBrush', icon: 'freshwater_brush_64', label: 'Wasser' },
   { id: 'lakeStamp', icon: 'lake_tool_64', label: 'See' },
   { id: 'waterPaint', icon: 'color_brush', label: 'Wasserfarbe' },
+  // Takes drawn water back without disturbing the land under it — see `paintPasses`.
+  { id: 'waterEraser', icon: 'randomize_water_64', label: 'Wasser radieren' },
   { id: 'waterColorEraser', icon: 'ground_color_eraser_normal', label: 'Wasserfarbe radieren' },
   { id: 'tierEraser', icon: 'landmass_wizard_64', label: 'Stufe radieren' },
 ];

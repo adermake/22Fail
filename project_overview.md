@@ -831,6 +831,75 @@ Symbolen. Kosten entstehen pro Readback, nicht pro Pixel, also werden die Punkte
 gruppiert und je Chunk einmal das umschließende Rechteck gelesen — aus hunderten Stalls werden
 ein bis zwei. Gilt für die Live-Vorschau und für `resampleSymbolTints` am Strichende.
 
+## Karteneditor v2 — Wasser-Radierer & Seeform
+
+**`waterEraser` („Wasser radieren", Reiter *Wasser*)** — radiert `height`, aber **nur die
+aktive Stufe** (`toolIsTierLocal`). Der Unterschied zu `landEraser` ist die Reichweite, und er
+ist der ganze Grund für zwei Werkzeuge:
+- *„Hier ist kein Land"* muss es aus **jeder** Stufe entfernen, sonst liefert eine gröbere es
+  wieder → `landEraser` kaskadiert.
+- *„Dieses Wasser soll weg"* darf nur die Meinung **dieser** Stufe zurückziehen, damit das Land
+  darunter zurückkommt → kaskadieren würde die Landmasse mitradieren.
+
+**Seestempel: Federung mit steigender Deckkraft.** Vorher zehn flache 16%-Füllungen, die nur
+durch Übereinanderblenden Wasser erreichten — damit hing der ganze See daran, wie der Renderer
+identische Füllungen zusammenfasst; werden sie verschmolzen, bleibt eine einzige 16%-Lasur
+übrig, die die Küstenschwelle nie reißt, und es entsteht **kein See**. Jetzt läuft die Deckkraft
+von außen (0,12) nach innen (1,0), der Kern ist also unabhängig davon Wasser, und die Ringe
+formen nur noch das Ufer.
+
+**Seeform: vier Oktaven statt einer Sinuswelle.** Eine einzelne Welle ist ein *regelmäßiges*
+Wackeln — jede Bucht gleich groß, gleichmäßig verteilt, also liest sich die Silhouette bei jeder
+Amplitude als gestauchter Kreis. Vier Oktaven mit etwa verdoppelnder Frequenz geben große
+Buchten mit kleineren Einschnitten darin. Frequenzen bleiben **ganzzahlig**, sonst klafft am
+Rundum-Übergang eine Kerbe. Der vorhandene *Rauschen*-Regler steuert die Amplitude und wird
+jetzt auch beim Seestempel angezeigt. Tests: `lake-shape.spec.ts`.
+
+## Karteneditor v2 — Wonderdrafts Mehrfarb-Symbole (`custom_colors`)
+
+40 Symbole in `custom_colors`, `custom_colored_town` und `compass_roses` wurden vom
+Atlas-Tool **übersprungen**, weil sie roh gezeichnet grell und übersättigt aussehen. Das war
+kein Extraktionsfehler: bei diesen Sprites sind die RGB-Kanäle **Slot-Gewichte**, keine Farben.
+Gemessen über die Bibliothek gilt R+G+B = 255 auf Rundungsfehler genau — die Kanäle tragen also
+gar keine Helligkeit, die Form steckt vollständig im (kantengeglätteten) Alpha. Wonderdraft
+multipliziert sie mit den gewählten Slot-Farben; direkt angezeigt sieht man die nackte Maske.
+
+**Jetzt:** `flattenSlotMask` setzt RGB auf Weiß und lässt Alpha stehen. Für eine einfarbige
+Darstellung ist das verlustfrei — und einfarbig ist genau das, was Wonderdraft zeigt, wenn alle
+Slots dieselbe Farbe haben. Die Sprites werden im Manifest als `tintable` markiert.
+
+`tintable` ist bewusst **nicht** `colorable`: Letzteres heißt „nimm die Farbe des Bodens
+darunter", was einen Stadtmarker auf Land in derselben Farbe malen und damit unsichtbar machen
+würde. Tintable-Symbole bekommen eine **gewählte** Farbe (Default sepia `#4a3524`), die beim
+Setzen auf dem Symbol gespeichert wird; der Farbwähler im Symbol-Reiter färbt zusätzlich eine
+bestehende Auswahl um.
+
+**Bewusst nicht umgesetzt:** echte *Mehrslot*-Färbung (Dächer anders als Mauern). Das bräuchte
+einen zweiten Tint im Symbolmodell und einen Zweikanal-Shader. Eine Farbe schlägt kein Symbol.
+
+## Karteneditor v2 — Chunk-Versionen dürfen sich nie wiederholen
+
+Die Chunk-Route liefert `Cache-Control: public, max-age=31536000, immutable`, und der
+Cache-Schlüssel ist allein die Version in `?v=`. Eine **wiederverwendete** Version heißt damit:
+der Browser beantwortet einen *neuen* Chunk mit Bytes, die er für einen *alten* gespeichert hat.
+
+Genau das passierte, gleich zweifach:
+- `writeChunk` zählte `vorher + 1` — und beginnt wieder bei **1**, sobald der Eintrag fehlt.
+  `clearChunks` löscht ihn absichtlich.
+- `scanChunkVersions` vergab jeder auf der Platte gefundenen Datei pauschal die **1**.
+
+Ergebnis: zwei Generationen desselben Chunks antworten beide auf `?v=1`. Wer die erste je
+gecacht hatte, bekam sie **ein Jahr lang** weiter — immer dieselbe alte Insel, ohne Zutun, nach
+jedem Reload, ohne dass auf dem Server irgendetwas passiert wäre. Serverseitig ist nichts zu
+sehen, weil auch nichts geschieht: das ist kein Löschen, sondern ein Cache-Treffer.
+
+**Jetzt:** `ver = max(Date.now(), vorher + 1, lastChunkVersion + 1)`. Drei Terme, weil die Uhr
+allein nicht reicht — Löschen und Neuschreiben innerhalb derselben Millisekunde ist beim Import
+normal und vergäbe dieselbe Zahl zweimal. Der Platten-Scan nimmt die **mtime** der Datei statt
+einer 1, und `getMap` merged mit `Math.max` statt „Dokument gewinnt", damit alte Zähler-Versionen
+beim Laden **einmal** auf die mtime angehoben werden — das ändert die URL und umgeht jeden
+vergifteten Cache-Eintrag. Tests: `map-editor.service.spec.ts`.
+
 ## Karteneditor v2 — Undo über Massenoperationen
 
 `UndoStack.clear()` wird vor jeder Operation gerufen, die Chunks **ohne** `onBeforePaint`

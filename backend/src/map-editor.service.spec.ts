@@ -167,4 +167,58 @@ describe('MapEditorService — Persistenz', () => {
       expect(svc.listChunks('Testwelt', 'landColor', 'low', 0, 0, 1, 1)).toEqual([]);
     });
   });
+
+  describe('Chunk-Versionen (Cache-Schlüssel)', () => {
+    /*
+     * Die Chunk-Route wird mit `immutable, max-age=1 Jahr` ausgeliefert, und der Cache-Schlüssel
+     * ist die Version in `?v=`. Eine *wiederverwendete* Version heißt deshalb: der Browser
+     * beantwortet einen neuen Chunk mit Bytes, die er für einen alten gespeichert hat — alte
+     * Karte taucht ohne jedes Zutun wieder auf, und auf dem Server ist nichts davon zu sehen.
+     *
+     * Genau das passierte: `writeChunk` zählte `vorher + 1`, was nach einem `clearChunks`
+     * (löscht den Eintrag) wieder bei 1 beginnt, und der Platten-Scan vergab pauschal `1`.
+     */
+    const write = (layer: any, tier: any, cx: number, cy: number) =>
+      svc.writeChunk('Testwelt', layer, tier, cx, cy, Buffer.from([1, 2, 3]));
+
+    it('vergibt nach dem Löschen keine schon benutzte Version erneut', async () => {
+      const first = await write('landColor', 'med', 1, -1);
+      svc.clearChunks('Testwelt', 'landColor', 'med', 1, -1, 1, -1);
+      const second = await write('landColor', 'med', 1, -1);
+
+      expect(first).toBeGreaterThan(0);
+      expect(second).toBeGreaterThan(first!);
+    });
+
+    it('zählt auch ohne Löschen streng aufwärts', async () => {
+      const a = await write('height', 'low', 0, 0);
+      const b = await write('height', 'low', 0, 0);
+      expect(b).toBeGreaterThan(a!);
+    });
+
+    it('gibt einem neu eingelesenen Chunk keine 1, sondern seine mtime', async () => {
+      await write('height', 'high', 2, 2);
+      // Frisch einlesen, als wäre der Server neu gestartet.
+      (svc as any).cache.clear();
+
+      const versions = svc.getMap('Testwelt').chunkVersions as Record<string, number>;
+      expect(versions['height/high/2/2']).toBeGreaterThan(1e12);
+    });
+
+    it('hebt eine alte Zähler-Version beim Laden auf die mtime an', async () => {
+      /*
+       * Der Heilpfad für bereits vergiftete Karten: ein Dokument aus der Zähler-Zeit hält
+       * kleine Zahlen, und genau auf die ist ein ein Jahr altes Cache-Eintrag geschlüsselt.
+       * Einmal anheben ändert die URL und umgeht ihn.
+       */
+      await write('landColor', 'low', 3, 3);
+      const doc = svc.getMap('Testwelt');
+      doc.chunkVersions['landColor/low/3/3'] = 2; // wie früher gespeichert
+      await (svc as any).flushAsync('Testwelt');
+      (svc as any).cache.clear();
+
+      const versions = svc.getMap('Testwelt').chunkVersions as Record<string, number>;
+      expect(versions['landColor/low/3/3']).toBeGreaterThan(1e12);
+    });
+  });
 });
