@@ -36,8 +36,8 @@ Wie auch die Spieler haben Begleiter [Stats](stats). Stats, die für beide gelte
 :::
 :::card{title="Mana" color="#3b82f6"}
 :::
-### Sonstige Stats
 :::
+### Sonstige Stats
 :::grid{min=150}
 :::card{title="Fokus"}
 :::
