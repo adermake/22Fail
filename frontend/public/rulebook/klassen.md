@@ -23,7 +23,7 @@ Während des Schlafens können FP verteilt und Klassen gewechselt werden (Status
 Es existieren außerdem Klassen, die mehr als eine Vorgängerklasse haben (z.B. Assassine & Jäger für Attentäter). Die Klasse kann über beide Vorgängerklassen erreicht werden und kann zusätzlich aus beiden Klassenpfaden Fähigkeiten nutzen. Demnach ist es oft nützlich, Fähigkeiten aus beiden Pfaden zu lernen.
 :::
 
-:::{card="Klassenmeisterung" icon=ability}
+:::card{title="Klassenmeisterung" icon=ability}
 Wenn ein Spieler alle Fähigkeiten einer Klasse gelernt hat, gilt die Klasse als **gemeistert**. In einer gemeisterten Klasse kann eine Fähigkeit ausgesucht werden, die **veredelt** wird. Eine veredelte Fähigkeit erhält zusätzliche Effekte, die den Wünschen des Spielers entsprechen, solange sie nicht zu weit vom Original abweicht.
 :::
 
