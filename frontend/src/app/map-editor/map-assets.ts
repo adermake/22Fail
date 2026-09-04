@@ -157,7 +157,15 @@ export class MapAssets {
    * unusable for choosing a symbol. Slicing the atlas in CSS means no second set of
    * thumbnail files to generate, ship or keep in sync.
    */
-  thumbStyle(id: string, box: number): Record<string, string> {
+  /**
+   * Inline style for a picker thumbnail.
+   *
+   * `tint` colours *tintable* sprites, which are stored as plain white silhouettes — drawn
+   * raw they are a blinding white blob in the picker, and they carry no colour of their own
+   * to fall back on. Those are painted as a CSS mask instead of a background image, which is
+   * the same trick the app's own icons use.
+   */
+  thumbStyle(id: string, box: number, tint?: string): Record<string, string> {
     const meta = this.manifest?.sprites[id];
     const page = meta ? this.manifest?.pages[meta.page] : null;
     if (!meta || !page) return {};
@@ -167,15 +175,38 @@ export class MapAssets {
     const w = meta.w * scale;
     const h = meta.h * scale;
 
-    return {
-      'background-image': `url(${BASE}/${page.file})`,
-      'background-size': `${page.width * scale}px ${page.height * scale}px`,
-      'background-position': `${-meta.x * scale}px ${-meta.y * scale}px`,
-      'background-repeat': 'no-repeat',
+    const url = `url(${BASE}/${page.file})`;
+    const size = `${page.width * scale}px ${page.height * scale}px`;
+    const pos = `${-meta.x * scale}px ${-meta.y * scale}px`;
+
+    const base: Record<string, string> = {
       width: `${w}px`,
       height: `${h}px`,
       // Centre the (usually smaller) sprite inside its cell.
       margin: `${(box - h) / 2}px ${(box - w) / 2}px`,
+    };
+
+    if (tint && meta.tintable) {
+      return {
+        ...base,
+        'background-color': tint,
+        'mask-image': url,
+        'mask-size': size,
+        'mask-position': pos,
+        'mask-repeat': 'no-repeat',
+        '-webkit-mask-image': url,
+        '-webkit-mask-size': size,
+        '-webkit-mask-position': pos,
+        '-webkit-mask-repeat': 'no-repeat',
+      };
+    }
+
+    return {
+      ...base,
+      'background-image': url,
+      'background-size': size,
+      'background-position': pos,
+      'background-repeat': 'no-repeat',
     };
   }
 

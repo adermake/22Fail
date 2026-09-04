@@ -14,7 +14,7 @@
  * same position, different target.
  */
 
-import { TerrainTool } from './brush-engine';
+import { BrushTexture, TerrainTool } from './brush-engine';
 import { SymbolCategory } from './map-assets';
 
 export type EditorTab = 'water' | 'land' | 'symbols' | 'regions' | 'labels' | 'map';
@@ -128,25 +128,42 @@ export function iconUrl(name: string): string {
 /**
  * Brush profiles.
  *
- * Blending land colours needs a very soft, very low-flow brush, while drawing a coastline
- * needs a hard one — and reaching for three sliders every time you switch between those two
- * jobs is most of the time spent in the tool. These are the presets Wonderdraft offers,
- * plus a couple that cover the cases its three do not.
+ * Each one has to be recognisable *in the stroke*, not just in its slider values. Softness
+ * alone could not do that — every brush was a circle with a harder or blurrier edge — so a
+ * profile now also picks a stamp texture, which is what makes chalk read as chalk.
+ *
+ * `strength` is the coverage a single pass leaves, so these numbers mean what they say; before
+ * the flow model was fixed, anything above about 0.1 painted solid regardless.
  */
 export interface BrushProfile {
   id: string;
   label: string;
   softness: number;
   strength: number;
-  /** Raggedness, used by the raise/lower brushes. */
+  /** Raggedness, used by the raise/lower brushes and the lake stamp. */
   noise: number;
+  texture: BrushTexture;
 }
 
 export const BRUSH_PROFILES: BrushProfile[] = [
-  // The blending workhorse: maximum feather, minimum flow, so colour builds up gradually.
-  { id: 'blend', label: 'Verlauf', softness: 1, strength: 0.1, noise: 0 },
-  { id: 'soft', label: 'Weich', softness: 0.7, strength: 0.4, noise: 0 },
-  { id: 'hard', label: 'Hart', softness: 0.05, strength: 1, noise: 0 },
-  { id: 'noisy', label: 'Rau', softness: 0.8, strength: 0.5, noise: 0.85 },
-  { id: 'grain', label: 'Körnig', softness: 0.35, strength: 0.25, noise: 1 },
+  // Full coverage, crisp rim: coastlines and anything that needs a definite edge.
+  { id: 'hard', label: 'Hart', softness: 0.05, strength: 1, noise: 0, texture: 'smooth' },
+  // The everyday brush — solid enough to cover, soft enough not to leave a seam.
+  { id: 'soft', label: 'Weich', softness: 0.7, strength: 0.75, noise: 0, texture: 'smooth' },
+  // The blending workhorse: maximum feather, light coverage, so colour builds up gradually.
+  { id: 'blend', label: 'Verlauf', softness: 1, strength: 0.12, noise: 0, texture: 'smooth' },
+  // Paper tooth. Reads as texture at any coverage, unlike a low-flow smooth brush.
+  { id: 'grain', label: 'Körnig', softness: 0.5, strength: 0.5, noise: 0, texture: 'grain' },
+  // Solid core, crumbling rim — a dry stick rather than an airbrush.
+  { id: 'chalk', label: 'Kreide', softness: 0.6, strength: 0.7, noise: 0.4, texture: 'chalk' },
+  // Sparse droplets for stippling and broken coasts.
+  { id: 'spray', label: 'Spray', softness: 0.9, strength: 0.4, noise: 0.6, texture: 'spray' },
+];
+
+/** Labels for the stamp textures, so softness is no longer the only thing to vary. */
+export const BRUSH_TEXTURE_DEFS: { id: BrushTexture; label: string }[] = [
+  { id: 'smooth', label: 'Glatt' },
+  { id: 'grain', label: 'Körnig' },
+  { id: 'chalk', label: 'Kreide' },
+  { id: 'spray', label: 'Spray' },
 ];

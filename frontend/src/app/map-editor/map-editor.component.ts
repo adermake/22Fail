@@ -33,8 +33,10 @@ import { MapRenderer } from './map-renderer';
 import { ChunkManager, Sample, StampPass } from './chunk-manager';
 import { CoastSettings, TerrainView, defaultCoast, hexToRgb } from './terrain-view';
 import {
+  BRUSH_TEXTURES,
   BrushEngine,
   BrushSettings,
+  BrushTexture,
   TerrainTool,
   defaultBrush,
   parseHex,
@@ -72,6 +74,7 @@ import { DiagEvent, mapDiag } from './map-diagnostics';
 import { generateId } from '../model/lobby.model';
 import {
   BRUSH_PROFILES,
+  BRUSH_TEXTURE_DEFS,
   EditorTab,
   LABEL_TOOL_DEFS,
   LabelTool,
@@ -193,6 +196,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly brushStrength = signal(1);
   /** Raggedness of the raise/lower brushes. */
   readonly brushNoise = signal(0.6);
+  /** Stamp character. Softness alone made every brush the same circle. */
+  readonly brushTexture = signal<BrushTexture>('smooth');
+  readonly brushTextures = BRUSH_TEXTURE_DEFS;
+
+  setBrushTexture(id: BrushTexture): void {
+    this.brushTexture.set(id);
+    this.saveBrushPrefs();
+    this.redrawCursor();
+  }
 
   /** Only the terrain-reshaping brushes are noisy. */
   readonly showNoiseSetting = computed(() =>
@@ -210,7 +222,71 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.brushSoftness.set(p.softness);
     this.brushStrength.set(p.strength);
     this.brushNoise.set(p.noise);
+    this.brushTexture.set(p.texture);
+    this.saveBrushPrefs();
     this.redrawCursor();
+  }
+
+  /**
+   * Brush settings survive a reload.
+   *
+   * They are a working preference, not map data — two GMs editing the same world should keep
+   * their own feel — so they live in `localStorage` rather than in the document. Re-picking
+   * size, softness and profile after every refresh is pure friction.
+   */
+  private static readonly BRUSH_PREFS_KEY = 'map-editor.brush.v1';
+
+  private saveBrushPrefs(): void {
+    try {
+      localStorage.setItem(
+        MapEditorComponent.BRUSH_PREFS_KEY,
+        JSON.stringify({
+          size: this.brushSize(),
+          softness: this.brushSoftness(),
+          strength: this.brushStrength(),
+          noise: this.brushNoise(),
+          texture: this.brushTexture(),
+          profile: this.activeProfile(),
+          symbolTint: this.symbolTint(),
+        }),
+      );
+    } catch {
+      // Private mode, or storage full. A lost preference is not worth an error.
+    }
+  }
+
+  private loadBrushPrefs(): void {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(MapEditorComponent.BRUSH_PREFS_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+
+    try {
+      const p = JSON.parse(raw) as Record<string, unknown>;
+      // Each value is range-checked: stored preferences outlive the code that wrote them.
+      const num = (v: unknown, lo: number, hi: number, fallback: number) =>
+        typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
+
+      this.brushSize.set(num(p['size'], 4, 3000, this.brushSize()));
+      this.brushSoftness.set(num(p['softness'], 0, 1, this.brushSoftness()));
+      this.brushStrength.set(num(p['strength'], 0.01, 1, this.brushStrength()));
+      this.brushNoise.set(num(p['noise'], 0, 1, this.brushNoise()));
+
+      const texture = p['texture'];
+      if (BRUSH_TEXTURES.includes(texture as BrushTexture)) {
+        this.brushTexture.set(texture as BrushTexture);
+      }
+      const profile = p['profile'];
+      if (this.brushProfiles.some(x => x.id === profile)) this.activeProfile.set(profile as string);
+
+      const tint = p['symbolTint'];
+      if (typeof tint === 'string' && /^#[0-9a-f]{6}$/i.test(tint)) this.symbolTint.set(tint);
+    } catch {
+      // Corrupt entry; the defaults already stand.
+    }
   }
 
   readonly landPalette = signal<string[]>([]);
@@ -273,6 +349,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   setSymbolTint(color: string): void {
     this.symbolTint.set(color);
+    this.saveBrushPrefs();
     this.redrawCursor();
 
     // Recolour anything selected, so the picker doubles as "change these".
@@ -1273,6 +1350,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.renderer.camera.restore({ x: 0, y: 0, zoom: 0.25 });
     this.applyView();
+    // Brush feel is a per-user preference, restored before the first stroke.
+    this.loadBrushPrefs();
     this.ready.set(true);
   }
 
@@ -1352,6 +1431,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       strength: this.brushStrength(),
       color: this.activeBrushColor(),
       noise: this.brushNoise(),
+      texture: this.brushTexture(),
     };
   }
 
@@ -1412,7 +1492,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   /** Thumbnail style for a picker cell, sliced out of the atlas page. */
   spriteThumb(id: string): Record<string, string> {
-    return this.assets.thumbStyle(id, 44);
+    // Tintable sprites are white silhouettes; show them in the colour they will be placed in.
+    return this.assets.thumbStyle(id, 44, this.symbolTint());
   }
 
   spriteName(id: string): string {
@@ -2923,16 +3004,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   setBrushSize(value: string | number): void {
     this.brushSize.set(Number(value));
+    this.saveBrushPrefs();
     this.redrawCursor();
   }
 
   setSoftness(value: string | number): void {
     this.brushSoftness.set(Number(value));
+    this.saveBrushPrefs();
     this.redrawCursor();
   }
 
   setStrength(value: string | number): void {
     this.brushStrength.set(Number(value));
+    this.saveBrushPrefs();
   }
 
   undo(): void {

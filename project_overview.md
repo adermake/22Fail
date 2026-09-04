@@ -855,6 +855,38 @@ Buchten mit kleineren Einschnitten darin. Frequenzen bleiben **ganzzahlig**, son
 Rundum-Übergang eine Kerbe. Der vorhandene *Rauschen*-Regler steuert die Amplitude und wird
 jetzt auch beim Seestempel angezeigt. Tests: `lake-shape.spec.ts`.
 
+## Karteneditor v2 — Pinsel: Fluss, Spitzen, gemerkte Einstellungen
+
+**`strength` ist jetzt die Deckung eines Zuges, nicht die Deckkraft eines Stempels.** Überlappende
+Dabs summieren sich als `1 − (1 − a)ⁿ`; beim alten Abstand (25% des Radius, ~8 Überlappungen)
+malte Stärke 0,25 real **90%** Deckung und 0,4 schon **98%**. Damit war alles oberhalb von ~0,1
+schlicht deckend — deshalb fühlten sich sämtliche Profile gleich an, und Blenden ging nur ganz
+unten am Regler, wo die einzelnen Stempel als Bögen sichtbar wurden. Der Fluss wird nun
+invertiert: `flow = 1 − (1 − strength)^(1/Überlappungen)`. Abstand von 0,25 auf **0,08**, was den
+Zug durchgehend macht. Die *erste* Berührung setzt die volle Stärke — ein Klick ist kein Zug, dort
+summiert sich nichts.
+
+**Pinselspitzen** (`BrushTexture`: glatt / körnig / kreide / spray). Vorher gab es genau eine
+Form: konzentrische Kreise, bei denen die Weichheit nur den Abfall verschob. Die Spitzen werden
+jetzt Pixel für Pixel auf einer Canvas erzeugt (Radialabfall × Rauschen), weil sich Körnung nicht
+als gestapelte Kreisfüllungen ausdrücken lässt. Texturierte Stempel werden pro Dab **zufällig
+rotiert**, sonst wiederholt sich dieselbe gebackene Körnung alle paar Pixel und liest sich als
+Kachelmuster. Die Profile wählen zusätzlich eine Spitze, deshalb unterscheiden sie sich im Strich
+und nicht nur in Zahlen.
+
+**Einstellungen bleiben erhalten** (`localStorage`, `map-editor.brush.v1`): Größe, Weichheit,
+Stärke, Rauschen, Spitze, Profil und Symbolfarbe. Bewusst nicht im Dokument — das ist
+Arbeitsgefühl, kein Karteninhalt, und zwei GMs an derselben Welt sollen ihr eigenes behalten.
+Beim Laden wird jeder Wert einzeln geprüft und geklemmt.
+
+**Symbol-Thumbnails**: `tintable`-Sprites sind weiße Silhouetten und leuchteten im Picker grell.
+Sie werden dort als CSS-Maske mit `background-color` gezeichnet — dieselbe Technik wie die
+`app-icon`-Masken der App — und zwar in der Farbe, in der sie auch gesetzt werden.
+
+**Mehrslot-Gebäude werden verworfen statt abgeflacht** (`BUILDING_SLOT_GROUPS`): Abflachen ist
+nur für Artwork verlustfrei, das als *Silhouette* liest. Eine gezeichnete Burg tut das nicht —
+Dach, Mauern und Fenster sind getrennte Farbslots, einfarbig bleibt ein unlesbarer Klumpen.
+
 ## Karteneditor v2 — Wonderdrafts Mehrfarb-Symbole (`custom_colors`)
 
 40 Symbole in `custom_colors`, `custom_colored_town` und `compass_roses` wurden vom

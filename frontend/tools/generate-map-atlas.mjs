@@ -29,6 +29,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 
+/**
+ * Multi-slot groups whose artwork is drawn buildings rather than flat markers.
+ *
+ * Matched on the group folder name, so a pack that ships its own town set is caught too.
+ */
+const BUILDING_SLOT_GROUPS = ['custom_colored_town'];
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = join(HERE, 'DraftExtract', 'sprites');
 const TEXTURE_SRC = join(HERE, 'DraftExtract', 'textures', 'ground');
@@ -75,6 +82,7 @@ async function collectSprites() {
   const sprites = [];
   const groups = new Map();
   let flattenedCustomColor = 0;
+  let droppedBuildings = 0;
 
   for (const [folder, category] of Object.entries(CATEGORIES)) {
     const catDir = join(SRC, folder);
@@ -126,6 +134,21 @@ async function collectSprites() {
          * and a two-channel shader; until then one colour beats no symbol.
          */
         const multiSlot = drawMode === 'custom_colors' || drawMode === 'custom_colors_2';
+
+        /*
+         * Detailed buildings are dropped rather than flattened.
+         *
+         * Flattening is lossless only for artwork that reads as a *silhouette* — the abstract
+         * settlement markers, compass roses and the like, which is what these mostly are. A
+         * drawn castle is not: its roofs, walls and windows are separate colour slots, and
+         * collapsing them to one colour leaves an unreadable blob. Those need real multi-slot
+         * colouring or nothing, and nothing is the better of the two.
+         */
+        if (multiSlot && BUILDING_SLOT_GROUPS.some(g => groupId.endsWith(g))) {
+          droppedBuildings++;
+          continue;
+        }
+
         if (multiSlot) {
           flattenSlotMask(png);
           flattenedCustomColor++;
@@ -171,6 +194,11 @@ async function collectSprites() {
     }
   }
 
+  if (droppedBuildings) {
+    console.log(
+      `[map-atlas] dropped ${droppedBuildings} multi-slot building sprites (unreadable in one colour)`,
+    );
+  }
   if (flattenedCustomColor) {
     console.log(
       `[map-atlas] flattened ${flattenedCustomColor} multi-slot recolour sprites to tintable ` +

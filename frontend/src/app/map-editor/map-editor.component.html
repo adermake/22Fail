@@ -317,6 +317,22 @@
               </label>
             }
 
+            <div class="panel-title">Spitze</div>
+            <!-- Weichheit allein machte jeden Pinsel zum selben Kreis; die Körnung ist das,
+                 was Kreide als Kreide lesbar macht. -->
+            <div class="profile-row">
+              @for (t of brushTextures; track t.id) {
+                <button
+                  type="button"
+                  class="profile-btn"
+                  [class.active]="brushTexture() === t.id"
+                  (click)="setBrushTexture(t.id)"
+                >
+                  {{ t.label }}
+                </button>
+              }
+            </div>
+
             <p class="hint">Shift + ziehen oder Strg + Mausrad ändert die Größe.</p>
           </div>
         }

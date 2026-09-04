@@ -192,48 +192,144 @@ function toolIsNoisy(tool: TerrainTool): boolean {
 const DAB_TEXELS = 256;
 
 /**
- * Cache of radial falloff stamps, as textures.
+ * Dab spacing, as a fraction of the brush radius.
  *
- * Two reasons this is a texture rather than a reusable `Graphics`. A display object can
- * only be in one place at a time, so the noisy brushes — which stamp several offset blobs
- * per dab — cannot share one instance. And the falloff *shape* depends only on softness,
- * so a single texture scaled to the brush radius covers every size, instead of rebuilding
- * a ring stack whenever the size slider moves.
+ * A quarter of the radius left only about eight dabs covering any point, which is coarse
+ * enough that a low-flow stroke shows its individual stamps as scallops rather than a smooth
+ * ramp — the "weird patterns" that appear as soon as strength is turned down far enough to
+ * blend with. Denser stamping costs a few more draw calls and buys a continuous stroke.
+ */
+const DAB_SPACING = 0.08;
+
+/** Dabs covering any one point of a continuous stroke, from the spacing above. */
+const DAB_OVERLAP = 2 / DAB_SPACING;
+
+/**
+ * The character of a brush's stamp, independent of its size and softness.
  *
- * The stack is concentric rings because Pixi has no radial-gradient fill; 24 steps is past
- * the point where banding survives filtering.
+ * Softness alone gave every brush the same silhouette — a circle with a harder or blurrier
+ * edge — so the profiles were indistinguishable in use. The grain is what makes a chalk
+ * stroke read as chalk.
+ */
+export type BrushTexture = 'smooth' | 'grain' | 'chalk' | 'spray';
+
+export const BRUSH_TEXTURES: readonly BrushTexture[] = ['smooth', 'grain', 'chalk', 'spray'];
+
+/** Deterministic value noise on a grid, so a cached dab is reproducible. */
+function dabNoise(x: number, y: number, seed: number): number {
+  const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+/** Smoothed value noise at a given cell size, in texels. */
+function smoothNoise(x: number, y: number, cell: number, seed: number): number {
+  const fx = x / cell;
+  const fy = y / cell;
+  const ix = Math.floor(fx);
+  const iy = Math.floor(fy);
+  let tx = fx - ix;
+  let ty = fy - iy;
+  tx = tx * tx * (3 - 2 * tx);
+  ty = ty * ty * (3 - 2 * ty);
+
+  const a = dabNoise(ix, iy, seed);
+  const b = dabNoise(ix + 1, iy, seed);
+  const c = dabNoise(ix, iy + 1, seed);
+  const d = dabNoise(ix + 1, iy + 1, seed);
+  return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
+}
+
+/**
+ * Cache of brush stamps, as textures.
+ *
+ * Built pixel by pixel on a canvas rather than from stacked `Graphics` circles: the falloff is
+ * only half of a brush, and the other half — grain — cannot be expressed as concentric fills
+ * at all. One texture scaled to the radius still serves every size, so the cache stays small.
  */
 class DabCache {
   private cache = new Map<string, Texture>();
 
-  constructor(private renderer: Renderer) {}
-
-  get(softness: number): Texture {
-    const key = softness.toFixed(2);
+  get(softness: number, texture: BrushTexture): Texture {
+    const key = `${softness.toFixed(2)}/${texture}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
 
-    const r = DAB_TEXELS / 2;
-    const g = new Graphics();
-    const steps = 24;
+    const size = DAB_TEXELS;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const image = ctx.createImageData(size, size);
+
+    const r = size / 2;
     const solid = 1 - Math.min(0.95, Math.max(0, softness));
 
-    for (let i = steps; i >= 1; i--) {
-      const t = i / steps;
-      const a = t <= solid ? 1 : 1 - (t - solid) / Math.max(0.001, 1 - solid);
-      g.circle(r, r, r * t).fill({ color: 0xffffff, alpha: a * a });
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const dx = (x + 0.5 - r) / r;
+        const dy = (y + 0.5 - r) / r;
+        const t = Math.hypot(dx, dy);
+
+        // Radial falloff: solid core, then a ramp to nothing at the rim.
+        let a = t >= 1 ? 0 : t <= solid ? 1 : 1 - (t - solid) / Math.max(0.001, 1 - solid);
+        a *= a;
+
+        if (a > 0) a *= grainAt(texture, x, y, t);
+
+        const i = (y * size + x) * 4;
+        image.data[i] = 255;
+        image.data[i + 1] = 255;
+        image.data[i + 2] = 255;
+        image.data[i + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
+      }
     }
 
-    const texture = this.renderer.generateTexture({ target: g, resolution: 1 });
-    g.destroy();
-
-    this.cache.set(key, texture);
-    return texture;
+    ctx.putImageData(image, 0, 0);
+    const out = Texture.from(canvas);
+    out.source.scaleMode = 'linear';
+    this.cache.set(key, out);
+    return out;
   }
 
   destroy(): void {
     for (const t of this.cache.values()) t.destroy(true);
     this.cache.clear();
+  }
+}
+
+/**
+ * How much of the falloff survives at one texel, for each brush character.
+ *
+ * `t` is the distance from the centre, 0..1, so a texture can bite harder near the rim — which
+ * is what makes chalk and spray break up along the edge rather than everywhere equally.
+ */
+function grainAt(texture: BrushTexture, x: number, y: number, t: number): number {
+  switch (texture) {
+    case 'smooth':
+      return 1;
+
+    // Fine tooth, as if the paper had a weave. Two octaves so it is not obviously periodic.
+    case 'grain': {
+      const n = smoothNoise(x, y, 5, 1) * 0.6 + smoothNoise(x, y, 13, 2) * 0.4;
+      return 0.45 + 0.55 * n;
+    }
+
+    /*
+     * Coarse, and eaten away toward the rim: a dry stick leaves a solid core and a crumbling
+     * edge, not a uniform speckle.
+     */
+    case 'chalk': {
+      const n = smoothNoise(x, y, 9, 3) * 0.7 + smoothNoise(x, y, 23, 4) * 0.3;
+      const bite = 0.25 + 0.75 * t;
+      return n > bite * 0.75 ? Math.min(1, 0.35 + n) : n * 0.35;
+    }
+
+    // Sparse droplets, thinning outward, with nothing in between.
+    case 'spray': {
+      const n = smoothNoise(x, y, 3.5, 5);
+      const density = 0.72 - 0.3 * (1 - t);
+      return n > density ? 1 : 0;
+    }
   }
 }
 
@@ -249,6 +345,8 @@ export interface BrushSettings {
   color: string;
   /** How ragged the raise/lower brushes are. 0 = a clean round dab. */
   noise: number;
+  /** Stamp character — what actually distinguishes one brush from another. */
+  texture: BrushTexture;
 }
 
 export function defaultBrush(): BrushSettings {
@@ -260,6 +358,7 @@ export function defaultBrush(): BrushSettings {
     strength: 1,
     color: '#ffffff',
     noise: 0.6,
+    texture: 'smooth',
   };
 }
 
@@ -287,7 +386,7 @@ export class BrushEngine {
     private chunks: ChunkManager,
     renderer: Renderer,
   ) {
-    this.dabs = new DabCache(renderer);
+    this.dabs = new DabCache();
   }
 
   /** Borrow a pooled stamp sprite, growing the pool only as far as a dab actually needs. */
@@ -337,19 +436,50 @@ export class BrushEngine {
     const dy = p.y - from.y;
     const dist = Math.hypot(dx, dy);
 
-    const spacing = Math.max(1, brush.size * 0.25);
+    const spacing = Math.max(1, brush.size * DAB_SPACING);
     const steps = Math.max(1, Math.ceil(dist / spacing));
+
+    /*
+     * `strength` is what a pass leaves behind, not what one stamp deposits.
+     *
+     * Overlapping dabs accumulate as `1 - (1 - a)^n`, so a per-dab alpha saturates almost at
+     * once: at the old spacing, strength 0.25 actually painted 90% coverage and 0.4 painted
+     * 98%. Every profile therefore looked like a solid stroke and only the very bottom of the
+     * slider blended at all - exactly why the brushes felt interchangeable. Inverting the
+     * accumulation makes the number mean what it says.
+     */
+    const flow = 1 - Math.pow(1 - Math.max(0, Math.min(1, brush.strength)), 1 / DAB_OVERLAP);
+
+    /*
+     * The very first touch deposits the full amount instead.
+     *
+     * A click is not a pass - nothing accumulates over it - so a single derived-alpha dab
+     * would be all but invisible and the brush would feel dead until dragged.
+     */
+    const first = this.lastPoint === null;
 
     for (let i = 1; i <= steps; i++) {
       const t = steps === 0 ? 1 : i / steps;
-      this.dab({ x: from.x + dx * t, y: from.y + dy * t }, brush, tier, onlyTier);
+      this.dab(
+        { x: from.x + dx * t, y: from.y + dy * t },
+        brush,
+        tier,
+        onlyTier,
+        first ? brush.strength : flow,
+      );
     }
 
     this.lastPoint = p;
   }
 
   /** Single stamp at a point, applying every raster pass the tool performs. */
-  dab(p: { x: number; y: number }, brush: BrushSettings, tier: DetailTier, onlyTier = false): void {
+  dab(
+    p: { x: number; y: number },
+    brush: BrushSettings,
+    tier: DetailTier,
+    onlyTier = false,
+    flow = brush.strength,
+  ): void {
     const color = parseHex(brush.color);
     const r = brush.size;
     const bounds: Bounds = { minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r };
@@ -360,11 +490,19 @@ export class BrushEngine {
       if (toolIsNoisy(brush.tool)) {
         this.buildNoisyDab(p, brush, pass.tint);
       } else {
-        const s = this.take(0, this.dabs.get(brush.softness));
+        const s = this.take(0, this.dabs.get(brush.softness, brush.texture));
         s.position.set(p.x, p.y);
         s.scale.set((brush.size * 2) / DAB_TEXELS);
-        s.alpha = brush.strength;
+        s.alpha = flow;
         s.tint = pass.tint;
+        /*
+         * Spin the stamp per dab, for textured brushes only.
+         *
+         * The grain is baked into one cached texture, so stamping it unrotated along a stroke
+         * repeats the identical speckle every few pixels and reads as a tiled pattern rather
+         * than as tooth. A smooth dab is rotationally symmetric, so it gains nothing.
+         */
+        s.rotation = brush.texture === 'smooth' ? 0 : Math.random() * Math.PI * 2;
       }
 
       this.host.blendMode = pass.erase ? 'erase' : 'normal';
@@ -387,7 +525,7 @@ export class BrushEngine {
     // Seeded from the position, so dragging back over the same spot reproduces the same
     // ragged edge instead of accumulating a different blob each pass.
     const rand = seeded((Math.round(p.x) * 73856093) ^ (Math.round(p.y) * 19349663));
-    const texture = this.dabs.get(Math.max(0.4, brush.softness));
+    const texture = this.dabs.get(Math.max(0.4, brush.softness), brush.texture);
 
     /*
      * The knob runs from a nearly round dab to a genuinely torn one.
