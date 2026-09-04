@@ -69,7 +69,7 @@ Wiederhole, Stapel oder Zahlen:
 :::
 :::
 :::section{title="Seelenrunen"}
-Seelenrunen werden vor allem für Beschwörungen verwendet.  
+Seelenrunen werden vor allem für [Beschwörungen](begleiter#beschwörungen) verwendet.  
 Im Allgemeinen sind sie wesentlich komplexer in ihrem Aussehen als Elementar- oder Formungsrunen.
 
 Es gibt zwei Arten von Seelenrunen:
@@ -85,8 +85,7 @@ Ein Magier schafft dies nur, wenn er im Besitz der Seele ist, die ihn beim Zeich
 Das bedeutet, dass ein Beschwörer nicht gleichzeitig zwei Beschwörungen mit derselben wahren Seelenrune aufrechterhalten kann.
 
 ### Die Seelenrune  
-Im Zauber-Editor ist die Seelenrune fest eingebaut — sie wird nicht gezeichnet, sondern beim
-Beschwören aus der Seele selbst geformt. Du erkennst sie an ihrer Form:
+Im Zauber-Editor ist die Seelenrune fest eingebaut — sie wird nicht gezeichnet, sondern beim Beschwören aus der Seele selbst geformt. Du erkennst sie an ihrer Form:
 :::data{source=runes type=seele}
 :::
 

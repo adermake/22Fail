@@ -51,7 +51,7 @@ Reaktion: 5 - Grundbonus
 ## Grundstats
 
 :::grid{min=300}
-:::card{title="Stärke" icon=attack accent=health}
+:::card{title="Stärke" icon=attack color="#ef4444"}
 :::formula
 Würfelbonus: (Stärke - 10) / 4
 Inventarkapazität: 50 + Stärke×2 + Konstitution×3
@@ -60,7 +60,7 @@ Viele Waffen setzen einen bestimmten Stärkewert voraus.
 Der Würfelbonus hilft bei allen Aktionen, die Stärke voraussetzen.
 :::
 
-:::card{title="Konstitution" icon=life accent=health}
+:::card{title="Konstitution" icon=life color="#a76957"}
 :::formula
 Leben: Basis + 5 × Konstitution
 Inventarkapazität: 50 + Stärke×2 + Konstitution×3
@@ -69,7 +69,7 @@ Würfelbonus: (Konstitution - 10) / 4
 Der Würfelbonus hilft bei allen Aktionen, die Konstitution voraussetzen.
 :::
 
-:::card{title="Geschicklichkeit" icon=energy accent=energy}
+:::card{title="Geschicklichkeit" icon=energy color="#22c55e"}
 :::formula
 Ausdauer: Basis + 5 × Geschicklichkeit
 Würfelbonus: (Geschicklichkeit - 10) / 4
@@ -78,7 +78,7 @@ Viele Waffen setzen eine bestimmte Geschicklichkeit voraus.
 Der Würfelbonus hilft bei allen Aktionen, die Geschicklichkeit voraussetzen.
 :::
 
-:::card{title="Intelligenz" icon=mana accent=mana}
+:::card{title="Intelligenz" icon=mana color="#3b82f6"}
 :::formula
 Mana: 50 + 5 × Intelligenz
 Fokus: 5 + Intelligenz / 2
@@ -88,7 +88,7 @@ Viele magische Waffen und Zauber setzen Intelligenz voraus.
 Der Würfelbonus hilft bei allen Aktionen, die Intelligenz voraussetzen.
 :::
 
-:::card{title="Geschwindigkeit" icon=movement accent=energy}
+:::card{title="Geschwindigkeit" icon=movement color="#ef9533"}
 :::formula
 Bewegung: 8 + Geschwindigkeit / 4
 Würfelbonus: (Geschwindigkeit - 10) / 4
@@ -97,7 +97,7 @@ Geschwindigkeit erhöht die Anzahl der Züge im Kampf.
 Der Würfelbonus hilft bei allen Aktionen, die Geschwindigkeit voraussetzen.
 :::
 
-:::card{title="Wille" icon=grundbonus accent=accent}
+:::card{title="Wille" icon=grundbonus}
 :::formula
 Grundbonus: Level/8 + Wille/8
 Reaktion: 5 - Grundbonus
@@ -109,10 +109,7 @@ Der Würfelbonus hilft bei allen Aktionen, die Wille voraussetzen.
 
 ## Konditionsstats
 
-Konditionsstats messen die momentane Verfassung. Sie werden hauptsächlich durch Schlaf wiederhergestellt (**25%**).
-Vor dem Schlafen etwas zu essen erhöht den wiederhergestellten Wert abhängig vom Essen.
-
-Sie errechnen sich aus einem Basiswert, dem entsprechenden Grundstat und sonstigen Boni — z.B. Fähigkeiten, Waffen, Zauber, Statuseffekte etc.
+Konditionsstats messen die momentane Verfassung. Sie errechnen sich aus einem Basiswert, dem entsprechenden Grundstat und sonstigen Boni — z.B. Fähigkeiten, Waffen, Zauber, Statuseffekte etc.
 
 :::section{title="Leben" icon=life}
 Bestimmt die körperliche Gesundheit. Wird durch Verletzungen und negative Statuseffekte reduziert.
@@ -148,6 +145,17 @@ Bestimmt die Kapazität für Magie. Wird durch Zauber verbraucht.
 :::formula
 Basis + 5 × Intelligenz
 :::
+:::
+
+### Schlaf
+
+Konditionsstats werden hauptsächlich durch Schlaf wiederhergestellt. Vor dem Schlafen etwas zu essen erhöht den wiederhergestellten Wert abhängig vom Essen. 
+:::formula
+Regeneration durch Schlaf = 25% der maximalen Konditionsstats + Essen
+:::
+Schlaf kann zusätzlich bis zu 3 Ladungen an Erschöpfung heilen.
+:::note{type=warning}
+Jeden Tag muss ein Liter Wasser (oder eine vergleichbare Flüssigkeit) getrunken werden, sonst wird die Statregeneration halbiert und anstatt Erschöpfung zu heilen wird eine zusätzliche Ladung auf den Charakter gewirkt.
 :::
 
 ## Sonstige Stats
