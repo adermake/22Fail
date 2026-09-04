@@ -22,7 +22,7 @@ Aktionen können Würfelboni oder -mali erhalten durch:
 - Stats
 - Talente
 - Fähigkeiten
-- Status Effekte
+- Statuseffekte
 - Ausrüstung
 - Situationsabhängige Umstände (z.B. Höhenvorteil, Wetter etc.)
 - Kreative Problemlösungen (Bonus vom Spielleiter)

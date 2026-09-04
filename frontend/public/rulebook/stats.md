@@ -11,7 +11,7 @@ Jeder Charakter besitzt Stats, die über seine Stärken in allen möglichen Bere
 
 **Kategorien:** Grundstats, Konditionsstats, Modifikatoren, Extrastats
 
-Stats wirken sich auf Würfelboni aus, auf [Talente](talente), auf Voraussetzungen für Waffen und Zauber.
+Stats wirken sich auf Würfelboni aus, auf [Talente](stats#talente), auf Voraussetzungen für Waffen und Zauber.
 Zusätzlich wirken sich die Grundstats auch auf alle anderen Stats zu unterschiedlichen Graden aus.
 
 :::section{title="Level System"}
@@ -213,9 +213,6 @@ Diese Werte werden im Kampf-Kapitel erklärt:
 - **Rüstungsmalus** — [siehe Kampf](kampf#ruestungsmalus)
 - **Rüstungsnegation** — [siehe Kampf](kampf#ruestungsnegation)
 
-:::actions
-:jump[Zum Kampf-Kapitel]{to=kampf}
-:::
 :::
 
 # Talente
@@ -230,10 +227,6 @@ Es gibt zusätzliche Talente, die hier nicht aufgelistet sind — für besondere
 :::
 
 ## Talentliste
-
-:::note{type=tip title="Immer aktuell"}
-Diese Liste wird direkt aus den Spieldaten erzeugt. Sie kann also nie veralten — ändert sich ein Talent im Spiel, ändert sich diese Seite mit.
-:::
 
 :::data{source=talents}
 :::

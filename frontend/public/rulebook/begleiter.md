@@ -13,7 +13,8 @@ Begleiter sind verbündete Einheiten unter der Kontrolle eines Spielers, die sic
 
 Wie auch die Spieler haben Begleiter [Stats](stats). Stats, die für beide gelten und gleich funktionieren sind:
 
-:::grid{min=100}
+### Grundstats
+:::grid{min=120}
 :::card{title="Stärke" color="#ef4444"}
 :::
 :::card{title="Konstitution" color="#a76957"}
@@ -26,6 +27,7 @@ Wie auch die Spieler haben Begleiter [Stats](stats). Stats, die für beide gelte
 :::
 :::card{title="Wille"}
 :::
+### Konditionsstats
 :::
 :::grid{min=200}
 :::card{title="Leben" color="#ef4444"}
@@ -34,6 +36,7 @@ Wie auch die Spieler haben Begleiter [Stats](stats). Stats, die für beide gelte
 :::
 :::card{title="Mana" color="#3b82f6"}
 :::
+### Sonstige Stats
 :::
 :::grid{min=150}
 :::card{title="Fokus"}
@@ -47,7 +50,7 @@ Wie auch die Spieler haben Begleiter [Stats](stats). Stats, die für beide gelte
 :::
 
 :::note{type=tip}
-Außerdem besitzen Begleiter im Gegensatz zu menschlichen Charakteren einen eigenen *Effektivitäts- und Stabilitätswert*, der nicht von einer Waffe oder Rüstung abgeleitet wird. Sollte der Begleiter in der Lage sein, Ausrüstung zu tragen, können diese Werte allerdings mit denen der Ausrüstung überschrieben werden.
+Außerdem besitzen Begleiter im Gegensatz zu menschlichen Charakteren einen eigenen **Effektivitäts- und Stabilitätswert**, der nicht von einer Waffe oder Rüstung abgeleitet wird. Sollte der Begleiter in der Lage sein, Ausrüstung zu tragen, können diese Werte allerdings mit denen der Ausrüstung überschrieben werden.
 :::
 
 Begleiter sind auch in der Lage, eigene Fähigkeiten, Zauber, Ausrüstung und weitere Items zu besitzen. Diese sind meistens auf den spezifischen Begleiter zugeschnitten.
@@ -62,7 +65,7 @@ Begleiter regenerieren so wie Spieler ihre Stats beim [Schlafen](stats#schlaf).
 
 ## Beschwörungen
 
-Eine besondere Untergruppe der Begleiter. Die meist durch Zauber beschworenen Beschwörungen unterscheiden sich von regulären Begleitern in einigen Aspekten. Sie werden vom Spieler beschworen und besetzen für die Dauer ihrer Beschwörung den Fokus des Beschwörers, anhängig von ihren [Fokuskosten](magie#fokus). Wenn ihre Leben auf 0 fallen, wird die Beschwörung sofort abgebrochen und fällt nicht in den kritischen Zustand. Außerdem können Beschwörungen keine Konditionsstats beim Schlafen wiederherstellen, Heilung durch Items, Fähigkeiten oder Zauber sind aber noch möglich.
+Eine besondere Untergruppe der Begleiter. Die meist durch Zauber beschworenen Beschwörungen unterscheiden sich von regulären Begleitern in einigen Aspekten. Sie werden vom Spieler beschworen und besetzen für die Dauer ihrer Beschwörung den Fokus des Beschwörers, anhängig von ihren [Fokuskosten](zauber#fokus). Wenn ihre Leben auf 0 fallen, wird die Beschwörung sofort abgebrochen und fällt nicht in den kritischen Zustand. Außerdem können Beschwörungen keine Konditionsstats beim Schlafen wiederherstellen, Heilung durch Items, Fähigkeiten oder Zauber sind aber noch möglich.
 
 :::card{title="Beschwörungsstats" icon=stat_icon}
 Die finalen Stats einer Beschwörung sind identisch zu denen eines normalen Begleiters, allerdings setzen sie sich auf eine andere Weise zusammen. Da jede Beschwörung aus der Kombination einer Seele und eines Körpers besteht, werden auch ihre Stats aus einer Kombination dieser beiden Hälften berechnet. 
@@ -87,7 +90,7 @@ Beschwörungen können wie andere Zauber [skaliert](zauber#skalierung) werden, a
 Effektivität = Basis-Effektivität * (Skalierung + 3)/4
 :::
 :::
-:::card{title="Rekursive Beschwörung}
+:::card{title="Rekursive Beschwörung"}
 Obwohl eine Beschwörung selbst Magie - inklusive Beschwörungsmagie - nutzen kann, kosten Beschwörungen doppelt so viel Fokus wie für den Beschwörer.
 
 :::note {type=tip}
