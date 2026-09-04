@@ -198,8 +198,16 @@ vec3 inspect(vec4 hc, vec4 lc, vec4 wc) {
         col = wc.rgb + col * (1.0 - wc.a);
         return lc.rgb + col * (1.0 - lc.a);
     }
-    // Height has no colour of its own; show its value as a ramp so a coastline is readable.
-    if (uInspect < 2.5) return mix(bg, vec3(0.15 + hc.a * 0.85), hc.a);
+    /*
+     * Height carries three states, so the inspector shows three things: the checker where the
+     * tier holds no opinion, blue where it authored water, pale where it authored land. A
+     * single ramp off alpha would draw drawn-water and solid-land identically.
+     */
+    if (uInspect < 2.5) {
+        float landness = hc.a > 0.0 ? hc.r / hc.a : 0.0;
+        vec3 tone = mix(vec3(0.20, 0.42, 0.68), vec3(0.94, 0.94, 0.90), landness);
+        return mix(bg, tone, hc.a);
+    }
     if (uInspect < 3.5) return lc.rgb + bg * (1.0 - lc.a);
     return wc.rgb + bg * (1.0 - wc.a);
 }
@@ -243,7 +251,18 @@ void main() {
         return;
     }
 
-    float h = hc.a;
+    /*
+     * Land-ness lives in red; alpha only says whether this tier has an opinion at all.
+     *
+     * Three states, not two: alpha 0 is background water (nothing authored), red near alpha is
+     * land, red near 0 with alpha up is water somebody drew. Reading alpha as the height — as
+     * this did - made water the mere absence of land, and the over operator treats absence as
+     * "no opinion", so a finer tier could never carve a channel through a coarser one's land.
+     *
+     * Every stored height chunk was written white, so red == alpha throughout the existing
+     * data and this reads exactly as it always did.
+     */
+    float h = hc.r;
 
     // Colour is baked when terrain is drawn, so these fallbacks are constants rather than
     // adjustable "theme" colours: changing a global default would retroactively repaint

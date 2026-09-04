@@ -10,8 +10,8 @@ import { hexToRgb } from './terrain-view';
 
 describe('terrain tools', () => {
   it('routes each tool to the raster it writes into', () => {
-    // Height is one shared scalar field: land and water brushes are the same op with
-    // opposite signs, so both must land on 'height' rather than on separate layers.
+    // Land and water are two states of one field — land-ness in red, "has an opinion" in
+    // alpha — so both brushes must land on 'height' rather than on separate layers.
     expect(toolLayer('landBrush')).toBe('height');
     expect(toolLayer('landEraser')).toBe('height');
     expect(toolLayer('waterBrush')).toBe('height');
@@ -30,8 +30,8 @@ describe('terrain tools', () => {
   });
 
   it('offers no water eraser', () => {
-    // Height is one field, so "remove water" and "add land" are the same operation.
-    // Shipping both invites the state that is neither: water gone, no land put back.
+    // Painting land over water is how water is removed; both are authored into the same
+    // field. A third verb would only invite the state that is neither.
     expect(TERRAIN_TOOLS).not.toContain('waterEraser' as never);
   });
 
@@ -60,13 +60,38 @@ describe('paint passes (shape and colour are separate)', () => {
     expect(passes.map(p => p.layer)).toEqual(['height', 'landColor']);
   });
 
-  it('does not tint water when drawing water or stamping a lake', () => {
-    // Laying a differently-coloured patch over existing water is what produced the hard
-    // blue outline around every water stroke and lake.
+  it('authors water rather than erasing land, and never tints it', () => {
+    /*
+     * Black with an *add* blend: the stroke carries coverage with zero land-ness, so the tier
+     * composite respects it. Erasing instead merely withdrew this tier's opinion, which a
+     * coarser tier then supplied again — a river narrower than a coarse texel was invisible at
+     * every zoom because Grob kept its land and filled the channel back in.
+     *
+     * The tint stays fixed regardless of the selected swatch: laying a differently-coloured
+     * patch over existing water is what produced the hard blue outline around every stroke.
+     */
     for (const tool of ['waterBrush', 'lakeStamp'] as const) {
       const passes = paintPasses(tool, 0x112233);
-      expect(passes).toEqual([{ layer: 'height', erase: true, tint: 0xffffff }]);
+      expect(passes).toEqual([{ layer: 'height', erase: false, tint: 0x000000 }]);
     }
+  });
+
+  it('keeps land additive and white, so existing chunks read unchanged', () => {
+    // Every stored height texel was written white, which is why land-ness could move into the
+    // red channel without migrating anything.
+    for (const tool of ['landBrush', 'heighten'] as const) {
+      expect(paintPasses(tool, 0x112233)).toEqual([
+        { layer: 'height', erase: false, tint: 0xffffff },
+      ]);
+    }
+  });
+
+  it('lowers terrain rather than drawing water', () => {
+    // `lower` is a shaping tool: it withdraws height toward background water. Drawing water is
+    // the water brush's job, and only its job.
+    expect(paintPasses('lower', 0x112233)).toEqual([
+      { layer: 'height', erase: true, tint: 0xffffff },
+    ]);
   });
 
   it('still paints colour with the dedicated colour brushes', () => {
@@ -86,12 +111,26 @@ describe('paint passes (shape and colour are separate)', () => {
     }
   });
 
-  it('always writes white into the height field', () => {
-    // Height reads alpha only; a coloured tint there would be silently meaningless.
+  it('never lets the palette colour reach the height field', () => {
+    /*
+     * Height encodes land-ness in red, so its tint is meaning, not decoration: white is land,
+     * black is water, and nothing else is legal. Letting the selected swatch through would
+     * write an arbitrary land-ness — a mid-grey shore that is neither, decided by whichever
+     * colour happened to be selected.
+     */
     for (const tool of TERRAIN_TOOLS) {
       for (const pass of paintPasses(tool, 0x336699)) {
-        if (pass.layer === 'height') expect(pass.tint).toBe(0xffffff);
+        if (pass.layer === 'height') expect([0xffffff, 0x000000]).toContain(pass.tint);
       }
+    }
+  });
+
+  it('reserves black in the height field for the water tools alone', () => {
+    for (const tool of TERRAIN_TOOLS) {
+      const authorsWater = paintPasses(tool, 0x336699).some(
+        p => p.layer === 'height' && !p.erase && p.tint === 0x000000,
+      );
+      expect(authorsWater).toBe(tool === 'waterBrush' || tool === 'lakeStamp');
     }
   });
 

@@ -205,4 +205,73 @@ describe('Terrain-Komposit (vormultipliziert)', () => {
       }
     });
   });
+
+  /*
+   * Drei Zustände statt zwei.
+   *
+   * `alpha` sagt nur, ob diese Stufe überhaupt eine Meinung hat; `red` sagt, wie viel Land.
+   * Alpha als Höhe zu lesen machte Wasser zur bloßen *Abwesenheit* von Land — und `over`
+   * behandelt Abwesenheit als "keine Meinung", also konnte eine feine Stufe nie einen Kanal
+   * durch das Land einer gröberen schneiden. Ein Fluss unter ~530 m Breite war auf *jeder*
+   * Zoomstufe unsichtbar.
+   */
+  describe('Höhenfeld mit drei Zuständen', () => {
+    /** Wie ein Strich landet: Farbe × Deckung, vormultipliziert. */
+    const stroke = (landness: number, coverage: number): RGBA =>
+      premultiplied(landness, landness, landness, coverage);
+
+    const land = (coverage = 1) => stroke(1, coverage);
+    const water = (coverage = 1) => stroke(0, coverage);
+
+    /** Was der Shader als Höhe liest. */
+    const height = (c: RGBA) => c.r;
+
+    it('liest nichts Gezeichnetes als Hintergrundwasser', () => {
+      expect(height(clear)).toBe(0);
+    });
+
+    it('liest gezeichnetes Land als Land', () => {
+      expect(height(land())).toBe(1);
+    });
+
+    it('liest gezeichnetes Wasser als Wasser, obwohl es Deckung hat', () => {
+      const w = water();
+      expect(w.a).toBe(1); // hat eine Meinung …
+      expect(height(w)).toBe(0); // … und die lautet: kein Land
+    });
+
+    it('lässt einen feinen Wasserstrich das Land der gröberen Stufe durchschneiden', () => {
+      // Genau der gemeldete Fall: Fluss auf Mittel über Landmasse auf Grob.
+      const composite = over(land(), water());
+      expect(height(composite)).toBe(0);
+    });
+
+    it('lässt umgekehrt feines Land gezeichnetes Wasser überschreiben', () => {
+      expect(height(over(water(), land()))).toBe(1);
+    });
+
+    it('blendet an den weichen Rändern eines Wasserstrichs', () => {
+      // Halbe Deckung über vollem Land: genau auf der Küstenschwelle.
+      expect(height(over(land(), water(0.5)))).toBeCloseTo(0.5, 10);
+    });
+
+    it('macht den alten Fehler sichtbar: Alpha als Höhe füllte den Kanal wieder', () => {
+      const composite = over(land(), water());
+      // Die alte Rechnung las Alpha — und das ist hier voll, also „Land".
+      expect(composite.a).toBe(1);
+      // Die neue liest Rot und bekommt Wasser.
+      expect(height(composite)).toBe(0);
+    });
+
+    it('liest vorhandene Karten unverändert, weil dort immer Weiss steht', () => {
+      /*
+       * Der Grund, warum das ohne Migration geht: jeder gespeicherte Höhen-Texel wurde weiss
+       * geschrieben (Pinsel `tint: 0xffffff`, Import `hd[i] = 255`), also gilt dort red == alpha.
+       */
+      for (const coverage of [0, 0.25, 0.5, 0.75, 1]) {
+        const legacy = land(coverage);
+        expect(height(legacy)).toBeCloseTo(legacy.a, 10);
+      }
+    });
+  });
 });

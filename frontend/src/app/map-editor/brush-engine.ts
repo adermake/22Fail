@@ -1,15 +1,33 @@
 /**
  * Terrain brushes.
  *
- * Terrain is a single scalar height field stored in the `height` layer's alpha, thresholded
- * at 0.5 for the coastline. That one representation is why the six requested tools collapse
- * into two operations with different falloffs — which is also how Wonderdraft behaves, and
- * what lets a river carve through land for free:
+ * Terrain has **three** states, not two, and that is what the `height` layer encodes:
  *
- *   land brush / water eraser  → push alpha toward 1   (add blend)
- *   water brush / land eraser  → push alpha toward 0   (erase blend)
- *   heighten / lower           → the same, with the falloff broken up by fBm noise so the
- *                                edge comes out droopy instead of a clean circle
+ *   alpha = 0                → nothing authored here: *background* water
+ *   alpha > 0, red ≈ alpha   → land
+ *   alpha > 0, red ≈ 0       → *foreground* water, drawn on purpose
+ *
+ * so the coastline thresholds `red`, and `alpha` says merely "this tier has an opinion".
+ *
+ * Two states were not enough. Water used to be the *absence* of land, written by erasing
+ * alpha — and the tier composite is `over`, under which a transparent finer tier means "no
+ * opinion" and the coarser tier shows straight through. A fine tier therefore could not carve
+ * anything out of a coarse one; erasing only worked because a stroke also erased every coarser
+ * tier directly, and a thin cut diluted to a fraction of a coarse texel never crossed the
+ * threshold there. A river narrower than ~530 m was invisible at *every* zoom, because Grob
+ * kept its land and filled the channel back in.
+ *
+ * Making water something you *author* fixes that: a full-alpha water stroke wins the composite
+ * outright, because it has an opinion and the coarser tier's land is weighted by `1 - alpha`.
+ *
+ * Land strokes keep writing white, which is what every stored chunk already contains — so
+ * `red == alpha` throughout the existing data and it reads exactly as it always did. The
+ * encoding cost nothing: the height layer's RGB was three unused channels.
+ *
+ *   land brush / heighten  → white, add blend    (authored land)
+ *   water brush / lake     → black, add blend    (authored water)
+ *   land eraser            → erase blend         (un-author: back to background water)
+ *   lower                  → erase blend         (lower the terrain toward background water)
  *
  * Colour brushes paint into `landColor` / `waterColor` instead, where alpha is coverage.
  *
@@ -23,9 +41,9 @@ import { Bounds } from './map-camera';
 import { ChunkManager, ChunkRecord } from './chunk-manager';
 
 /**
- * There is deliberately no water eraser. Height is one field, so "remove water" and "add
- * land" are the same operation — offering both invites the state that is neither, where a
- * region has had its water taken away without any land put back.
+ * There is deliberately no *water* eraser: painting land over water is how water is removed,
+ * and both are authored into the same field, so offering a third verb would only invite the
+ * state that is neither. `landEraser` is the one that withdraws an opinion altogether.
  */
 export type TerrainTool =
   | 'landBrush'
@@ -61,19 +79,6 @@ export function toolLayer(tool: TerrainTool): RasterLayer {
   return 'height';
 }
 
-/** Whether a tool subtracts (erase blend) rather than adds. */
-function toolErases(tool: TerrainTool): boolean {
-  return (
-    tool === 'landEraser' ||
-    tool === 'waterBrush' ||
-    tool === 'lower' ||
-    tool === 'lakeStamp' ||
-    tool === 'landColorEraser' ||
-    tool === 'waterColorEraser' ||
-    tool === 'tierEraser'
-  );
-}
-
 /** Mirror a stamp horizontally — bound to Alt while placing. */
 export type StampMirror = boolean;
 
@@ -103,11 +108,17 @@ export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
         { layer: 'height', erase: true, tint: 0xffffff },
         { layer: 'landColor', erase: true, tint: 0xffffff },
       ];
+    /*
+     * Water is authored, not subtracted: black adds coverage with no land-ness, so the stroke
+     * carries an opinion the tier composite will respect. Erasing instead removed the opinion,
+     * which a coarser tier then supplied again.
+     */
     case 'waterBrush':
-      return [{ layer: 'height', erase: true, tint: 0xffffff }];
+      return [{ layer: 'height', erase: false, tint: 0x000000 }];
     case 'lakeStamp':
-      return [{ layer: 'height', erase: true, tint: 0xffffff }];
-    // Raise/lower reshape the coastline without touching colour already laid down.
+      return [{ layer: 'height', erase: false, tint: 0x000000 }];
+    // Raise/lower reshape the coastline without touching colour already laid down. `lower`
+    // stays subtractive: it lowers terrain toward background water rather than drawing water.
     case 'heighten':
       return [{ layer: 'height', erase: false, tint: 0xffffff }];
     case 'lower':
@@ -448,7 +459,9 @@ export class BrushEngine {
     }
 
     this.host.removeChildren();
-    this.host.blendMode = 'erase';
+    // Authored water, like the water brush: black adds coverage with no land-ness, so the
+    // lake wins the tier composite instead of merely withdrawing this tier's opinion.
+    this.host.blendMode = 'normal';
     this.host.addChild(g);
 
     const touched = this.chunks.paintWorld('height', this.host, bounds, tier, onlyTier);
@@ -486,7 +499,7 @@ export class BrushEngine {
       for (let i = 0; i < outline.length; i += 2) {
         pts.push(cx + (outline[i] - cx) * t, cy + (outline[i + 1] - cy) * t);
       }
-      g.poly(pts).fill({ color: 0xffffff, alpha: 0.16 });
+      g.poly(pts).fill({ color: 0x000000, alpha: 0.16 });
     }
   }
 

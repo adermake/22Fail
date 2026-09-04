@@ -756,6 +756,46 @@ Switch-Implementierungen) kostet mehr Komplexität, als er einbringt.
 die Chunks schon (`objects/<cx>_<cy>.json`) — Speichern fasst eine Zelle an, Beitreten streamt
 nur nahe Zellen. Bis ~100k Symbolen nicht erforderlich.
 
+## Karteneditor v2 — Höhenfeld mit drei Zuständen
+
+Das `height`-Raster kodiert **drei** Zustände, nicht zwei:
+
+| `alpha` | `red` | Bedeutung |
+| --- | --- | --- |
+| 0 | 0 | **Hintergrundwasser** — hier ist nichts gezeichnet |
+| > 0 | ≈ `alpha` | **Land** |
+| > 0 | ≈ 0 | **Vordergrundwasser** — bewusst gezeichnet |
+
+Die Küstenschwelle liest jetzt `red` (`float h = hc.r`), `alpha` sagt nur noch: *diese Stufe
+hat hier eine Meinung*.
+
+**Warum.** Wasser war die bloße Abwesenheit von Land, geschrieben durch Erase auf Alpha. Der
+Stufen-Composite ist aber `over`, und darin heißt „transparent" = *keine Meinung*: die gröbere
+Stufe scheint durch. Eine feine Stufe konnte deshalb nie einen Kanal durch das Land einer
+gröberen schneiden. Erase funktionierte nur, weil ein Strich auch alle gröberen Stufen direkt
+radiert — und ein dünner Schnitt, auf einen Bruchteil eines groben Texels verdünnt, riss die
+Schwelle dort nie. Zahlen: ein Grob-Texel ist 128 Weltpixel ≈ 1,07 km, ein Schnitt muss >64
+Weltpixel ≈ **533 m** breit sein, um ihn zu kippen. Ein Fluss war also auf *jeder* Zoomstufe
+unsichtbar, weil Grob sein Land behielt und den Kanal wieder auffüllte.
+
+**Gezeichnetes Wasser gewinnt dagegen den Composite**, weil es eine Meinung hat: das Land der
+gröberen Stufe wird mit `1 − alpha` gewichtet.
+
+**Kostet nichts und braucht keine Migration.** Das RGB des Höhen-Rasters war ungenutzt (der
+Shader las nur Alpha), und *jeder* gespeicherte Höhen-Texel wurde weiß geschrieben (Pinsel
+`tint: 0xffffff`, Import `hd[i] = 255`) — dort gilt also `red == alpha`, und bestehende Karten
+lesen sich unverändert.
+
+Werkzeug-Zuordnung:
+- `landBrush` / `heighten` → weiß, add — Land
+- `waterBrush` / `lakeStamp` → **schwarz, add** — Vordergrundwasser (nur diese beiden)
+- `landEraser` → erase — Meinung zurückziehen, zurück zu Hintergrundwasser
+- `lower` → erase — senkt Terrain Richtung Hintergrundwasser, zeichnet *kein* Wasser
+- Die Palette darf nie ins Höhenfeld: dort ist der Tint Bedeutung, kein Schmuck.
+
+Der Inspektor („Höhe") zeigt entsprechend drei Dinge: Schachbrett = keine Meinung, Blau =
+gezeichnetes Wasser, Hell = Land. Algebra festgehalten in `terrain-composite.spec.ts`.
+
 ## Karteneditor v2 — Vormultipliziertes Alpha & Symbol-Tints
 
 **Die Chunk-Texturen sind vormultipliziert.** Pixi rendert in eine RenderTexture mit
