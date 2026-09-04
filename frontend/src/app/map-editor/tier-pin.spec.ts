@@ -1,148 +1,118 @@
 /**
- * The working-tier pin, as arithmetic.
+ * The working-tier pin.
  *
- * `ChunkManager.resolveTier` needs a GPU, but the rule it applies does not: a pin is honoured
- * only while the tier fits the same on-screen chunk budget the automatic chooser respects.
- * That clamp is the difference between a useful control and a way to lose the WebGL context,
- * so it is worth pinning down without a renderer.
+ * A pin is now honoured at **every** zoom. It used to be clamped against the on-screen chunk
+ * budget and silently fall back to the automatic tier, so pinning `med` and zooming out showed
+ * `low` instead — in a mode whose whole purpose is inspecting and cleaning up one tier, quietly
+ * substituting a different one is the worst thing it could do.
+ *
+ * The budget did not go away; it moved. `TerrainView` draws at most `MAX_TERRAIN_CELLS` cells
+ * nearest the view centre, so a pin that cannot cover the screen shows *part* of its own tier
+ * rather than all of somebody else's. Two things have to hold for that to be safe, and both are
+ * checked here.
  */
 
 import {
   DetailTier,
-  TARGET_CHUNKS_ON_SCREEN,
   TIERS,
   TIER_WORLD_SIZE,
   chooseTier,
-  chunksOnScreen,
 } from './map-editor.model';
+import { MAX_TERRAIN_CELLS } from './terrain-view';
+import { MAX_RESIDENT_CELLS } from './chunk-manager';
 import { Bounds } from './map-camera';
 
-/** Mirrors `ChunkManager.resolveTier`, hysteresis included. */
-function resolveTier(
-  current: DetailTier,
-  pin: DetailTier | null,
-  view: Bounds,
-  pinFresh = false,
-): DetailTier {
-  const w = view.maxX - view.minX;
-  const h = view.maxY - view.minY;
-  const auto = chooseTier(current, w, h);
-  if (!pin) return auto;
+/** Mirrors `ChunkManager.resolveTier`. */
+const resolveTier = (pin: DetailTier | null, current: DetailTier, view: Bounds): DetailTier =>
+  pin ?? chooseTier(current, view.maxX - view.minX, view.maxY - view.minY);
 
-  const holding = current === pin;
-  const budget =
-    holding || pinFresh ? TARGET_CHUNKS_ON_SCREEN : TARGET_CHUNKS_ON_SCREEN * 0.6;
-  return chunksOnScreen(w, h, pin) > budget ? auto : pin;
+/** Mirrors the cell-range clamp at the top of `TerrainView.update`. */
+function cellRange(view: Bounds, tier: DetailTier, cap = MAX_TERRAIN_CELLS) {
+  const span = TIER_WORLD_SIZE[tier];
+  const lead = span * 0.5;
+
+  let minCx = Math.floor((view.minX - lead) / span);
+  let maxCx = Math.floor((view.maxX + lead) / span);
+  let minCy = Math.floor((view.minY - lead) / span);
+  let maxCy = Math.floor((view.maxY + lead) / span);
+
+  if ((maxCx - minCx + 1) * (maxCy - minCy + 1) > cap) {
+    const half = Math.ceil(Math.sqrt(cap));
+    const midCx = Math.floor((view.minX + view.maxX) / 2 / span);
+    const midCy = Math.floor((view.minY + view.maxY) / 2 / span);
+    minCx = Math.max(minCx, midCx - half);
+    maxCx = Math.min(maxCx, midCx + half);
+    minCy = Math.max(minCy, midCy - half);
+    maxCy = Math.min(maxCy, midCy + half);
+  }
+  return { minCx, maxCx, minCy, maxCy, count: (maxCx - minCx + 1) * (maxCy - minCy + 1) };
 }
 
-const view = (w: number, h = w): Bounds => ({ minX: 0, minY: 0, maxX: w, maxY: h });
+const view = (w: number, h = w, x = 0, y = 0): Bounds => ({
+  minX: x,
+  minY: y,
+  maxX: x + w,
+  maxY: y + h,
+});
 
 describe('Arbeitsstufe festnageln', () => {
   it('folgt ohne Pin dem Zoom', () => {
     const wide = view(TIER_WORLD_SIZE.low * 4);
-    expect(resolveTier('high', null, wide)).toBe(chooseTier('high', wide.maxX, wide.maxY));
+    expect(resolveTier(null, 'high', wide)).toBe(chooseTier('high', wide.maxX, wide.maxY));
   });
 
-  it('erzwingt eine gröbere Stufe, als der Zoom wählen würde', () => {
-    // Eng herangezoomt: automatisch wäre das `high`, festgenagelt bleibt es `low`.
-    const close = view(TIER_WORLD_SIZE.high);
-    expect(chooseTier('high', close.maxX, close.maxY)).toBe('high');
-    expect(resolveTier('high', 'low', close)).toBe('low');
-  });
-
-  it('erlaubt eine feinere Stufe, solange sie auf den Schirm passt', () => {
-    const close = view(TIER_WORLD_SIZE.high * 2);
-    expect(resolveTier('low', 'high', close)).toBe('high');
-  });
-
-  it('ignoriert den Pin, wenn die Stufe zu viele Kacheln bedeutete', () => {
-    // Eine Weltansicht auf `high` wären Zehntausende 3-MB-Zellen — genau der Zusammenbruch,
-    // gegen den es die Stufen überhaupt gibt.
-    const worldView = view(TIER_WORLD_SIZE.low * 8);
-    expect(resolveTier('low', 'high', worldView)).not.toBe('high');
-    expect(resolveTier('low', 'high', worldView)).toBe(
-      chooseTier('low', worldView.maxX, worldView.maxY),
-    );
-  });
-
-  /*
-   * Die eigentliche Zusicherung ist nicht „immer im Budget“ — `chooseTier` gibt am Ende
-   * bedingungslos `low` zurück, weil es keine gröbere Stufe gibt, und reißt das Budget beim
-   * Herauszoomen ins Extreme selbst. Zugesichert ist, dass ein Pin die Lage nie *verschlimmert*:
-   * er kann nie mehr Kacheln kosten, als die automatische Wahl ohnehin gekostet hätte.
-   */
-  it('kostet nie mehr Kacheln als die automatische Wahl', () => {
+  it('hält die festgenagelte Stufe auf jeder Zoomstufe', () => {
+    // Der gemeldete Fehler: herauszoomen zeigte plötzlich Grob statt der gewählten Stufe.
     for (const pin of TIERS) {
-      for (let span = TIER_WORLD_SIZE.high / 4; span < TIER_WORLD_SIZE.low * 16; span *= 1.7) {
-        const v = view(span);
-        const auto = chooseTier(pin, v.maxX, v.maxY);
-        const pinned = resolveTier(pin, pin, v);
-
-        expect(chunksOnScreen(v.maxX, v.maxY, pinned)).toBeLessThanOrEqual(
-          Math.max(chunksOnScreen(v.maxX, v.maxY, auto), TARGET_CHUNKS_ON_SCREEN),
-        );
+      for (let span = TIER_WORLD_SIZE.high / 4; span < TIER_WORLD_SIZE.low * 32; span *= 2.3) {
+        expect(resolveTier(pin, 'high', view(span))).toBe(pin);
+        expect(resolveTier(pin, 'low', view(span))).toBe(pin);
       }
     }
   });
 
-  /*
-   * Der Grund für die Hysterese, und der gemeldete Fehler.
-   *
-   * Ohne Totband kippt eine festgenagelte Stufe dicht an der Budgetgrenze bei jeder
-   * Mausrad-Raste hin und her. Beim automatischen Wähler kostet das nur Neuaufbauten; bei
-   * einer festgenagelten Stufe entscheidet sie, *was isoliert gezeichnet* und *worauf gemalt*
-   * wird — das Bild springt also zwischen zwei Stufen, was aussieht wie Terrain, das von
-   * selbst auftaucht und verschwindet.
-   */
-  describe('Hysterese', () => {
-    /** Kleinste Ansichtsbreite, bei der `pin` das Budget gerade reißt. */
-    const thresholdWidth = (pin: DetailTier): number => {
-      let w = TIER_WORLD_SIZE[pin];
-      while (chunksOnScreen(w, w, pin) <= TARGET_CHUNKS_ON_SCREEN) w *= 1.02;
-      return w;
-    };
-
-    it('kippt an der Grenze nicht hin und her', () => {
-      const pin: DetailTier = 'med';
-      const edge = thresholdWidth(pin);
-
-      // Um die Grenze herum wackeln, wie es ein Mausrad tut.
-      let current: DetailTier = pin;
-      const seen = new Set<DetailTier>();
-      for (let i = 0; i < 40; i++) {
-        const w = edge * (i % 2 === 0 ? 0.995 : 1.005);
-        current = resolveTier(current, pin, view(w));
-        seen.add(current);
-      }
-
-      // Genau eine Stufe über den ganzen Schwung — kein Flackern zwischen zweien.
-      expect(seen.size).toBe(1);
+  describe('Kachelbereich', () => {
+    it('zeigt bei normalem Zoom den ganzen sichtbaren Bereich', () => {
+      const v = view(TIER_WORLD_SIZE.med * 3);
+      const r = cellRange(v, 'med');
+      expect(r.count).toBeLessThanOrEqual(MAX_TERRAIN_CELLS);
+      // Nicht beschnitten: der Bereich deckt die Sicht komplett ab.
+      expect(r.minCx).toBe(Math.floor(-TIER_WORLD_SIZE.med * 0.5 / TIER_WORLD_SIZE.med));
     });
 
-    it('gibt die Stufe erst auf, wenn sie wirklich nicht mehr passt', () => {
-      const pin: DetailTier = 'med';
-      const edge = thresholdWidth(pin);
+    it('begrenzt den Bereich, statt Millionen Positionen aufzuzählen', () => {
+      /*
+       * Ohne diese Klemme würde „Hoch festnageln und ganz herauszoomen" jede Bildposition
+       * auflisten, sortieren und dann hundert behalten — das Aufzählen selbst wäre der Stall.
+       */
+      const v = view(TIER_WORLD_SIZE.low * 40);
+      const r = cellRange(v, 'high');
 
-      expect(resolveTier(pin, pin, view(edge * 0.98))).toBe(pin);
-      expect(resolveTier(pin, pin, view(edge * 1.6))).not.toBe(pin);
+      const unclamped = Math.pow((TIER_WORLD_SIZE.low * 40) / TIER_WORLD_SIZE.high, 2);
+      expect(unclamped).toBeGreaterThan(1e6);
+      expect(r.count).toBeLessThanOrEqual(Math.pow(2 * Math.ceil(Math.sqrt(100)) + 1, 2));
     });
 
-    it('nimmt sie erst mit Luft nach oben zurück', () => {
-      const pin: DetailTier = 'med';
-      const edge = thresholdWidth(pin);
+    it('behält den Bildmittelpunkt', () => {
+      // Was gezeigt wird, soll dort liegen, wo man hinsieht.
+      const v = view(TIER_WORLD_SIZE.low * 40, TIER_WORLD_SIZE.low * 40, 1e6, -5e5);
+      const r = cellRange(v, 'high');
+      const midCx = Math.floor((v.minX + v.maxX) / 2 / TIER_WORLD_SIZE.high);
+      const midCy = Math.floor((v.minY + v.maxY) / 2 / TIER_WORLD_SIZE.high);
 
-      // Knapp unter der Grenze, aber ohne Reserve: noch nicht zurücknehmen …
-      expect(resolveTier('low', pin, view(edge * 0.95))).toBe('low');
-      // … eng genug herangezoomt dagegen schon.
-      expect(resolveTier('low', pin, view(TIER_WORLD_SIZE[pin] * 2))).toBe(pin);
+      expect(midCx).toBeGreaterThanOrEqual(r.minCx);
+      expect(midCx).toBeLessThanOrEqual(r.maxCx);
+      expect(midCy).toBeGreaterThanOrEqual(r.minCy);
+      expect(midCy).toBeLessThanOrEqual(r.maxCy);
     });
+  });
 
-    it('greift eine frisch gewählte Stufe sofort, wenn sie ins Budget passt', () => {
-      const pin: DetailTier = 'med';
-      const edge = thresholdWidth(pin);
-
-      // Ohne diese Ausnahme täte ein Klick auf eine gerade noch passende Stufe scheinbar nichts.
-      expect(resolveTier('low', pin, view(edge * 0.95), true)).toBe(pin);
-    });
+  it('zeichnet nie mehr Zellen, als resident bleiben dürfen', () => {
+    /*
+     * Die Invariante, die den bedingungslosen Pin überhaupt trägt. Läge die Zeichengrenze über
+     * dem Residenzbudget, wäre jede Zelle im selben Frame als sichtbar markiert, also keine
+     * verdrängbar — und der VRAM liefe voll, bis der GL-Kontext wegbricht.
+     */
+    expect(MAX_TERRAIN_CELLS).toBeLessThanOrEqual(MAX_RESIDENT_CELLS);
   });
 });

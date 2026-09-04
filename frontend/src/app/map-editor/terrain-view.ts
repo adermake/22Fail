@@ -109,6 +109,17 @@ uniform float uShoreLight;    // strength of that lightening
 uniform float uShadowWidth;   // offshore band darkened beneath land
 uniform float uShadowStrength;
 
+/*
+ * Inspector mode: 0 = the map, 1 = all rasters, 2 = height, 3 = land colour, 4 = water colour.
+ *
+ * The map view gates colour behind height - land colour only appears where the height field
+ * says land. That is right for a map and wrong for an inspector: a tier holding plenty of
+ * colour but no height rendered as open sea, so content that was plainly there could not be
+ * found by isolating any tier. In inspect mode nothing is gated: each raster is drawn as what
+ * it stores, over a checker that means "this tier holds nothing here".
+ */
+uniform float uInspect;
+
 float hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
@@ -145,18 +156,52 @@ vec2 tierUV(vec3 rect) {
 }
 
 /**
- * Straight-alpha "over": the top layer composited onto the one under it.
+ * "Over": the top layer composited onto the one under it, in premultiplied space.
  *
  * Alpha is coverage on every layer — and on the height layer it is the terrain height
- * itself — so one operator serves all three. RGB is weighted by coverage and taken in
- * premultiplied space, because mixing a transparent texel's stale colour in unweighted would
- * drag fringes of arbitrary colour along every coastline.
+ * itself — so one operator serves all three.
+ *
+ * The chunks are premultiplied, and this used to assume they were not. Pixi renders into a
+ * RenderTexture with normal = [ONE, ONE_MINUS_SRC_ALPHA], which is the premultiplied
+ * operator, so a texel's stored RGB is already colour x coverage. Weighting it by top.a a
+ * second time darkened everything with partial coverage - that is, exactly the feathered edge
+ * of every soft brush stroke, which came out as a dark band instead of a blend, on land and
+ * water alike.
+ *
+ * In premultiplied space the operator is also simply cheaper: no divide, and no guard for
+ * the fully-transparent case.
  */
 vec4 over(vec4 under, vec4 top) {
-    float a = top.a + under.a * (1.0 - top.a);
-    if (a <= 0.0) return vec4(0.0);
-    vec3 rgb = (top.rgb * top.a + under.rgb * under.a * (1.0 - top.a)) / a;
-    return vec4(rgb, a);
+    return vec4(top.rgb + under.rgb * (1.0 - top.a),
+                top.a   + under.a   * (1.0 - top.a));
+}
+
+/** "Nothing stored here", as a checker - distinct from any colour a raster can hold. */
+vec3 emptyChecker() {
+    vec2 c = floor(vUV * 16.0);
+    float m = mod(c.x + c.y, 2.0);
+    return mix(vec3(0.13, 0.13, 0.16), vec3(0.18, 0.18, 0.22), m);
+}
+
+/**
+ * Draw one raster as what it actually stores.
+ *
+ * Every layer is premultiplied, so compositing over the checker is an add, and a texel with
+ * no coverage leaves the checker showing through untouched.
+ */
+vec3 inspect(vec4 hc, vec4 lc, vec4 wc) {
+    vec3 bg = emptyChecker();
+
+    if (uInspect < 1.5) {
+        // Everything at once, colour last because that is usually what is being hunted.
+        vec3 col = mix(bg, vec3(0.30 + hc.a * 0.55), hc.a);
+        col = wc.rgb + col * (1.0 - wc.a);
+        return lc.rgb + col * (1.0 - lc.a);
+    }
+    // Height has no colour of its own; show its value as a ramp so a coastline is readable.
+    if (uInspect < 2.5) return mix(bg, vec3(0.15 + hc.a * 0.85), hc.a);
+    if (uInspect < 3.5) return lc.rgb + bg * (1.0 - lc.a);
+    return wc.rgb + bg * (1.0 - wc.a);
 }
 
 /**
@@ -193,14 +238,22 @@ void main() {
     vec4 wc = over(over(texture(uWaterLow, uvLow), texture(uWaterMed, uvMed)),
                    texture(uWaterHigh, uvHigh));
 
+    if (uInspect > 0.5) {
+        finalColor = vec4(inspect(hc, lc, wc), 1.0);
+        return;
+    }
+
     float h = hc.a;
 
     // Colour is baked when terrain is drawn, so these fallbacks are constants rather than
     // adjustable "theme" colours: changing a global default would retroactively repaint
     // ground the user already coloured deliberately. Land falls back to parchment — a
     // freshly drawn landmass is blank paper to be coloured, not a preset green.
-    vec3 land  = mix(uLandDefault,  lc.rgb, lc.a);
-    vec3 water = mix(uWaterDefault, wc.rgb, wc.a);
+    // Premultiplied source, so the composite over the base colour is an add, not a mix:
+    // lc.rgb already carries colour x coverage. mix() here treated it as a straight colour
+    // and dimmed the result everywhere coverage was partial.
+    vec3 land  = uLandDefault  * (1.0 - lc.a) + lc.rgb;
+    vec3 water = uWaterDefault * (1.0 - wc.a) + wc.rgb;
 
     vec2 worldPos = uChunkOrigin + vUV * uTileSpan;
 
@@ -257,11 +310,16 @@ export function defaultCoast(): CoastSettings {
 /**
  * Ceiling on terrain meshes at any tier.
  *
- * With tiers this is a safety net rather than a working limit: the tier is chosen so a
- * screenful is always roughly the same number of chunks, whatever the zoom. Previously this
- * was the thing that cut the map off at the edges, because chunk count grew as zoom⁻².
+ * With an automatic tier this is a safety net: the tier is chosen so a screenful is always
+ * roughly the same number of chunks, whatever the zoom.
+ *
+ * With a *pinned* tier it is the working limit, and it has to stay under the chunk manager's
+ * `MAX_RESIDENT_CELLS`. A pin is now honoured at any zoom — showing fewer chunks of the tier
+ * you asked for beats silently showing a different tier — so nothing else bounds how many
+ * cells a zoomed-out pin would ask for. Above the residency budget every cell is marked
+ * visible in the same frame, so none is evictable, and VRAM climbs until the context is lost.
  */
-const MAX_TERRAIN_CELLS = 160;
+export const MAX_TERRAIN_CELLS = 100;
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
 let sharedProgram: GlProgram | null = null;
@@ -365,6 +423,8 @@ export class TerrainView {
   private edge = 0.08;
   /** Draw only the viewing tier, not the composite. See `setIsolate`. */
   private isolate = false;
+  /** Inspector raster: 0 map, 1 all, 2 height, 3 land colour, 4 water colour. */
+  private inspect = 0;
 
   /** Coastline character. Defaults are a starting point; the Karte tab tunes them. */
   private coast: CoastSettings = defaultCoast();
@@ -441,6 +501,18 @@ export class TerrainView {
     return this.isolate;
   }
 
+  /**
+   * Choose what the inspector draws, or 0 to render the map normally.
+   *
+   * A plain uniform, so this costs a frame rather than a rebuild of every cell — unlike
+   * `setIsolate`, which changes which textures a cell is bound to.
+   */
+  setInspect(mode: number): void {
+    if (this.inspect === mode) return;
+    this.inspect = mode;
+    this.refreshUniforms();
+  }
+
   setCoast(coast: Partial<CoastSettings>): void {
     this.coast = { ...this.coast, ...coast };
     this.refreshUniforms();
@@ -455,6 +527,7 @@ export class TerrainView {
       const u = cell.uniforms.uniforms;
       u['uLandDefault'] = this.landDefault;
       u['uWaterDefault'] = this.waterDefault;
+      u['uInspect'] = this.inspect;
       u['uEdge'] = this.edge;
       u['uPaperOpacity'] = this.paperOpacity;
       u['uPaperScale'] = this.paperScale;
@@ -518,6 +591,7 @@ export class TerrainView {
       uShoreLight: { value: this.coast.shoreLight, type: 'f32' },
       uShadowWidth: { value: this.coast.shadowWidth, type: 'f32' },
       uShadowStrength: { value: this.coast.shadowStrength, type: 'f32' },
+      uInspect: { value: this.inspect, type: 'f32' },
     };
 
     const resources: Record<string, unknown> = {
@@ -623,14 +697,34 @@ export class TerrainView {
   update(view: Bounds, tier: DetailTier = 'high', zoom = 1): void {
     const span = TIER_WORLD_SIZE[tier];
     const lead = span * 0.5;
-    const minCx = Math.floor((view.minX - lead) / span);
-    const maxCx = Math.floor((view.maxX + lead) / span);
-    const minCy = Math.floor((view.minY - lead) / span);
-    const maxCy = Math.floor((view.maxY + lead) / span);
+    const cap = MAX_TERRAIN_CELLS;
+
+    let minCx = Math.floor((view.minX - lead) / span);
+    let maxCx = Math.floor((view.maxX + lead) / span);
+    let minCy = Math.floor((view.minY - lead) / span);
+    let maxCy = Math.floor((view.maxY + lead) / span);
+
+    /*
+     * Clamp the *range* before enumerating it, not just the list afterwards.
+     *
+     * A pinned tier is honoured at any zoom, so `high` pinned while zoomed out to the whole
+     * world spans millions of cell positions. Listing them all to sort and then keep a hundred
+     * would allocate and sort that whole array every frame — the enumeration itself becomes
+     * the stall. Only a window around the view centre can survive the cap anyway, so that is
+     * all that is walked.
+     */
+    if ((maxCx - minCx + 1) * (maxCy - minCy + 1) > cap) {
+      const half = Math.ceil(Math.sqrt(cap));
+      const midCx = Math.floor((view.minX + view.maxX) / 2 / span);
+      const midCy = Math.floor((view.minY + view.maxY) / 2 / span);
+      minCx = Math.max(minCx, midCx - half);
+      maxCx = Math.min(maxCx, midCx + half);
+      minCy = Math.max(minCy, midCy - half);
+      maxCy = Math.min(maxCy, midCy + half);
+    }
 
     const spanX = maxCx - minCx + 1;
     const spanY = maxCy - minCy + 1;
-    const cap = MAX_TERRAIN_CELLS;
 
     let wanted: { cx: number; cy: number }[] = [];
     for (let cy = minCy; cy <= maxCy; cy++) {

@@ -34,12 +34,10 @@ import {
   LAYER_TEXELS,
   RASTER_LAYERS,
   RasterLayer,
-  TARGET_CHUNKS_ON_SCREEN,
   TIERS,
   TIER_WORLD_SIZE,
   chooseTier,
   chunkKey,
-  chunksOnScreen,
   coarserTiers,
 } from './map-editor.model';
 import { Bounds } from './map-camera';
@@ -92,7 +90,7 @@ export interface StampPass {
  */
 const BYTES_PER_CELL_MB = 3;
 /** Cells kept on the GPU per tier (~370 MB each). Must exceed what a working view streams. */
-const MAX_RESIDENT_CELLS = 124;
+export const MAX_RESIDENT_CELLS = 124;
 
 /** Safety valve only — the tier choice already bounds the count per tier. */
 const MAX_STREAM_CELLS = 100;
@@ -156,67 +154,24 @@ export class ChunkManager {
    * close enough to see what you are aligning against is impossible otherwise, and it is
    * exactly the job that sends people looking for a per-tier eraser.
    */
-  private pin: DetailTier | null = null;
-  /** Set when the pin changes, so a fresh choice is judged against the full budget. */
-  private pinFresh = false;
-
-  get tierPin(): DetailTier | null {
-    return this.pin;
-  }
-
-  set tierPin(tier: DetailTier | null) {
-    if (this.pin === tier) return;
-    this.pin = tier;
-    this.pinFresh = true;
-  }
+  tierPin: DetailTier | null = null;
 
   /**
-   * Whether the pin is currently being ignored because the view cannot afford it.
+   * The tier to stream and draw: the pin if there is one, otherwise the zoom's choice.
    *
-   * Read by the UI: silently falling back would leave the panel claiming to edit `high`
-   * while strokes actually land on `low`, which is worse than not offering the pin at all.
-   */
-  get tierPinBlocked(): boolean {
-    return this.pin !== null && this.tier !== this.pin;
-  }
-
-  /**
-   * The tier to stream and draw: the pin if it fits on screen, otherwise the zoom's choice.
+   * **A pin is obeyed at every zoom.** It used to be clamped against
+   * `TARGET_CHUNKS_ON_SCREEN` and silently fall back to the automatic tier, which made
+   * zooming out swap what you were looking at — pin `med`, zoom out, and `low` appeared
+   * instead. In a mode whose whole purpose is inspecting and cleaning up one tier, quietly
+   * substituting a different one is the worst thing it could do.
    *
-   * The pin is *clamped*, not obeyed. Pinning `high` and zooming out to the whole world asks
-   * for tens of thousands of 3 MB cells — the precise failure the tiers exist to prevent, and
-   * one that ends in a lost WebGL context rather than a slow frame. `TARGET_CHUNKS_ON_SCREEN`
-   * is the same budget the automatic chooser respects, so a pin can never buy more than
-   * zooming in would.
+   * The budget is still respected, just somewhere better: `TerrainView` draws at most
+   * `MAX_TERRAIN_CELLS` cells nearest the view centre, so a pin that cannot cover the screen
+   * shows *part* of its own tier rather than all of somebody else's. Anything not drawn reads
+   * as "no data" instead of as sea, so the difference is visible.
    */
   private resolveTier(view: Bounds): DetailTier {
-    const auto = this.tierFor(view);
-    const pin = this.pin;
-    if (!pin) return auto;
-
-    const w = view.maxX - view.minX;
-    const h = view.maxY - view.minY;
-    const cost = chunksOnScreen(w, h, pin);
-
-    /*
-     * Hysteresis, exactly as `chooseTier` has it, and for a sharper reason.
-     *
-     * A bare threshold makes the pin chatter: a zoom sitting near the budget flips it on and
-     * off with every wheel notch. That is bad enough for the automatic chooser, which merely
-     * rebuilds cells — but a pinned tier decides what is *drawn in isolation* and what a
-     * stroke *writes*, so chattering swaps the visible content between two tiers as you
-     * scroll, and it looks exactly like terrain appearing and disappearing on its own.
-     *
-     * So: give the pin up as soon as it no longer fits, and take it back only once it fits
-     * with room to spare. A pin the user has just chosen is judged against the full budget,
-     * or clicking a tier that only just fits would appear to do nothing.
-     */
-    const holding = this.tier === pin;
-    const budget =
-      holding || this.pinFresh ? TARGET_CHUNKS_ON_SCREEN : TARGET_CHUNKS_ON_SCREEN * 0.6;
-    this.pinFresh = false;
-
-    return cost > budget ? auto : pin;
+    return this.tierPin ?? this.tierFor(view);
   }
 
   private create(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): ChunkRecord {
@@ -993,6 +948,134 @@ export class ChunkManager {
    * Rendering through a fresh RenderTexture is the only way to be sure the pixels are
    * genuinely detached from the chunk they came from.
    */
+  /**
+   * Sample many world positions of one layer at once.
+   *
+   * `sampleWorld` is a GPU readback, and its own contract says it must stay on discrete
+   * actions. The live tint preview broke that: it called it once per symbol under the brush,
+   * every 90 ms, and each call can read back at up to three tiers — so a brush passing over a
+   * forest issued hundreds of pipeline stalls a second, which is the lag felt when painting
+   * over symbols.
+   *
+   * The cost is per *readback*, not per pixel, so grouping the points by the chunk they land
+   * in and reading each chunk's covering rectangle once turns those hundreds of stalls into
+   * one or two. Points are resolved finest-tier-first exactly as `sampleWorld` does, with
+   * whatever is still unresolved falling through to the next tier.
+   *
+   * Returns one entry per input point, `null` where nothing has been painted.
+   */
+  sampleWorldMany(
+    layer: RasterLayer,
+    points: { x: number; y: number }[],
+  ): ({ r: number; g: number; b: number } | null)[] {
+    const out: ({ r: number; g: number; b: number } | null)[] = new Array(points.length).fill(
+      null,
+    );
+    let pending = points.map((p, index) => ({ x: p.x, y: p.y, index }));
+
+    for (const tier of TIERS) {
+      if (pending.length === 0) break;
+
+      const span = TIER_WORLD_SIZE[tier];
+      const texels = this.texelsFor(layer);
+      const scale = texels / span;
+
+      // Group by chunk: one readback serves every point that lands in the same one.
+      const groups = new Map<string, { cx: number; cy: number; items: typeof pending }>();
+      for (const p of pending) {
+        const cx = Math.floor(p.x / span);
+        const cy = Math.floor(p.y / span);
+        const key = `${cx}/${cy}`;
+        const group = groups.get(key);
+        if (group) group.items.push(p);
+        else groups.set(key, { cx, cy, items: [p] });
+      }
+
+      const unresolved: typeof pending = [];
+
+      for (const group of groups.values()) {
+        const rec = this.chunks.get(this.recKey(layer, tier, group.cx, group.cy));
+        if (!rec || !rec.loaded || !this.isUsable(rec)) {
+          unresolved.push(...group.items);
+          continue;
+        }
+
+        // Texel coordinates, and the rectangle that covers all of them.
+        const local = group.items.map(p => ({
+          item: p,
+          tx: Math.floor((p.x - group.cx * span) * scale),
+          ty: Math.floor((p.y - group.cy * span) * scale),
+        }));
+        const inside = local.filter(
+          l => l.tx >= 0 && l.ty >= 0 && l.tx < texels && l.ty < texels,
+        );
+        if (inside.length === 0) {
+          unresolved.push(...group.items);
+          continue;
+        }
+
+        const minX = Math.min(...inside.map(l => l.tx));
+        const minY = Math.min(...inside.map(l => l.ty));
+        const width = Math.max(...inside.map(l => l.tx)) - minX + 1;
+        const height = Math.max(...inside.map(l => l.ty)) - minY + 1;
+
+        let pixels: Uint8ClampedArray | Uint8Array | null = null;
+        let readWidth = 0;
+        let originX = minX;
+        let originY = minY;
+        try {
+          const read = this.renderer.extract.pixels({
+            target: rec.texture,
+            frame: new Rectangle(minX, minY, width, height),
+          });
+          pixels = read?.pixels ?? null;
+          readWidth = read?.width ?? 0;
+        } catch (err) {
+          console.error('[ChunkManager] sampleWorldMany failed', err);
+        }
+
+        if (!pixels || readWidth === 0) {
+          unresolved.push(...group.items);
+          continue;
+        }
+
+        /*
+         * The frame is not always honoured — the same caveat `sampleTier` documents. When it
+         * is ignored we get the whole chunk back, and the requested rectangle's origin must
+         * not then be subtracted or every lookup lands in the wrong place.
+         */
+        if (readWidth !== width) {
+          originX = 0;
+          originY = 0;
+        }
+
+        for (const l of local) {
+          const px = l.tx - originX;
+          const py = l.ty - originY;
+          if (px < 0 || py < 0 || px >= readWidth) {
+            unresolved.push(l.item);
+            continue;
+          }
+          const i = (py * readWidth + px) * 4;
+          if (i + 3 >= pixels.length) {
+            unresolved.push(l.item);
+            continue;
+          }
+          // Alpha is coverage; nothing painted here is not a colour.
+          if (pixels[i + 3] < 8) {
+            unresolved.push(l.item);
+            continue;
+          }
+          out[l.item.index] = { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] };
+        }
+      }
+
+      pending = unresolved;
+    }
+
+    return out;
+  }
+
   snapshot(rec: ChunkRecord): Texture | null {
     if (!this.isUsable(rec)) return null;
 

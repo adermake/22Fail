@@ -19,6 +19,9 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+
+/** Which of a tier's three rasters the isolate inspector draws. */
+type InspectLayer = 'all' | 'height' | 'landColor' | 'waterColor';
 import { ActivatedRoute } from '@angular/router';
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { Subscription } from 'rxjs';
@@ -285,8 +288,52 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly tierPin = signal<DetailTier | null>(null);
   /** Draw only the pinned tier instead of the coarse-under-fine composite. */
   readonly tierIsolate = signal(false);
-  /** True while the pin cannot be honoured at this zoom — the UI must say so. */
-  readonly tierPinBlocked = signal(false);
+
+  /**
+   * Which raster the inspector draws while isolating.
+   *
+   * There are nine independent grids — three rasters across three tiers — and the map view
+   * shows their *combination*, with land colour gated behind the height field. That gating is
+   * what made a tier full of colour but empty of height render as open sea, so content that
+   * was plainly visible unlocked could not be found by isolating any tier. Picking one raster
+   * removes the ambiguity: what is drawn is that grid, and nothing else.
+   *
+   * Defaults to land colour, which is what is usually being hunted.
+   */
+  readonly inspectLayer = signal<InspectLayer>('landColor');
+
+  readonly inspectLayers: { id: InspectLayer; label: string }[] = [
+    { id: 'all', label: 'Alles' },
+    { id: 'height', label: 'Höhe' },
+    { id: 'landColor', label: 'Landfarbe' },
+    { id: 'waterColor', label: 'Wasserfarbe' },
+  ];
+
+  setInspectLayer(id: InspectLayer): void {
+    this.inspectLayer.set(id);
+    this.applyInspect();
+  }
+
+  /**
+   * Push the inspector state onto the renderer.
+   *
+   * The backdrop stops being sea while inspecting. Ground nothing was drawn on and ground
+   * that simply is not loaded are both blue in the map view — fine there, useless here, since
+   * open water is legitimate content and telling it apart from a chunk that never arrived is
+   * the whole point of the mode. Inspecting paints the backdrop near-black, so anything not
+   * drawn is obviously absent, while a loaded-but-empty cell shows the shader's checker.
+   */
+  private applyInspect(): void {
+    const isolating = this.tierIsolate();
+    const mode = isolating
+      ? { all: 1, height: 2, landColor: 3, waterColor: 4 }[this.inspectLayer()]
+      : 0;
+    this.terrain?.setInspect(mode);
+    this.renderer.setOceanColor(
+      isolating ? [0.05, 0.05, 0.07] : hexToRgb(this.waterBase(), [0.25, 0.43, 0.55]),
+    );
+    this.scheduleStream();
+  }
 
   readonly tierOptions: { id: DetailTier | null; label: string }[] = [
     { id: null, label: 'Auto' },
@@ -304,11 +351,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * the rule to change.
    */
   readonly onlyTier = computed(() => this.tierPin() !== null && this.tierIsolate());
-
-  /** Label of the pinned tier, for the warning that names which one is not applying. */
-  readonly tierPinLabel = computed(
-    () => this.tierOptions.find(o => o.id === this.tierPin())?.label ?? '',
-  );
 
   setTierPin(tier: DetailTier | null): void {
     this.tierPin.set(tier);
@@ -331,7 +373,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
      * as a tier that legitimately stores nothing there.
      */
     this.renderer.objectLayer.visible = !on;
-    this.scheduleStream();
+    this.applyInspect();
   }
 
   // ── diagnostics ──
@@ -1089,10 +1131,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       const tier = this.chunks?.detailTier ?? 'high';
       if (tier !== this.detailTier()) this.detailTier.set(tier);
 
-      // The pin is clamped to what the view can afford, so it can silently not apply. Saying
-      // so matters: otherwise the panel claims one working tier while strokes land on another.
-      const blocked = this.chunks?.tierPinBlocked ?? false;
-      if (blocked !== this.tierPinBlocked()) this.tierPinBlocked.set(blocked);
       // The tier is whatever the streamer settled on, so the two never disagree about what
       // is loaded, and the view's shorter lead stays inside the streamer's.
       this.terrain?.update(view, tier, zoom);
@@ -1804,17 +1842,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private beginPaint(world: { x: number; y: number }): void {
-    /*
-     * Refuse to paint while a pinned tier is not being honoured.
-     *
-     * The tier decides what a stroke *writes*. If the pin has been clamped away because the
-     * view cannot afford it, the panel still shows the tier you chose while the stroke would
-     * land on a coarser one — silently putting work somewhere you did not ask for, on a map
-     * where content in the wrong tier is exactly the thing that is hard to undo. Zooming in
-     * lifts the block, and the status bar says so.
-     */
-    if (this.tierPinBlocked()) return;
-
     this.isPainting = true;
     this.strokeBounds = null;
     /*
@@ -1904,16 +1931,22 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       maxY: world.y + b,
     });
 
+    // One batched readback for the whole brush, not one per symbol. Sampling individually
+    // meant a GPU stall per symbol per tick, which is what made painting over a forest crawl.
+    const colorable = near.filter(sym => this.assets.meta(sym.asset)?.colorable);
+    if (colorable.length === 0) return;
+
+    const ground = this.chunks.sampleWorldMany('landColor', colorable);
+
     let touched = false;
-    for (const sym of near) {
-      if (!this.assets.meta(sym.asset)?.colorable) continue;
-      const ground = this.chunks.sampleWorld('landColor', sym.x, sym.y);
-      const tint = ground ? rgbToHex(ground.r, ground.g, ground.b) : undefined;
-      if (tint === sym.tint) continue;
+    colorable.forEach((sym, i) => {
+      const hit = ground[i];
+      const tint = hit ? rgbToHex(hit.r, hit.g, hit.b) : undefined;
+      if (tint === sym.tint) return;
       sym.tint = tint;
-      this.symbols.update(sym);
+      this.symbols?.update(sym);
       touched = true;
-    }
+    });
     if (touched) this.scheduleStream();
   }
 
@@ -1954,15 +1987,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     const changed: { id: string; tint: string }[] = [];
 
-    for (const sym of this.symbols.index.query(bounds)) {
-      const meta = this.assets.meta(sym.asset);
-      if (!meta?.colorable) continue;
+    // Batched for the same reason as the live preview: a wide stroke can pass over hundreds
+    // of symbols, and one readback each would stall the frame that ends the stroke.
+    const colorable = this.symbols.index
+      .query(bounds)
+      .filter(sym => this.assets.meta(sym.asset)?.colorable);
+    const ground = this.chunks.sampleWorldMany('landColor', colorable);
 
-      const ground = this.chunks.sampleWorld('landColor', sym.x, sym.y);
-      const tint = ground ? rgbToHex(ground.r, ground.g, ground.b) : undefined;
-      if (tint === sym.tint) continue;
+    colorable.forEach((sym, i) => {
+      const hit = ground[i];
+      const tint = hit ? rgbToHex(hit.r, hit.g, hit.b) : undefined;
+      if (tint === sym.tint) return;
       changed.push({ id: sym.id, tint: tint ?? '' });
-    }
+    });
 
     if (changed.length === 0) return;
 
@@ -2568,8 +2605,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.store.setPath('settings.waterBase', color);
     const rgb = hexToRgb(color, [0.25, 0.43, 0.55]);
     this.terrain?.setWaterDefault(rgb);
-    // The backdrop is the same water, so it has to follow or the seam becomes visible.
-    this.renderer.setOceanColor(rgb);
+    // The backdrop is the same water, so it has to follow or the seam becomes visible —
+    // unless the inspector has claimed it, in which case it stays "no data" black.
+    if (!this.tierIsolate()) this.renderer.setOceanColor(rgb);
   }
 
   setLandBase(color: string): void {

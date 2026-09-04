@@ -765,10 +765,4 @@
   color: #8fd0ff;
 }
 
-/* Eine geklemmte Arbeitsstufe ist kein Schönheitsfehler: die Anzeige nennt dann eine andere
-   Stufe als die, auf der ein Strich landen würde — deshalb sperrt sie das Malen und muss
-   entsprechend auffallen. */
-.tier-warn.blocked {
-  color: #ff8f8f;
-  font-weight: 600;
-}
+

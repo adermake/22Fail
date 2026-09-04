@@ -209,18 +209,25 @@
             </label>
           }
 
-          @if (tierPinBlocked()) {
-            <!-- Laut, nicht beiläufig: solange das greift, wird nicht gemalt, und die
-                 angezeigte Stufe ist nicht die, auf der ein Strich landen würde. -->
-            <span
-              class="tier-warn blocked"
-              title="Zu weit herausgezoomt für Stufe {{ tierPinLabel() }} — es wären zu viele
-                Kacheln auf einmal. Näher heranzoomen; bis dahin ist das Malen gesperrt."
-              >Stufe {{ tierPinLabel() }} greift nicht — Malen gesperrt, näher heranzoomen</span
+          @if (tierIsolate()) {
+            <!-- Welches der drei Raster dieser Stufe gezeigt wird. Die Kartenansicht blendet
+                 Farbe hinter der Höhe aus; hier wird jedes Raster als das gezeigt, was es
+                 speichert. -->
+            <span class="tier-pick" title="Welches Raster dieser Stufe angezeigt wird">
+              @for (l of inspectLayers; track l.id) {
+                <button
+                  type="button"
+                  [class.active]="inspectLayer() === l.id"
+                  (click)="setInspectLayer(l.id)"
+                >
+                  {{ l.label }}
+                </button>
+              }
+            </span>
+            <span class="tier-warn isolating"
+              >Einzelstufe — rohe Daten, nicht die Karte. Schachbrett = leer, Schwarz = nicht
+              geladen.</span
             >
-          }
-          @if (tierIsolate() && !tierPinBlocked()) {
-            <span class="tier-warn isolating">Einzelstufe — nicht die echte Karte</span>
           }
         }
         <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>

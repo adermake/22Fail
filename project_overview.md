@@ -742,6 +742,30 @@ Switch-Implementierungen) kostet mehr Komplexität, als er einbringt.
 die Chunks schon (`objects/<cx>_<cy>.json`) — Speichern fasst eine Zelle an, Beitreten streamt
 nur nahe Zellen. Bis ~100k Symbolen nicht erforderlich.
 
+## Karteneditor v2 — Vormultipliziertes Alpha & Symbol-Tints
+
+**Die Chunk-Texturen sind vormultipliziert.** Pixi rendert in eine RenderTexture mit
+`normal = [ONE, ONE_MINUS_SRC_ALPHA]` (und `erase = [ZERO, ONE_MINUS_SRC_ALPHA]`) — das ist der
+vormultiplizierte Operator, gespeichertes RGB ist also bereits Farbe x Deckung.
+
+Der Shader nahm das Gegenteil an und wog RGB ein **zweites** Mal mit Alpha:
+- `over()` rechnete `top.rgb * top.a`,
+- die Grundfarbe kam über `mix(uLandDefault, lc.rgb, lc.a)`.
+
+Ergebnis: alles mit Teildeckung wurde zu dunkel, um `paint·a·(1−a)` — also genau der weiche
+Rand jedes Pinselstrichs, der als **dunkler Streifen statt als Verlauf** erschien, bei Land wie
+bei Wasser. Richtig ist vormultipliziert durchzurechnen: `over()` ohne Division, und die
+Grundfarbe als `uLandDefault * (1 − lc.a) + lc.rgb`. Algebra festgehalten in
+`terrain-composite.spec.ts` (GLSL selbst ist nicht testbar).
+
+**Symbol-Tints werden gebündelt gelesen** (`ChunkManager.sampleWorldMany`). `sampleWorld` ist ein
+GPU-Readback und laut eigenem Kommentar nur für Einzelaktionen gedacht — die Live-Vorschau rief
+es aber alle 90 ms *pro Symbol* auf, mit bis zu drei Stufen je Aufruf. Ein Pinsel über einem Wald
+löste damit hunderte Pipeline-Stalls pro Sekunde aus; das ist das Ruckeln beim Malen über
+Symbolen. Kosten entstehen pro Readback, nicht pro Pixel, also werden die Punkte nach Chunk
+gruppiert und je Chunk einmal das umschließende Rechteck gelesen — aus hunderten Stalls werden
+ein bis zwei. Gilt für die Live-Vorschau und für `resampleSymbolTints` am Strichende.
+
 ## Karteneditor v2 — Grundfarben & Detailstufen von Hand
 
 **Grundfarben** (Reiter *Karte*): `settings.waterBase` und `settings.landBase` (Pergament
@@ -759,20 +783,19 @@ dran ist, um etwas zu erkennen“ war unmöglich.
 - `ChunkManager.tierPin` wird **geklemmt**, nicht befolgt: übersteigt die Stufe
   `TARGET_CHUNKS_ON_SCREEN`, greift wieder die Automatik. Ein Pin kann nie mehr Kacheln kosten
   als die automatische Wahl (`tier-pin.spec.ts`).
-- **Mit Hysterese**, wie `chooseTier` selbst. Eine reine Schwelle ließ den Pin dicht an der
-  Grenze bei jeder Mausrad-Raste umkippen — beim automatischen Wähler nur Neuaufbauten, beim
-  Pin aber ein Wechsel dessen, *was isoliert gezeichnet* und *worauf gemalt* wird: das Bild
-  sprang zwischen zwei Stufen und sah aus wie Terrain, das von selbst kommt und geht. Aufgeben
-  sobald es nicht mehr passt, zurücknehmen erst mit Reserve (×0,6); eine gerade *neu gewählte*
-  Stufe wird am vollen Budget gemessen, sonst täte der Klick scheinbar nichts.
-- Solange der Pin geklemmt ist, **wird nicht gemalt** (`beginPaint` bricht ab). Die Anzeige
-  nennt sonst eine andere Stufe als die, auf der ein Strich landen würde — und Inhalt auf der
-  falschen Stufe ist genau das, was sich hier so schlecht rückgängig machen lässt.
-- **„Nur diese Stufe“** (`TerrainView.setIsolate`): `sampled` wird `[tier]` statt
-  `[tier, ...coarserTiers]`. Zeigt, was wirklich gespeichert ist — eine leere Stufe liest sich
-  als offenes Meer, auch wo die Karte sichtbar Land hat. `hasContentUnder(..., onlyTier)` zieht
-  mit, sonst würden Zellen anhand fremder Stufen gebaut. Deutliches Badge, denn die Ansicht ist
-  bewusst nicht die echte Karte.
+- **Der Pin gilt auf jeder Zoomstufe.** Vorher wurde er gegen das Kachelbudget geklemmt und
+  fiel still auf die Automatik zurück: „Mittel festnageln, herauszoomen" zeigte plötzlich Grob,
+  „Hoch" zeigte Mittel bis man nah genug dran war. In einem Modus, der zum Aufräumen *einer*
+  Stufe da ist, ist das stille Ersetzen durch eine andere das Schlimmste, was passieren kann.
+- Das Budget ist nicht weg, es sitzt woanders: `TerrainView` zeichnet höchstens
+  `MAX_TERRAIN_CELLS` Zellen um die Bildmitte. Ein Pin, der den Schirm nicht füllen kann, zeigt
+  also *einen Teil seiner eigenen* Stufe statt alles einer fremden. Zwei Bedingungen dafür
+  (`tier-pin.spec.ts`):
+  - `MAX_TERRAIN_CELLS` (100) muss **unter** `MAX_RESIDENT_CELLS` (124) liegen — sonst ist im
+    selben Frame jede Zelle sichtbar, also keine verdrängbar, und der VRAM läuft voll.
+  - Der Kachel*bereich* wird vor dem Aufzählen geklemmt, nicht erst die Liste danach: „Hoch
+    festnageln und ganz herauszoomen" umfasst Millionen Positionen, deren bloßes Auflisten und
+    Sortieren pro Frame schon der Stall wäre.
 - Beim Isolieren schreiben Pinsel **nur diese Stufe** (`paintWorld(..., onlyTier)`), inklusive
   Radierer. Bewusst an die Isolierung gekoppelt und nicht an den Pin: der Pin ist auch nur eine
   Art hinzusehen, und still das Verhalten jedes Pinsels zu ändern wäre eine Falle. Wird zusammen
