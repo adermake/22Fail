@@ -146,7 +146,7 @@ export class MapEditorApiService {
     layer: RasterLayer,
     tier: DetailTier,
     rect: { minCx: number; minCy: number; maxCx: number; maxCy: number },
-  ): Promise<[number, number][]> {
+  ): Promise<[number, number][] | null> {
     const query =
       `minCx=${rect.minCx}&minCy=${rect.minCy}` + `&maxCx=${rect.maxCx}&maxCy=${rect.maxCy}`;
     try {
@@ -154,12 +154,27 @@ export class MapEditorApiService {
         method: 'DELETE',
         headers: identityHeaders(),
       });
-      if (!res.ok) return [];
+      /*
+       * `null` for refused or failed, `[]` for "succeeded, nothing was stored there".
+       *
+       * Collapsing those two into an empty array made a clear that did nothing at all look
+       * exactly like one that had nothing to do — so a deletion could silently not happen,
+       * the files stayed on disk, and the next time the server rescanned the directory the
+       * content came back. A failure has to be loud.
+       */
+      if (!res.ok) {
+        console.error('[MapEditorAPI] Chunk clear rejected:', res.status);
+        return null;
+      }
       const json = (await res.json()) as { success: boolean; cells?: [number, number][] };
-      return json.success ? (json.cells ?? []) : [];
+      if (!json.success) {
+        console.error('[MapEditorAPI] Chunk clear refused by the server (GM only).');
+        return null;
+      }
+      return json.cells ?? [];
     } catch (err) {
       console.error('[MapEditorAPI] Chunk clear failed:', err);
-      return [];
+      return null;
     }
   }
 }

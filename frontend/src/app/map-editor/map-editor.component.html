@@ -1019,6 +1019,58 @@
             }
           </div>
 
+          <!-- Aufräumen quer über die ganze Karte. Import und Pinsel erreichen immer nur
+               ihren eigenen Bereich bzw. ihre eigene Stufe; Inhalt, der in einer *anderen*
+               Stufe hängt, überschreibt jede gröbere und ist sonst nicht wegzubekommen. -->
+          <div class="panel-section">
+            <div class="panel-title">Wartung: Stufe leeren</div>
+
+            <div class="profile-row">
+              @for (l of maintLayers; track l.id) {
+                <button
+                  type="button"
+                  class="profile-btn"
+                  [class.active]="maintLayer() === l.id"
+                  [disabled]="maintBusy()"
+                  (click)="setMaintLayer(l.id)"
+                >
+                  {{ l.label }}
+                </button>
+              }
+            </div>
+
+            <div class="profile-row">
+              @for (t of importTierOptions(); track t.id) {
+                <button
+                  type="button"
+                  class="profile-btn"
+                  [class.active]="maintTier() === t.id"
+                  [disabled]="maintBusy()"
+                  (click)="setMaintTier(t.id)"
+                >
+                  {{ t.label }}
+                </button>
+              }
+            </div>
+
+            <div class="history-row">
+              <button type="button" [disabled]="maintBusy()" (click)="countMaintChunks()">
+                Zählen
+              </button>
+              <button type="button" [disabled]="maintBusy()" (click)="wipeMaintTier()">
+                Leeren
+              </button>
+            </div>
+
+            @if (maintCount() !== null) {
+              <p class="hint">{{ maintCount() }} Kacheln auf dieser Stufe.</p>
+            }
+            <p class="hint import-warn">
+              Löscht auf der <em>ganzen</em> Karte, nicht nur im sichtbaren Bereich. Nicht
+              rückgängig zu machen.
+            </p>
+          </div>
+
           <div class="panel-section">
             <div class="panel-title">Grundfarben</div>
             <label class="base-row" title="Farbe von offenem Wasser">

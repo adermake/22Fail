@@ -831,6 +831,42 @@ Symbolen. Kosten entstehen pro Readback, nicht pro Pixel, also werden die Punkte
 gruppiert und je Chunk einmal das umschließende Rechteck gelesen — aus hunderten Stalls werden
 ein bis zwei. Gilt für die Live-Vorschau und für `resampleSymbolTints` am Strichende.
 
+## Karteneditor v2 — Undo über Massenoperationen
+
+`UndoStack.clear()` wird vor jeder Operation gerufen, die Chunks **ohne** `onBeforePaint`
+umschreibt: Landmassen-Stempel, Bereich-Löschen, Stufe leeren.
+
+Diese Operationen sind bewusst nicht undo-fähig — das war aber nur die halbe Miete. Die
+Snapshots *früherer* Striche beschreiben dieselben Chunks und sind danach veraltet, und
+`ChunkManager.restore` blittet einen **ganzen 512²-Chunk mit `clear: true`**. Ein Strg+Z über
+einen Import hinweg verlor also nicht bloß einen Strich, sondern setzte einen kompletten Chunk
+Karte von *vor* dem Import zurück, markierte ihn dirty und lud ihn hoch.
+
+Das war die Ursache des wiederkehrenden „quadratischen Artefakts": chunkförmig (weil ein ganzer
+Chunk ersetzt wird), ohne neuen Stempel, Minuten später, mit Inhalt der „wie ein früherer
+Stempelversuch aussieht" — es *ist* der Zustand vor dem Stempel. Und immer dieselben Chunks:
+genau die, die vorher bemalt und damit erfasst worden waren.
+
+Snapshots gezielt zu entfernen wäre schlechter: ein Eintrag umfasst alle Chunks eines Strichs,
+und die übrigen wiederherzustellen baute den Strich aus zwei Epochen zusammen.
+Regressionstests: `undo-stack-staleness.spec.ts`.
+
+## Karteneditor v2 — Wartung: Stufe leeren (Reiter *Karte*)
+
+Löscht ein Raster einer Stufe auf der **ganzen** Karte (`DELETE …/chunks/:layer/:tier` über
+einen Bereich, der alles umfasst), mit „Zählen" davor.
+
+**Warum es das braucht.** Import und Pinsel erreichen prinzipiell nur ihren eigenen *Bereich*
+bzw. ihre eigene *Stufe*. Inhalt, der in einer anderen Stufe hängt, ist damit unerreichbar —
+und weil der Composite fein über grob liest, überschreibt er jede gröbere Stufe überall.
+Konkreter Fall: ein früherer Import schrieb seine Farbe nach `landColor/med` (damals ging
+Farbe auf dieselbe Stufe wie die Form). Ein neuer Import legt Farbe auf Grob und räumt nur sein
+eigenes Rechteck auf — die Mittel-Farbe bleibt und gewinnt weiter. Kein noch so häufiges
+Neu-Stempeln entfernt sie; es braucht ein kartenweites Werkzeug.
+
+Erkennungsmerkmal aus den Dateigrößen: `landColor/med` mit ~290 KB pro 512²-Chunk ist
+Bildmaterial (schlecht komprimierbar), Pinselarbeit liegt eine Größenordnung darunter.
+
 ## Karteneditor v2 — Grundfarben & Detailstufen von Hand
 
 **Grundfarben** (Reiter *Karte*): `settings.waterBase` und `settings.landBase` (Pergament

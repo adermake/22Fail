@@ -274,6 +274,27 @@ export class UndoStack {
     for (const s of snaps) s.texture.destroy(true);
   }
 
+  /**
+   * Throw the whole history away.
+   *
+   * Called by any operation that rewrites chunks *without* capturing them first — the landmass
+   * stamp, the region clear, the tier wipe. Those are deliberately not undoable, but that is
+   * only half the story: the snapshots taken by *earlier* strokes still describe the same
+   * chunks, and they are now stale.
+   *
+   * `ChunkManager.restore` blits a whole 512² chunk with `clear: true`, so undoing across one
+   * of these operations does not merely lose a stroke — it drops an entire chunk of
+   * pre-operation map back in, marks it dirty and uploads it. That is the chunk-shaped square
+   * of old terrain that kept reappearing long after the import, with no stamp involved and no
+   * obvious cause: the map was correct until somebody pressed Ctrl+Z.
+   *
+   * Dropping snapshots surgically would be worse. One entry spans every chunk a stroke
+   * touched, so restoring the survivors would rebuild a stroke from a mix of eras.
+   */
+  clear(): void {
+    this.destroy();
+  }
+
   destroy(): void {
     this.releaseEntries(this.undoEntries);
     this.releaseEntries(this.redoEntries);

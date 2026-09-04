@@ -50,6 +50,7 @@ import {
   DetailTier,
   MapSymbol,
   OBJECT_COLLECTIONS,
+  RasterLayer,
   TIERS,
   coarserTiers,
 } from './map-editor.model';
@@ -458,6 +459,93 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.selectedLabelIds().length === 1 ? this.selectedLabelIds()[0] : null,
   );
 
+  // ── maintenance: wipe one raster at one tier ──
+
+  /**
+   * Clearing a whole layer of a whole tier, across the entire map.
+   *
+   * The import can only ever clean up inside its own rectangle, and it writes colour to one
+   * tier. Neither reaches content stranded in *another* tier — an older import that wrote its
+   * colour at Mittel keeps overriding the Grob colour a newer one lays down, everywhere, and
+   * no amount of re-importing removes it. That is a map-wide problem and needs a map-wide
+   * tool.
+   *
+   * Deletes files rather than painting transparency, so it costs the same whatever the map
+   * size. Not undoable — hence the count shown first and the confirmation.
+   */
+  readonly maintLayers: { id: RasterLayer; label: string }[] = [
+    { id: 'height', label: 'Höhe' },
+    { id: 'landColor', label: 'Landfarbe' },
+    { id: 'waterColor', label: 'Wasserfarbe' },
+  ];
+
+  readonly maintLayer = signal<RasterLayer>('landColor');
+  readonly maintTier = signal<DetailTier>('med');
+  readonly maintCount = signal<number | null>(null);
+  readonly maintBusy = signal(false);
+
+  /** Chunk coordinates are integers; this is comfortably past any real map. */
+  private readonly WHOLE_MAP = { minCx: -1000000, minCy: -1000000, maxCx: 1000000, maxCy: 1000000 };
+
+  setMaintLayer(id: RasterLayer): void {
+    this.maintLayer.set(id);
+    this.maintCount.set(null);
+  }
+
+  setMaintTier(tier: DetailTier): void {
+    this.maintTier.set(tier);
+    this.maintCount.set(null);
+  }
+
+  /** How many chunks the wipe would remove — asked before offering to remove them. */
+  async countMaintChunks(): Promise<void> {
+    this.maintBusy.set(true);
+    try {
+      const cells = await this.api.listChunks(
+        this.worldName(),
+        this.maintLayer(),
+        this.maintTier(),
+        this.WHOLE_MAP,
+      );
+      this.maintCount.set(cells.length);
+    } finally {
+      this.maintBusy.set(false);
+    }
+  }
+
+  async wipeMaintTier(): Promise<void> {
+    const layer = this.maintLayer();
+    const tier = this.maintTier();
+    const label = this.maintLayers.find(l => l.id === layer)?.label ?? layer;
+    const tierLabel = ({ high: 'Hoch', med: 'Mittel', low: 'Grob' } as const)[tier];
+
+    const count = this.maintCount();
+    const ok = confirm(
+      `„${label}" auf Stufe „${tierLabel}" wird auf der GANZEN Karte gelöscht` +
+        (count === null ? '' : ` (${count} Kacheln)`) +
+        '. Das lässt sich nicht rückgängig machen. Fortfahren?',
+    );
+    if (!ok) return;
+
+    this.maintBusy.set(true);
+    // Same reason as the import: this rewrites chunks nothing captured, so any snapshot of
+    // them is stale and would restore a whole chunk of deleted map.
+    this.undoStack?.clear();
+    this.refreshHistoryState();
+    try {
+      const cells = await this.store.clearChunks(layer, tier, this.WHOLE_MAP);
+      if (cells === null) {
+        this.importError.set('Löschen abgelehnt — nur der GM darf das.');
+        return;
+      }
+      this.chunks?.dropChunks(layer, tier, cells);
+      this.maintCount.set(0);
+      this.scheduleStream();
+    } finally {
+      this.maintBusy.set(false);
+    }
+  }
+
   // ── landmass import ──
 
   /**
@@ -721,6 +809,18 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.importCancel = { cancelled: false };
     this.importProgress.set({ done: 0, total });
 
+    /*
+     * The history has to go, not just be skipped.
+     *
+     * The stamp rewrites chunks without capturing them, which makes it non-undoable — but
+     * every snapshot an *earlier* stroke took of those same chunks is now stale, and
+     * `restore` blits a whole chunk. Undoing across an import therefore dropped a
+     * chunk-shaped square of the pre-import map back in and uploaded it, minutes later, with
+     * nothing to connect it to the import.
+     */
+    this.undoStack?.clear();
+    this.refreshHistoryState();
+
     // Nodes are built once and reused for every chunk the stamp walks — see `StampPass`.
     const nodes: Container[] = [];
     try {
@@ -861,6 +961,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         if (inner) {
           for (const layer of ['height', 'landColor'] as const) {
             const cells = await this.store.clearChunks(layer, tier, inner);
+            if (cells === null) {
+              throw new Error(
+                `Chunks konnten nicht gelöscht werden (${layer}/${tier}) — Import abgebrochen, ` +
+                  'damit nichts halb Ersetztes zurückbleibt.',
+              );
+            }
             this.chunks?.dropChunks(layer, tier, cells);
           }
         }

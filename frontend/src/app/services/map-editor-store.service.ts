@@ -247,8 +247,11 @@ export class MapEditorStoreService {
     layer: RasterLayer,
     tier: DetailTier,
     rect: { minCx: number; minCy: number; maxCx: number; maxCy: number },
-  ): Promise<[number, number][]> {
+  ): Promise<[number, number][] | null> {
     const cells = await this.api.clearChunks(this.worldName, layer, tier, rect);
+    // null means the server refused or the request failed — never silently treat that as
+    // "there was nothing to delete", or the files survive and reappear on the next rescan.
+    if (cells === null) return null;
     if (!cells.length) return cells;
 
     // Our own upload records would otherwise keep suppressing refetches of ground that has
