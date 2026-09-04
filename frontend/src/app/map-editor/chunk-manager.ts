@@ -69,6 +69,19 @@ export interface ChunkRecord {
  * Passes for the same layer are applied in the order given, which is how "replace this
  * rectangle" gets expressed — an erasing rect, then the image over the hole it left.
  */
+/**
+ * A texel as stored: RGB premultiplied by `a`, every channel 0-255.
+ *
+ * Kept premultiplied on purpose - see `sampleWorldMany`. Resolve it against a background with
+ * `background * (1 - a / 255) + rgb`, which is what the shader does.
+ */
+export interface Sample {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
 export interface StampPass {
   layer: RasterLayer;
   /** World-coordinate content. Reused across every chunk, so it must not be mutated. */
@@ -864,165 +877,70 @@ export class ChunkManager {
   }
 
   /**
-   * Read a single texel of a layer at a world position.
+   * Sample many world positions of one layer at once, compositing the tiers.
    *
-   * Used to colour `sample_color` symbols from the ground actually beneath them, which is
-   * what Wonderdraft does — taking a global land colour instead would be visibly wrong
-   * wherever the map has been painted more than one shade.
+   * Two things this has to get right, both learned the hard way.
    *
-   * Takes the finest tier that is actually resident here, which is normally `high`. The
-   * fallback matters now that terrain can be *drawn* zoomed out: a continent painted at
-   * `low` has no `high` chunks at all, and without this every symbol placed on it would come
-   * back unpainted and fall through to white.
+   * **Batching.** `extract.pixels` is a GPU readback and therefore a pipeline stall, and the
+   * live tint preview once issued one per symbol under the brush, every 90 ms — a brush over
+   * a forest meant hundreds of stalls a second. The cost is per readback, not per pixel, so
+   * points are grouped by the chunk they land in and each chunk's covering rectangle is read
+   * exactly once.
    *
-   * This is a GPU readback and therefore a stall, so it must stay on discrete actions
-   * (placing or moving a symbol), never anything per-frame.
+   * **Premultiplied.** Pixi's `getPixels` has its `unpremultiplyAlpha` call compiled out, so
+   * what comes back is colour × coverage. Returned raw and used as a symbol tint, a texel at
+   * the feathered edge of a stroke — 3% coverage — produced 3% brightness, i.e. black symbols
+   * fringing every brush stroke. So the values here stay **premultiplied and carry their
+   * alpha**, and the caller resolves them against the base colour the same way the shader
+   * does. Unpremultiplying instead would divide an 8-bit value by 0.03 and amplify the
+   * quantisation into noise.
    *
-   * Returns null where nothing has been painted, so callers can fall back.
+   * Tiers are composited coarse-to-fine with the same `over` the shader uses, so a fine tier
+   * that only partly covers a coarse one reads as the blend actually on screen rather than as
+   * whichever tier happened to be checked first.
+   *
+   * Returns null for a point where no tier had a readable chunk — distinct from a point that
+   * was read and legitimately holds nothing, which comes back with `a === 0`.
    */
-  sampleWorld(layer: RasterLayer, x: number, y: number): { r: number; g: number; b: number } | null {
-    // Finest first, and an unpainted answer at one tier falls through to the next rather
-    // than ending the search: a `high` chunk over ground drawn only at `low` exists and is
-    // legitimately empty, and stopping there would report open sea over solid land.
-    for (const tier of TIERS) {
-      const hit = this.sampleTier(layer, tier, x, y);
-      if (hit) return hit;
-    }
-    return null;
-  }
+  sampleWorldMany(layer: RasterLayer, points: { x: number; y: number }[]): (Sample | null)[] {
+    const acc = points.map(() => ({ r: 0, g: 0, b: 0, a: 0, read: false }));
 
-  private sampleTier(
-    layer: RasterLayer,
-    tier: DetailTier,
-    x: number,
-    y: number,
-  ): { r: number; g: number; b: number } | null {
-    const span = TIER_WORLD_SIZE[tier];
-    const cx = Math.floor(x / span);
-    const cy = Math.floor(y / span);
-    const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
-    if (!rec || !rec.loaded || !this.isUsable(rec)) return null;
-
-    const texels = LAYER_TEXELS[layer];
-    const s = texels / span;
-    const tx = Math.floor((x - cx * span) * s);
-    const ty = Math.floor((y - cy * span) * s);
-    if (tx < 0 || ty < 0 || tx >= texels || ty >= texels) return null;
-
-    try {
-      const out = this.renderer.extract.pixels({
-        target: rec.texture,
-        frame: new Rectangle(tx, ty, 1, 1),
-      });
-      const pixels = out?.pixels;
-      if (!pixels) return null;
-
-      /*
-       * Do not assume the frame was honoured. When it is, we get a single texel back and
-       * the value is at index 0; when it is not, we get the whole chunk and index 0 is its
-       * top-left corner — which is unpainted almost everywhere, so every sample came back
-       * "unpainted" and symbols fell through to white. Derive the index from the returned
-       * width instead of trusting either behaviour.
-       */
-      const w = out.width || 1;
-      const i = w === 1 ? 0 : (ty * w + tx) * 4;
-      if (i + 3 >= pixels.length) return null;
-
-      // Alpha is coverage; nothing painted here is not a colour.
-      if (pixels[i + 3] < 8) return null;
-      return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] };
-    } catch (err) {
-      console.error('[ChunkManager] sampleWorld failed', err);
-      return null;
-    }
-  }
-
-  /**
-   * Copy a chunk's pixels into an independent texture, for the undo stack.
-   *
-   * Deliberately not `extract.texture()`: given a Texture that returns *the same object*
-   * back rather than a copy. The undo stack then held the live chunk, so restoring blitted
-   * a texture into itself — the "feedback loop between framebuffer and active texture" GL
-   * error — and its memory trim destroyed live map chunks, cutting holes in the map.
-   *
-   * Rendering through a fresh RenderTexture is the only way to be sure the pixels are
-   * genuinely detached from the chunk they came from.
-   */
-  /**
-   * Sample many world positions of one layer at once.
-   *
-   * `sampleWorld` is a GPU readback, and its own contract says it must stay on discrete
-   * actions. The live tint preview broke that: it called it once per symbol under the brush,
-   * every 90 ms, and each call can read back at up to three tiers — so a brush passing over a
-   * forest issued hundreds of pipeline stalls a second, which is the lag felt when painting
-   * over symbols.
-   *
-   * The cost is per *readback*, not per pixel, so grouping the points by the chunk they land
-   * in and reading each chunk's covering rectangle once turns those hundreds of stalls into
-   * one or two. Points are resolved finest-tier-first exactly as `sampleWorld` does, with
-   * whatever is still unresolved falling through to the next tier.
-   *
-   * Returns one entry per input point, `null` where nothing has been painted.
-   */
-  sampleWorldMany(
-    layer: RasterLayer,
-    points: { x: number; y: number }[],
-  ): ({ r: number; g: number; b: number } | null)[] {
-    const out: ({ r: number; g: number; b: number } | null)[] = new Array(points.length).fill(
-      null,
-    );
-    let pending = points.map((p, index) => ({ x: p.x, y: p.y, index }));
-
-    for (const tier of TIERS) {
-      if (pending.length === 0) break;
-
+    // Coarsest first: each finer tier composites over what the coarser ones contributed.
+    for (const tier of [...TIERS].reverse()) {
       const span = TIER_WORLD_SIZE[tier];
       const texels = this.texelsFor(layer);
       const scale = texels / span;
 
-      // Group by chunk: one readback serves every point that lands in the same one.
-      const groups = new Map<string, { cx: number; cy: number; items: typeof pending }>();
-      for (const p of pending) {
+      const groups = new Map<string, { cx: number; cy: number; items: number[] }>();
+      points.forEach((p, index) => {
         const cx = Math.floor(p.x / span);
         const cy = Math.floor(p.y / span);
         const key = `${cx}/${cy}`;
         const group = groups.get(key);
-        if (group) group.items.push(p);
-        else groups.set(key, { cx, cy, items: [p] });
-      }
-
-      const unresolved: typeof pending = [];
+        if (group) group.items.push(index);
+        else groups.set(key, { cx, cy, items: [index] });
+      });
 
       for (const group of groups.values()) {
         const rec = this.chunks.get(this.recKey(layer, tier, group.cx, group.cy));
-        if (!rec || !rec.loaded || !this.isUsable(rec)) {
-          unresolved.push(...group.items);
-          continue;
-        }
+        if (!rec || !rec.loaded || !this.isUsable(rec)) continue;
 
-        // Texel coordinates, and the rectangle that covers all of them.
-        const local = group.items.map(p => ({
-          item: p,
-          tx: Math.floor((p.x - group.cx * span) * scale),
-          ty: Math.floor((p.y - group.cy * span) * scale),
-        }));
-        const inside = local.filter(
-          l => l.tx >= 0 && l.ty >= 0 && l.tx < texels && l.ty < texels,
-        );
-        if (inside.length === 0) {
-          unresolved.push(...group.items);
-          continue;
-        }
+        const local = group.items
+          .map(index => ({
+            index,
+            tx: Math.floor((points[index].x - group.cx * span) * scale),
+            ty: Math.floor((points[index].y - group.cy * span) * scale),
+          }))
+          .filter(l => l.tx >= 0 && l.ty >= 0 && l.tx < texels && l.ty < texels);
+        if (local.length === 0) continue;
 
-        const minX = Math.min(...inside.map(l => l.tx));
-        const minY = Math.min(...inside.map(l => l.ty));
-        const width = Math.max(...inside.map(l => l.tx)) - minX + 1;
-        const height = Math.max(...inside.map(l => l.ty)) - minY + 1;
+        const minX = Math.min(...local.map(l => l.tx));
+        const minY = Math.min(...local.map(l => l.ty));
+        const width = Math.max(...local.map(l => l.tx)) - minX + 1;
+        const height = Math.max(...local.map(l => l.ty)) - minY + 1;
 
         let pixels: Uint8ClampedArray | Uint8Array | null = null;
         let readWidth = 0;
-        let originX = minX;
-        let originY = minY;
         try {
           const read = this.renderer.extract.pixels({
             target: rec.texture,
@@ -1033,47 +951,39 @@ export class ChunkManager {
         } catch (err) {
           console.error('[ChunkManager] sampleWorldMany failed', err);
         }
+        if (!pixels || readWidth === 0) continue;
 
-        if (!pixels || readWidth === 0) {
-          unresolved.push(...group.items);
-          continue;
-        }
-
-        /*
-         * The frame is not always honoured — the same caveat `sampleTier` documents. When it
-         * is ignored we get the whole chunk back, and the requested rectangle's origin must
-         * not then be subtracted or every lookup lands in the wrong place.
-         */
-        if (readWidth !== width) {
-          originX = 0;
-          originY = 0;
-        }
+        // The frame is not always honoured; when it is ignored the whole chunk comes back and
+        // the requested origin must not be subtracted. Derive it from the returned width.
+        const originX = readWidth === width ? minX : 0;
+        const originY = readWidth === width ? minY : 0;
 
         for (const l of local) {
           const px = l.tx - originX;
           const py = l.ty - originY;
-          if (px < 0 || py < 0 || px >= readWidth) {
-            unresolved.push(l.item);
-            continue;
-          }
+          if (px < 0 || py < 0 || px >= readWidth) continue;
           const i = (py * readWidth + px) * 4;
-          if (i + 3 >= pixels.length) {
-            unresolved.push(l.item);
-            continue;
-          }
-          // Alpha is coverage; nothing painted here is not a colour.
-          if (pixels[i + 3] < 8) {
-            unresolved.push(l.item);
-            continue;
-          }
-          out[l.item.index] = { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] };
+          if (i + 3 >= pixels.length) continue;
+
+          const target = acc[l.index];
+          target.read = true;
+
+          // over(under = what coarser tiers gave, top = this tier), premultiplied.
+          const k = 1 - pixels[i + 3] / 255;
+          target.r = Math.min(255, pixels[i] + target.r * k);
+          target.g = Math.min(255, pixels[i + 1] + target.g * k);
+          target.b = Math.min(255, pixels[i + 2] + target.b * k);
+          target.a = Math.min(255, pixels[i + 3] + target.a * k);
         }
       }
-
-      pending = unresolved;
     }
 
-    return out;
+    return acc.map(v => (v.read ? { r: v.r, g: v.g, b: v.b, a: v.a } : null));
+  }
+
+  /** One position. A thin wrapper, so both paths share the compositing above. */
+  sampleWorld(layer: RasterLayer, x: number, y: number): Sample | null {
+    return this.sampleWorldMany(layer, [{ x, y }])[0];
   }
 
   snapshot(rec: ChunkRecord): Texture | null {

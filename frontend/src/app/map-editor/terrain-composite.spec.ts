@@ -120,4 +120,56 @@ describe('Terrain-Komposit (vormultipliziert)', () => {
       }
     });
   });
+
+  /*
+   * The symbol tint reads the same premultiplied texels, and got the same thing wrong.
+   *
+   * Pixi's readback has its unpremultiply compiled out (`if (false) unpremultiplyAlpha(...)`),
+   * so a texel at the feathered edge of a stroke — 3% coverage — comes back at 3% brightness.
+   * Used raw as a tint, that is black, which is exactly what fringed every brush stroke.
+   */
+  describe('Symbolfarbe vom Untergrund', () => {
+    const base = { r: 228, g: 213, b: 183 }; // Pergament
+
+    /** Mirrors `groundTintHex`. */
+    const resolve = (s: RGBA) => {
+      const k = 1 - s.a;
+      return {
+        r: Math.round(base.r * k + s.r * 255),
+        g: Math.round(base.g * k + s.g * 255),
+        b: Math.round(base.b * k + s.b * 255),
+      };
+    };
+
+    it('nimmt bei voller Deckung die gemalte Farbe', () => {
+      const paint = premultiplied(0.478, 0.561, 0.353, 1);
+      expect(resolve(paint)).toEqual({ r: 122, g: 143, b: 90 });
+    });
+
+    it('nimmt ohne Deckung die Grundfarbe', () => {
+      expect(resolve(clear)).toEqual(base);
+    });
+
+    it('wird am weichen Rand nicht schwarz', () => {
+      // Der gemeldete Fehler: Symbole am Rand des Pinsels wurden schwarz.
+      const edge = premultiplied(0.478, 0.561, 0.353, 0.03);
+      const tint = resolve(edge);
+
+      // Rohes RGB wäre hier ~3% Helligkeit, also praktisch Schwarz.
+      expect(Math.round(edge.r * 255)).toBeLessThan(10);
+      // Aufgelöst liegt es dagegen fast auf der Grundfarbe.
+      expect(tint.r).toBeGreaterThan(200);
+      expect(tint.g).toBeGreaterThan(190);
+      expect(tint.b).toBeGreaterThan(170);
+    });
+
+    it('bleibt über den ganzen Verlauf zwischen Grundfarbe und Anstrich', () => {
+      const paint = { r: 0.478, g: 0.561, b: 0.353 };
+      for (let a = 0; a <= 1.0001; a += 0.05) {
+        const tint = resolve(premultiplied(paint.r, paint.g, paint.b, a));
+        expect(tint.r).toBeGreaterThanOrEqual(Math.min(base.r, paint.r * 255) - 1);
+        expect(tint.r).toBeLessThanOrEqual(Math.max(base.r, paint.r * 255) + 1);
+      }
+    });
+  });
 });

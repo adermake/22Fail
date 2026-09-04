@@ -30,13 +30,14 @@ import { MapEditorStoreService } from '../services/map-editor-store.service';
 import { MapEditorApiService } from '../services/map-editor-api.service';
 import { AuthService } from '../services/auth.service';
 import { MapRenderer } from './map-renderer';
-import { ChunkManager, StampPass } from './chunk-manager';
+import { ChunkManager, Sample, StampPass } from './chunk-manager';
 import { CoastSettings, TerrainView, defaultCoast, hexToRgb } from './terrain-view';
 import {
   BrushEngine,
   BrushSettings,
   TerrainTool,
   defaultBrush,
+  parseHex,
   toolIsTierLocal,
   toolLayer,
 } from './brush-engine';
@@ -934,6 +935,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * Fixed at stroke start rather than read per dab: a tier switch halfway through would
    * leave the first half of one stroke in a different grid from the second.
    */
+  /** Bare-ground colour for untinted symbols; set before `SymbolView` exists. */
+  private symbolLandColor = 0xe4d5b7;
   private strokeTier: DetailTier = 'high';
   /** Whether the stroke in progress writes its tier alone. Fixed with `strokeTier`. */
   private strokeOnlyTier = false;
@@ -983,6 +986,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // a constant, so they look identical after the upgrade.
     this.landBase.set(data.settings.landBase ?? '#e4d5b7');
     this.terrain.setLandDefault(hexToRgb(this.landBase(), [0.894, 0.835, 0.718]));
+    this.symbolLandColor = parseHex(this.landBase());
 
     const s = data.settings;
     const coast: CoastSettings = {
@@ -1009,6 +1013,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.assetsReady.set(true);
 
       this.symbols = new SymbolView(this.assets);
+      this.symbols.setLandColor(this.symbolLandColor);
       this.renderer.objectLayer.addChild(this.symbols.container);
       this.symbols.rebuild(data.symbols);
 
@@ -1260,8 +1265,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Colourable symbols take the colour of the ground actually beneath them, matching
     // Wonderdraft. Sampled once here rather than per frame — it is a GPU readback.
     if (meta?.colorable) {
-      const ground = this.chunks?.sampleWorld('landColor', world.x, world.y);
-      if (ground) symbol.tint = rgbToHex(ground.r, ground.g, ground.b);
+      const tint = this.groundTintHex(this.chunks?.sampleWorld('landColor', world.x, world.y) ?? null);
+      if (tint) symbol.tint = tint;
     }
 
     this.undoStack?.begin();
@@ -1794,8 +1799,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const moved = Math.hypot(x - this.tintCache.x, y - this.tintCache.y);
     if (moved < 24 && now - this.tintCache.at < 120) return this.tintCache.tint;
 
-    const ground = this.chunks?.sampleWorld('landColor', x, y);
-    const tint = ground ? (ground.r << 16) | (ground.g << 8) | ground.b : 0xffffff;
+    const hex = this.groundTintHex(this.chunks?.sampleWorld('landColor', x, y) ?? null);
+    const tint = hex ? parseHex(hex) : parseHex(this.landBase());
     this.tintCache = { x, y, at: now, tint };
     return tint;
   }
@@ -1914,6 +1919,29 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (toolLayer(this.terrainTool()) === 'landColor') this.livePreviewSymbolTints();
   }
 
+  /**
+   * The ground colour a symbol should take, as seen.
+   *
+   * The sampler returns the texel premultiplied — Pixi's readback never unpremultiplies — so
+   * resolving it means the same composite the shader performs: base colour where coverage is
+   * missing, plus the stored (already weighted) paint. Using the raw RGB instead is what made
+   * symbols along the feathered edge of a stroke come out black, since at 3% coverage the
+   * stored colour *is* 3% brightness.
+   *
+   * Returns undefined where no chunk could be read, so a symbol keeps whatever tint it had
+   * rather than being repainted from ground nobody has loaded.
+   */
+  private groundTintHex(sample: Sample | null): string | undefined {
+    if (!sample) return undefined;
+    const base = hexToRgb(this.landBase(), [0.894, 0.835, 0.718]);
+    const k = 1 - sample.a / 255;
+    return rgbToHex(
+      Math.round(base[0] * 255 * k + sample.r),
+      Math.round(base[1] * 255 * k + sample.g),
+      Math.round(base[2] * 255 * k + sample.b),
+    );
+  }
+
   /** Locally re-tint symbols under the brush while painting. No ops, no undo entries. */
   private livePreviewSymbolTints(): void {
     const now = performance.now();
@@ -1940,8 +1968,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     let touched = false;
     colorable.forEach((sym, i) => {
-      const hit = ground[i];
-      const tint = hit ? rgbToHex(hit.r, hit.g, hit.b) : undefined;
+      const tint = this.groundTintHex(ground[i]);
       if (tint === sym.tint) return;
       sym.tint = tint;
       this.symbols?.update(sym);
@@ -1995,8 +2022,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const ground = this.chunks.sampleWorldMany('landColor', colorable);
 
     colorable.forEach((sym, i) => {
-      const hit = ground[i];
-      const tint = hit ? rgbToHex(hit.r, hit.g, hit.b) : undefined;
+      const tint = this.groundTintHex(ground[i]);
       if (tint === sym.tint) return;
       changed.push({ id: sym.id, tint: tint ?? '' });
     });
@@ -2616,6 +2642,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // A uniform, so every cell picks it up on the next frame — no chunks are rewritten and
     // nothing has to be re-uploaded. That is the whole point of it being a setting.
     this.terrain?.setLandDefault(hexToRgb(color, [0.894, 0.835, 0.718]));
+    // Untinted symbols stand on bare ground, so they follow it.
+    this.symbols?.setLandColor(parseHex(color));
     this.scheduleStream();
   }
 

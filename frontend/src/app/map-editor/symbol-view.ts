@@ -39,12 +39,14 @@ export class SymbolView {
   private pool: Sprite[] = [];
 
   /**
-   * Fallback for `sample_color` symbols placed where no land colour was painted.
+   * Fallback for `sample_color` symbols carrying no tint of their own.
    *
-   * White, matching blank land — each symbol otherwise carries a `tint` sampled from the
-   * ground beneath it at placement, so this is only the unpainted case.
+   * Follows `settings.landBase`, because that is what bare ground actually looks like — it
+   * was hardcoded white, which stopped matching anything the moment unpainted land became
+   * parchment. Symbols normally carry a `tint` sampled from the ground beneath them, so this
+   * only covers the case where none could be read.
    */
-  private landColor = 0xffffff;
+  private landColor = 0xe4d5b7;
   private selected = new Set<string>();
 
   constructor(private assets: MapAssets) {

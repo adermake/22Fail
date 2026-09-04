@@ -758,6 +758,17 @@ bei Wasser. Richtig ist vormultipliziert durchzurechnen: `over()` ohne Division,
 Grundfarbe als `uLandDefault * (1 − lc.a) + lc.rgb`. Algebra festgehalten in
 `terrain-composite.spec.ts` (GLSL selbst ist nicht testbar).
 
+**Symbol-Tints lesen dieselben vormultiplizierten Texel — und lagen am selben Fehler.** Pixis
+`getPixels` hat sein `unpremultiplyAlpha` wegkompiliert (`if (false) unpremultiplyAlpha(...)`),
+der Readback liefert also Farbe × Deckung. Roh als Tint verwendet ergab ein Texel am weichen
+Pinselrand (3% Deckung) 3% Helligkeit — **schwarze Symbole entlang jedes Strichrands**. Die
+Samples bleiben deshalb vormultipliziert *samt Alpha*, und `groundTintHex` löst sie genauso auf
+wie der Shader: `Grundfarbe · (1 − a) + rgb`. Unvormultiplizieren wäre falsch herum — es teilte
+einen 8-Bit-Wert durch 0,03 und verstärkte nur das Quantisierungsrauschen. Stufen werden dabei
+grob→fein mit demselben `over` zusammengesetzt, statt die erste Stufe mit Inhalt zu nehmen.
+Ohne lesbaren Chunk kommt `null` zurück, damit ein Symbol seinen Tint behält statt ihn zu
+verlieren; ohne eigenen Tint folgt es `settings.landBase` (vorher hart `0xffffff`).
+
 **Symbol-Tints werden gebündelt gelesen** (`ChunkManager.sampleWorldMany`). `sampleWorld` ist ein
 GPU-Readback und laut eigenem Kommentar nur für Einzelaktionen gedacht — die Live-Vorschau rief
 es aber alle 90 ms *pro Symbol* auf, mit bis zu drei Stufen je Aufruf. Ein Pinsel über einem Wald
