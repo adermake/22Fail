@@ -1,5 +1,5 @@
-import { centroid, dashedSegments, distanceToPath, pathBounds } from './region-view';
-import { Point } from './map-editor.model';
+import { RegionView, centroid, dashedSegments, distanceToPath, pathBounds } from './region-view';
+import { MapRegion, Point } from './map-editor.model';
 
 const square: Point[] = [
   { x: 0, y: 0 },
@@ -79,5 +79,43 @@ describe('path geometry', () => {
 
   it('bounds a path', () => {
     expect(pathBounds(square)).toEqual({ minX: 0, minY: 0, maxX: 100, maxY: 100 });
+  });
+});
+
+/**
+ * Rubber-band selection, used by the cross-category secret selector.
+ *
+ * "Touches the box" rather than "fits inside it": a territory outline dwarfs the band a GM
+ * drags over a cluster of symbols, so requiring containment would make it impossible to catch
+ * a region with the same gesture that catches everything standing in it.
+ */
+describe('region rubber band', () => {
+  function region(id: string, points: Point[]): MapRegion {
+    const c = centroid(points);
+    return { id, x: c.x, y: c.y, vis: 'public', points, color: '#fff', thickness: 4, dash: 0, gap: 0 };
+  }
+
+  it('catches a region the band only clips', () => {
+    const view = new RegionView();
+    view.rebuild([region('r1', square)]);
+
+    // Band overlapping the top-left corner only.
+    expect(view.inRect({ minX: -10, minY: -10, maxX: 10, maxY: 10 }).map(r => r.id)).toEqual(['r1']);
+  });
+
+  it('ignores a region entirely outside the band', () => {
+    const view = new RegionView();
+    view.rebuild([region('r1', square)]);
+
+    expect(view.inRect({ minX: 500, minY: 500, maxX: 600, maxY: 600 })).toEqual([]);
+  });
+
+  it('does not catch a region merely enclosing the band', () => {
+    const view = new RegionView();
+    view.rebuild([region('r1', square)]);
+
+    // A band deep inside the square touches no vertex. Selecting here would mean dragging a
+    // box over a town to pick its buildings also grabs the whole kingdom around it.
+    expect(view.inRect({ minX: 40, minY: 40, maxX: 60, maxY: 60 })).toEqual([]);
   });
 });

@@ -113,9 +113,19 @@ export class MapEditorGateway {
     switch (op.t) {
       case 'chunk':
       case 'chunkDrop':
-      case 'set':
-        // Terrain and shared state (palettes, fog, settings) are never secret.
+        // Terrain is never secret — what a player may see of it is decided by the fog.
         toEveryone();
+        break;
+
+      case 'set':
+        /*
+         * Shared scalar state (palettes, settings, fog, presets) is public — except the
+         * secrets list, whose *names* are the spoiler. "Räuberlager" appearing in a player's
+         * devtools gives away the ambush as surely as the symbols would, so the one path
+         * that carries them stays GM-only. The members are protected separately, by `vis`.
+         */
+        if (op.path === 'secrets') toGMs();
+        else toEveryone();
         break;
 
       case 'add':

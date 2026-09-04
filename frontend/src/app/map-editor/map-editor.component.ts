@@ -50,12 +50,29 @@ import { SymbolView } from './symbol-view';
 import {
   AnyMapObject,
   DetailTier,
+  MapOp,
+  MapSecret,
   MapSymbol,
   OBJECT_COLLECTIONS,
   RasterLayer,
   TIERS,
   coarserTiers,
 } from './map-editor.model';
+import {
+  ObjectRef,
+  SecretSummary,
+  defaultSecretName,
+  dissolveOps,
+  find,
+  groupOps,
+  hideOps,
+  membersOf,
+  newSecretId,
+  revealOps,
+  secretsOf,
+  summarize,
+  ungroupOps,
+} from './map-secrets';
 import {
   IMPORT_CELL_WARN,
   LandmassPlacement,
@@ -80,7 +97,9 @@ import {
   LabelTool,
   REGION_TOOL_DEFS,
   RegionTool,
+  SECRET_TOOL_DEFS,
   SYMBOL_TOOL_DEFS,
+  SecretTool,
   SymbolTool,
   TAB_DEFS,
   autoVaries,
@@ -148,12 +167,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly symbolTools = SYMBOL_TOOL_DEFS;
   readonly regionTools = REGION_TOOL_DEFS;
   readonly labelTools = LABEL_TOOL_DEFS;
+  readonly secretTools = SECRET_TOOL_DEFS;
 
   readonly tab = signal<EditorTab>('land');
   readonly terrainTool = signal<TerrainTool>('landBrush');
   readonly symbolTool = signal<SymbolTool>('trees');
   readonly regionTool = signal<RegionTool>('draw');
   readonly labelTool = signal<LabelTool>('place');
+  readonly secretTool = signal<SecretTool>('select');
 
   readonly icon = iconUrl;
 
@@ -248,6 +269,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           texture: this.brushTexture(),
           profile: this.activeProfile(),
           symbolTint: this.symbolTint(),
+          // `null` is Auto and is a real choice, so it is stored rather than left absent —
+          // absent means "never chosen" and falls back to the Mittel default.
+          tierPin: this.tierPin(),
         }),
       );
     } catch {
@@ -284,6 +308,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
       const tint = p['symbolTint'];
       if (typeof tint === 'string' && /^#[0-9a-f]{6}$/i.test(tint)) this.symbolTint.set(tint);
+
+      // Only `in` distinguishes a stored Auto (null) from a preference never expressed.
+      if ('tierPin' in p) {
+        const pin = p['tierPin'];
+        if (pin === null) this.tierPin.set(null);
+        else if (pin === 'low' || pin === 'med' || pin === 'high') this.tierPin.set(pin);
+      }
     } catch {
       // Corrupt entry; the defaults already stand.
     }
@@ -408,8 +439,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * The tier decides what a stroke *writes*, not merely what is drawn, so following the zoom
    * alone leaves one job impossible: correcting the coarse base while zoomed in far enough to
    * see what you are matching it against.
+   *
+   * Starts on `med` rather than Auto. Auto silently changes what a stroke writes as you zoom,
+   * so the same brush at the same place lands in a different tier depending on how close you
+   * happened to be — and the discrepancy only shows up later, on a zoom that samples the tier
+   * you did not write. Mittel is where most work happens, and a fixed tier is predictable.
+   * `tierIsolate` stays off: this pins what is *written*, while the view keeps compositing
+   * coarse under fine as usual.
    */
-  readonly tierPin = signal<DetailTier | null>(null);
+  readonly tierPin = signal<DetailTier | null>('med');
   /** Draw only the pinned tier instead of the coarse-under-fine composite. */
   readonly tierIsolate = signal(false);
 
@@ -482,6 +520,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Isolating without a pin would mean isolating whatever tier the zoom lands on, which
     // changes under you as you move — the opposite of a stable thing to edit.
     if (tier === null) this.setTierIsolate(false);
+    this.saveBrushPrefs();
     this.applyView();
   }
 
@@ -579,6 +618,258 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly selectedLabelId = computed(() =>
     this.selectedLabelIds().length === 1 ? this.selectedLabelIds()[0] : null,
   );
+
+  // ── secrets ──
+
+  /**
+   * The cross-category selection.
+   *
+   * Every other selector in the editor is scoped to its tab, and each keeps its own list of
+   * ids. That works because a symbol edit only ever concerns symbols. A secret does not
+   * respect the split — "the bandit camp" is a label, some tents and an outline — so this one
+   * carries the collection alongside the id and is stored separately from the per-tab
+   * selections rather than trying to be all of them at once.
+   */
+  readonly secretSelection = signal<ObjectRef[]>([]);
+
+  /** Groups with their members and reveal state, recomputed as the document changes. */
+  readonly secretGroups = computed<SecretSummary[]>(() => {
+    this.store.revision();
+    const data = this.store.data();
+    return data ? summarize(data) : [];
+  });
+
+  /** Group the panel has focused, so its members can be highlighted and its buttons act. */
+  readonly activeSecretId = signal<string | null>(null);
+
+  readonly secretSelectionCount = computed(() => this.secretSelection().length);
+
+  selectSecretTool(tool: SecretTool): void {
+    this.secretTool.set(tool);
+    this.redrawCursor();
+  }
+
+  /** Human-readable breakdown of a selection that spans collections. */
+  readonly secretSelectionLabel = computed(() => {
+    const counts = { labels: 0, symbols: 0, regions: 0 } as Record<string, number>;
+    for (const ref of this.secretSelection()) counts[ref.c] = (counts[ref.c] ?? 0) + 1;
+    const parts: string[] = [];
+    if (counts['labels']) parts.push(`${counts['labels']} Beschriftung(en)`);
+    if (counts['symbols']) parts.push(`${counts['symbols']} Symbol(e)`);
+    if (counts['regions']) parts.push(`${counts['regions']} Region(en)`);
+    return parts.join(', ');
+  });
+
+  /**
+   * Push the cross-category selection into the per-view highlighters.
+   *
+   * Each view already knows how to draw its own selection, so this splits the list by
+   * collection and hands each view its share. A second highlighting mechanism would have to
+   * be kept in step with three existing ones for no gain.
+   */
+  private setSecretSelection(refs: ObjectRef[]): void {
+    this.secretSelection.set(refs);
+    this.symbols?.setSelection(refs.filter(r => r.c === 'symbols').map(r => r.id));
+    this.labelView.setSelection(refs.filter(r => r.c === 'labels').map(r => r.id));
+
+    // Regions highlight one at a time — `RegionView` tracks a single `selected` — so the
+    // first region in the selection is the one that shows.
+    const region = refs.find(r => r.c === 'regions');
+    this.regionView.setSelected(region ? region.id : null);
+    this.scheduleStream();
+  }
+
+  /**
+   * Topmost object under a point, across collections.
+   *
+   * Order follows what is drawn on top: labels sit above symbols, symbols above regions. A
+   * label written across a forest has to be clickable, or naming the forest secret would mean
+   * first moving every tree out of the way.
+   */
+  private secretHitTest(world: Point): ObjectRef | null {
+    const label = this.labelView.hitTest(world.x, world.y);
+    if (label) return { c: 'labels', id: label.id };
+
+    const symbol = this.symbols?.hitTest(world.x, world.y);
+    if (symbol) return { c: 'symbols', id: symbol.id };
+
+    const region = this.regionView.hitTest(world.x, world.y, 12 / this.renderer.camera.zoom);
+    if (region) return { c: 'regions', id: region.id };
+
+    return null;
+  }
+
+  /** Click-select across collections. Returns whether anything was hit. */
+  private secretSelectAt(world: Point, additive: boolean): boolean {
+    const hit = this.secretHitTest(world);
+    if (!hit) {
+      if (!additive) this.setSecretSelection([]);
+      return false;
+    }
+
+    const current = this.secretSelection();
+    const has = current.some(r => r.c === hit.c && r.id === hit.id);
+    if (additive) {
+      this.setSecretSelection(
+        has ? current.filter(r => !(r.c === hit.c && r.id === hit.id)) : [...current, hit],
+      );
+    } else if (!has) {
+      this.setSecretSelection([hit]);
+    }
+    return true;
+  }
+
+  /** Rubber-band select across collections. */
+  private secretSelectInRect(rect: Bounds, additive: boolean): void {
+    const found: ObjectRef[] = [
+      ...this.labelView.inRect(rect).map(l => ({ c: 'labels' as const, id: l.id })),
+      ...(this.symbols?.inRect(rect) ?? []).map(s => ({ c: 'symbols' as const, id: s.id })),
+      ...this.regionView.inRect(rect).map(r => ({ c: 'regions' as const, id: r.id })),
+    ];
+    this.setSecretSelection(additive ? [...this.secretSelection(), ...found] : found);
+  }
+
+  /** Select every member of a group, so the GM can see what a name covers. */
+  selectSecretGroup(id: string): void {
+    const data = this.store.data();
+    if (!data) return;
+    this.activeSecretId.set(id);
+    this.setSecretSelection(membersOf(data, id));
+  }
+
+  /**
+   * Bundle the current selection into a new group and hide it.
+   *
+   * One undo step for the whole thing: grouping is a single decision, and undoing it halfway
+   * would leave part of a secret on the players' screens.
+   */
+  groupAsSecret(): void {
+    const data = this.store.data();
+    const refs = this.secretSelection();
+    if (!data || !refs.length) return;
+
+    const existing = secretsOf(data);
+    const secret: MapSecret = { id: newSecretId(), name: defaultSecretName(existing) };
+
+    this.undoStack?.begin();
+    this.runSecretOps([
+      { t: 'set', path: 'secrets', value: [...existing, secret] },
+      ...groupOps(refs, secret.id),
+    ]);
+    this.undoStack?.commit('Als Geheimnis gruppieren');
+    this.refreshHistoryState();
+
+    this.activeSecretId.set(secret.id);
+  }
+
+  revealSecret(id: string): void {
+    const data = this.store.data();
+    if (!data) return;
+    const ops = revealOps(data, id);
+    if (!ops.length) return;
+
+    this.undoStack?.begin();
+    this.runSecretOps(ops);
+    this.undoStack?.commit('Geheimnis aufdecken');
+    this.refreshHistoryState();
+  }
+
+  hideSecret(id: string): void {
+    const data = this.store.data();
+    if (!data) return;
+    const ops = hideOps(data, id);
+    if (!ops.length) return;
+
+    this.undoStack?.begin();
+    this.runSecretOps(ops);
+    this.undoStack?.commit('Geheimnis verbergen');
+    this.refreshHistoryState();
+  }
+
+  /**
+   * Pull the selected objects out of whatever groups they are in.
+   *
+   * Visibility is untouched, same as dissolving: this is for correcting a mis-click while
+   * bundling, not for showing anything to the players.
+   */
+  ungroupSelection(): void {
+    const refs = this.secretSelection();
+    if (!refs.length) return;
+
+    this.undoStack?.begin();
+    this.runSecretOps(ungroupOps(refs));
+    this.undoStack?.commit('Aus Gruppe lösen');
+    this.refreshHistoryState();
+  }
+
+  /** Take the group apart. Visibility is deliberately left exactly as it stands. */
+  dissolveSecret(id: string): void {
+    const data = this.store.data();
+    if (!data) return;
+
+    this.undoStack?.begin();
+    this.runSecretOps(dissolveOps(data, id));
+    this.undoStack?.commit('Geheimnis auflösen');
+    this.refreshHistoryState();
+
+    if (this.activeSecretId() === id) this.activeSecretId.set(null);
+    this.setSecretSelection([]);
+  }
+
+  renameSecret(id: string, name: string): void {
+    const data = this.store.data();
+    if (!data) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    this.store.setPath(
+      'secrets',
+      secretsOf(data).map(s => (s.id === id ? { ...s, name: trimmed } : s)),
+    );
+  }
+
+  /** Reveal whatever group the clicked object belongs to — the tool used at the table. */
+  private revealSecretAt(world: Point): void {
+    const hit = this.secretHitTest(world);
+    if (!hit) return;
+    const data = this.store.data();
+    const obj = data ? find(data, hit) : undefined;
+    if (!obj?.secret) return;
+    this.activeSecretId.set(obj.secret);
+    this.revealSecret(obj.secret);
+  }
+
+  /**
+   * Send a batch of secret ops, recording each object change for undo.
+   *
+   * `set` ops carry no per-object before/after, so the secrets list itself is not undoable —
+   * an undo restores membership and visibility, and a group left behind with no members is
+   * visible in the panel and removable by hand. Inventing a snapshot mechanism for one small
+   * array would cost more than it saves.
+   */
+  private runSecretOps(ops: MapOp[]): void {
+    const data = this.store.data();
+    if (!data) return;
+
+    for (const op of ops) {
+      if (op.t === 'set') {
+        this.store.setPath(op.path, op.value);
+        continue;
+      }
+      if (op.t !== 'upd') continue;
+
+      const before = find(data, { c: op.c, id: op.id });
+      if (!before) continue;
+      const snapshot = clone(before);
+      this.undoStack?.recordObject({
+        c: op.c,
+        id: op.id,
+        before: snapshot,
+        after: clone({ ...before, ...op.v } as AnyMapObject),
+      });
+      this.store.updateObject(op.c, op.id, op.v);
+    }
+    this.scheduleStream();
+  }
 
   // ── maintenance: wipe one raster at one tier ──
 
@@ -1187,8 +1478,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     /** Pre-drag copies, for the undo entry committed on release. */
     origins: Map<string, MapSymbol>;
   } | null = null;
-  private boxSelect: { startWorld: { x: number; y: number }; startScreen: { x: number; y: number } } | null =
-    null;
+  /**
+   * `additive` is captured here rather than read on release: the pointer-up handler takes no
+   * event, and a shift released mid-drag should not turn an add into a replace anyway.
+   */
+  private boxSelect: {
+    startWorld: { x: number; y: number };
+    startScreen: { x: number; y: number };
+    additive: boolean;
+  } | null = null;
   private streamScheduled = false;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private lakeSeed = Math.floor(Math.random() * 1e9);
@@ -1349,9 +1647,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver.observe(host);
 
     this.renderer.camera.restore({ x: 0, y: 0, zoom: 0.25 });
-    this.applyView();
-    // Brush feel is a per-user preference, restored before the first stroke.
+    // Brush feel is a per-user preference, restored before the first stroke. It carries the
+    // working tier too, so this has to run before the pin is pushed onto the chunk manager.
     this.loadBrushPrefs();
+    this.setTierPin(this.tierPin());
     this.ready.set(true);
   }
 
@@ -1447,8 +1746,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   // ── tabs & tool selection ──
 
   selectTab(tab: EditorTab): void {
+    const previous = this.tab();
     this.tab.set(tab);
     if (tab !== 'symbols') this.setSelection([]);
+    // The cross-category selection drives three views at once, so leaving the tab has to hand
+    // each of them back its own idea of what is selected rather than leaving ours behind.
+    if (previous === 'secrets' && tab !== 'secrets') {
+      this.setSecretSelection([]);
+      this.labelView.setSelection(this.selectedLabelIds());
+    }
 
     // Land and water own different tools, so entering a tab selects its first one.
     const tools = terrainToolsFor(tab);
@@ -2472,7 +2778,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           this.selectRegionAt(world);
         } else if (this.regionView.selected) {
           // Empty space with a region already selected: rubber-band its vertices.
-          this.boxSelect = { startWorld: world, startScreen: p };
+          this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
           this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
         } else {
           this.selectRegionAt(world);
@@ -2493,7 +2799,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.dragLabel = { startWorld: world, origins, moved: false };
       } else {
         // Empty space starts a rubber band, matching the symbol selector.
-        this.boxSelect = { startWorld: world, startScreen: p };
+        this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
+        this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
+      }
+      return;
+    }
+
+    if (this.tab() === 'secrets') {
+      if (this.secretTool() === 'reveal') {
+        this.revealSecretAt(world);
+      } else if (!this.secretSelectAt(world, e.shiftKey)) {
+        // Empty space starts a rubber band, matching every other selector. Nothing is
+        // draggable here — this tab only ever decides *what belongs together*.
+        this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
         this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
       }
       return;
@@ -2534,7 +2852,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.dragSymbols = { startWorld: world, moved: false, origins };
       } else {
         // Empty space starts a rubber band rather than doing nothing.
-        this.boxSelect = { startWorld: world, startScreen: p };
+        this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
         this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
       }
       return;
@@ -2714,7 +3032,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         maxX: Math.max(start.x, end.x),
         maxY: Math.max(start.y, end.y),
       };
-      if (this.tab() === 'labels') {
+      if (this.tab() === 'secrets') {
+        this.secretSelectInRect(rect, this.boxSelect.additive);
+      } else if (this.tab() === 'labels') {
         this.setLabelSelection(this.labelView.inRect(rect).map(l => l.id));
       } else if (this.tab() === 'regions') {
         // Select the region's vertices inside the box, so a whole edge can be dragged.
@@ -2866,6 +3186,23 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.undoDraftPoint();
         return;
       }
+    }
+
+    if (this.tab() === 'secrets') {
+      /*
+       * The secrets tab deletes nothing.
+       *
+       * Its selection spans collections and is held separately, so the per-tab selection
+       * signals still carry whatever was picked before switching here — a label selected in
+       * the Beschriftung tab would be silently deleted by a Delete pressed over an entirely
+       * different object. Grouping is not a destructive mode; the key stays inert.
+       */
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.setSecretSelection([]);
+        this.activeSecretId.set(null);
+      }
+      return;
     }
 
     if (e.key === 'Delete' || e.key === 'Backspace') {

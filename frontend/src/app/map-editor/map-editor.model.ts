@@ -217,6 +217,18 @@ export interface MapObjectBase {
   x: number;
   y: number;
   vis: Visibility;
+  /**
+   * Id of the secret group this belongs to, `''`/absent for none.
+   *
+   * Purely a grouping handle: `vis` alone still decides what the server hands out, so a group
+   * inherits the existing stripping in `viewFor` and the reveal-as-`add` broadcast in the
+   * gateway rather than introducing a second visibility mechanism that could disagree with it.
+   *
+   * Cleared with `''`, never `undefined` — an `upd` op crosses the socket as JSON, and
+   * `JSON.stringify` drops undefined-valued keys, so the sender would see the object leave the
+   * group while every other client and the file on disk kept it.
+   */
+  secret?: string;
 }
 
 export interface MapSymbol extends MapObjectBase {
@@ -277,6 +289,18 @@ export interface MapRegion extends MapObjectBase {
 /** A GM note pinned to a spot — "secret hole here" without needing a symbol. */
 export interface MapMarker extends MapObjectBase {
   note: string;
+}
+
+/**
+ * A named bundle of objects the GM hides and reveals as one thing.
+ *
+ * Holds no membership list of its own — objects point at the group through `secret`. One
+ * direction only, so an object cannot be listed in a group it does not itself claim, which is
+ * the state a two-sided model drifts into as soon as a delete misses one side.
+ */
+export interface MapSecret {
+  id: string;
+  name: string;
 }
 
 export type AnyMapObject = MapSymbol | MapLabel | MapRegion | MapMarker;
@@ -348,6 +372,8 @@ export interface MapEditorData {
   markers: MapMarker[];
 
   labelPresets: LabelPreset[];
+  /** Secret groups. Membership lives on the objects (`secret`), not here. */
+  secrets: MapSecret[];
   /** Stored colours the brushes pick from — no free-form colour picking while drawing. */
   landPalette: string[];
   waterPalette: string[];
@@ -375,6 +401,7 @@ export function createEmptyMapEditorData(worldName: string): MapEditorData {
     regions: [],
     markers: [],
     labelPresets: [],
+    secrets: [],
     landPalette: ['#7a8f5a', '#8fa06b', '#a8b581', '#c2c79a', '#6b7d4e'],
     waterPalette: ['#3f6d8c', '#4f7f9e', '#6394b0', '#2e5670'],
     settings: defaultSettings(),

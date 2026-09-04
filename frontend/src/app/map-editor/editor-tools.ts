@@ -17,10 +17,11 @@
 import { BrushTexture, TerrainTool } from './brush-engine';
 import { SymbolCategory } from './map-assets';
 
-export type EditorTab = 'water' | 'land' | 'symbols' | 'regions' | 'labels' | 'map';
+export type EditorTab = 'water' | 'land' | 'symbols' | 'regions' | 'labels' | 'secrets' | 'map';
 export type SymbolTool = SymbolCategory | 'select';
 export type RegionTool = 'draw' | 'select';
 export type LabelTool = 'place' | 'select';
+export type SecretTool = 'select' | 'reveal';
 
 export interface ToolDef<T extends string> {
   id: T;
@@ -39,7 +40,23 @@ export const TAB_DEFS: TabDef[] = [
   { id: 'symbols', label: 'Symbole' },
   { id: 'regions', label: 'Regionen' },
   { id: 'labels', label: 'Beschriftung' },
+  { id: 'secrets', label: 'Geheimnisse' },
   { id: 'map', label: 'Karte' },
+];
+
+/**
+ * Secret tools.
+ *
+ * The selector is the only one in the editor that ignores categories: a secret is "this label
+ * and those three symbols", so a picker confined to one collection could never express it.
+ * Reveal is a separate tool rather than a click on the panel because at the table the GM wants
+ * to point at the thing on the map, not hunt for its row in a list.
+ */
+export const SECRET_TOOL_DEFS: ToolDef<SecretTool>[] = [
+  // A lasso rather than the usual selector arrow: this one is not the per-category selector
+  // the other tabs have, and it should not look like it.
+  { id: 'select', icon: 'polygon_lasso_64', label: 'Auswählen' },
+  { id: 'reveal', icon: 'visible', label: 'Aufdecken' },
 ];
 
 /**

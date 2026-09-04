@@ -140,6 +140,8 @@ export class MapEditorService implements OnModuleDestroy {
       regions: [],
       markers: [],
       labelPresets: [],
+      // Secret groups. Membership lives on the objects (`secret`), not in here.
+      secrets: [],
       landPalette: ['#7a8f5a', '#8fa06b', '#a8b581', '#c2c79a', '#6b7d4e'],
       waterPalette: ['#3f6d8c', '#4f7f9e', '#6394b0', '#2e5670'],
       settings: {
@@ -510,12 +512,23 @@ export class MapEditorService implements OnModuleDestroy {
     for (const c of OBJECT_COLLECTIONS) {
       filtered[c] = (doc[c] as any[]).filter((o) => o?.vis !== 'secret');
     }
+    /*
+     * The names of secret groups are themselves spoilers.
+     *
+     * A group is only a label over objects that `vis` already protects, so nothing breaks by
+     * withholding it — but "Räuberlager" sitting in the player's payload announces the ambush
+     * just as loudly as the symbols would have. Players never need the list: membership is
+     * carried on the objects, and a revealed object arrives as an ordinary public one.
+     */
+    filtered.secrets = [];
     return filtered;
   }
 
   /** Whether an op may be forwarded to players as-is. */
   isOpPublic(op: MapOp): boolean {
     if (op.t === 'add') return op.v?.vis !== 'secret';
+    // Group names are GM-only; see `viewFor`.
+    if (op.t === 'set') return op.path !== 'secrets';
     return true;
   }
 

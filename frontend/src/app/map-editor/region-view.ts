@@ -292,6 +292,28 @@ export class RegionView {
     return best;
   }
 
+  /**
+   * Regions with at least one vertex inside a world rectangle.
+   *
+   * Deliberately not "fully enclosed": a region is usually far larger than the rubber band
+   * drawn over a cluster of symbols, so requiring containment would mean a territory outline
+   * could never be caught by the same drag that catches everything sitting inside it.
+   */
+  inRect(rect: Bounds): MapRegion[] {
+    return this.index
+      .query({
+        minX: rect.minX - 4096,
+        minY: rect.minY - 4096,
+        maxX: rect.maxX + 4096,
+        maxY: rect.maxY + 4096,
+      })
+      .filter(r =>
+        r.points.some(
+          p => p.x >= rect.minX && p.x <= rect.maxX && p.y >= rect.minY && p.y <= rect.maxY,
+        ),
+      );
+  }
+
   /** Index of the selected region's vertex near a point, or -1. */
   hitHandle(x: number, y: number, tolerance: number): number {
     const region = this.selected;

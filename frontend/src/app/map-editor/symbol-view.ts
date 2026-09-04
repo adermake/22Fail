@@ -173,8 +173,16 @@ export class SymbolView {
       else if (meta.tintable) sprite.tint = parseTint(sym.tint) ?? DEFAULT_SYMBOL_TINT;
       else sprite.tint = 0xffffff;
 
+      /*
+       * Secret symbols are drawn faint enough to be obvious at a glance.
+       *
+       * 0.85 was the old value and it was useless: on a map dense with trees and mountains,
+       * a 15% fade is invisible, so the GM could not tell what the players were already
+       * seeing without clicking each symbol in turn. Half opacity reads as "hidden" even in
+       * a crowd, and is still clearly a symbol rather than a rendering glitch.
+       */
       if (this.selected.has(sym.id)) sprite.alpha = 0.65;
-      else if (sym.vis === 'secret') sprite.alpha = 0.85;
+      else if (sym.vis === 'secret') sprite.alpha = 0.5;
       else sprite.alpha = 1;
     }
 

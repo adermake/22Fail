@@ -1038,3 +1038,54 @@ einer flachen Liste ohne jede Stufe — Stempeln und Stufen-Löschen fassen sie 
 Isolierung — ein Kaskadieren würde genau die Stufen leeren, die es freilegen soll). Unterschied
 zu `landEraser`: der bedeutet „hier ist kein Land“ und *schreibt* Meer ins Höhenfeld, dieser
 macht die Stufe transparent, sodass die gröbere durchkommt.
+
+## Karteneditor v2 — Geheimnis-Gruppen (Reiter *Geheimnisse*)
+
+Ein Geheimnis am Tisch ist selten *ein* Objekt: „Das Räuberlager“ ist eine Beschriftung, drei
+Zelte und ein Umriss, und sie müssen **gemeinsam** erscheinen — einzeln aufgedeckt sieht die
+Gruppe ein Rätsel, das sich vor ihren Augen zusammensetzt. Das Häkchen „Als Geheimnis“ pro
+Objekt gab es schon; was fehlte, war ein Griff für das Bündel.
+
+**`vis` bleibt die Autorität.** Eine Gruppe ist eine *Beschriftung obendrauf*, kein zweiter
+Sichtbarkeitsmechanismus: `MapObjectBase.secret` hält nur die Gruppen-Id, `vis` entscheidet
+weiterhin, was der Server ausliefert. Damit erbt alles die vorhandene Mechanik unverändert —
+`viewFor` filtert, und der `upd`-Zweig im Gateway verschickt ein `secret → public` als frisches
+`add` an Spieler (und ein `public → secret` als `del`, weshalb *Verbergen* ohne Zusatzcode
+funktioniert). Ließe man die Gruppe über Sichtbarkeit entscheiden, gäbe es zwei Quellen für
+„darf ein Spieler das sehen“, und das erste Objekt, bei dem sie sich widersprechen, leckt.
+
+**Mitgliedschaft ist einseitig.** Gruppen führen keine Mitgliederliste; die Objekte zeigen über
+`secret` auf ihre Gruppe. Ein zweiseitiges Modell muss bei jedem Löschen, Verschieben und Undo
+beide Hälften nachziehen und driftet beim ersten Versäumnis. `membersOf` scannt stattdessen —
+das läuft auf Klick, nicht pro Frame.
+
+**Gelöscht wird mit `''`, nie mit `undefined`.** `applyMapOp` wendet `upd` per `Object.assign`
+an, lokal klappt `undefined` also. Über den Socket nicht: `JSON.stringify` wirft
+undefined-wertige Schlüssel ersatzlos weg, der Sender sähe das Objekt die Gruppe verlassen,
+alle anderen Clients und die Datei nicht. `map-secrets.spec.ts` schickt die Ops deshalb
+absichtlich durch eine JSON-Runde.
+
+**Auch die Namen sind Spoiler.** `viewFor` liefert Spielern `secrets: []`, und der `set`-Op auf
+`secrets` geht im Gateway **nur an GMs** (`isOpPublic`). „Räuberlager“ in den Devtools verrät
+den Hinterhalt so gut wie die Symbole selbst. Spieler brauchen die Liste nie: Mitgliedschaft
+steht auf den Objekten, und ein aufgedecktes Objekt kommt als ganz gewöhnliches öffentliches an.
+
+**Auflösen deckt nichts auf** (`dissolveOps`): es ist Aufräumen, kein Enthüllen. Andernfalls
+könnte das Sortieren des Panels ein Geheimnis auf die Spielerschirme kippen.
+
+**Kategorieübergreifende Auswahl:** `secretSelection` trägt `{c, id}` statt bloßer Ids und
+speist die vorhandenen `setSelection`-Pfade der drei Views mit ihrem jeweiligen Anteil — keine
+zweite Hervorhebungslogik. Trefferreihenfolge Beschriftung → Symbol → Region (was oben liegt).
+`RegionView.inRect` ist neu und trifft „berührt den Rahmen“, nicht „liegt darin“: ein
+Territorium ist viel größer als das Gummiband über einer Symbolgruppe. `markers` bleibt außen
+vor — die Sammlung existiert im Modell, hat aber **keine View**, es gibt also nichts anzuklicken.
+Entf ist im Reiter bewusst wirkungslos (die Pro-Reiter-Auswahlen leben weiter und würden sonst
+ein ganz anderes Objekt löschen); Esc leert die Auswahl.
+
+**Arbeitsstufe startet auf *Mittel*** statt Auto (in `map-editor.brush.v1` mitgespeichert,
+`tierIsolate` bleibt aus): Auto ändert still, worauf ein Strich schreibt, sodass derselbe Pinsel
+an derselben Stelle je nach Zoom in einer anderen Stufe landet — und der Unterschied fällt erst
+später auf, bei einem Zoom, der die nicht geschriebene Stufe abtastet.
+
+Offen (Phase B): Spielmodus mit Nebel (`fog.revealed` steht ungenutzt im Dokument), Token,
+Lineal, Pings und Skizzen-Overlay (Vektoren **über** der Karte, nie in die Terrain-Raster).

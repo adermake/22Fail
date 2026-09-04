@@ -221,4 +221,57 @@ describe('MapEditorService — Persistenz', () => {
       expect(versions['landColor/low/3/3']).toBeGreaterThan(1e12);
     });
   });
+
+  /**
+   * Was ein Spieler zu sehen bekommt.
+   *
+   * Der Punkt des ganzen Umbaus: Geheimnisse dürfen nicht bloß im UI versteckt sein, sondern
+   * gar nicht erst auf der Leitung liegen. Wer die Devtools öffnet, darf nichts finden.
+   */
+  describe('Spielersicht', () => {
+    beforeEach(() => {
+      const doc = svc.getMap('Testwelt');
+      doc.symbols.push(
+        { id: 'öffentlich', vis: 'public' },
+        { id: 'versteckt', vis: 'secret', secret: 'g1' },
+      );
+      doc.labels.push({ id: 'l1', vis: 'secret', secret: 'g1' });
+      doc.secrets.push({ id: 'g1', name: 'Räuberlager' });
+    });
+
+    it('entfernt geheime Objekte aus der Spielersicht', () => {
+      const view = svc.viewFor('Testwelt', false);
+      expect(view.symbols.map((s: any) => s.id)).toEqual(['öffentlich']);
+      expect(view.labels).toEqual([]);
+    });
+
+    it('verrät Spielern nicht einmal die Namen der Geheimnisse', () => {
+      // Der Name allein ist der Spoiler — "Räuberlager" verrät den Hinterhalt so gut wie die
+      // Symbole selbst. Mitgliedschaft steht ohnehin auf den Objekten, nicht in dieser Liste.
+      expect(svc.viewFor('Testwelt', false).secrets).toEqual([]);
+      expect(JSON.stringify(svc.viewFor('Testwelt', false))).not.toContain('Räuberlager');
+    });
+
+    it('lässt den GM alles sehen', () => {
+      const view = svc.viewFor('Testwelt', true);
+      expect(view.symbols).toHaveLength(2);
+      expect(view.secrets).toEqual([{ id: 'g1', name: 'Räuberlager' }]);
+    });
+
+    it('hält die Geheimnisliste aus den Ops für Spieler heraus', () => {
+      expect(svc.isOpPublic({ t: 'set', path: 'secrets', value: [] } as any)).toBe(false);
+      // Andere geteilte Zustände bleiben öffentlich.
+      expect(svc.isOpPublic({ t: 'set', path: 'settings.showGrid', value: true } as any)).toBe(
+        true,
+      );
+    });
+
+    it('filtert die Spielersicht nicht das Dokument selbst', () => {
+      svc.viewFor('Testwelt', false);
+      // viewFor kopiert flach; würde es die Arrays im Dokument ersetzen, wäre die Karte des
+      // GM nach dem ersten Spieler-Abruf leer.
+      expect(svc.getMap('Testwelt').secrets).toHaveLength(1);
+      expect(svc.getMap('Testwelt').symbols).toHaveLength(2);
+    });
+  });
 });
