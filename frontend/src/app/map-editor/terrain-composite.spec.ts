@@ -172,4 +172,37 @@ describe('Terrain-Komposit (vormultipliziert)', () => {
       }
     });
   });
+
+  /*
+   * Which tiers a re-tint reads after a stamp, and in which order.
+   *
+   * Only the tiers the import actually wrote colour into matter, and they must arrive
+   * coarse-first — the sampler composites in the order it is given, so reversing this would
+   * put the coarse tier *over* the fine one and silently pick the wrong colour.
+   */
+  describe('Stufen für das Nachfärben', () => {
+    const TIERS = ['high', 'med', 'low'] as const;
+    type Tier = (typeof TIERS)[number];
+    const coarser = (t: Tier) => TIERS.slice(TIERS.indexOf(t) + 1);
+
+    const tiersFor = (colorTier: Tier) =>
+      [...TIERS.filter(t => t === colorTier || coarser(colorTier).includes(t))].reverse();
+
+    it('liest bei Farbe auf Grob nur Grob', () => {
+      expect(tiersFor('low')).toEqual(['low']);
+    });
+
+    it('nimmt die gröberen Stufen mit, die derselbe Stempel gefüllt hat', () => {
+      expect(tiersFor('med')).toEqual(['low', 'med']);
+      expect(tiersFor('high')).toEqual(['low', 'med', 'high']);
+    });
+
+    it('liefert immer grob zuerst', () => {
+      for (const t of TIERS) {
+        const order = tiersFor(t).map(x => TIERS.indexOf(x));
+        // Absteigende Indizes = von grob nach fein.
+        expect(order).toEqual([...order].sort((a, b) => b - a));
+      }
+    });
+  });
 });

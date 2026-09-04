@@ -902,78 +902,163 @@ export class ChunkManager {
 
     // Coarsest first: each finer tier composites over what the coarser ones contributed.
     for (const tier of [...TIERS].reverse()) {
-      const span = TIER_WORLD_SIZE[tier];
-      const texels = this.texelsFor(layer);
-      const scale = texels / span;
-
-      const groups = new Map<string, { cx: number; cy: number; items: number[] }>();
-      points.forEach((p, index) => {
-        const cx = Math.floor(p.x / span);
-        const cy = Math.floor(p.y / span);
-        const key = `${cx}/${cy}`;
-        const group = groups.get(key);
-        if (group) group.items.push(index);
-        else groups.set(key, { cx, cy, items: [index] });
-      });
-
-      for (const group of groups.values()) {
+      for (const group of this.groupByChunk(points, tier)) {
+        /*
+         * Deliberately the resident record only — `this.chunks.get`, not `this.get(...)`.
+         * Creating a chunk to sample one texel would fetch it, read it before the fetch
+         * landed, and leave a 3 MB texture behind per point. Ground that is not loaded simply
+         * does not contribute; see `sampleWorldStreaming` for the case that needs it to.
+         */
         const rec = this.chunks.get(this.recKey(layer, tier, group.cx, group.cy));
         if (!rec || !rec.loaded || !this.isUsable(rec)) continue;
+        this.readChunkInto(rec, layer, tier, group, points, acc);
+      }
+    }
 
-        const local = group.items
-          .map(index => ({
-            index,
-            tx: Math.floor((points[index].x - group.cx * span) * scale),
-            ty: Math.floor((points[index].y - group.cy * span) * scale),
-          }))
-          .filter(l => l.tx >= 0 && l.ty >= 0 && l.tx < texels && l.ty < texels);
-        if (local.length === 0) continue;
+    return acc.map(v => (v.read ? { r: v.r, g: v.g, b: v.b, a: v.a } : null));
+  }
 
-        const minX = Math.min(...local.map(l => l.tx));
-        const minY = Math.min(...local.map(l => l.ty));
-        const width = Math.max(...local.map(l => l.tx)) - minX + 1;
-        const height = Math.max(...local.map(l => l.ty)) - minY + 1;
+  /**
+   * Sample many points, loading the chunks it needs and releasing them again.
+   *
+   * `sampleWorldMany` only reads what happens to be resident, which is right for a brush — the
+   * ground under your cursor is on screen by definition. It is wrong after a bulk stamp: an
+   * import repaints a whole continent, and almost none of it is resident, so re-tinting the
+   * symbols standing on it would silently skip everything off screen.
+   *
+   * So this streams, the same way `stampCells` does: load a few chunks, read them, free the
+   * ones the camera is not showing. `tiers` is normally just the ones the import wrote colour
+   * into, which is a handful of chunks at `low` or `med` — and `maxChunks` stops a pathological
+   * choice (colour at `high` across a continent) from trying to load thousands.
+   */
+  async sampleWorldStreaming(
+    layer: RasterLayer,
+    points: { x: number; y: number }[],
+    tiers: DetailTier[],
+    opts: { cancel?: { cancelled: boolean }; maxChunks?: number } = {},
+  ): Promise<(Sample | null)[]> {
+    const { cancel, maxChunks = 256 } = opts;
+    const acc = points.map(() => ({ r: 0, g: 0, b: 0, a: 0, read: false }));
 
-        let pixels: Uint8ClampedArray | Uint8Array | null = null;
-        let readWidth = 0;
-        try {
-          const read = this.renderer.extract.pixels({
-            target: rec.texture,
-            frame: new Rectangle(minX, minY, width, height),
-          });
-          pixels = read?.pixels ?? null;
-          readWidth = read?.width ?? 0;
-        } catch (err) {
-          console.error('[ChunkManager] sampleWorldMany failed', err);
-        }
-        if (!pixels || readWidth === 0) continue;
+    for (const tier of tiers) {
+      const groups = this.groupByChunk(points, tier);
+      if (groups.length > maxChunks) {
+        console.warn(
+          `[ChunkManager] skipping tier ${tier} while sampling: ${groups.length} chunks ` +
+            `exceeds the ${maxChunks} budget.`,
+        );
+        continue;
+      }
 
-        // The frame is not always honoured; when it is ignored the whole chunk comes back and
-        // the requested origin must not be subtracted. Derive it from the returned width.
-        const originX = readWidth === width ? minX : 0;
-        const originY = readWidth === width ? minY : 0;
+      const BATCH = 4;
+      for (let i = 0; i < groups.length; i += BATCH) {
+        if (cancel?.cancelled) break;
+        const batch = groups.slice(i, i + BATCH);
+        const recs = batch.map(g => this.get(layer, tier, g.cx, g.cy));
+        await Promise.all(recs.map(rec => this.ensureLoaded(rec)));
 
-        for (const l of local) {
-          const px = l.tx - originX;
-          const py = l.ty - originY;
-          if (px < 0 || py < 0 || px >= readWidth) continue;
-          const i = (py * readWidth + px) * 4;
-          if (i + 3 >= pixels.length) continue;
+        batch.forEach((group, n) => {
+          const rec = recs[n];
+          if (this.isUsable(rec)) this.readChunkInto(rec, layer, tier, group, points, acc);
+        });
 
-          const target = acc[l.index];
-          target.read = true;
-
-          // over(under = what coarser tiers gave, top = this tier), premultiplied.
-          const k = 1 - pixels[i + 3] / 255;
-          target.r = Math.min(255, pixels[i] + target.r * k);
-          target.g = Math.min(255, pixels[i + 1] + target.g * k);
-          target.b = Math.min(255, pixels[i + 2] + target.b * k);
-          target.a = Math.min(255, pixels[i + 3] + target.a * k);
+        for (const rec of recs) {
+          if (!rec.dirty && !rec.uploading && !this.overlapsView(rec)) this.dispose(rec);
         }
       }
     }
 
     return acc.map(v => (v.read ? { r: v.r, g: v.g, b: v.b, a: v.a } : null));
+  }
+
+  /** Point indices bucketed by the chunk of `tier` they fall in. */
+  private groupByChunk(
+    points: { x: number; y: number }[],
+    tier: DetailTier,
+  ): { cx: number; cy: number; items: number[] }[] {
+    const span = TIER_WORLD_SIZE[tier];
+    const groups = new Map<string, { cx: number; cy: number; items: number[] }>();
+
+    points.forEach((p, index) => {
+      const cx = Math.floor(p.x / span);
+      const cy = Math.floor(p.y / span);
+      const key = `${cx}/${cy}`;
+      const group = groups.get(key);
+      if (group) group.items.push(index);
+      else groups.set(key, { cx, cy, items: [index] });
+    });
+
+    return [...groups.values()];
+  }
+
+  /**
+   * Read one chunk once and composite it into the accumulator for every point inside it.
+   *
+   * One readback per chunk, never per point — the cost of `extract.pixels` is the stall, not
+   * the pixel count, and sampling per symbol is what made painting over a forest crawl.
+   */
+  private readChunkInto(
+    rec: ChunkRecord,
+    layer: RasterLayer,
+    tier: DetailTier,
+    group: { cx: number; cy: number; items: number[] },
+    points: { x: number; y: number }[],
+    acc: { r: number; g: number; b: number; a: number; read: boolean }[],
+  ): void {
+    const span = TIER_WORLD_SIZE[tier];
+    const texels = this.texelsFor(layer);
+    const scale = texels / span;
+
+    const local = group.items
+      .map(index => ({
+        index,
+        tx: Math.floor((points[index].x - group.cx * span) * scale),
+        ty: Math.floor((points[index].y - group.cy * span) * scale),
+      }))
+      .filter(l => l.tx >= 0 && l.ty >= 0 && l.tx < texels && l.ty < texels);
+    if (local.length === 0) return;
+
+    const minX = Math.min(...local.map(l => l.tx));
+    const minY = Math.min(...local.map(l => l.ty));
+    const width = Math.max(...local.map(l => l.tx)) - minX + 1;
+    const height = Math.max(...local.map(l => l.ty)) - minY + 1;
+
+    let pixels: Uint8ClampedArray | Uint8Array | null = null;
+    let readWidth = 0;
+    try {
+      const read = this.renderer.extract.pixels({
+        target: rec.texture,
+        frame: new Rectangle(minX, minY, width, height),
+      });
+      pixels = read?.pixels ?? null;
+      readWidth = read?.width ?? 0;
+    } catch (err) {
+      console.error('[ChunkManager] sample readback failed', err);
+    }
+    if (!pixels || readWidth === 0) return;
+
+    // The frame is not always honoured; when it is ignored the whole chunk comes back and the
+    // requested origin must not be subtracted. Derive it from the returned width.
+    const originX = readWidth === width ? minX : 0;
+    const originY = readWidth === width ? minY : 0;
+
+    for (const l of local) {
+      const px = l.tx - originX;
+      const py = l.ty - originY;
+      if (px < 0 || py < 0 || px >= readWidth) continue;
+      const i = (py * readWidth + px) * 4;
+      if (i + 3 >= pixels.length) continue;
+
+      const target = acc[l.index];
+      target.read = true;
+
+      // over(under = what coarser tiers gave, top = this tier), premultiplied.
+      const k = 1 - pixels[i + 3] / 255;
+      target.r = Math.min(255, pixels[i] + target.r * k);
+      target.g = Math.min(255, pixels[i + 1] + target.g * k);
+      target.b = Math.min(255, pixels[i + 2] + target.b * k);
+      target.a = Math.min(255, pixels[i + 3] + target.a * k);
+    }
   }
 
   /** One position. A thin wrapper, so both paths share the compositing above. */

@@ -692,6 +692,15 @@ Editor neu gesetzt. Bedienung im Reiter *Karte*.
   Zoomstufe darüberliegt. Der Rand wächst mit dem *Umfang*, nicht mit der Fläche (bei `high`
   <10 % der Kacheln), und `skipEmpty` fasst nur an, wo überhaupt etwas liegt — sonst würde die
   Radierung leere Chunks *erzeugen*.
+- **Der Stempel färbt anschließend die Symbole nach** (`resampleStampedTints`). Farbfähige
+  Symbole nehmen die Farbe des Bodens unter sich — der Stempel ersetzt genau diesen Boden, also
+  bleiben sonst die Tints der alten Karte über der neuen liegen. Läuft, wenn Landfarbe sich
+  ändern konnte (Farbpass ODER „Bereich ersetzen"), und liest über
+  `ChunkManager.sampleWorldStreaming` **nur die Stufen, in die der Import Farbe geschrieben
+  hat**, grob zuerst. Streaming ist nötig, weil nach einem Import fast nichts davon resident
+  ist — der normale `sampleWorldMany` liest bewusst nur Residentes und überspränge alles
+  außerhalb des Bildes. **Nicht undo-fähig**, passend zum Import selbst: nur die Tints
+  rückgängig zu machen sähe aus, als wäre der Import zurückgenommen.
 - `ChunkManager.stampRegion()` ist der Bulk-Pfad: pro Zelle laden → malen → hochladen →
   freigeben, vier Zellen gleichzeitig. `paintWorld` ginge nicht — es hielte alle Kacheln
   resident, was bei ~3 MB/Zelle den GPU-Speicher sprengt. Deshalb **kein Undo** (ein

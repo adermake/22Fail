@@ -51,6 +51,7 @@ import {
   MapSymbol,
   OBJECT_COLLECTIONS,
   TIERS,
+  coarserTiers,
 } from './map-editor.model';
 import {
   IMPORT_CELL_WARN,
@@ -748,6 +749,16 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         node.destroy({ children: true, texture: true, textureSource: true });
       }
       this.importBusy.set(false);
+    }
+
+    /*
+     * Symbols take the colour of the ground beneath them, and the stamp just replaced that
+     * ground — so they have to be re-sampled or the previous map's tints stay scattered over
+     * the new one. Only worth doing when land colour can actually have changed: the colour
+     * pass wrote it, or "replace" cleared it back to the base colour.
+     */
+    if (!this.importCancel.cancelled && !this.importError() && (withColor || this.importReplace())) {
+      await this.resampleStampedTints(bounds, withColor ? colorTier : 'low');
     }
 
     // A cancelled or failed run keeps the overlay, so the placement is not lost.
@@ -2033,43 +2044,93 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * the same shade does not flood the network.
    */
   private resampleSymbolTints(): void {
-    const data = this.store.data();
-    if (!data || !this.symbols || !this.chunks) return;
-
     const bounds = this.strokeBounds;
-    if (!bounds) return;
+    if (!bounds || !this.symbols || !this.chunks) return;
 
-    const changed: { id: string; tint: string }[] = [];
+    const colorable = this.colorableIn(bounds);
+    if (!colorable.length) return;
 
     // Batched for the same reason as the live preview: a wide stroke can pass over hundreds
     // of symbols, and one readback each would stall the frame that ends the stroke.
-    const colorable = this.symbols.index
-      .query(bounds)
-      .filter(sym => this.assets.meta(sym.asset)?.colorable);
-    const ground = this.chunks.sampleWorldMany('landColor', colorable);
+    this.applyTints(colorable, this.chunks.sampleWorldMany('landColor', colorable));
+  }
 
-    colorable.forEach((sym, i) => {
-      const tint = this.groundTintHex(ground[i]);
-      if (tint === sym.tint) return;
-      changed.push({ id: sym.id, tint: tint ?? '' });
+  /** Colourable symbols whose base falls in a region. */
+  private colorableIn(bounds: Bounds): MapSymbol[] {
+    return (this.symbols?.index.query(bounds) ?? []).filter(
+      sym => this.assets.meta(sym.asset)?.colorable,
+    );
+  }
+
+  /**
+   * Commit re-sampled tints as ops, skipping the ones that did not actually change.
+   *
+   * Repainting the same shade must emit nothing: a stroke over a dense forest would otherwise
+   * put one update per symbol on the wire for no visible difference.
+   */
+  private applyTints(
+    symbols: MapSymbol[],
+    samples: (Sample | null)[],
+    undoable = true,
+  ): void {
+    const changed: { sym: MapSymbol; tint: string | undefined }[] = [];
+    symbols.forEach((sym, i) => {
+      const tint = this.groundTintHex(samples[i]);
+      if (tint !== sym.tint) changed.push({ sym, tint });
     });
+    if (!changed.length) return;
 
-    if (changed.length === 0) return;
-
-    this.undoStack?.begin();
-    for (const c of changed) {
-      const sym = this.symbolById(c.id);
-      if (!sym) continue;
-      const patch = { tint: c.tint || undefined };
-      this.undoStack?.recordObject({
-        c: 'symbols',
-        id: c.id,
-        before: clone(sym),
-        after: clone({ ...sym, ...patch }),
-      });
-      this.store.updateObject('symbols', c.id, patch);
+    /*
+     * An import's re-tint is deliberately *not* undoable.
+     *
+     * The stamp itself cannot be undone, so recording only its tint changes would make Ctrl+Z
+     * revert the symbol colours and nothing else — leaving the previous map's tints over the
+     * new ground while looking like the import had been undone. A stroke's re-tint is
+     * recorded, because the stroke it belongs to is.
+     */
+    if (undoable) this.undoStack?.begin();
+    for (const { sym, tint } of changed) {
+      const patch = { tint };
+      if (undoable) {
+        this.undoStack?.recordObject({
+          c: 'symbols',
+          id: sym.id,
+          before: clone(sym),
+          after: clone({ ...sym, ...patch }),
+        });
+      }
+      this.store.updateObject('symbols', sym.id, patch);
     }
-    this.undoStack?.commit('Symbolfarbe');
+    if (undoable) this.undoStack?.commit('Symbolfarbe');
+  }
+
+  /**
+   * Re-tint every colourable symbol under a stamped region.
+   *
+   * The stamp changes the ground a symbol is standing on, so a symbol that samples its colour
+   * from the ground has to follow — otherwise an import leaves the previous map's tints
+   * scattered over the new one.
+   *
+   * Streams rather than reading what is resident: after an import almost none of the affected
+   * map is on screen, so the ordinary sampler would skip everything but the current view.
+   * Only the tiers the import actually wrote colour into are read, which is a handful of
+   * chunks at `low` or `med`.
+   */
+  private async resampleStampedTints(bounds: Bounds, colorTier: DetailTier): Promise<void> {
+    if (!this.symbols || !this.chunks) return;
+
+    const colorable = this.colorableIn(bounds);
+    if (!colorable.length) return;
+
+    // Coarsest first, matching how the sampler composites tiers.
+    const tiers = [...TIERS.filter(t => t === colorTier || coarserTiers(colorTier).includes(t))]
+      .reverse();
+
+    const samples = await this.chunks.sampleWorldStreaming('landColor', colorable, tiers, {
+      cancel: this.importCancel,
+    });
+    this.applyTints(colorable, samples, false);
+    this.scheduleStream();
   }
 
   private scheduleFlush(): void {
