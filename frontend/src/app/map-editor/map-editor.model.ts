@@ -202,13 +202,26 @@ export function chunkOrigin(cx: number, cy: number, tier: DetailTier = 'high'): 
  */
 export type Visibility = 'public' | 'secret';
 
-export type ObjectCollection = 'symbols' | 'labels' | 'regions' | 'markers';
+/**
+ * `tokens` and `sketch` belong to game mode, but are ordinary object collections so they
+ * inherit the whole add/upd/del pipeline — optimistic apply, one op per change, and the
+ * server's secret filtering — instead of growing a second sync mechanism beside it.
+ */
+export type ObjectCollection =
+  | 'symbols'
+  | 'labels'
+  | 'regions'
+  | 'markers'
+  | 'tokens'
+  | 'sketch';
 
 export const OBJECT_COLLECTIONS: readonly ObjectCollection[] = [
   'symbols',
   'labels',
   'regions',
   'markers',
+  'tokens',
+  'sketch',
 ];
 
 export interface MapObjectBase {
@@ -303,7 +316,41 @@ export interface MapSecret {
   name: string;
 }
 
-export type AnyMapObject = MapSymbol | MapLabel | MapRegion | MapMarker;
+/**
+ * A figure on the map during play.
+ *
+ * Position is plain world coordinates like every other object, snapped to a hex centre when
+ * dropped. Storing the hex instead would have been the v1 shape (`WorldMapToken` carries
+ * `macroQ/macroR/subQ/subR`), and it ties the token to a grid that only exists because the
+ * ruler needs one — a token nudged half a hex off a road could then never sit there.
+ */
+export interface MapToken extends MapObjectBase {
+  name: string;
+  color: string;
+  /** Diameter in world px. A hex is `HEX_WIDTH` across, so this is usually a fraction of it. */
+  size: number;
+  portrait?: string;
+  /** Set when the token stands for a character sheet rather than being drawn on the spot. */
+  characterId?: string;
+}
+
+/**
+ * A freehand line drawn over the map during play — "we go along this valley".
+ *
+ * Deliberately **not** terrain. It is a vector object on a layer above the map, so it never
+ * touches a chunk, never writes a detail tier, and can be wiped without the map remembering
+ * it was ever there. Painting it into the rasters would make an off-hand gesture during a
+ * session permanent and, worse, indistinguishable from the map itself.
+ */
+export interface SketchStroke extends MapObjectBase {
+  points: Point[];
+  color: string;
+  width: number;
+  /** User id that drew it: a player may clear their own lines, the GM may clear everyone's. */
+  author: string;
+}
+
+export type AnyMapObject = MapSymbol | MapLabel | MapRegion | MapMarker | MapToken | SketchStroke;
 
 // ============================================
 // Settings & document
@@ -370,6 +417,8 @@ export interface MapEditorData {
   labels: MapLabel[];
   regions: MapRegion[];
   markers: MapMarker[];
+  tokens: MapToken[];
+  sketch: SketchStroke[];
 
   labelPresets: LabelPreset[];
   /** Secret groups. Membership lives on the objects (`secret`), not here. */
@@ -380,7 +429,13 @@ export interface MapEditorData {
 
   settings: MapSettings;
 
-  /** Revealed sub-hexes as global `q,r` keys (v1's macro-relative 4-tuple is gone). */
+  /**
+   * Revealed hexes as global `q,r` keys (v1's macro-relative 4-tuple is gone).
+   *
+   * Revealed, not hidden: a fresh world is entirely fogged, which is what a campaign map
+   * wants — the party has been nowhere yet. Storing the hidden set instead would mean
+   * writing down every hex of an unexplored continent.
+   */
   fog: { revealed: string[] };
 
   /**
@@ -400,6 +455,8 @@ export function createEmptyMapEditorData(worldName: string): MapEditorData {
     labels: [],
     regions: [],
     markers: [],
+    tokens: [],
+    sketch: [],
     labelPresets: [],
     secrets: [],
     landPalette: ['#7a8f5a', '#8fa06b', '#a8b581', '#c2c79a', '#6b7d4e'],
@@ -436,8 +493,16 @@ export type MapOp =
    * ground that never had anything on it.
    */
   | { t: 'chunkDrop'; layer: RasterLayer; tier: DetailTier; cells: [number, number][] }
-  /** Small scalar state: palettes, settings, fog, presets. Dot path into `MapEditorData`. */
-  | { t: 'set'; path: string; value: unknown };
+  /** Small scalar state: palettes, settings, presets. Dot path into `MapEditorData`. */
+  | { t: 'set'; path: string; value: unknown }
+  /**
+   * Fog changes as a delta, not the whole set.
+   *
+   * A `set` on `fog.revealed` would ship the entire revealed list on every brush dab — tens
+   * of thousands of keys once a campaign is under way, for a change of a dozen hexes. Same
+   * reasoning as `chunk`: send what changed, not what the state now is.
+   */
+  | { t: 'fog'; add?: string[]; remove?: string[] };
 
 /** Apply an op in place. Shared by the client store and the backend, so they cannot drift. */
 export function applyMapOp(data: MapEditorData, op: MapOp): void {
@@ -470,6 +535,15 @@ export function applyMapOp(data: MapEditorData, op: MapOp): void {
       for (const [cx, cy] of op.cells) {
         delete data.chunkVersions[chunkKey(op.layer, op.tier, cx, cy)];
       }
+      break;
+    }
+    case 'fog': {
+      // Rebuilt through a Set so a hex revealed twice is stored once, and so removing one
+      // never has to scan the array per key.
+      const set = new Set(data.fog.revealed);
+      for (const key of op.remove ?? []) set.delete(key);
+      for (const key of op.add ?? []) set.add(key);
+      data.fog.revealed = [...set];
       break;
     }
     case 'set': {

@@ -18,9 +18,14 @@ export class MapEditorSocketService {
 
   private opSubject = new Subject<MapOp>();
   private readySubject = new Subject<void>();
+  private pingSubject = new Subject<IncomingPing>();
+  private measureSubject = new Subject<MeasureLine[]>();
 
   ops$ = this.opSubject.asObservable();
   connectionReady$ = this.readySubject.asObservable();
+  /** Ephemeral play aids. These never enter the document — see `play-aids.ts`. */
+  pings$ = this.pingSubject.asObservable();
+  measurements$ = this.measureSubject.asObservable();
 
   connect(worldName: string): void {
     this.worldName = worldName;
@@ -52,6 +57,10 @@ export class MapEditorSocketService {
     });
 
     this.socket.on('mapEditorOp', (op: MapOp) => this.opSubject.next(op));
+    this.socket.on('mapEditorPing', (ping: IncomingPing) => this.pingSubject.next(ping));
+    this.socket.on('mapEditorMeasure', (lines: MeasureLine[]) =>
+      this.measureSubject.next(lines ?? []),
+    );
   }
 
   disconnect(): void {
@@ -80,7 +89,44 @@ export class MapEditorSocketService {
     this.socket.emit('mapEditorOp', { worldName: this.worldName, op });
   }
 
+  sendPing(x: number, y: number, color: string): void {
+    if (!this.socket?.connected || !this.worldName) return;
+    this.socket.emit('mapEditorPing', { worldName: this.worldName, ping: { x, y, color } });
+  }
+
+  /**
+   * Publish or withdraw this client's ruler line.
+   *
+   * `null` withdraws. The server keys lines by socket, so this replaces rather than appends —
+   * dragging the ruler cannot leave a trail of stale lines on everyone else's map.
+   */
+  sendMeasure(line: { start: Point; end: Point } | null): void {
+    if (!this.socket?.connected || !this.worldName) return;
+    this.socket.emit('mapEditorMeasure', { worldName: this.worldName, line });
+  }
+
   get socketId(): string | undefined {
     return this.socket?.id;
   }
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+/** A ping as it arrives: the server stamps the id and author, so neither can be forged. */
+export interface IncomingPing {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  by: string;
+}
+
+export interface MeasureLine {
+  id: string;
+  start: Point;
+  end: Point;
+  by: string;
 }

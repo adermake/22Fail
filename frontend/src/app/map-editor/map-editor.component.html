@@ -11,6 +11,18 @@
 
     <span class="sep"></span>
 
+    @if (isGM()) {
+      <!-- Der Umschalter ist absichtlich lokal: was der GM auf dem Schirm hat, gehört nicht
+           zur Karte, und ein zweiter GM soll dadurch nicht den Modus wechseln. -->
+      <button type="button" [class.active]="mode() === 'edit'" (click)="setMode('edit')">
+        Bearbeiten
+      </button>
+      <button type="button" [class.active]="mode() === 'game'" (click)="setMode('game')">
+        Spielen
+      </button>
+      <span class="sep"></span>
+    }
+
     <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">Hexgitter</button>
     <button
       type="button"
@@ -20,8 +32,12 @@
     >
       Diagnose
     </button>
-    <button type="button" [disabled]="!canUndo()" (click)="undo()" title="Strg+Z">↶</button>
-    <button type="button" [disabled]="!canRedo()" (click)="redo()" title="Strg+Shift+Z">↷</button>
+    @if (!inGame()) {
+      <!-- Rückgängig gehört zum Bearbeiten. Im Spiel ist nichts davon rückgängig zu machen:
+           Nebel, Figuren und Skizzen laufen bewusst nicht über die Bearbeitungshistorie. -->
+      <button type="button" [disabled]="!canUndo()" (click)="undo()" title="Strg+Z">↶</button>
+      <button type="button" [disabled]="!canRedo()" (click)="redo()" title="Strg+Shift+Z">↷</button>
+    }
 
     <span class="spacer"></span>
 
@@ -36,7 +52,25 @@
   </div>
 
   <div class="editor-body">
-    @if (isGM()) {
+    @if (inGame()) {
+      <!-- Im Spielmodus gibt es keine Reiter: die Werkzeuge hier ändern nicht die Karte,
+           sondern was am Tisch damit passiert. Spieler sehen nur ihren Ausschnitt davon. -->
+      <aside class="tool-rail">
+        <div class="tool-icons">
+          @for (t of gameTools(); track t.id) {
+            <button
+              type="button"
+              class="rail-btn"
+              [class.active]="gameTool() === t.id"
+              [title]="t.label"
+              (click)="selectGameTool(t.id)"
+            >
+              <img [src]="icon(t.icon)" [alt]="t.label" />
+            </button>
+          }
+        </div>
+      </aside>
+    } @else if (isGM()) {
       <!-- LEFT: tabs and their tools, as icons only. -->
       <aside class="tool-rail">
         <!-- Categories as text; the tools inside them are the icons. -->
@@ -120,8 +154,8 @@
       <div
         #pixiHost
         class="pixi-host"
-        [class.brush-cursor]="isGM() && isTerrainTab()"
-        [class.place-cursor]="isPlacingSymbols()"
+        [class.brush-cursor]="isGM() && !inGame() && isTerrainTab()"
+        [class.place-cursor]="isPlacingSymbols() || (inGame() && gameTool() === 'token')"
       ></div>
 
       @if (marquee(); as m) {
@@ -236,7 +270,152 @@
       </div>
     </div>
 
-    @if (isGM()) {
+    @if (inGame()) {
+      <aside class="settings-panel">
+        <div class="settings-title">{{ gameToolLabel() }}</div>
+
+        @if (gameTool() === 'ruler') {
+          <p class="hint">
+            Ziehen misst die Entfernung. Alle am Tisch sehen die Linie, solange die Maustaste
+            gehalten wird.
+          </p>
+        }
+
+        @if (gameTool() === 'ping') {
+          <p class="hint">Klicken markiert eine Stelle für alle — kurz, dann verschwindet sie.</p>
+          <label class="base-row">
+            <span>Farbe</span>
+            <input
+              type="color"
+              [value]="sketchColor()"
+              (input)="sketchColor.set($any($event.target).value)"
+            />
+          </label>
+        }
+
+        @if (gameTool() === 'sketch') {
+          <!-- Zeichnet auf eine Ebene ÜBER der Karte, nie in das Gelände: eine Geste im
+               Spiel darf nicht dauerhaft Teil der Karte werden. -->
+          <label class="base-row">
+            <span>Farbe</span>
+            <input
+              type="color"
+              [value]="sketchColor()"
+              (input)="sketchColor.set($any($event.target).value)"
+            />
+          </label>
+          <label class="slider-row">
+            <span>Breite</span>
+            <input
+              type="range"
+              min="6"
+              max="120"
+              step="1"
+              [value]="sketchWidth()"
+              (input)="sketchWidth.set(+$any($event.target).value)"
+            />
+            <em>{{ sketchWidth() }}</em>
+          </label>
+          <div class="history-row">
+            <button type="button" (click)="clearSketch()">
+              {{ isGM() ? 'Alle Linien löschen' : 'Meine Linien löschen' }}
+            </button>
+          </div>
+          <p class="hint">
+            {{ sketchCount() }} Linie(n) · liegt über der Karte und verändert das Gelände nicht.
+          </p>
+        }
+
+        @if (gameTool() === 'fog' && isGM()) {
+          <div class="history-row">
+            <button
+              type="button"
+              [class.active-toggle]="fogReveals()"
+              (click)="fogReveals.set(true)"
+            >
+              Aufdecken
+            </button>
+            <button
+              type="button"
+              [class.active-toggle]="!fogReveals()"
+              (click)="fogReveals.set(false)"
+            >
+              Verdecken
+            </button>
+          </div>
+          <label class="slider-row">
+            <span>Radius</span>
+            <input
+              type="range"
+              min="0"
+              max="12"
+              step="1"
+              [value]="fogRadius()"
+              (input)="fogRadius.set(+$any($event.target).value)"
+            />
+            <em>{{ fogRadius() }}</em>
+          </label>
+          <div class="history-row">
+            <button type="button" (click)="fogAll(true)">Sichtbereich aufdecken</button>
+          </div>
+          <div class="history-row">
+            <button type="button" (click)="fogAll(false)">Alles verdecken</button>
+          </div>
+          <p class="hint">
+            {{ revealedCount() }} Hex aufgedeckt. Du siehst durch den Nebel hindurch, die
+            Spieler nicht.
+          </p>
+        }
+
+        @if (gameTool() === 'token' && isGM()) {
+          <label class="base-row">
+            <span>Name</span>
+            <input
+              type="text"
+              class="text-input"
+              [value]="tokenName()"
+              (input)="tokenName.set($any($event.target).value)"
+            />
+          </label>
+          <label class="base-row">
+            <span>Farbe</span>
+            <input
+              type="color"
+              [value]="tokenColor()"
+              (input)="tokenColor.set($any($event.target).value)"
+            />
+          </label>
+          <label class="slider-row">
+            <span>Größe</span>
+            <input
+              type="range"
+              min="60"
+              max="480"
+              step="10"
+              [value]="tokenSize()"
+              (input)="tokenSize.set(+$any($event.target).value)"
+            />
+            <em>{{ tokenSize() }}</em>
+          </label>
+          @if (selectedTokenId()) {
+            <div class="history-row">
+              <button type="button" (click)="deleteSelectedToken()">Figur entfernen</button>
+            </div>
+          }
+          <p class="hint">
+            Klick auf leeres Feld setzt eine Figur, Ziehen verschiebt sie. Figuren rasten auf
+            Hexmitten ein, weil Entfernungen daran gemessen werden.
+          </p>
+        }
+
+        @if (gameTool() === 'reveal' && isGM()) {
+          <p class="hint">
+            Klick auf ein verborgenes Objekt deckt sein ganzes Geheimnis auf — sofort und für
+            alle Spieler.
+          </p>
+        }
+      </aside>
+    } @else if (isGM()) {
       <!-- RIGHT: settings for the active tool only. -->
       <aside class="settings-panel">
         <div class="settings-title">{{ activeToolLabel() }}</div>

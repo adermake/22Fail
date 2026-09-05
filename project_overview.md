@@ -1138,3 +1138,67 @@ später auf, bei einem Zoom, der die nicht geschriebene Stufe abtastet.
 
 Offen (Phase B): Spielmodus mit Nebel (`fog.revealed` steht ungenutzt im Dokument), Token,
 Lineal, Pings und Skizzen-Overlay (Vektoren **über** der Karte, nie in die Terrain-Raster).
+
+## Karteneditor v2 — Spielmodus
+
+Umschalter **Bearbeiten / Spielen** in der Werkzeugleiste, nur für den GM; Spieler sind immer
+im Spielmodus, der Schalter wird ihnen gar nicht gezeigt. Der Modus ist **lokal**
+(`map-editor.brush.v1`), nicht synchronisiert: was der GM auf dem Schirm hat, gehört nicht zur
+Karte, und ein zweiter GM soll dadurch nicht den Modus wechseln. Im Spielmodus liegt der Zeiger
+vollständig bei den Spielwerkzeugen — kein Geländepinsel ist erreichbar, und Entf/Strg+Z sind
+abgeschaltet (die Bearbeitungsauswahl überlebt den Wechsel und würde sonst mitten in der Sitzung
+ein Symbol löschen).
+
+**Werkzeuge:** Lineal, Ping, Skizze, Nebel, Figuren, Geheimnis aufdecken. `gameToolsFor(isGM)`
+gibt Spielern nur Lineal, Ping und Skizze — die Liste ist aber nur Bequemlichkeit, jede
+GM-Aktion prüft zusätzlich selbst.
+
+**Nebel (`fog-view.ts`) ist ein Canvas, kein Haufen Hexe.** Ein dunkles Hex je unaufgedecktem
+Hex zu zeichnen skaliert nicht: bei dem Zoom, bei dem ein Hex noch drei Bildschirmpixel breit
+ist, liegen ~640 × 400 davon im Bild — eine Viertelmillion Pfade pro Pan, und eine
+Kampagnenkarte ist überwiegend Nebel, das ist also der *Normalfall*. Umgedreht stimmt die
+Skalierung: Nebel ist ein gefülltes Rechteck, aus dem die **aufgedeckten** Hexe ausgestanzt
+werden (`destination-out` auf dem Canvas — Pixi 8 hat keine invertierte Maske, und
+Erase-Blending bräuchte ein eigenes Rendertarget). Die Kosten folgen damit dem Erkundeten, nicht
+dem Sichtfeld. Feste Texturgröße (1024×768, einmal angelegt und in place neu hochgeladen);
+jenseits von `MAX_HOLES` aufgedeckten Hexen im Bild verschwindet der Nebel ganz, weil er dort
+ohnehin nichts mehr verbirgt. Spieler bekommen ihn deckend, der GM bei 0,42 — wer den Nebel
+nicht sieht, kann ihn nicht aufdecken.
+
+**Nebel-Ops sind Deltas** (`{ t: 'fog', add?, remove? }`), nie das ganze Set: ein `set` auf
+`fog.revealed` würde bei jedem Pinseltupfer zehntausende Schlüssel verschicken. Angewandt über
+ein `Set`, erst `remove`, dann `add`, damit ein Tupfer, der beides berührt, nicht von der
+Reihenfolge im Payload abhängt.
+
+**Skizze (`sketch-view.ts`) liegt ÜBER der Karte, nie darin.** Vektoren in einem eigenen
+Container; kein Chunk, keine Detailstufe, kein Raster wird angefasst. Eine Geste im Spiel darf
+nicht dauerhaft und nicht von der Karte ununterscheidbar werden. Die laufende Linie hat ein
+eigenes `Graphics`, damit ein Zug nicht alle bisherigen Linien neu zeichnet, und Punkte werden
+beim Zeichnen ausgedünnt (Rohbewegungen liegen pixelweise vor — hundertfach mehr Geometrie als
+die Linie braucht, und alles davon wird synchronisiert).
+
+**Spieler dürfen genau eine Sache schreiben.** Bis hierher war jedes Op GM-Sache;
+`isPlayerWritableOp` ist eine enge Whitelist, keine Lockerung: nur die Sammlung `sketch`, nur
+`add`/`del`, die Linie muss öffentlich sein und die **eigene** Benutzerkennung als `author`
+tragen, und beim Löschen prüft das Gateway den gespeicherten Urheber. Der Name kommt aus dem
+Handshake, nie aus dem Payload — sonst könnte jeder eine Linie im Namen eines anderen zeichnen.
+
+**Ping und Lineal sind Gesten, keine Bearbeitungen** (`play-aids.ts`): eigene Socket-Nachrichten,
+nichts davon landet im Dokument — ein gespeicherter Ping hieße, die Karte merkt sich, wohin
+jemand vor drei Sitzungen gezeigt hat. Linien sind nach Socket verschlüsselt (ein Client ersetzt
+immer seine eigene) und werden bei `handleDisconnect` entfernt, sonst bliebe die Linie eines
+geschlossenen Tabs für den Rest der Sitzung auf allen Karten stehen. Die eigene Linie wird lokal
+gezeichnet, ohne auf das Echo zu warten.
+
+**Figuren** rasten auf Hexmitten ein, weil Entfernungen daran gemessen werden; sie sind
+gewöhnliche Objekte der Sammlung `tokens` und erben damit Ops, Persistenz und Filterung.
+Verschoben wird mit **einem** Op beim Loslassen, nicht einem je überquertem Hex. Vorerst
+GM-only.
+
+**Maßstabsfehler nebenbei behoben:** `worldToKm` teilt durch `HEX_HEIGHT`, nicht durch
+`HEX_X_SPACING`. Der Spaltenabstand ist nur 3/4 einer Hexbreite und damit *nicht* der Abstand
+zwischen Nachbarn (der ist `√3·R`, in allen sechs Richtungen gleich — das macht ein Hexgitter
+aus). Betraf auch die Größenangabe beim Landmassen-Import, die jede Karte ~15 % zu groß meldete.
+
+**`/world-map` leitet noch nicht um.** Der Plan koppelt das an praktisch bestätigte Parität, und
+die steht aus — der alte Betrachter bleibt bis dahin der Rückfallweg.

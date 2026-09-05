@@ -106,7 +106,11 @@ export class MapEditorStoreService {
     if (!data) return;
     applyMapOp(data, op);
     this.revision.update(n => n + 1);
-    if (op.t === 'add' || op.t === 'upd' || op.t === 'del') this.objectOpSubject.next(op);
+    // `fog` rides this stream too: the revealed set changes in place, so a view watching the
+    // document for identity changes would never notice it.
+    if (op.t === 'add' || op.t === 'upd' || op.t === 'del' || op.t === 'fog') {
+      this.objectOpSubject.next(op);
+    }
   }
 
   /** Apply optimistically, then broadcast. */
@@ -165,7 +169,7 @@ export class MapEditorStoreService {
     applyMapOp(data, op);
     this.revision.update(n => n + 1);
 
-    if (op.t === 'add' || op.t === 'upd' || op.t === 'del') {
+    if (op.t === 'add' || op.t === 'upd' || op.t === 'del' || op.t === 'fog') {
       this.objectOpSubject.next(op);
       return;
     }
@@ -210,10 +214,41 @@ export class MapEditorStoreService {
     this.updateObject(c, id, { vis: 'public' });
   }
 
-  // ── shared scalar state (palettes, settings, fog, presets) ──
+  // ── shared scalar state (palettes, settings, presets) ──
 
   setPath(path: string, value: unknown): void {
     this.emit({ t: 'set', path, value });
+  }
+
+  // ── ephemeral play aids ──
+  //
+  // Passed straight through to the socket and never stored. A ping is a gesture: keeping one
+  // in the document would mean the map remembered where somebody pointed three sessions ago.
+
+  readonly pings$ = this.socket.pings$;
+  readonly measurements$ = this.socket.measurements$;
+
+  sendPing(x: number, y: number, color: string): void {
+    this.socket.sendPing(x, y, color);
+  }
+
+  sendMeasure(line: { start: { x: number; y: number }; end: { x: number; y: number } } | null): void {
+    this.socket.sendMeasure(line);
+  }
+
+  get socketId(): string | undefined {
+    return this.socket.socketId;
+  }
+
+  /**
+   * Reveal or re-hide hexes.
+   *
+   * A delta, never the whole set: a `set` on `fog.revealed` would ship every revealed hex on
+   * the map for a brush dab that touched six of them.
+   */
+  setFog(add: string[], remove: string[]): void {
+    if (!add.length && !remove.length) return;
+    this.emit({ t: 'fog', add, remove });
   }
 
   // ── chunks ──

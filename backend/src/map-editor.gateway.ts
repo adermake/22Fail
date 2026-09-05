@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -29,7 +30,7 @@ import { UsersService } from './users.service';
 @WebSocketGateway({
   cors: { origin: '*' },
 })
-export class MapEditorGateway {
+export class MapEditorGateway implements OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(MapEditorGateway.name);
 
@@ -52,6 +53,19 @@ export class MapEditorGateway {
       | { userId?: string; code?: string }
       | undefined;
     return !!this.users.resolve(auth?.userId, auth?.code)?.isAdmin;
+  }
+
+  /**
+   * The authenticated user behind a socket, or '' when the handshake proves nobody.
+   *
+   * Taken from the handshake, never from the message body: a sketch stroke says who drew it,
+   * and if that came from the payload any client could sign a line with someone else's name.
+   */
+  private userId(client: Socket): string {
+    const auth = client.handshake?.auth as
+      | { userId?: string; code?: string }
+      | undefined;
+    return this.users.resolve(auth?.userId, auth?.code)?.name ?? '';
   }
 
   @SubscribeMessage('joinMapEditor')
@@ -88,12 +102,29 @@ export class MapEditorGateway {
     const { worldName, op } = data ?? ({} as any);
     if (!worldName || !op?.t) return;
 
-    // Editing the world is a GM action. Rejecting loudly beats silently diverging state.
+    /*
+     * Editing the world is a GM action, with one deliberate exception: the sketch layer,
+     * which exists so players can trace a route during a session. Everything else from a
+     * non-GM socket is refused loudly — silently diverging state is far worse to debug.
+     */
     if (!this.isGM(client)) {
-      this.logger.warn(
-        `Rejected map edit from non-GM socket ${client.id} on ${worldName}`,
-      );
-      return;
+      const user = this.userId(client);
+      if (!this.mapEditor.isPlayerWritableOp(op, user)) {
+        this.logger.warn(
+          `Rejected map edit from non-GM socket ${client.id} on ${worldName}`,
+        );
+        return;
+      }
+      // A player may rub out their own lines, never anyone else's.
+      if (op.t === 'del') {
+        const author = this.mapEditor.sketchAuthor(worldName, op.id);
+        if (author !== user) {
+          this.logger.warn(
+            `Rejected sketch delete by ${user} of a stroke owned by ${author ?? 'nobody'}`,
+          );
+          return;
+        }
+      }
     }
 
     // Visibility before the op decides who may be told about it afterwards.
@@ -113,7 +144,9 @@ export class MapEditorGateway {
     switch (op.t) {
       case 'chunk':
       case 'chunkDrop':
-        // Terrain is never secret — what a player may see of it is decided by the fog.
+      case 'fog':
+        // Terrain is never secret — what a player may see of it is decided by the fog, and
+        // the fog itself has to reach players or it would hide nothing on their screens.
         toEveryone();
         break;
 
@@ -163,6 +196,94 @@ export class MapEditorGateway {
         }
         break;
       }
+    }
+  }
+
+  // ── ephemeral play aids ──
+  //
+  // Pings and the ruler are *not* ops: they are gestures, not edits. Nothing about them
+  // belongs in the document — persisting a ping would mean the map remembered where somebody
+  // pointed three sessions ago — so they are broadcast and forgotten. Both are open to
+  // players, which is the entire point of having them.
+
+  /** Transient ruler lines: world → (socket id → line). Cleared when the socket goes. */
+  private measurements = new Map<
+    string,
+    Map<string, { id: string; start: any; end: any; by: string }>
+  >();
+
+  private broadcastMeasurements(worldName: string): void {
+    const all = Array.from(this.measurements.get(worldName)?.values() ?? []);
+    this.server
+      .to(this.gmRoom(worldName))
+      .to(this.room(worldName))
+      .emit('mapEditorMeasure', all);
+  }
+
+  @SubscribeMessage('mapEditorPing')
+  ping(
+    @MessageBody()
+    data: { worldName: string; ping: { x: number; y: number; color?: string } },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName, ping } = data ?? ({} as any);
+    if (!worldName || !ping) return;
+    if (!Number.isFinite(ping.x) || !Number.isFinite(ping.y)) return;
+
+    // The name is stamped server-side from the handshake, never taken from the payload.
+    this.server
+      .to(this.gmRoom(worldName))
+      .to(this.room(worldName))
+      .emit('mapEditorPing', {
+        id: `${client.id}-${Date.now()}`,
+        x: ping.x,
+        y: ping.y,
+        color: typeof ping.color === 'string' ? ping.color : '#ffcc44',
+        by: this.userId(client),
+      });
+  }
+
+  @SubscribeMessage('mapEditorMeasure')
+  measure(
+    @MessageBody()
+    data: {
+      worldName: string;
+      line: { start: { x: number; y: number }; end: { x: number; y: number } } | null;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName, line } = data ?? ({} as any);
+    if (!worldName) return;
+
+    let forWorld = this.measurements.get(worldName);
+    if (!forWorld) {
+      forWorld = new Map();
+      this.measurements.set(worldName, forWorld);
+    }
+
+    // Keyed by socket, so a client always replaces its own line instead of adding another,
+    // and dragging the ruler cannot leave a trail of stale ones behind.
+    if (line === null) forWorld.delete(client.id);
+    else {
+      forWorld.set(client.id, {
+        id: client.id,
+        start: line.start,
+        end: line.end,
+        by: this.userId(client),
+      });
+    }
+    this.broadcastMeasurements(worldName);
+  }
+
+  /**
+   * Drop a disconnected client's ruler line.
+   *
+   * Without this a closed tab leaves its line on everyone else's map for the rest of the
+   * session, with no way to clear it — the socket that owned it is gone.
+   */
+  handleDisconnect(client: Socket): void {
+    for (const [worldName, lines] of this.measurements) {
+      if (lines.delete(client.id)) this.broadcastMeasurements(worldName);
     }
   }
 }

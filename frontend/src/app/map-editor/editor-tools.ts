@@ -33,6 +33,32 @@ export interface TabDef {
   label: string;
 }
 
+/**
+ * Tools for game mode.
+ *
+ * A separate set from the editing tools, and a separate mode, because the two answer
+ * different questions. Editing asks "what is on the map"; playing asks "what can the party
+ * see, where is everyone, how far is that". Mixing them put a terrain brush one slip of the
+ * hand away from the ruler in the middle of a session.
+ */
+export type GameTool = 'ruler' | 'ping' | 'sketch' | 'fog' | 'token' | 'reveal';
+
+export const GAME_TOOL_DEFS: ToolDef<GameTool>[] = [
+  { id: 'ruler', icon: 'measuring_tool_64', label: 'Entfernung messen' },
+  { id: 'ping', icon: 'warning_32', label: 'Markieren (Ping)' },
+  { id: 'sketch', icon: 'path_tool_64', label: 'Skizzieren' },
+  { id: 'fog', icon: 'invisible', label: 'Nebel' },
+  { id: 'token', icon: 'map_anchor', label: 'Figuren' },
+  { id: 'reveal', icon: 'visible', label: 'Geheimnis aufdecken' },
+];
+
+/** Tools a player may use. The rest change the world and stay with the GM. */
+export const PLAYER_GAME_TOOLS: readonly GameTool[] = ['ruler', 'ping', 'sketch'];
+
+export function gameToolsFor(isGM: boolean): ToolDef<GameTool>[] {
+  return isGM ? GAME_TOOL_DEFS : GAME_TOOL_DEFS.filter(t => PLAYER_GAME_TOOLS.includes(t.id));
+}
+
 export const TAB_DEFS: TabDef[] = [
   { id: 'water', label: 'Wasser' },
   { id: 'land', label: 'Land' },

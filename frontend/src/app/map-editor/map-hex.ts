@@ -38,6 +38,19 @@ export const HEX_Y_SPACING = HEX_HEIGHT;
 /** Scale used by the measuring ruler. */
 export const KM_PER_HEX = 4;
 
+/**
+ * World pixels → kilometres.
+ *
+ * Divides by `HEX_HEIGHT`, not `HEX_X_SPACING`. The column pitch is only 3/4 of a hex's
+ * width, so it is *not* the distance between neighbours: two adjacent centres are
+ * `hypot(1.5R, √3R/2)` apart, which works out to `√3·R` — the same in every direction, which
+ * is what makes it a hex grid. Measuring against the column pitch instead read every distance
+ * about 15% long.
+ */
+export function worldToKm(worldPx: number): number {
+  return (worldPx / HEX_HEIGHT) * KM_PER_HEX;
+}
+
 /** Centre of an odd-q offset hex, in world px. */
 export function hexToWorld(hex: HexCoord): Point {
   return {

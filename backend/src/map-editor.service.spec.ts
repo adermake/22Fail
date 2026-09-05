@@ -223,6 +223,99 @@ describe('MapEditorService — Persistenz', () => {
   });
 
   /**
+   * Was ein Spieler *schreiben* darf.
+   *
+   * Bis hierher war jede Bearbeitung GM-Sache. Der Skizzen-Layer ist die eine Ausnahme —
+   * Spieler sollen im Spiel einen Weg andeuten können — und damit die einzige Stelle, an der
+   * ein fremder Client überhaupt etwas ins Dokument schreibt. Entsprechend eng ist die
+   * Erlaubnis gefasst; diese Tests halten sie fest.
+   */
+  describe('Schreibrechte von Spielern', () => {
+    const stroke = (over: Record<string, unknown> = {}) => ({
+      t: 'add' as const,
+      c: 'sketch' as const,
+      v: { id: 'k1', x: 0, y: 0, vis: 'public', points: [], author: 'Alice', ...over },
+    });
+
+    it('erlaubt einem Spieler eine eigene Skizzenlinie', () => {
+      expect(svc.isPlayerWritableOp(stroke(), 'Alice')).toBe(true);
+    });
+
+    it('verweigert eine Linie im fremden Namen', () => {
+      // Sonst könnte jeder eine Linie zeichnen, die aussieht, als käme sie von jemand anderem.
+      expect(svc.isPlayerWritableOp(stroke({ author: 'Bob' }), 'Alice')).toBe(false);
+    });
+
+    it('verweigert eine geheime Linie', () => {
+      expect(svc.isPlayerWritableOp(stroke({ vis: 'secret' }), 'Alice')).toBe(false);
+    });
+
+    it('verweigert jede andere Sammlung', () => {
+      for (const c of ['symbols', 'labels', 'regions', 'markers', 'tokens'] as const) {
+        expect(svc.isPlayerWritableOp({ ...stroke(), c } as any, 'Alice')).toBe(false);
+      }
+    });
+
+    it('verweigert das Ändern einer bestehenden Linie', () => {
+      // `upd` fehlt bewusst: sonst ließe sich eine Linie nachträglich in etwas anderes
+      // umschreiben, an der Prüfung beim Anlegen vorbei.
+      expect(
+        svc.isPlayerWritableOp({ t: 'upd', c: 'sketch', id: 'k1', v: {} } as any, 'Alice'),
+      ).toBe(false);
+    });
+
+    it('verweigert Terrain, Einstellungen und Nebel', () => {
+      expect(
+        svc.isPlayerWritableOp(
+          { t: 'chunk', layer: 'height', tier: 'high', cx: 0, cy: 0, ver: 1 } as any,
+          'Alice',
+        ),
+      ).toBe(false);
+      expect(svc.isPlayerWritableOp({ t: 'set', path: 'settings', value: {} } as any, 'Alice')).toBe(
+        false,
+      );
+      expect(svc.isPlayerWritableOp({ t: 'fog', add: ['0,0'] } as any, 'Alice')).toBe(false);
+    });
+
+    it('verweigert alles ohne angemeldeten Benutzer', () => {
+      // Ein leerer Name ist kein Benutzer; sonst käme jede nicht angemeldete Verbindung durch.
+      expect(svc.isPlayerWritableOp(stroke({ author: '' }), '')).toBe(false);
+    });
+
+    it('nennt den Urheber einer Linie, damit Löschen geprüft werden kann', () => {
+      svc.applyOp('Testwelt', stroke() as any);
+      expect(svc.sketchAuthor('Testwelt', 'k1')).toBe('Alice');
+      expect(svc.sketchAuthor('Testwelt', 'gibtesnicht')).toBeUndefined();
+    });
+  });
+
+  /**
+   * Der Nebel.
+   */
+  describe('Nebel', () => {
+    it('sammelt aufgedeckte Hexe ohne Dopplungen', () => {
+      svc.applyOp('Testwelt', { t: 'fog', add: ['1,1', '2,2', '1,1'] } as any);
+      svc.applyOp('Testwelt', { t: 'fog', add: ['2,2', '3,3'] } as any);
+
+      expect([...svc.getMap('Testwelt').fog.revealed].sort()).toEqual(['1,1', '2,2', '3,3']);
+    });
+
+    it('verdeckt wieder', () => {
+      svc.applyOp('Testwelt', { t: 'fog', add: ['1,1', '2,2'] } as any);
+      svc.applyOp('Testwelt', { t: 'fog', remove: ['1,1'] } as any);
+
+      expect(svc.getMap('Testwelt').fog.revealed).toEqual(['2,2']);
+    });
+
+    it('wendet im selben Op erst das Verdecken, dann das Aufdecken an', () => {
+      // Sonst hinge das Ergebnis eines Pinselstrichs, der beides berührt, an der Reihenfolge
+      // im Payload statt an dem, was der GM zuletzt getan hat.
+      svc.applyOp('Testwelt', { t: 'fog', add: ['1,1'], remove: ['1,1'] } as any);
+      expect(svc.getMap('Testwelt').fog.revealed).toEqual(['1,1']);
+    });
+  });
+
+  /**
    * Was ein Spieler zu sehen bekommt.
    *
    * Der Punkt des ganzen Umbaus: Geheimnisse dürfen nicht bloß im UI versteckt sein, sondern

@@ -38,12 +38,20 @@ const RASTER_LAYERS: RasterLayer[] = ['height', 'landColor', 'waterColor'];
 export type DetailTier = 'high' | 'med' | 'low';
 const TIERS: DetailTier[] = ['high', 'med', 'low'];
 
-export type ObjectCollection = 'symbols' | 'labels' | 'regions' | 'markers';
+export type ObjectCollection =
+  | 'symbols'
+  | 'labels'
+  | 'regions'
+  | 'markers'
+  | 'tokens'
+  | 'sketch';
 const OBJECT_COLLECTIONS: ObjectCollection[] = [
   'symbols',
   'labels',
   'regions',
   'markers',
+  'tokens',
+  'sketch',
 ];
 
 export type MapOp =
@@ -64,7 +72,8 @@ export type MapOp =
       tier: DetailTier;
       cells: [number, number][];
     }
-  | { t: 'set'; path: string; value: unknown };
+  | { t: 'set'; path: string; value: unknown }
+  | { t: 'fog'; add?: string[]; remove?: string[] };
 
 const MAP_FORMAT_VERSION = 2;
 
@@ -139,6 +148,8 @@ export class MapEditorService implements OnModuleDestroy {
       labels: [],
       regions: [],
       markers: [],
+      tokens: [],
+      sketch: [],
       labelPresets: [],
       // Secret groups. Membership lives on the objects (`secret`), not in here.
       secrets: [],
@@ -446,6 +457,14 @@ export class MapEditorService implements OnModuleDestroy {
         if (i >= 0) list.splice(i, 1);
         break;
       }
+      case 'fog': {
+        // Mirrors `applyMapOp`: a Set so a hex revealed twice is stored once.
+        const set = new Set<string>(doc.fog?.revealed ?? []);
+        for (const key of op.remove ?? []) set.delete(key);
+        for (const key of op.add ?? []) set.add(key);
+        doc.fog = { revealed: [...set] };
+        break;
+      }
       case 'chunk': {
         if (!TIERS.includes(op.tier)) return;
         doc.chunkVersions[`${op.layer}/${op.tier}/${op.cx}/${op.cy}`] = op.ver;
@@ -522,6 +541,47 @@ export class MapEditorService implements OnModuleDestroy {
      */
     filtered.secrets = [];
     return filtered;
+  }
+
+  /**
+   * Whether a **player** may send this op at all.
+   *
+   * Everything about the map is the GM's to change; the one exception is the sketch layer,
+   * whose entire purpose is that a player can trace "we go along this valley" during a
+   * session. So this is a whitelist of exactly that, not a relaxation of the GM check:
+   *
+   *  - only the `sketch` collection, so no terrain, symbol, label, token or setting is
+   *    reachable;
+   *  - only `add` and `del`, so an existing stroke cannot be rewritten into something else;
+   *  - a stroke must be public and carry the sender's own id as `author`, so nobody can post
+   *    a secret object or forge a line as somebody else;
+   *  - deleting is checked against the stored stroke's author by the caller, so one player
+   *    cannot wipe another's.
+   *
+   * The shape is validated here rather than trusted, because this is the only path where the
+   * client sending the op is not the person who owns the map.
+   */
+  isPlayerWritableOp(op: MapOp, userId: string): boolean {
+    if (!userId) return false;
+    if (op.t === 'add') {
+      const v = op.v as Record<string, unknown> | undefined;
+      return (
+        op.c === 'sketch' &&
+        typeof v?.['id'] === 'string' &&
+        v['vis'] !== 'secret' &&
+        v['author'] === userId &&
+        Array.isArray(v['points'])
+      );
+    }
+    if (op.t === 'del') return op.c === 'sketch';
+    return false;
+  }
+
+  /** Author of a stored sketch stroke, so a delete can be checked against the sender. */
+  sketchAuthor(worldName: string, id: string): string | undefined {
+    const doc = this.getMap(worldName);
+    const stroke = (doc.sketch as any[]).find((s) => s.id === id);
+    return stroke?.author as string | undefined;
   }
 
   /** Whether an op may be forwarded to players as-is. */
