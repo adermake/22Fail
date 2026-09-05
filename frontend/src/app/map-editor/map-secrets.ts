@@ -116,10 +116,76 @@ export function groupOps(refs: readonly ObjectRef[], secretId: string): MapOp[] 
 }
 
 /**
+ * Ops that shift a whole group across the map.
+ *
+ * A secret is a place, not a pile of unrelated objects: the camp's label, its tents and its
+ * outline have to keep their arrangement, so the whole set moves by one delta rather than
+ * each member being dragged into position again.
+ *
+ * Regions carry their geometry in `points`, so moving one means moving every vertex — moving
+ * only the cached centroid would leave the outline behind and silently corrupt the index.
+ */
+export function moveOps(
+  refs: readonly ObjectRef[],
+  origins: ReadonlyMap<string, AnyMapObject>,
+  dx: number,
+  dy: number,
+): MapOp[] {
+  const ops: MapOp[] = [];
+  for (const ref of dedupe(refs)) {
+    const from = origins.get(refKey(ref));
+    if (!from) continue;
+
+    const v: Record<string, unknown> = { x: from.x + dx, y: from.y + dy };
+    if (ref.c === 'regions') {
+      const points = (from as { points?: { x: number; y: number }[] }).points ?? [];
+      v['points'] = points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+    }
+    ops.push({ t: 'upd', c: ref.c, id: ref.id, v });
+  }
+  return ops;
+}
+
+export function refKey(ref: ObjectRef): string {
+  return `${ref.c}:${ref.id}`;
+}
+
+/** A hit, with how deep the click fell inside the shape: 0 dead centre, 1 on the edge. */
+export interface ScoredHit extends ObjectRef {
+  score: number;
+}
+
+/**
+ * The candidate the click sits deepest inside.
+ *
+ * Ranking by collection instead made symbols unpickable. A label's reach is its whole box,
+ * so a name stretched across a valley contained every icon under it, and with labels checked
+ * first the arrow could only ever return the label — clicking a castle got you its name.
+ *
+ * Comparing depth fixes that without needing a rule about which kind of thing matters more:
+ * a click in the middle of a castle is deep inside the castle and near the edge of the label,
+ * so the castle wins; a click on the lettering is the other way round. Ties fall to input
+ * order, which callers give as what is drawn on top.
+ */
+export function pickTightest(candidates: readonly (ScoredHit | null)[]): ObjectRef | null {
+  let best: ScoredHit | null = null;
+  for (const c of candidates) {
+    if (!c || !Number.isFinite(c.score)) continue;
+    if (!best || c.score < best.score) best = c;
+  }
+  return best ? { c: best.c, id: best.id } : null;
+}
+
+/**
  * Ops that reveal a group.
  *
- * Only `vis` changes — the group survives its own reveal, so the GM can hide it again after
- * the party leaves, and so the panel can still say what that bundle was.
+ * Not reachable from the editor: revealing is a thing that happens at the table, in game
+ * mode, not while drawing the map. Kept here because the rule — only `vis` changes, the
+ * group survives — belongs with the rest of the group logic rather than being re-derived
+ * wherever the reveal button eventually lands.
+ *
+ * Only `vis` changes — the group survives its own reveal, so it can be hidden again after the
+ * party leaves, and so the panel can still say what that bundle was.
  */
 export function revealOps(data: MapEditorData, secretId: string): MapOp[] {
   return membersOf(data, secretId)
@@ -127,7 +193,7 @@ export function revealOps(data: MapEditorData, secretId: string): MapOp[] {
     .map(ref => ({ t: 'upd' as const, c: ref.c, id: ref.id, v: { vis: 'public' as const } }));
 }
 
-/** Ops that hide a revealed group again. */
+/** Ops that hide a revealed group again. Game mode, like `revealOps`. */
 export function hideOps(data: MapEditorData, secretId: string): MapOp[] {
   return membersOf(data, secretId)
     .filter(ref => isPublic(data, ref))

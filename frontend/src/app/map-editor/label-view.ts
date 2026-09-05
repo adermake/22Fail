@@ -115,12 +115,18 @@ export class LabelView {
   /** Bounding box of a rendered label, for the selection outline and box-select. */
   boundsOf(id: string): { x: number; y: number; w: number; h: number } | null {
     const label = this.labels.get(id);
-    const node = this.nodes.get(id);
     if (!label) return null;
 
-    const w = node ? node.container.width : label.text.length * label.style.fontSize * 0.6;
-    const h = node ? node.container.height : label.style.fontSize;
-    return { x: label.x - w / 2, y: label.y - h / 2, w, h };
+    // Derived from `halfExtents` so the outline, the hit test and the secret overview all
+    // agree on how big a label is; they drifted when each measured it its own way.
+    const { rx, ry } = this.halfExtents(label);
+    return { x: label.x - rx, y: label.y - ry, w: rx * 2, h: ry * 2 };
+  }
+
+  /** The same box as `Bounds`, which is what the overview and box-select speak. */
+  worldBounds(label: MapLabel): Bounds {
+    const { rx, ry } = this.halfExtents(label);
+    return { minX: label.x - rx, minY: label.y - ry, maxX: label.x + rx, maxY: label.y + ry };
   }
 
   rebuild(labels: MapLabel[]): void {
@@ -286,10 +292,32 @@ export class LabelView {
     return this.dirty;
   }
 
-  /** Label near a world point, using its baked bounds. */
-  hitTest(x: number, y: number): MapLabel | null {
+  /**
+   * Half-extents of a label's baked box, or a font-size guess before it has been drawn.
+   *
+   * Separate from the hit test because the secret overview frames labels with the same box
+   * it picks them by; two independent notions of "how big is this label" would drift.
+   */
+  halfExtents(label: MapLabel): { rx: number; ry: number } {
+    const node = this.nodes.get(label.id);
+    // A minimum keeps a tiny label from becoming unclickable at low zoom.
+    const rx = Math.max(node ? node.container.width / 2 : label.text.length * label.style.fontSize * 0.3, 8);
+    const ry = Math.max(node ? node.container.height / 2 : label.style.fontSize, 8);
+    return { rx, ry };
+  }
+
+  /**
+   * Label near a world point, with how deep inside its box the point falls (0 = dead centre,
+   * 1 = right on the edge). The score lets a caller weigh this hit against a symbol's.
+   *
+   * The reach is an *ellipse* over the baked box, not a circle of half its longest side. A
+   * circle meant a wide label like "Das Nördliche Königreich" claimed a radius of half its
+   * width in every direction, including straight up and down where no glyph comes near —
+   * so it swallowed every symbol around it and nothing else could be picked.
+   */
+  hitTestScored(x: number, y: number): { label: MapLabel; score: number } | null {
     let best: MapLabel | null = null;
-    let bestDist = Infinity;
+    let bestScore = Infinity;
 
     for (const label of this.index.query({
       minX: x - 2048,
@@ -297,19 +325,21 @@ export class LabelView {
       maxX: x + 2048,
       maxY: y + 2048,
     })) {
-      const node = this.nodes.get(label.id);
-      // Half the baked size is a good enough radius, and needs no per-glyph maths.
-      const reach = node
-        ? Math.max(node.container.width, node.container.height) / 2
-        : label.style.fontSize;
-
-      const d = Math.hypot(label.x - x, label.y - y);
-      if (d <= reach && d < bestDist) {
-        bestDist = d;
+      const { rx, ry } = this.halfExtents(label);
+      const dx = (label.x - x) / rx;
+      const dy = (label.y - y) / ry;
+      const score = Math.hypot(dx, dy);
+      if (score <= 1 && score < bestScore) {
+        bestScore = score;
         best = label;
       }
     }
-    return best;
+    return best ? { label: best, score: bestScore } : null;
+  }
+
+  /** Label near a world point, using its baked bounds. */
+  hitTest(x: number, y: number): MapLabel | null {
+    return this.hitTestScored(x, y)?.label ?? null;
   }
 
   inRect(rect: Bounds): MapLabel[] {

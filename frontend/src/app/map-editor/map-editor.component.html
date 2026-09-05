@@ -854,73 +854,94 @@
         @if (tab() === 'secrets') {
           <!-- Ein Geheimnis am Tisch besteht selten aus einem Objekt: "Das Räuberlager" ist
                eine Beschriftung, ein paar Zelte und ein Umriss. Deshalb greift die Auswahl
-               hier quer über alle Kategorien. -->
-          <div class="panel-section">
-            <div class="panel-title">Auswahl</div>
+               hier quer über alle Kategorien.
 
-            @if (secretTool() === 'reveal') {
+               Bewusst ohne Liste aller Geheimnisse: auf einer fertigen Karte sind es
+               hunderte, und eine Liste davon wäre weder lesbar noch nötig. Die Karte selbst
+               ist das Verzeichnis — ein Klick auf ein Mitglied öffnet seine Gruppe. -->
+
+          @if (secretTool() === 'overview') {
+            <div class="panel-section">
+              <div class="panel-title">Übersicht</div>
               <p class="hint">
-                Auf ein verborgenes Objekt klicken, um seine ganze Gruppe aufzudecken.
+                Die Karte liegt hinter einem Schleier, damit nur die Marken leuchten.
               </p>
-            } @else if (secretSelectionCount()) {
-              <p class="hint">{{ secretSelectionLabel() }}</p>
-              <div class="history-row">
-                <button type="button" (click)="groupAsSecret()">Als Geheimnis gruppieren</button>
+              <div class="legend-row">
+                <span class="legend-swatch legend-green"></span>
+                <span>Geheimnis — der Rahmen umfasst die ganze Gruppe</span>
               </div>
-              <div class="history-row">
-                <button type="button" (click)="ungroupSelection()">Aus Gruppe lösen</button>
+              <div class="legend-row">
+                <span class="legend-swatch legend-red"></span>
+                <span>Beschriftung <strong>ohne</strong> Geheimnis — hier fehlt vermutlich eines</span>
               </div>
-            } @else {
               <p class="hint">
-                Beschriftungen, Symbole und Regionen zusammen auswählen · Shift für Mehrfach ·
-                Rahmen ziehen
+                Rot markiert nur Beschriftungen. Eine Karte besteht größtenteils aus
+                öffentlichem Wald und Hügeln; die alle zu umranden würde die paar Namen
+                begraben, auf die es ankommt.
               </p>
-            }
-          </div>
+            </div>
+          } @else {
+            <div class="panel-section">
+              <div class="panel-title">Auswahl</div>
 
-          <div class="panel-section">
-            <div class="panel-title">Geheimnisse</div>
-
-            @if (!secretGroups().length) {
-              <p class="hint">Noch keine Gruppe angelegt.</p>
-            }
-
-            @for (g of secretGroups(); track g.secret.id) {
-              <div class="secret-row" [class.active-secret]="activeSecretId() === g.secret.id">
-                <button type="button" class="secret-name" (click)="selectSecretGroup(g.secret.id)">
-                  <span>{{ g.secret.name }}</span>
-                  <em>
-                    {{ g.members.length }} Objekt(e) ·
-                    {{ g.revealed ? 'aufgedeckt' : 'verborgen' }}
-                  </em>
-                </button>
+              @if (secretSelectionCount()) {
+                <p class="hint">{{ secretSelectionLabel() }}</p>
                 <div class="history-row">
-                  @if (g.revealed) {
-                    <button type="button" (click)="hideSecret(g.secret.id)">Verbergen</button>
-                  } @else {
-                    <button type="button" (click)="revealSecret(g.secret.id)">Aufdecken</button>
-                  }
-                  <button
-                    type="button"
-                    class="narrow"
-                    title="Gruppe auflösen — ändert nichts an der Sichtbarkeit"
-                    (click)="dissolveSecret(g.secret.id)"
-                  >
-                    ×
-                  </button>
+                  <button type="button" (click)="groupAsSecret()">Neues Geheimnis</button>
                 </div>
-                <input
-                  type="text"
-                  class="text-input"
-                  [value]="g.secret.name"
-                  (change)="renameSecret(g.secret.id, $any($event.target).value)"
-                />
-              </div>
-            }
+                @if (activeSecret(); as g) {
+                  <div class="history-row">
+                    <button type="button" (click)="addSelectionToSecret()">
+                      Zu „{{ g.secret.name }}“ hinzufügen
+                    </button>
+                  </div>
+                }
+                <div class="history-row">
+                  <button type="button" (click)="ungroupSelection()">Aus Gruppe lösen</button>
+                </div>
+                <p class="hint">Ziehen verschiebt die ganze Auswahl.</p>
+              } @else {
+                <p class="hint">
+                  Beschriftungen, Symbole und Regionen zusammen auswählen · Shift für Mehrfach ·
+                  Rahmen ziehen · Klick auf ein Mitglied öffnet seine Gruppe
+                </p>
+              }
+            </div>
+          }
 
+          @if (activeSecret(); as g) {
+            <div class="panel-section">
+              <div class="panel-title">Aktuelles Geheimnis</div>
+              <input
+                type="text"
+                class="text-input"
+                [value]="g.secret.name"
+                (change)="renameSecret(g.secret.id, $any($event.target).value)"
+              />
+              <p class="hint">
+                {{ activeSecretLabel() || 'keine Mitglieder' }} ·
+                {{ g.revealed ? 'aufgedeckt' : 'verborgen' }}
+              </p>
+              <div class="history-row">
+                <button
+                  type="button"
+                  title="Gruppierung zurücknehmen — ändert nichts an der Sichtbarkeit"
+                  (click)="dissolveSecret(g.secret.id)"
+                >
+                  Auflösen
+                </button>
+              </div>
+            </div>
+          }
+
+          <div class="panel-section">
             <p class="hint">
-              Aufdecken schickt die Objekte sofort an alle Spieler. Auflösen nimmt nur die
-              Gruppierung zurück und deckt nichts auf.
+              {{ secretStats().total }} Geheimnis(se) auf der Karte, davon
+              {{ secretStats().revealed }} aufgedeckt.
+            </p>
+            <p class="hint">
+              Aufgedeckt wird im Spielmodus, nicht hier — im Editor säßen die Spieler nicht vor
+              dem Bildschirm, auf den es wirkt.
             </p>
           </div>
         }

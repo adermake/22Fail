@@ -200,12 +200,36 @@ export class SymbolView {
   }
 
   /**
-   * Symbol under a world point.
+   * Drawn circle of a symbol: centre plus radius, both in world units.
    *
-   * Hit radius comes from the sidecar's `radius` scaled by placement, so a big mountain is
+   * The radius comes from the sidecar's `radius` scaled by placement, so a big mountain is
    * easier to grab than a small shrub — matching what is visually under the cursor.
    */
-  hitTest(x: number, y: number): MapSymbol | null {
+  circleOf(sym: MapSymbol): { cx: number; cy: number; r: number } | null {
+    const meta = this.assets.meta(sym.asset);
+    if (!meta) return null;
+    const scale = sym.scale || 1;
+    // Measure against the drawn centre rather than the base, which is where the
+    // pixels actually are.
+    return {
+      cx: sym.x + meta.offsetX * scale,
+      cy: sym.y + meta.offsetY * scale,
+      r: Math.max(8, meta.radius * scale),
+    };
+  }
+
+  /** World-space box a symbol occupies. */
+  boundsOf(sym: MapSymbol): Bounds | null {
+    const c = this.circleOf(sym);
+    if (!c) return null;
+    return { minX: c.cx - c.r, minY: c.cy - c.r, maxX: c.cx + c.r, maxY: c.cy + c.r };
+  }
+
+  /**
+   * Symbol under a point, with how deep inside its circle the point falls (0 = centre,
+   * 1 = on the rim), so a caller can weigh this hit against a label's.
+   */
+  hitTestScored(x: number, y: number): { sym: MapSymbol; score: number } | null {
     const candidates = this.index.query({
       minX: x - 256,
       minY: y - 256,
@@ -215,26 +239,25 @@ export class SymbolView {
 
     let best: MapSymbol | null = null;
     let bestDist = Infinity;
+    let bestScore = 1;
 
     for (const sym of candidates) {
-      const meta = this.assets.meta(sym.asset);
-      if (!meta) continue;
-      const scale = sym.scale || 1;
+      const c = this.circleOf(sym);
+      if (!c) continue;
 
-      // Measure against the drawn centre rather than the base, which is where the
-      // pixels actually are.
-      const cx = sym.x + meta.offsetX * scale;
-      const cy = sym.y + meta.offsetY * scale;
-      const r = Math.max(8, meta.radius * scale);
-
-      const d = Math.hypot(cx - x, cy - y);
+      const d = Math.hypot(c.cx - x, c.cy - y);
       // Prefer the topmost (largest y) among overlapping hits, matching draw order.
-      if (d <= r && (best === null || sym.y > best.y || d < bestDist)) {
+      if (d <= c.r && (best === null || sym.y > best.y || d < bestDist)) {
         best = sym;
         bestDist = d;
+        bestScore = d / c.r;
       }
     }
-    return best;
+    return best ? { sym: best, score: bestScore } : null;
+  }
+
+  hitTest(x: number, y: number): MapSymbol | null {
+    return this.hitTestScored(x, y)?.sym ?? null;
   }
 
   /** Symbols whose base falls inside a world rectangle. */

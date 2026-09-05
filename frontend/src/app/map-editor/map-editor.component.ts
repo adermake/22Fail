@@ -50,6 +50,7 @@ import { SymbolView } from './symbol-view';
 import {
   AnyMapObject,
   DetailTier,
+  MapEditorData,
   MapOp,
   MapSecret,
   MapSymbol,
@@ -65,14 +66,21 @@ import {
   dissolveOps,
   find,
   groupOps,
-  hideOps,
   membersOf,
   newSecretId,
-  revealOps,
+  moveOps,
+  pickTightest,
+  refKey,
   secretsOf,
   summarize,
   ungroupOps,
 } from './map-secrets';
+import {
+  OverviewGroup,
+  OverviewItem,
+  SecretOverview,
+  boundsOverlap,
+} from './secret-overview';
 import {
   IMPORT_CELL_WARN,
   LandmassPlacement,
@@ -109,7 +117,7 @@ import {
   usesLandPalette,
   usesWaterPalette,
 } from './editor-tools';
-import { RegionView, centroid, distanceToPath } from './region-view';
+import { RegionView, centroid, distanceToPath, pathBounds } from './region-view';
 import { LabelView, defaultLabelStyle } from './label-view';
 import { LabelPreset, LabelStyle, MapLabel, MapRegion, Point } from './map-editor.model';
 import { MIN_ZOOM, MAX_ZOOM } from './map-camera';
@@ -138,6 +146,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private undoStack?: UndoStack;
   private assets = new MapAssets();
   private symbols?: SymbolView;
+  private secretOverview?: SecretOverview;
   private regionView = new RegionView();
   private labelView = new LabelView();
   /** Vertex of the selected region currently being dragged. */
@@ -632,33 +641,139 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    */
   readonly secretSelection = signal<ObjectRef[]>([]);
 
-  /** Groups with their members and reveal state, recomputed as the document changes. */
-  readonly secretGroups = computed<SecretSummary[]>(() => {
-    this.store.revision();
-    const data = this.store.data();
-    return data ? summarize(data) : [];
-  });
-
   /** Group the panel has focused, so its members can be highlighted and its buttons act. */
   readonly activeSecretId = signal<string | null>(null);
+
+  /**
+   * How many groups exist, and how many are still hidden.
+   *
+   * Only the count — deliberately not the list. A finished map is expected to carry several
+   * hundred secrets, and a panel that renders all of them is both unusable and a needless
+   * re-render of hundreds of rows on every single edit. The map itself is the index: click a
+   * thing to open its group.
+   */
+  readonly secretStats = computed(() => {
+    this.store.revision();
+    const data = this.store.data();
+    if (!data) return { total: 0, revealed: 0 };
+    const all = summarize(data);
+    return { total: all.length, revealed: all.filter(g => g.revealed).length };
+  });
+
+  /** The focused group, resolved to its name and membership. */
+  readonly activeSecret = computed<SecretSummary | null>(() => {
+    this.store.revision();
+    const data = this.store.data();
+    const id = this.activeSecretId();
+    if (!data || !id) return null;
+    const secret = secretsOf(data).find(x => x.id === id);
+    if (!secret) return null;
+    const members = membersOf(data, id);
+    return { secret, members, revealed: members.length > 0 && members.every(m => isMemberPublic(data, m)) };
+  });
+
+  /** Breakdown of the focused group's membership, for the panel. */
+  readonly activeSecretLabel = computed(() => {
+    const group = this.activeSecret();
+    return group ? countLabel(group.members) : '';
+  });
 
   readonly secretSelectionCount = computed(() => this.secretSelection().length);
 
   selectSecretTool(tool: SecretTool): void {
     this.secretTool.set(tool);
+    this.applyOverview();
     this.redrawCursor();
   }
 
+  /** Whether the audit view is on: the eye tool, in its own tab. */
+  readonly overviewActive = computed(
+    () => this.tab() === 'secrets' && this.secretTool() === 'overview',
+  );
+
+  /**
+   * Turn the audit view on or off.
+   *
+   * The terrain goes behind a veil and the marks go above the objects; both are pushed here
+   * rather than being recomputed per frame, because only a tool change can flip the mode.
+   */
+  private applyOverview(): void {
+    const on = this.overviewActive();
+    this.renderer.setDim(on ? 0.62 : 0);
+    this.secretOverview?.setVisible(on);
+    this.drawOverview();
+  }
+
+  /**
+   * Redraw the audit marks for what is on screen.
+   *
+   * Culled to the viewport: 300 groups is the case this exists for, and framing every one of
+   * them on every pan would cost more than the map underneath. Groups are cheap to test
+   * because their members' boxes come straight from the views that already drew them.
+   */
+  private drawOverview(): void {
+    if (!this.secretOverview?.visible) return;
+
+    const data = this.store.data();
+    if (!data) return;
+
+    const view = this.renderer.camera.visibleBounds();
+    const active = this.activeSecretId();
+
+    // One pass over each collection, bucketed by group — a scan per group would be
+    // quadratic, which at 300 groups on a full map is exactly the wrong shape.
+    const byGroup = new Map<string, OverviewItem[]>();
+    const looseLabels: Bounds[] = [];
+
+    for (const label of data.labels) {
+      const bounds = this.labelView.worldBounds(label);
+      if (!boundsOverlap(bounds, view)) continue;
+      if (label.secret) push(byGroup, label.secret, { bounds });
+      // A public name is the miss the red frames are for; a public tree is not.
+      else if (label.vis !== 'secret') looseLabels.push(bounds);
+    }
+
+    for (const sym of data.symbols) {
+      if (!sym.secret) continue;
+      const bounds = this.symbols?.boundsOf(sym);
+      if (!bounds || !boundsOverlap(bounds, view)) continue;
+      push(byGroup, sym.secret, { bounds });
+    }
+
+    for (const region of data.regions) {
+      if (!region.secret) continue;
+      const bounds = pathBounds(region.points);
+      if (!boundsOverlap(bounds, view)) continue;
+      push(byGroup, region.secret, { bounds });
+    }
+
+    const groups: OverviewGroup[] = [];
+    for (const [id, members] of byGroup) {
+      groups.push({ id, members, active: id === active });
+    }
+
+    this.secretOverview.draw(groups, looseLabels, this.renderer.camera.zoom);
+  }
+
+  /**
+   * Move every selected object by one delta, as a single undoable step.
+   *
+   * A secret is a place: the camp's name, its tents and its outline have to keep their
+   * arrangement, so the whole set travels together rather than being reassembled by hand.
+   */
+  private commitSecretMove(): void {
+    const drag = this.dragSecret;
+    if (!drag || !drag.moved) return;
+
+    const refs = this.secretSelection();
+    this.undoStack?.begin();
+    this.runSecretOps(moveOps(refs, drag.origins, drag.dx, drag.dy));
+    this.undoStack?.commit('Geheimnis verschieben');
+    this.refreshHistoryState();
+  }
+
   /** Human-readable breakdown of a selection that spans collections. */
-  readonly secretSelectionLabel = computed(() => {
-    const counts = { labels: 0, symbols: 0, regions: 0 } as Record<string, number>;
-    for (const ref of this.secretSelection()) counts[ref.c] = (counts[ref.c] ?? 0) + 1;
-    const parts: string[] = [];
-    if (counts['labels']) parts.push(`${counts['labels']} Beschriftung(en)`);
-    if (counts['symbols']) parts.push(`${counts['symbols']} Symbol(e)`);
-    if (counts['regions']) parts.push(`${counts['regions']} Region(en)`);
-    return parts.join(', ');
-  });
+  readonly secretSelectionLabel = computed(() => countLabel(this.secretSelection()));
 
   /**
    * Push the cross-category selection into the per-view highlighters.
@@ -680,32 +795,53 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Topmost object under a point, across collections.
+   * Object under a point, across collections.
    *
-   * Order follows what is drawn on top: labels sit above symbols, symbols above regions. A
-   * label written across a forest has to be clickable, or naming the forest secret would mean
-   * first moving every tree out of the way.
+   * Picks the *tightest* hit rather than the topmost one. A fixed priority made symbols
+   * unselectable: a label's reach is its whole box, so a name stretched across a valley
+   * claimed every icon under it and the arrow could only ever grab the label. Comparing how
+   * deep the click falls inside each candidate — 0 at the centre, 1 at the edge — means
+   * clicking a castle gets the castle, and clicking the lettering next to it gets the name.
+   *
+   * Ties go to what is drawn on top: label, then symbol, then region.
    */
   private secretHitTest(world: Point): ObjectRef | null {
-    const label = this.labelView.hitTest(world.x, world.y);
-    if (label) return { c: 'labels', id: label.id };
+    const label = this.labelView.hitTestScored(world.x, world.y);
+    const symbol = this.symbols?.hitTestScored(world.x, world.y) ?? null;
 
-    const symbol = this.symbols?.hitTest(world.x, world.y);
-    if (symbol) return { c: 'symbols', id: symbol.id };
+    const tol = 12 / this.renderer.camera.zoom;
+    const region = this.regionView.hitTest(world.x, world.y, tol);
+    const regionScore = region
+      ? distanceToPath(region.points, world.x, world.y) / tol
+      : Infinity;
 
-    const region = this.regionView.hitTest(world.x, world.y, 12 / this.renderer.camera.zoom);
-    if (region) return { c: 'regions', id: region.id };
-
-    return null;
+    // Listed in draw order, top first, which is how `pickTightest` breaks ties.
+    return pickTightest([
+      label ? { c: 'labels', id: label.label.id, score: label.score } : null,
+      symbol ? { c: 'symbols', id: symbol.sym.id, score: symbol.score } : null,
+      region ? { c: 'regions', id: region.id, score: regionScore } : null,
+    ]);
   }
 
-  /** Click-select across collections. Returns whether anything was hit. */
+  /**
+   * Click-select across collections. Returns whether anything was hit.
+   *
+   * Clicking an object that belongs to a group also focuses that group. With hundreds of
+   * secrets there is no list to find one in — pointing at something on the map *is* how a
+   * group gets opened, and the panel then shows that one and nothing else.
+   */
   private secretSelectAt(world: Point, additive: boolean): boolean {
     const hit = this.secretHitTest(world);
     if (!hit) {
-      if (!additive) this.setSecretSelection([]);
+      if (!additive) {
+        this.setSecretSelection([]);
+        this.activeSecretId.set(null);
+      }
       return false;
     }
+
+    const data = this.store.data();
+    const group = data ? (find(data, hit)?.secret ?? '') : '';
 
     const current = this.secretSelection();
     const has = current.some(r => r.c === hit.c && r.id === hit.id);
@@ -713,7 +849,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.setSecretSelection(
         has ? current.filter(r => !(r.c === hit.c && r.id === hit.id)) : [...current, hit],
       );
-    } else if (!has) {
+    } else if (has) {
+      // Already part of the selection: leave it alone so a drag moves the whole set.
+    } else if (group && data) {
+      // Clicking one member opens the whole group — that is what you were pointing at.
+      this.activeSecretId.set(group);
+      this.setSecretSelection(membersOf(data, group));
+    } else {
+      this.activeSecretId.set(null);
       this.setSecretSelection([hit]);
     }
     return true;
@@ -762,30 +905,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.activeSecretId.set(secret.id);
   }
 
-  revealSecret(id: string): void {
-    const data = this.store.data();
-    if (!data) return;
-    const ops = revealOps(data, id);
-    if (!ops.length) return;
-
-    this.undoStack?.begin();
-    this.runSecretOps(ops);
-    this.undoStack?.commit('Geheimnis aufdecken');
-    this.refreshHistoryState();
-  }
-
-  hideSecret(id: string): void {
-    const data = this.store.data();
-    if (!data) return;
-    const ops = hideOps(data, id);
-    if (!ops.length) return;
-
-    this.undoStack?.begin();
-    this.runSecretOps(ops);
-    this.undoStack?.commit('Geheimnis verbergen');
-    this.refreshHistoryState();
-  }
-
   /**
    * Pull the selected objects out of whatever groups they are in.
    *
@@ -800,6 +919,21 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.runSecretOps(ungroupOps(refs));
     this.undoStack?.commit('Aus Gruppe lösen');
     this.refreshHistoryState();
+  }
+
+  /** Add the current selection to the focused group, without creating a new one. */
+  addSelectionToSecret(): void {
+    const id = this.activeSecretId();
+    const refs = this.secretSelection();
+    if (!id || !refs.length) return;
+
+    this.undoStack?.begin();
+    this.runSecretOps(groupOps(refs, id));
+    this.undoStack?.commit('Zum Geheimnis hinzufügen');
+    this.refreshHistoryState();
+
+    const data = this.store.data();
+    if (data) this.setSecretSelection(membersOf(data, id));
   }
 
   /** Take the group apart. Visibility is deliberately left exactly as it stands. */
@@ -825,17 +959,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       'secrets',
       secretsOf(data).map(s => (s.id === id ? { ...s, name: trimmed } : s)),
     );
-  }
-
-  /** Reveal whatever group the clicked object belongs to — the tool used at the table. */
-  private revealSecretAt(world: Point): void {
-    const hit = this.secretHitTest(world);
-    if (!hit) return;
-    const data = this.store.data();
-    const obj = data ? find(data, hit) : undefined;
-    if (!obj?.secret) return;
-    this.activeSecretId.set(obj.secret);
-    this.revealSecret(obj.secret);
   }
 
   /**
@@ -1479,6 +1602,21 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     origins: Map<string, MapSymbol>;
   } | null = null;
   /**
+   * An in-progress drag of a whole secret group.
+   *
+   * `dx/dy` are carried rather than recomputed on release: the objects themselves are moved
+   * optimistically as the pointer travels, so by the time the button comes up their current
+   * positions are the *result*, and subtracting them would yield zero.
+   */
+  private dragSecret: {
+    startWorld: { x: number; y: number };
+    origins: Map<string, AnyMapObject>;
+    dx: number;
+    dy: number;
+    moved: boolean;
+  } | null = null;
+
+  /**
    * `additive` is captured here rather than read on release: the pointer-up handler takes no
    * event, and a shift released mid-drag should not turn an add into a replace anyway.
    */
@@ -1587,6 +1725,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     // Added last so labels draw above symbols regardless of asset availability.
     this.renderer.objectLayer.addChild(this.labelView.container);
+
+    // Above the objects it frames, below the grid and cursor — the marks are annotations on
+    // the map, not part of it.
+    this.secretOverview = new SecretOverview();
+    this.renderer.overlayLayer.addChild(this.secretOverview.container);
 
     this.paperOpacity.set(data.settings.paperOpacity ?? 0.35);
     await this.applyPaper(data.settings.paperTexture ?? '');
@@ -1718,6 +1861,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.regionView.render(view, zoom, this.isGM(), true);
       // Zoom drives the selection outline's width, so it stays one screen pixel.
       this.labelView.render(view, this.isGM(), zoom);
+
+      // Last: the marks frame boxes the views above have just recomputed, so drawing them
+      // any earlier would frame where things were on the previous frame.
+      this.drawOverview();
     });
   }
 
@@ -1754,7 +1901,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (previous === 'secrets' && tab !== 'secrets') {
       this.setSecretSelection([]);
       this.labelView.setSelection(this.selectedLabelIds());
+      this.regionView.setSelected(this.selectedRegionId());
     }
+    // Both directions: leaving with the eye still active would strand the map behind a veil
+    // in a tab that has no way to lift it.
+    this.applyOverview();
 
     // Land and water own different tools, so entering a tab selects its first one.
     const tools = terrainToolsFor(tab);
@@ -2806,11 +2957,24 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.tab() === 'secrets') {
-      if (this.secretTool() === 'reveal') {
-        this.revealSecretAt(world);
-      } else if (!this.secretSelectAt(world, e.shiftKey)) {
-        // Empty space starts a rubber band, matching every other selector. Nothing is
-        // draggable here — this tab only ever decides *what belongs together*.
+      // The overview is a way of looking, not of editing: clicking must not disturb what it
+      // is showing, or checking the map would keep changing the thing being checked.
+      if (this.secretTool() === 'overview') return;
+
+      if (this.secretSelectAt(world, e.shiftKey)) {
+        // Snapshot before the drag, not during: the move mutates the objects in place, so
+        // capturing later would record the already-moved state and undo to nothing.
+        const data = this.store.data();
+        const origins = new Map<string, AnyMapObject>();
+        if (data) {
+          for (const ref of this.secretSelection()) {
+            const obj = find(data, ref);
+            if (obj) origins.set(refKey(ref), clone(obj));
+          }
+        }
+        this.dragSecret = { startWorld: world, origins, dx: 0, dy: 0, moved: false };
+      } else {
+        // Empty space starts a rubber band, matching every other selector.
         this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
         this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
       }
@@ -2953,6 +3117,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.dragSecret) {
+      this.dragSecretBy(world);
+      return;
+    }
+
     if (this.dragSymbols) {
       this.dragSelection(world);
       return;
@@ -3048,6 +3217,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.dragSecret) {
+      this.commitSecretMove();
+      this.dragSecret = null;
+      return;
+    }
+
     if (this.dragSymbols) {
       if (this.dragSymbols.moved) this.commitSelectionMove();
       this.dragSymbols = null;
@@ -3088,6 +3263,51 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       sym.y += dy;
       this.symbols?.update(sym);
     }
+    this.scheduleStream();
+  }
+
+  /**
+   * Move the whole secret selection with the pointer.
+   *
+   * Applied straight onto the live objects and their views so the drag reads as direct
+   * manipulation; the ops are only sent on release, since one op per mouse move would flood
+   * the socket and fill the undo history with pixels.
+   */
+  private dragSecretBy(world: { x: number; y: number }): void {
+    const drag = this.dragSecret;
+    const data = this.store.data();
+    if (!drag || !data) return;
+
+    const dx = world.x - drag.startWorld.x;
+    const dy = world.y - drag.startWorld.y;
+    if (dx === 0 && dy === 0) return;
+    drag.startWorld = world;
+    drag.dx += dx;
+    drag.dy += dy;
+    drag.moved = true;
+
+    for (const ref of this.secretSelection()) {
+      const obj = find(data, ref);
+      if (!obj) continue;
+      obj.x += dx;
+      obj.y += dy;
+
+      if (ref.c === 'regions') {
+        const region = obj as MapRegion;
+        // The outline is the region; shifting only the cached centroid would leave the
+        // shape behind and quietly desynchronise the spatial index from what is drawn.
+        for (const pt of region.points) {
+          pt.x += dx;
+          pt.y += dy;
+        }
+        this.regionView.update(region);
+      } else if (ref.c === 'symbols') {
+        this.symbols?.update(obj as MapSymbol);
+      } else if (ref.c === 'labels') {
+        this.labelView.update(obj as MapLabel);
+      }
+    }
+    this.drawOverview();
     this.scheduleStream();
   }
 
@@ -3396,4 +3616,27 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 function rgbToHex(r: number, g: number, b: number): string {
   const h = (v: number) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0');
   return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+/** Append into a keyed bucket, creating it on first use. */
+function push<T>(map: Map<string, T[]>, key: string, value: T): void {
+  const list = map.get(key);
+  if (list) list.push(value);
+  else map.set(key, [value]);
+}
+
+/** "2 Beschriftungen, 3 Symbole" — the same phrasing wherever a set is summarised. */
+function countLabel(refs: readonly ObjectRef[]): string {
+  const counts: Record<string, number> = { labels: 0, symbols: 0, regions: 0 };
+  for (const ref of refs) counts[ref.c] = (counts[ref.c] ?? 0) + 1;
+
+  const parts: string[] = [];
+  if (counts['labels']) parts.push(`${counts['labels']} Beschriftung(en)`);
+  if (counts['symbols']) parts.push(`${counts['symbols']} Symbol(e)`);
+  if (counts['regions']) parts.push(`${counts['regions']} Region(en)`);
+  return parts.join(', ');
+}
+
+function isMemberPublic(data: MapEditorData, ref: ObjectRef): boolean {
+  return find(data, ref)?.vis !== 'secret';
 }

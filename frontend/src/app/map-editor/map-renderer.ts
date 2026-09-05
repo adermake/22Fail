@@ -45,6 +45,14 @@ export class MapRenderer {
 
   /** Terrain meshes are parented here by `TerrainView`. */
   terrainLayer = new Container();
+  /**
+   * A flat veil over the finished terrain, used by the secret overview.
+   *
+   * Between terrain and objects on purpose: the point of that mode is to push the *map* back
+   * so the marks stand out, while symbols and labels stay legible enough to recognise what is
+   * being marked. A veil over everything would hide the very things being audited.
+   */
+  private dimVeil = Object.assign(new Sprite(Texture.WHITE), { visible: false });
   /** Vector content (regions, symbols, labels) lands here in later phases. */
   objectLayer = new Container();
   private gridLayer = new Graphics();
@@ -103,6 +111,7 @@ export class MapRenderer {
 
     this.worldRoot.addChild(this.oceanBackdrop);
     this.worldRoot.addChild(this.terrainLayer);
+    this.worldRoot.addChild(this.dimVeil);
     this.worldRoot.addChild(this.objectLayer);
     this.worldRoot.addChild(this.overlayLayer);
     this.worldRoot.addChild(this.gridLayer);
@@ -140,7 +149,19 @@ export class MapRenderer {
     this.oceanBackdrop.width = b.maxX - b.minX;
     this.oceanBackdrop.height = b.maxY - b.minY;
 
+    // Tracks the backdrop exactly; it is the same rectangle in a different colour.
+    this.dimVeil.position.set(b.minX, b.minY);
+    this.dimVeil.width = b.maxX - b.minX;
+    this.dimVeil.height = b.maxY - b.minY;
+
     this.updateGrid();
+  }
+
+  /** Push the terrain back behind a dark veil, for the secret overview. */
+  setDim(alpha: number): void {
+    this.dimVeil.tint = 0x000000;
+    this.dimVeil.alpha = alpha;
+    this.dimVeil.visible = alpha > 0;
   }
 
   /** Keep the backdrop in step with the map's open-water colour. */

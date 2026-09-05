@@ -26,11 +26,14 @@ import {
   groupOps,
   hideOps,
   membersOf,
+  moveOps,
   newSecretId,
+  refKey,
   revealOps,
   summarize,
   ungroupOps,
 } from './map-secrets';
+import { MapRegion } from './map-editor.model';
 
 function symbol(id: string): MapSymbol {
   return { id, x: 0, y: 0, vis: 'public', asset: 'trees/oak/oak_01', group: 'trees/oak', scale: 1, rotation: 0 };
@@ -202,5 +205,94 @@ describe('Geheimnis-Gruppen', () => {
         { id: 'b', name: 'Geheimnis 3' },
       ]),
     ).toBe('Geheimnis 4');
+  });
+});
+
+/**
+ * Moving a group.
+ *
+ * A secret is a *place*: the camp's name, its tents and its outline have to keep their
+ * arrangement. The trap is regions — their geometry lives in `points`, and shifting only the
+ * cached centroid leaves the drawn outline behind while the spatial index quietly starts
+ * pointing at the wrong place.
+ */
+describe('Geheimnis verschieben', () => {
+  function region(id: string): MapRegion {
+    return {
+      id,
+      x: 5,
+      y: 5,
+      vis: 'secret',
+      secret: 'g1',
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+      ],
+      color: '#fff',
+      thickness: 4,
+      dash: 0,
+      gap: 0,
+    };
+  }
+
+  it('verschiebt jedes Mitglied um dieselbe Strecke', () => {
+    const data = makeData();
+    const origins = new Map<string, AnyMapObject>([
+      [refKey({ c: 'symbols', id: 's1' }), structuredClone(get(data, 'symbols', 's1'))],
+      [refKey({ c: 'labels', id: 'l1' }), structuredClone(get(data, 'labels', 'l1'))],
+    ]);
+
+    run(
+      data,
+      moveOps(
+        [
+          { c: 'symbols', id: 's1' },
+          { c: 'labels', id: 'l1' },
+        ],
+        origins,
+        100,
+        -40,
+      ),
+    );
+
+    expect([get(data, 'symbols', 's1').x, get(data, 'symbols', 's1').y]).toEqual([100, -40]);
+    expect([get(data, 'labels', 'l1').x, get(data, 'labels', 'l1').y]).toEqual([100, -40]);
+  });
+
+  it('nimmt bei einer Region die Stützpunkte mit, nicht nur den Schwerpunkt', () => {
+    const data = makeData();
+    data.regions.push(region('r1'));
+    const origins = new Map<string, AnyMapObject>([[refKey({ c: 'regions', id: 'r1' }), region('r1')]]);
+
+    run(data, moveOps([{ c: 'regions', id: 'r1' }], origins, 7, 3));
+
+    const moved = data.regions[0];
+    expect([moved.x, moved.y]).toEqual([12, 8]);
+    expect(moved.points).toEqual([
+      { x: 7, y: 3 },
+      { x: 17, y: 3 },
+      { x: 17, y: 13 },
+    ]);
+  });
+
+  it('rechnet immer vom Startpunkt, nie vom aktuellen Stand', () => {
+    const data = makeData();
+    // A *copy*, as the component takes: the drag mutates the live object, so holding a
+    // reference here would make each delta stack on the last instead of replacing it.
+    const origins = new Map<string, AnyMapObject>([
+      [refKey({ c: 'symbols', id: 's1' }), structuredClone(get(data, 'symbols', 's1'))],
+    ]);
+
+    // Two deltas from the same snapshot: the second must not stack on the first, which is
+    // what would happen if the ops were built from the objects' live positions mid-drag.
+    run(data, moveOps([{ c: 'symbols', id: 's1' }], origins, 10, 10));
+    run(data, moveOps([{ c: 'symbols', id: 's1' }], origins, 25, 25));
+
+    expect([get(data, 'symbols', 's1').x, get(data, 'symbols', 's1').y]).toEqual([25, 25]);
+  });
+
+  it('ignoriert Mitglieder ohne Startposition', () => {
+    expect(moveOps([{ c: 'symbols', id: 'fehlt' }], new Map(), 5, 5)).toEqual([]);
   });
 });

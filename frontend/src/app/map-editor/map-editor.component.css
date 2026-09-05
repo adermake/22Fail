@@ -462,45 +462,31 @@
   flex: 0 0 30px;
 }
 
-/* One secret group. Boxed rather than a flat list row: a group carries a name, a state, a
-   rename field and two actions, and without an outline those run together into a wall of
-   controls once there are more than about three groups. */
-.secret-row {
-  border: 1px solid #3a3a46;
-  border-radius: 6px;
-  padding: 6px;
-  margin-bottom: 6px;
-  background: #24242c;
-}
-
-.secret-row.active-secret {
-  border-color: #6d9fd0;
-}
-
-.secret-name {
+/* Legend for the overview mode. The swatches have to be the exact colours the canvas
+   draws, or the key stops being a key. */
+.legend-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  width: 100%;
-  background: none;
-  border: 0;
-  padding: 0 0 5px;
-  color: #e6e6ea;
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.secret-name em {
-  font-style: normal;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
   font-size: 11px;
-  opacity: 0.65;
+  opacity: 0.85;
 }
 
-.secret-row .text-input {
-  width: 100%;
-  margin-top: 5px;
+.legend-swatch {
+  flex: 0 0 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.legend-green {
+  background: rgba(74, 222, 128, 0.2);
+  border: 2px solid #4ade80;
+}
+
+.legend-red {
+  background: rgba(248, 113, 113, 0.14);
+  border: 2px solid #f87171;
 }
 
 .paper-select {

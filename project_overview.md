@@ -1075,12 +1075,46 @@ könnte das Sortieren des Panels ein Geheimnis auf die Spielerschirme kippen.
 
 **Kategorieübergreifende Auswahl:** `secretSelection` trägt `{c, id}` statt bloßer Ids und
 speist die vorhandenen `setSelection`-Pfade der drei Views mit ihrem jeweiligen Anteil — keine
-zweite Hervorhebungslogik. Trefferreihenfolge Beschriftung → Symbol → Region (was oben liegt).
-`RegionView.inRect` ist neu und trifft „berührt den Rahmen“, nicht „liegt darin“: ein
-Territorium ist viel größer als das Gummiband über einer Symbolgruppe. `markers` bleibt außen
-vor — die Sammlung existiert im Modell, hat aber **keine View**, es gibt also nichts anzuklicken.
-Entf ist im Reiter bewusst wirkungslos (die Pro-Reiter-Auswahlen leben weiter und würden sonst
-ein ganz anderes Objekt löschen); Esc leert die Auswahl.
+zweite Hervorhebungslogik. `RegionView.inRect` ist neu und trifft „berührt den Rahmen“, nicht
+„liegt darin“: ein Territorium ist viel größer als das Gummiband über einer Symbolgruppe.
+`markers` bleibt außen vor — die Sammlung existiert im Modell, hat aber **keine View**, es gibt
+also nichts anzuklicken. Entf ist im Reiter bewusst wirkungslos (die Pro-Reiter-Auswahlen leben
+weiter und würden sonst ein ganz anderes Objekt löschen); Esc leert die Auswahl.
+
+**Getroffen wird das *engste*, nicht das oberste Objekt** (`pickTightest`). Eine feste
+Rangfolge machte Symbole unanklickbar: die Reichweite einer Beschriftung ist ihr ganzer Kasten,
+und da Beschriftungen zuerst geprüft wurden, lieferte der Klick auf eine Burg deren Namen. Jede
+View gibt jetzt zurück, *wie tief* der Klick in ihrer Form sitzt (0 = Mitte, 1 = Rand); das
+Kleinste gewinnt, bei Gleichstand das Obenliegende. Dazu ist `LabelView.hitTest` eine **Ellipse**
+über dem gebackenen Kasten statt eines Kreises mit halber Längsseite — „Das Nördliche
+Königreich“ beanspruchte vorher auch senkrecht einen Radius von seiner halben Breite und
+verschluckte jedes Symbol ringsum. `halfExtents` ist die eine Quelle dieser Größe, aus der auch
+Auswahlrahmen und Übersicht lesen.
+
+**Übersicht (Auge, `secret-overview.ts`):** Prüfansicht statt Liste. Das Terrain liegt hinter
+einem Schleier (`MapRenderer.setDim`, eigene Ebene *zwischen* Terrain und Objekten — über allem
+würde sie das Geprüfte verdecken), jede Gruppe bekommt einen grünen Rahmen um alle Mitglieder,
+jedes Mitglied zusätzlich einen Ring, und **öffentliche Beschriftungen einen roten Rahmen**: das
+sind die Versäumnisse, und ein vergessener Burgname verrät den Ort so gut wie das Burgsymbol.
+Rot markiert nur Beschriftungen — eine Karte ist überwiegend öffentlicher Wald, den alle zu
+umranden die paar Namen begraben würde, auf die es ankommt. Alles in **einem** `Graphics` und auf
+das Sichtfeld beschnitten; 300 Gruppen als je eigene Knoten wären tausende Display-Objekte pro
+Pan. Strichbreiten werden durch den Zoom geteilt, damit sie beim Herauszoomen nicht verschwinden.
+
+**Verschieben und Erweitern:** Ziehen bewegt die ganze Auswahl (`moveOps`); bei Regionen wandern
+**alle Stützpunkte** mit, denn der Umriss *ist* die Region — nur den gepufferten Schwerpunkt zu
+verschieben ließe die Form stehen und den Index still danebenzeigen. Die Deltas werden gegen die
+beim Griff geklonten Startpositionen gerechnet, nicht gegen den laufenden Stand. Ein Klick auf
+ein Mitglied öffnet dessen Gruppe, `addSelectionToSecret` hängt weitere Objekte an.
+
+**Kein Aufdecken im Editor.** `revealOps`/`hideOps` bleiben in `map-secrets.ts` (samt Tests),
+sind aber aus der Oberfläche verschwunden: aufgedeckt wird am Tisch, im Spielmodus. Im Editor
+wäre es ein Knopf, dessen ganze Wirkung auf einem Bildschirm liegt, vor dem der Klickende nicht
+sitzt.
+
+**Keine Liste aller Geheimnisse.** Auf einer fertigen Karte sind mehrere hundert zu erwarten;
+das rechte Panel zeigt darum nur Zähler (`secretStats`) und das **eine** gerade gewählte
+Geheimnis (`activeSecret`). Die Karte ist das Verzeichnis.
 
 **Arbeitsstufe startet auf *Mittel*** statt Auto (in `map-editor.brush.v1` mitgespeichert,
 `tierIsolate` bleibt aus): Auto ändert still, worauf ein Strich schreibt, sodass derselbe Pinsel
