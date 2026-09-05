@@ -462,6 +462,13 @@
   flex: 0 0 30px;
 }
 
+/* A toggle that is currently on. Same treatment as the active tool buttons, so "this is
+   switched on" looks the same everywhere in the editor. */
+.history-row button.active-toggle {
+  background: #3d5a80;
+  border-color: #6d9fd0;
+}
+
 /* Legend for the overview mode. The swatches have to be the exact colours the canvas
    draws, or the key stops being a key. */
 .legend-row {

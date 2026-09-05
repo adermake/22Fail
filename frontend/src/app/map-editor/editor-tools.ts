@@ -21,7 +21,6 @@ export type EditorTab = 'water' | 'land' | 'symbols' | 'regions' | 'labels' | 's
 export type SymbolTool = SymbolCategory | 'select';
 export type RegionTool = 'draw' | 'select';
 export type LabelTool = 'place' | 'select';
-export type SecretTool = 'select' | 'overview';
 
 export interface ToolDef<T extends string> {
   id: T;
@@ -42,25 +41,6 @@ export const TAB_DEFS: TabDef[] = [
   { id: 'labels', label: 'Beschriftung' },
   { id: 'secrets', label: 'Geheimnisse' },
   { id: 'map', label: 'Karte' },
-];
-
-/**
- * Secret tools.
- *
- * The selector is the only one in the editor that ignores categories: a secret is "this label
- * and those three symbols", so a picker confined to one collection could never express it. It
- * still uses the same arrow as every other selector — the gesture is identical and a different
- * icon would only suggest it is not.
- *
- * There is deliberately **no reveal tool here.** Revealing a secret is something that happens
- * at the table, in game mode; in the editor it would be a button whose whole effect is on a
- * screen the person clicking it is not looking at. The overview is the editing counterpart:
- * it answers "which of these did I forget to hide", which is the question that actually comes
- * up while drawing a map.
- */
-export const SECRET_TOOL_DEFS: ToolDef<SecretTool>[] = [
-  { id: 'select', icon: 'symbol_move_tool_64', label: 'Auswählen' },
-  { id: 'overview', icon: 'visible', label: 'Übersicht: Geheimnisse prüfen' },
 ];
 
 /**

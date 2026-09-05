@@ -1091,15 +1091,30 @@ Königreich“ beanspruchte vorher auch senkrecht einen Radius von seiner halben
 verschluckte jedes Symbol ringsum. `halfExtents` ist die eine Quelle dieser Größe, aus der auch
 Auswahlrahmen und Übersicht lesen.
 
-**Übersicht (Auge, `secret-overview.ts`):** Prüfansicht statt Liste. Das Terrain liegt hinter
-einem Schleier (`MapRenderer.setDim`, eigene Ebene *zwischen* Terrain und Objekten — über allem
-würde sie das Geprüfte verdecken), jede Gruppe bekommt einen grünen Rahmen um alle Mitglieder,
-jedes Mitglied zusätzlich einen Ring, und **öffentliche Beschriftungen einen roten Rahmen**: das
-sind die Versäumnisse, und ein vergessener Burgname verrät den Ort so gut wie das Burgsymbol.
-Rot markiert nur Beschriftungen — eine Karte ist überwiegend öffentlicher Wald, den alle zu
-umranden die paar Namen begraben würde, auf die es ankommt. Alles in **einem** `Graphics` und auf
-das Sichtfeld beschnitten; 300 Gruppen als je eigene Knoten wären tausende Display-Objekte pro
-Pan. Strichbreiten werden durch den Zoom geteilt, damit sie beim Herauszoomen nicht verschwinden.
+**Übersicht (`secret-overview.ts`):** Prüfansicht statt Liste. Das Terrain liegt hinter einem
+Schleier (`MapRenderer.setDim`, eigene Ebene *zwischen* Terrain und Objekten — über allem würde
+sie das Geprüfte verdecken), jede Gruppe bekommt einen grünen Rahmen um alle Mitglieder, jedes
+Mitglied zusätzlich einen Ring, und **öffentliche Beschriftungen einen roten Rahmen**: das sind
+die Versäumnisse, und ein vergessener Burgname verrät den Ort so gut wie das Burgsymbol. Rot
+markiert nur Beschriftungen — eine Karte ist überwiegend öffentlicher Wald, den alle zu umranden
+die paar Namen begraben würde, auf die es ankommt. Auf das Sichtfeld beschnitten und in **einem**
+`Graphics`; 300 Gruppen als je eigene Knoten wären tausende Display-Objekte pro Pan.
+Strichbreiten werden durch den Zoom geteilt, damit sie beim Herauszoomen nicht verschwinden.
+
+Es ist ein **Umschalter, kein Werkzeug** (`overviewOn`, in `map-editor.brush.v1` gemerkt). Als
+eigenes Werkzeug erzwang es die Wahl zwischen Hinsehen und Beheben: kaum zeigte die Übersicht
+eine Beschriftung ohne Geheimnis, musste man genau die Ansicht verlassen, die einen darauf
+gestoßen hatte. Auswählen und Verschieben laufen darunter weiter.
+
+**Auswahl wird gerahmt, nicht ausgegraut.** Ein zweiter `Graphics` im selben Container zeichnet
+weiße Kästen um alles Ausgewählte — unabhängig davon, ob die Übersicht an ist. Deckkraft
+allein reichte nicht: ausgewählt war 0.65, geheim 0.5, zwei kaum unterscheidbare Abstufungen auf
+Bildmaterial jeder Farbe. Ein Kasten hängt nicht davon ab, was darunter liegt.
+
+**Der Name kommt von der Beschriftung** (`secretNameFor`): ein Geheimnis heißt fast immer schon
+so, wie es auf der Karte steht. Die erste Beschriftung der Auswahl gewinnt, Dopplungen sind
+erlaubt (zwei Orte dürfen gleich heißen; stilles Umbenennen wäre schlimmer als die Kollision);
+nur ohne Beschriftung greift die durchnummerierte Rückfallebene.
 
 **Verschieben und Erweitern:** Ziehen bewegt die ganze Auswahl (`moveOps`); bei Regionen wandern
 **alle Stützpunkte** mit, denn der Umriss *ist* die Region — nur den gepufferten Schwerpunkt zu

@@ -62,7 +62,6 @@ import {
 import {
   ObjectRef,
   SecretSummary,
-  defaultSecretName,
   dissolveOps,
   find,
   groupOps,
@@ -71,6 +70,7 @@ import {
   moveOps,
   pickTightest,
   refKey,
+  secretNameFor,
   secretsOf,
   summarize,
   ungroupOps,
@@ -105,9 +105,7 @@ import {
   LabelTool,
   REGION_TOOL_DEFS,
   RegionTool,
-  SECRET_TOOL_DEFS,
   SYMBOL_TOOL_DEFS,
-  SecretTool,
   SymbolTool,
   TAB_DEFS,
   autoVaries,
@@ -176,14 +174,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly symbolTools = SYMBOL_TOOL_DEFS;
   readonly regionTools = REGION_TOOL_DEFS;
   readonly labelTools = LABEL_TOOL_DEFS;
-  readonly secretTools = SECRET_TOOL_DEFS;
 
   readonly tab = signal<EditorTab>('land');
   readonly terrainTool = signal<TerrainTool>('landBrush');
   readonly symbolTool = signal<SymbolTool>('trees');
   readonly regionTool = signal<RegionTool>('draw');
   readonly labelTool = signal<LabelTool>('place');
-  readonly secretTool = signal<SecretTool>('select');
 
   readonly icon = iconUrl;
 
@@ -281,6 +277,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           // `null` is Auto and is a real choice, so it is stored rather than left absent —
           // absent means "never chosen" and falls back to the Mittel default.
           tierPin: this.tierPin(),
+          secretOverview: this.overviewOn(),
         }),
       );
     } catch {
@@ -317,6 +314,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
       const tint = p['symbolTint'];
       if (typeof tint === 'string' && /^#[0-9a-f]{6}$/i.test(tint)) this.symbolTint.set(tint);
+
+      if (typeof p['secretOverview'] === 'boolean') this.overviewOn.set(p['secretOverview']);
 
       // Only `in` distinguishes a stored Auto (null) from a preference never expressed.
       if ('tierPin' in p) {
@@ -680,16 +679,23 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   readonly secretSelectionCount = computed(() => this.secretSelection().length);
 
-  selectSecretTool(tool: SecretTool): void {
-    this.secretTool.set(tool);
+  /**
+   * Whether the audit view is switched on.
+   *
+   * A remembered preference rather than a tool. It was a second tool at first, which forced
+   * a choice between looking and fixing: the moment the overview showed a label with no
+   * secret, the only way to act on it was to leave the view that had just pointed it out.
+   * As a toggle it is a way of *seeing*, and selection keeps working underneath.
+   */
+  readonly overviewOn = signal(false);
+
+  toggleOverview(): void {
+    this.overviewOn.update(on => !on);
+    this.saveBrushPrefs();
     this.applyOverview();
-    this.redrawCursor();
   }
 
-  /** Whether the audit view is on: the eye tool, in its own tab. */
-  readonly overviewActive = computed(
-    () => this.tab() === 'secrets' && this.secretTool() === 'overview',
-  );
+  readonly overviewActive = computed(() => this.tab() === 'secrets' && this.overviewOn());
 
   /**
    * Turn the audit view on or off.
@@ -700,8 +706,42 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private applyOverview(): void {
     const on = this.overviewActive();
     this.renderer.setDim(on ? 0.62 : 0);
-    this.secretOverview?.setVisible(on);
+    this.secretOverview?.setAudit(on);
     this.drawOverview();
+  }
+
+  /**
+   * World box of any object, whatever collection it is in.
+   *
+   * The three views each know their own geometry — a symbol's drawn circle, a label's baked
+   * extents, a region's path — so this asks them rather than re-deriving it and drifting.
+   */
+  private boundsOfRef(data: MapEditorData, ref: ObjectRef): Bounds | null {
+    const obj = find(data, ref);
+    if (!obj) return null;
+    if (ref.c === 'labels') return this.labelView.worldBounds(obj as MapLabel);
+    if (ref.c === 'symbols') return this.symbols?.boundsOf(obj as MapSymbol) ?? null;
+    if (ref.c === 'regions') return pathBounds((obj as MapRegion).points);
+    return null;
+  }
+
+  /** Outline the current selection, so what is picked is obvious in every collection. */
+  private drawSecretSelection(): void {
+    if (!this.secretOverview) return;
+    if (this.tab() !== 'secrets') {
+      this.secretOverview.drawSelection([], 1);
+      return;
+    }
+
+    const data = this.store.data();
+    if (!data) return;
+
+    const boxes: Bounds[] = [];
+    for (const ref of this.secretSelection()) {
+      const box = this.boundsOfRef(data, ref);
+      if (box) boxes.push(box);
+    }
+    this.secretOverview.drawSelection(boxes, this.renderer.camera.zoom);
   }
 
   /**
@@ -712,7 +752,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * because their members' boxes come straight from the views that already drew them.
    */
   private drawOverview(): void {
-    if (!this.secretOverview?.visible) return;
+    this.drawSecretSelection();
+    if (!this.secretOverview?.auditVisible) return;
 
     const data = this.store.data();
     if (!data) return;
@@ -892,7 +933,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (!data || !refs.length) return;
 
     const existing = secretsOf(data);
-    const secret: MapSecret = { id: newSecretId(), name: defaultSecretName(existing) };
+    const secret: MapSecret = { id: newSecretId(), name: secretNameFor(data, refs, existing) };
 
     this.undoStack?.begin();
     this.runSecretOps([
@@ -2957,10 +2998,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.tab() === 'secrets') {
-      // The overview is a way of looking, not of editing: clicking must not disturb what it
-      // is showing, or checking the map would keep changing the thing being checked.
-      if (this.secretTool() === 'overview') return;
-
       if (this.secretSelectAt(world, e.shiftKey)) {
         // Snapshot before the drag, not during: the move mutates the objects in place, so
         // capturing later would record the already-moved state and undo to nothing.

@@ -112,20 +112,6 @@
               </button>
             }
           }
-
-          @if (tab() === 'secrets') {
-            @for (t of secretTools; track t.id) {
-              <button
-                type="button"
-                class="rail-btn"
-                [class.active]="secretTool() === t.id"
-                [title]="t.label"
-                (click)="selectSecretTool(t.id)"
-              >
-                <img [src]="icon(t.icon)" [alt]="t.label" />
-              </button>
-            }
-          }
         </div>
       </aside>
     }
@@ -860,12 +846,47 @@
                hunderte, und eine Liste davon wäre weder lesbar noch nötig. Die Karte selbst
                ist das Verzeichnis — ein Klick auf ein Mitglied öffnet seine Gruppe. -->
 
-          @if (secretTool() === 'overview') {
-            <div class="panel-section">
-              <div class="panel-title">Übersicht</div>
+          <div class="panel-section">
+            <div class="panel-title">Auswahl</div>
+
+            @if (secretSelectionCount()) {
+              <p class="hint">{{ secretSelectionLabel() }}</p>
+              <div class="history-row">
+                <button type="button" (click)="groupAsSecret()">Neues Geheimnis</button>
+              </div>
+              @if (activeSecret(); as g) {
+                <div class="history-row">
+                  <button type="button" (click)="addSelectionToSecret()">
+                    Zu „{{ g.secret.name }}“ hinzufügen
+                  </button>
+                </div>
+              }
+              <div class="history-row">
+                <button type="button" (click)="ungroupSelection()">Aus Gruppe lösen</button>
+              </div>
+              <p class="hint">Ziehen verschiebt die ganze Auswahl.</p>
+            } @else {
               <p class="hint">
-                Die Karte liegt hinter einem Schleier, damit nur die Marken leuchten.
+                Beschriftungen, Symbole und Regionen zusammen auswählen · Shift für Mehrfach ·
+                Rahmen ziehen · Klick auf ein Mitglied öffnet seine Gruppe
               </p>
+            }
+          </div>
+
+          <!-- Eine Ansichtsoption, kein Werkzeug: Prüfen und Beheben sollen nicht zwei Modi
+               sein, zwischen denen man hin- und herschaltet. -->
+          <div class="panel-section">
+            <div class="history-row">
+              <button
+                type="button"
+                [class.active-toggle]="overviewOn()"
+                (click)="toggleOverview()"
+              >
+                Übersicht {{ overviewOn() ? 'aus' : 'ein' }}
+              </button>
+            </div>
+
+            @if (overviewOn()) {
               <div class="legend-row">
                 <span class="legend-swatch legend-green"></span>
                 <span>Geheimnis — der Rahmen umfasst die ganze Gruppe</span>
@@ -879,35 +900,13 @@
                 öffentlichem Wald und Hügeln; die alle zu umranden würde die paar Namen
                 begraben, auf die es ankommt.
               </p>
-            </div>
-          } @else {
-            <div class="panel-section">
-              <div class="panel-title">Auswahl</div>
-
-              @if (secretSelectionCount()) {
-                <p class="hint">{{ secretSelectionLabel() }}</p>
-                <div class="history-row">
-                  <button type="button" (click)="groupAsSecret()">Neues Geheimnis</button>
-                </div>
-                @if (activeSecret(); as g) {
-                  <div class="history-row">
-                    <button type="button" (click)="addSelectionToSecret()">
-                      Zu „{{ g.secret.name }}“ hinzufügen
-                    </button>
-                  </div>
-                }
-                <div class="history-row">
-                  <button type="button" (click)="ungroupSelection()">Aus Gruppe lösen</button>
-                </div>
-                <p class="hint">Ziehen verschiebt die ganze Auswahl.</p>
-              } @else {
-                <p class="hint">
-                  Beschriftungen, Symbole und Regionen zusammen auswählen · Shift für Mehrfach ·
-                  Rahmen ziehen · Klick auf ein Mitglied öffnet seine Gruppe
-                </p>
-              }
-            </div>
-          }
+            } @else {
+              <p class="hint">
+                Dunkelt die Karte ab und rahmt jedes Geheimnis grün, jede Beschriftung ohne
+                Geheimnis rot.
+              </p>
+            }
+          </div>
 
           @if (activeSecret(); as g) {
             <div class="panel-section">

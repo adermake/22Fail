@@ -36,6 +36,8 @@ export interface OverviewGroup {
 
 const GREEN = 0x4ade80;
 const RED = 0xf87171;
+/** Selection. Deliberately neither of the audit colours, so it never reads as a verdict. */
+const SELECT = 0xffffff;
 
 /** Union of several boxes, or null for none. */
 export function unionBounds(boxes: readonly Bounds[]): Bounds | null {
@@ -61,19 +63,50 @@ export function boundsOverlap(a: Bounds, b: Bounds): boolean {
 export class SecretOverview {
   readonly container = new Container();
   private frames = new Graphics();
+  private selection = new Graphics();
+
+  /**
+   * The audit marks and the selection marks are separate passes on purpose.
+   *
+   * The overview is a view option, not a mode: you turn it on to find what you missed and
+   * then fix it without turning it off again. So selection has to stay visible whether the
+   * audit is on or not, which two `Graphics` give for free and one would not.
+   */
+  private auditOn = false;
 
   constructor() {
-    this.container.addChild(this.frames);
-    this.container.visible = false;
+    this.container.addChild(this.frames, this.selection);
   }
 
-  setVisible(on: boolean): void {
-    this.container.visible = on;
+  setAudit(on: boolean): void {
+    this.auditOn = on;
     if (!on) this.frames.clear();
   }
 
-  get visible(): boolean {
-    return this.container.visible;
+  get auditVisible(): boolean {
+    return this.auditOn;
+  }
+
+  /**
+   * Outline whatever is selected, in any collection.
+   *
+   * Alpha alone could not do this job. A selected symbol was drawn at 0.65 and a secret one
+   * at 0.5 — two barely different fades on artwork of every possible colour, which on a busy
+   * map is no signal at all. A box does not depend on what is underneath it.
+   */
+  drawSelection(boxes: readonly Bounds[], zoom: number): void {
+    const g = this.selection;
+    g.clear();
+    if (!boxes.length) return;
+
+    const px = 1 / Math.max(zoom, 1e-6);
+    for (const box of boxes) {
+      const b = padBounds(box, 8 * px);
+      g.rect(b.minX, b.minY, b.maxX - b.minX, b.maxY - b.minY);
+      g.fill({ color: SELECT, alpha: 0.1 });
+      // Dashes would be nicer but cost a path per segment; two weights read as a marquee.
+      g.stroke({ color: SELECT, width: 2.5 * px, alpha: 0.95 });
+    }
   }
 
   /**
@@ -86,7 +119,7 @@ export class SecretOverview {
   draw(groups: readonly OverviewGroup[], looseLabels: readonly Bounds[], zoom: number): void {
     const g = this.frames;
     g.clear();
-    if (!this.container.visible) return;
+    if (!this.auditOn) return;
 
     const px = 1 / Math.max(zoom, 1e-6);
     const pad = 12 * px;

@@ -30,6 +30,7 @@ import {
   newSecretId,
   refKey,
   revealOps,
+  secretNameFor,
   summarize,
   ungroupOps,
 } from './map-secrets';
@@ -193,6 +194,62 @@ describe('Geheimnis-Gruppen', () => {
       'x',
     );
     expect(ops).toHaveLength(1);
+  });
+
+  it('benennt ein neues Geheimnis nach seiner Beschriftung', () => {
+    const data = makeData();
+    data.labels[0].text = 'Räuberlager';
+
+    // The name is already on the map; making the GM retype it — and reading "Geheimnis 3" in
+    // a panel of hundreds — was the whole complaint.
+    expect(
+      secretNameFor(
+        data,
+        [
+          { c: 'symbols', id: 's1' },
+          { c: 'labels', id: 'l1' },
+        ],
+        [],
+      ),
+    ).toBe('Räuberlager');
+  });
+
+  it('fällt auf eine Nummer zurück, wenn keine Beschriftung dabei ist', () => {
+    const data = makeData();
+    expect(secretNameFor(data, [{ c: 'symbols', id: 's1' }], [])).toBe('Geheimnis 1');
+  });
+
+  it('übergeht eine leere Beschriftung', () => {
+    const data = makeData();
+    data.labels[0].text = '   ';
+    // Whitespace is not a name; it would produce an invisible row in the panel.
+    expect(secretNameFor(data, [{ c: 'labels', id: 'l1' }], [])).toBe('Geheimnis 1');
+  });
+
+  it('nimmt bei mehreren Beschriftungen die erste der Auswahl', () => {
+    const data = makeData();
+    data.labels[0].text = 'Erste';
+    data.labels.push({ ...label('l2'), text: 'Zweite' });
+    expect(
+      secretNameFor(
+        data,
+        [
+          { c: 'labels', id: 'l1' },
+          { c: 'labels', id: 'l2' },
+        ],
+        [],
+      ),
+    ).toBe('Erste');
+  });
+
+  it('erlaubt bei Beschriftungsnamen Dopplungen', () => {
+    const data = makeData();
+    data.labels[0].text = 'Räuberlager';
+    // Two places really can share a name. Silently renaming one behind the GM's back would
+    // be worse than the collision — unlike the numbered fallback, which exists to be unique.
+    expect(secretNameFor(data, [{ c: 'labels', id: 'l1' }], [{ id: 'a', name: 'Räuberlager' }])).toBe(
+      'Räuberlager',
+    );
   });
 
   it('vergibt unterscheidbare Vorgabenamen', () => {

@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { boundsOverlap, padBounds, unionBounds } from './secret-overview';
+import { SecretOverview, boundsOverlap, padBounds, unionBounds } from './secret-overview';
 import { ScoredHit, pickTightest } from './map-secrets';
 import { LabelView } from './label-view';
 import { MapLabel } from './map-editor.model';
@@ -144,5 +144,31 @@ describe('Reichweite einer Beschriftung', () => {
     const { rx, ry } = view.halfExtents(tiny);
     // A minimum reach, or a small label at low zoom becomes impossible to hit.
     expect(Math.min(rx, ry)).toBeGreaterThanOrEqual(8);
+  });
+});
+
+/**
+ * Selection marks.
+ *
+ * These live in their own `Graphics` so they survive the audit being switched off — the
+ * overview is a way of looking, and turning it on must not cost you the ability to see what
+ * you have picked.
+ */
+describe('Auswahlrahmen', () => {
+  it('zeichnet auch bei ausgeschalteter Übersicht', () => {
+    const view = new SecretOverview();
+    view.setAudit(false);
+    view.drawSelection([box(0, 0, 10, 10)], 1);
+
+    // The audit pass is off, but the selection pass is not gated on it.
+    expect(view.auditVisible).toBe(false);
+    expect(view.container.children.length).toBe(2);
+  });
+
+  it('meldet den Zustand der Übersicht', () => {
+    const view = new SecretOverview();
+    expect(view.auditVisible).toBe(false);
+    view.setAudit(true);
+    expect(view.auditVisible).toBe(true);
   });
 });

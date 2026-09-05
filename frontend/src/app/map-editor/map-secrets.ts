@@ -243,7 +243,31 @@ function dedupe(refs: readonly ObjectRef[]): ObjectRef[] {
   return out;
 }
 
-/** Name for a new group, numbered so two unnamed ones stay distinguishable. */
+/**
+ * Name for a new group, taken from the label inside it when there is one.
+ *
+ * A secret almost always has a name already — it is the thing written on the map. "Geheimnis
+ * 3" made the GM retype it, and a panel full of numbered placeholders is unreadable at the
+ * scale this is built for. The first label in the selection wins; several labels in one
+ * secret is rare, and picking the earliest is at least predictable.
+ *
+ * Duplicates are allowed here, unlike the numbered fallback: if two places really are both
+ * called Räuberlager, renaming one of them behind the GM's back is worse than the collision.
+ */
+export function secretNameFor(
+  data: MapEditorData,
+  refs: readonly ObjectRef[],
+  existing: readonly MapSecret[],
+): string {
+  for (const ref of refs) {
+    if (ref.c !== 'labels') continue;
+    const text = (find(data, ref) as { text?: string } | undefined)?.text?.trim();
+    if (text) return text;
+  }
+  return defaultSecretName(existing);
+}
+
+/** Name for a new group with nothing to name it after, numbered so they stay distinct. */
 export function defaultSecretName(existing: readonly MapSecret[]): string {
   let n = existing.length + 1;
   const taken = new Set(existing.map(s => s.name));
