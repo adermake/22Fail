@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { MapEditorApiService } from './map-editor-api.service';
 import { MapEditorSocketService } from './map-editor-socket.service';
+import { PingBroadcast } from '../shared/ping/ping.model';
 import {
   AnyMapObject,
   DetailTier,
@@ -228,8 +229,8 @@ export class MapEditorStoreService {
   readonly pings$ = this.socket.pings$;
   readonly measurements$ = this.socket.measurements$;
 
-  sendPing(x: number, y: number, color: string): void {
-    this.socket.sendPing(x, y, color);
+  sendPing(ping: PingBroadcast): void {
+    this.socket.sendPing(ping);
   }
 
   sendMeasure(line: { start: { x: number; y: number }; end: { x: number; y: number } } | null): void {

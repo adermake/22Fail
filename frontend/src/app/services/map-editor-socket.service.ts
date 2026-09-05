@@ -3,6 +3,7 @@ import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { identityAuth } from './identity';
 import { MapOp } from '../map-editor/map-editor.model';
+import { PingBroadcast } from '../shared/ping/ping.model';
 
 /**
  * Realtime channel for the map editor (format v2).
@@ -18,7 +19,7 @@ export class MapEditorSocketService {
 
   private opSubject = new Subject<MapOp>();
   private readySubject = new Subject<void>();
-  private pingSubject = new Subject<IncomingPing>();
+  private pingSubject = new Subject<PingBroadcast>();
   private measureSubject = new Subject<MeasureLine[]>();
 
   ops$ = this.opSubject.asObservable();
@@ -57,7 +58,7 @@ export class MapEditorSocketService {
     });
 
     this.socket.on('mapEditorOp', (op: MapOp) => this.opSubject.next(op));
-    this.socket.on('mapEditorPing', (ping: IncomingPing) => this.pingSubject.next(ping));
+    this.socket.on('mapEditorPing', (ping: PingBroadcast) => this.pingSubject.next(ping));
     this.socket.on('mapEditorMeasure', (lines: MeasureLine[]) =>
       this.measureSubject.next(lines ?? []),
     );
@@ -89,9 +90,9 @@ export class MapEditorSocketService {
     this.socket.emit('mapEditorOp', { worldName: this.worldName, op });
   }
 
-  sendPing(x: number, y: number, color: string): void {
+  sendPing(ping: PingBroadcast): void {
     if (!this.socket?.connected || !this.worldName) return;
-    this.socket.emit('mapEditorPing', { worldName: this.worldName, ping: { x, y, color } });
+    this.socket.emit('mapEditorPing', { worldName: this.worldName, ping });
   }
 
   /**
@@ -115,14 +116,6 @@ interface Point {
   y: number;
 }
 
-/** A ping as it arrives: the server stamps the id and author, so neither can be forged. */
-export interface IncomingPing {
-  id: string;
-  x: number;
-  y: number;
-  color: string;
-  by: string;
-}
 
 export interface MeasureLine {
   id: string;

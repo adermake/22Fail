@@ -10,6 +10,7 @@
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   OnDestroy,
@@ -79,8 +80,12 @@ import {
   ungroupOps,
 } from './map-secrets';
 import { FogView } from './fog-view';
-import { SketchView } from './sketch-view';
-import { MeasureLine, PING_MS, Ping, PlayAidsView } from './play-aids';
+import { ERASER_COLOR, SketchView } from './sketch-view';
+import { MeasureLine, PlayAidsView } from './play-aids';
+
+import { PingController } from '../shared/ping/ping-controller';
+import { PingLayerComponent, RenderedPing } from '../shared/ping/ping-layer.component';
+import { PingWheelComponent } from '../shared/ping/ping-wheel.component';
 import {
   OverviewGroup,
   OverviewItem,
@@ -109,8 +114,10 @@ import {
   EditorTab,
   LABEL_TOOL_DEFS,
   LabelTool,
-  GAME_TOOL_DEFS,
+  DRAW_COLORS,
+  FogMode,
   GameTool,
+  PEN_SIZES,
   REGION_TOOL_DEFS,
   RegionTool,
   SYMBOL_TOOL_DEFS,
@@ -142,7 +149,7 @@ import {
 @Component({
   selector: 'app-map-editor',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PingLayerComponent, PingWheelComponent],
   templateUrl: './map-editor.component.html',
   styleUrls: ['./map-editor.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -152,6 +159,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private store = inject(MapEditorStoreService);
   private api = inject(MapEditorApiService);
   private auth = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('pixiHost') pixiHost?: ElementRef<HTMLDivElement>;
 
@@ -661,9 +669,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * is not shown to them.
    */
   readonly mode = signal<'edit' | 'game'>('edit');
-  readonly gameTool = signal<GameTool>('ruler');
+  readonly gameTool = signal<GameTool>('cursor');
   readonly gameTools = computed(() => gameToolsFor(this.isGM()));
   readonly inGame = computed(() => !this.isGM() || this.mode() === 'game');
+
+  /**
+   * Fog painting state — a mode on the cursor tool, not a tool of its own.
+   *
+   * V flips reveal/hide, D steps back to neutral, exactly as on the old map. Keeping it a
+   * mode means covering ground and moving a figure are one keystroke apart rather than a
+   * round trip through the toolbar, which is what a GM actually does during a session.
+   */
+  readonly fogMode = signal<FogMode>('neutral');
+  readonly eraserMode = signal(false);
 
   setMode(mode: 'edit' | 'game'): void {
     if (!this.isGM()) return;
@@ -676,6 +694,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     () => this.gameTools().find(t => t.id === this.gameTool())?.label ?? '',
   );
 
+  setFogMode(mode: FogMode): void {
+    if (!this.isGM()) return;
+    // Fog rides on the cursor tool, so arming it switches to the tool that can paint it.
+    if (mode !== 'neutral') this.gameTool.set('cursor');
+    this.fogMode.set(mode);
+    this.redrawCursor();
+  }
+
   selectGameTool(tool: GameTool): void {
     this.gameTool.set(tool);
     this.endMeasure();
@@ -684,11 +710,18 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   /** Fog brush radius, in hexes. */
   readonly fogRadius = signal(2);
-  /** Whether the fog brush reveals or covers back up. */
-  readonly fogReveals = signal(true);
 
-  readonly sketchColor = signal('#ffd166');
-  readonly sketchWidth = signal(28);
+  readonly sketchColor = signal('#ef4444');
+  /** Pen and eraser keep separate widths, as they did on the old map. */
+  readonly penSize = signal(8);
+  readonly eraserSize = signal(24);
+  readonly penSizes = PEN_SIZES;
+  readonly drawColors = DRAW_COLORS;
+
+  /** World-px width of the active drawing tool, scaled off the pen preset. */
+  private strokeWidth(): number {
+    return (this.eraserMode() ? this.eraserSize() : this.penSize()) * 4;
+  }
 
   readonly tokenName = signal('Figur');
   readonly tokenColor = signal('#c0392b');
@@ -706,7 +739,30 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   /** Bumped whenever `revealedSet` changes, so the fog texture knows to redraw. */
   private fogRevision = 0;
 
-  private pings: Ping[] = [];
+  /**
+   * Pings reuse the shared subsystem the lobby and the old world map already use —
+   * `PingController` for the G-chord state machine, `app-ping-layer` for the animation,
+   * `app-ping-wheel` for the radial selector, and its sounds. Rebuilding any of that would
+   * have produced a second kind of ping that looked and sounded wrong next to the first.
+   */
+  readonly pingCtl = new PingController(
+    () => this.cdr.markForCheck(),
+    broadcast => this.store.sendPing(broadcast),
+    () => this.auth.currentUser()?.name ?? 'unbekannt',
+  );
+
+  /** Pings mapped into screen space for the overlay, recomputed as the camera moves. */
+  readonly renderedPings = computed<RenderedPing[]>(() => {
+    void this.viewEpoch();
+    return this.pingCtl.activePings.map(p => {
+      const s = this.renderer.camera.worldToScreen(p.worldX, p.worldY);
+      return { id: p.id, type: p.type, x: s.x, y: s.y };
+    });
+  });
+
+  /** Bumped on every camera change, so screen-space overlays follow pan and zoom. */
+  private readonly viewEpoch = signal(0);
+
   private measureLines: MeasureLine[] = [];
   /** This client's ruler, while it is being dragged. */
   private measureDrag: { start: Point; end: Point } | null = null;
@@ -741,27 +797,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     ];
   }
 
-  /**
-   * Keep redrawing while pings are alive.
-   *
-   * Pings animate on their own, unlike everything else here, which only moves when the user
-   * does. The ticker stops as soon as the last one expires, so an idle map costs nothing.
-   */
-  private pingTimer: ReturnType<typeof setInterval> | null = null;
-
-  private startPingTicker(): void {
-    if (this.pingTimer) return;
-    this.pingTimer = setInterval(() => {
-      const now = Date.now();
-      this.pings = this.pings.filter(p => now - p.at < PING_MS);
-      this.scheduleStream();
-      if (!this.pings.length && this.pingTimer) {
-        clearInterval(this.pingTimer);
-        this.pingTimer = null;
-      }
-    }, 60);
-  }
-
   // ── fog ──
 
   /**
@@ -777,7 +812,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const centre = worldToHex(world.x, world.y);
     const keys = hexesInRadius(centre.q, centre.r, this.fogRadius()).map(h => hexKey(h.q, h.r));
 
-    const reveal = this.fogReveals();
+    const reveal = this.fogMode() !== 'hide';
     const changed = keys.filter(k => this.revealedSet.has(k) !== reveal);
     if (!changed.length) return;
 
@@ -836,7 +871,18 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private beginSketch(world: Point): void {
     this.sketchDraft = [{ x: world.x, y: world.y }];
-    this.sketchView?.drawLive(this.sketchDraft, this.sketchColor(), this.sketchWidth());
+    this.sketchView?.drawLive(this.sketchDraft, this.strokeColor(), this.strokeWidth());
+  }
+
+  /**
+   * The colour a stroke is laid down in.
+   *
+   * The eraser is a *rubbing-out* stroke, not a coloured one — `SketchView` draws it with
+   * destination-out blending so it takes previous lines away instead of painting over them
+   * in the background colour, which would leave a smear the moment the map behind changed.
+   */
+  private strokeColor(): string {
+    return this.eraserMode() ? ERASER_COLOR : this.sketchColor();
   }
 
   private continueSketch(world: Point): void {
@@ -846,11 +892,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Thin the trail: raw pointer moves put points a pixel apart, which is a hundred times
     // more geometry than the line needs and all of it gets synced.
     const last = draft[draft.length - 1];
-    const minStep = this.sketchWidth() * 0.35;
+    const minStep = this.strokeWidth() * 0.35;
     if (Math.hypot(world.x - last.x, world.y - last.y) < minStep) return;
 
     draft.push({ x: world.x, y: world.y });
-    this.sketchView?.drawLive(draft, this.sketchColor(), this.sketchWidth());
+    this.sketchView?.drawLive(draft, this.strokeColor(), this.strokeWidth());
   }
 
   private endSketch(): void {
@@ -867,14 +913,34 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       // server refuses a secret one from a player anyway.
       vis: 'public',
       points: draft,
-      color: this.sketchColor(),
-      width: this.sketchWidth(),
+      color: this.strokeColor(),
+      width: this.strokeWidth(),
+      erase: this.eraserMode(),
       author: this.auth.currentUser()?.name ?? '',
     };
 
     this.sketchView?.add(stroke);
     this.sketchCount.set(this.sketchView?.count ?? 0);
     this.store.addObject('sketch', stroke);
+    this.scheduleStream();
+  }
+
+  /**
+   * Take back the last line this client drew.
+   *
+   * Own lines only, and not through the map's undo stack: during play the sketch is the only
+   * thing being added, and reaching into the edit history — or into somebody else's
+   * scribbles — would be a nasty surprise.
+   */
+  undoLastSketch(): void {
+    const mine = this.auth.currentUser()?.name ?? '';
+    const ids = this.sketchView?.idsBy(mine) ?? [];
+    const last = ids[ids.length - 1];
+    if (!last) return;
+
+    this.sketchView?.remove(last);
+    this.sketchCount.set(this.sketchView?.count ?? 0);
+    this.store.deleteObject('sketch', last);
     this.scheduleStream();
   }
 
@@ -1944,7 +2010,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private isPanning = false;
   private isPainting = false;
   private lastPointer = { x: 0, y: 0 };
-  private brushResize: { x: number; initial: number; scaling: 'brush' | 'symbol' } | null = null;
+  private brushResize: { x: number; initial: number; scaling: 'brush' | 'symbol' | 'game' } | null =
+    null;
   private dragSymbols: {
     startWorld: { x: number; y: number };
     moved: boolean;
@@ -2103,10 +2170,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.playAids.setTokens(data.tokens ?? []);
 
     this.subs.push(
-      this.store.pings$.subscribe(ping => {
-        this.pings = [...this.pings.filter(p => p.id !== ping.id), { ...ping, at: Date.now() }];
-        this.startPingTicker();
-      }),
+      // The controller dedupes our own echo by id and plays the sound once.
+      this.store.pings$.subscribe(ping => this.pingCtl.addRemotePing(ping)),
       this.store.measurements$.subscribe(lines => {
         this.measureLines = lines;
         this.scheduleStream();
@@ -2201,7 +2266,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
-    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingCtl.destroy();
     // Withdraw our ruler, or it stays on everyone else's map with nobody able to clear it.
     this.store.sendMeasure(null);
     if (this.diagTimer) clearInterval(this.diagTimer);
@@ -2273,14 +2338,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
       this.fogView?.update(view, this.revealedSet, this.isGM(), this.fogRevision);
       this.sketchView?.render(view);
-      this.playAids?.render(
-        view,
-        zoom,
-        this.pings,
-        this.allMeasureLines(),
-        this.selectedTokenId(),
-        Date.now(),
-      );
+      this.playAids?.render(view, zoom, this.allMeasureLines(), this.selectedTokenId());
+      // Screen-space overlays (pings, the wheel) follow the camera through this.
+      this.viewEpoch.update(n => n + 1);
     });
   }
 
@@ -2901,7 +2961,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
      */
     if (this.inGame()) {
       this.previewSprite.visible = false;
-      if (this.gameTool() === 'fog') {
+      if (this.gameTool() === 'cursor' && this.fogMode() !== 'neutral') {
         const centreHex = worldToHex(world.x, world.y);
         for (const hex of hexesInRadius(centreHex.q, centreHex.r, this.fogRadius())) {
           const centre = hexToWorld(hex);
@@ -2911,7 +2971,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           g.closePath();
         }
         g.stroke({
-          color: this.fogReveals() ? 0x8fd0ff : 0xf87171,
+          color: this.fogMode() === 'reveal' ? 0x8fd0ff : 0xf87171,
           width: 1.5 / zoom,
           alpha: 0.9,
         });
@@ -3305,7 +3365,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     host.addEventListener('wheel', this.onWheel, { passive: false });
     host.addEventListener('contextmenu', this.onContextMenu);
     window.addEventListener('keydown', this.onKeyDown);
-    // Alt is a held modifier, so its release matters as much as its press.
+    // Alt and G are held modifiers, so their release matters as much as their press.
     window.addEventListener('keyup', this.onKeyUp);
   }
 
@@ -3345,7 +3405,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Game mode owns the pointer entirely: none of the editing tools are reachable while
     // playing, which is the point of having a mode at all.
     if (this.inGame()) {
-      this.gamePointerDown(world);
+      this.gamePointerDown(world, p, e);
       return;
     }
     if (!this.isGM()) return;
@@ -3477,44 +3537,93 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * the methods themselves — the tool list is filtered for players, but a filtered list is a
    * UI convenience, not a permission.
    */
-  private gamePointerDown(world: Point): void {
+  private gamePointerDown(world: Point, screen: Point, e: PointerEvent): void {
+    // G + left-drag opens the radial ping wheel, whatever tool is active. A ping is
+    // something you do *while* doing something else, so it cannot be a mode you leave.
+    if (this.pingCtl.gDown) {
+      if (this.pingCtl.beginWheel(screen.x, screen.y, world.x, world.y)) {
+        e.preventDefault();
+        return;
+      }
+    }
+
+    // Shift-drag resizes whichever brush is live — the same gesture the terrain brushes use
+    // in edit mode, so there is one way to resize a brush in the whole editor.
+    if (e.shiftKey && this.resizableBrush()) {
+      e.preventDefault();
+      this.brushResize = {
+        x: e.clientX,
+        initial: this.activeGameBrushSize(),
+        scaling: 'game',
+      };
+      return;
+    }
+
     switch (this.gameTool()) {
-      case 'ping':
-        this.store.sendPing(world.x, world.y, this.sketchColor());
-        break;
-
-      case 'ruler':
-        this.measureDrag = { start: { ...world }, end: { ...world } };
-        break;
-
-      case 'sketch':
-        this.beginSketch(world);
-        break;
-
-      case 'fog':
-        this.fogPainting = true;
-        this.paintFog(world);
-        break;
-
-      case 'token': {
-        const hit = this.playAids?.tokenAt(world.x, world.y) ?? null;
-        if (hit) {
-          this.selectedTokenId.set(hit.id);
-          if (this.isGM()) this.dragToken = { id: hit.id, before: clone(hit) };
-        } else {
-          this.placeToken(world);
-        }
+      case 'measure': {
+        // Snapped to hex centres: distances are counted in hexes, so a ruler that started
+        // half a hex off would disagree with the number it prints.
+        const snapped = hexToWorld(worldToHex(world.x, world.y));
+        this.measureDrag = { start: snapped, end: snapped };
         break;
       }
+
+      case 'draw':
+        this.beginSketch(world);
+        break;
 
       case 'reveal':
         this.revealSecretAt(world);
         break;
+
+      case 'cursor': {
+        // Fog first: while a fog mode is armed the cursor paints instead of grabbing.
+        if (this.isGM() && this.fogMode() !== 'neutral') {
+          this.fogPainting = true;
+          this.paintFog(world);
+          break;
+        }
+        const hit = this.playAids?.tokenAt(world.x, world.y) ?? null;
+        if (hit) {
+          this.selectedTokenId.set(hit.id);
+          if (this.isGM()) this.dragToken = { id: hit.id, before: clone(hit) };
+        } else if (this.isGM() && e.altKey) {
+          // Alt to place, so an ordinary click on empty map deselects instead of littering
+          // the board with figures nobody asked for.
+          this.placeToken(world);
+        } else {
+          this.selectedTokenId.set(null);
+        }
+        break;
+      }
     }
     this.scheduleStream();
   }
 
   private fogPainting = false;
+
+  /** Whether shift-drag has a brush to resize right now. */
+  private resizableBrush(): boolean {
+    if (this.gameTool() === 'draw') return true;
+    return this.isGM() && this.gameTool() === 'cursor' && this.fogMode() !== 'neutral';
+  }
+
+  private activeGameBrushSize(): number {
+    if (this.gameTool() === 'draw') {
+      return this.eraserMode() ? this.eraserSize() : this.penSize();
+    }
+    return this.fogRadius();
+  }
+
+  private setActiveGameBrushSize(value: number): void {
+    if (this.gameTool() === 'draw') {
+      if (this.eraserMode()) this.eraserSize.set(Math.round(Math.min(60, Math.max(2, value))));
+      else this.penSize.set(Math.round(Math.min(60, Math.max(1, value))));
+    } else {
+      this.fogRadius.set(Math.round(Math.min(20, Math.max(0, value))));
+    }
+    this.redrawCursor();
+  }
 
   /**
    * Reveal whatever secret the clicked object belongs to.
@@ -3640,8 +3749,25 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    /*
+     * Panning is checked before anything mode-specific.
+     *
+     * It used to be the other way round, and middle-drag simply did not pan during play:
+     * the game branch returned first, so the pan handler below was unreachable. Panning is
+     * not a tool — it has to work whatever else is going on.
+     */
+    if (this.isPanning) {
+      this.renderer.camera.panByScreen(
+        e.clientX - this.lastPointer.x,
+        e.clientY - this.lastPointer.y,
+      );
+      this.lastPointer = { x: e.clientX, y: e.clientY };
+      this.applyView();
+      return;
+    }
+
     if (this.inGame()) {
-      this.gamePointerMove(world);
+      this.gamePointerMove(world, p, e);
       return;
     }
 
@@ -3669,9 +3795,21 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   };
 
   /** Pointer-drag while playing. Panning is handled before this is reached. */
-  private gamePointerMove(world: Point): void {
+  private gamePointerMove(world: Point, screen: Point, e: PointerEvent): void {
+    if (this.pingCtl.wheelOpen) {
+      this.pingCtl.updateWheel(screen.x, screen.y);
+      return;
+    }
+
+    if (this.brushResize?.scaling === 'game') {
+      const delta = (e.clientX - this.brushResize.x) / 6;
+      this.setActiveGameBrushSize(this.brushResize.initial + delta);
+      return;
+    }
+
     if (this.measureDrag) {
-      this.measureDrag.end = { ...world };
+      // Both ends snap, so the printed hex count and the drawn line always agree.
+      this.measureDrag.end = hexToWorld(worldToHex(world.x, world.y));
       // Everyone else's screen follows the drag; the local line is drawn without waiting.
       this.store.sendMeasure(this.measureDrag);
       this.scheduleStream();
@@ -3683,6 +3821,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
     if (this.fogPainting) {
       this.paintFog(world);
+      this.redrawCursor();
       return;
     }
     if (this.dragToken) {
@@ -3698,6 +3837,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   /** Finish whatever play gesture was in progress. */
   private gamePointerUp(): void {
+    if (this.pingCtl.wheelOpen) {
+      this.pingCtl.endWheel();
+      return;
+    }
+    if (this.brushResize?.scaling === 'game') {
+      this.brushResize = null;
+      return;
+    }
     if (this.measureDrag) {
       this.endMeasure();
       return;
@@ -3955,11 +4102,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.applyView();
   };
 
+  /** Held modifiers: Alt mirrors the symbol stamp, G arms the ping wheel. */
   private onKeyUp = (e: KeyboardEvent): void => {
     if (e.key === 'Alt' && this.mirrorStamp()) {
       this.mirrorStamp.set(false);
       this.redrawCursor();
     }
+    if (e.key.toLowerCase() === 'g') this.pingCtl.setGDown(false);
   };
 
   private onKeyDown = (e: KeyboardEvent): void => {
@@ -3967,16 +4116,81 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
 
     /*
-     * Game mode has no keyboard editing.
+     * Game-mode shortcuts.
      *
-     * The editing selections survive the switch, so Delete here would quietly remove a symbol
-     * picked before the session started — during play, on everyone's screen. Only removing a
-     * token is offered, and that goes through its own button.
+     * The same letters the old world map used, because they are what everyone at the table
+     * already has in their fingers: S cursor, B draw, M measure, E eraser, V flips the fog
+     * mode, D leaves it, G held arms the ping wheel.
+     *
+     * Editing keys are deliberately unreachable here. The editing selections survive the
+     * switch to game mode, so Delete would quietly remove a symbol picked before the session
+     * started — live, on everyone's screen.
      */
     if (this.inGame()) {
-      if (e.key === 'Escape') {
-        this.endMeasure();
-        this.selectedTokenId.set(null);
+      const key = e.key.toLowerCase();
+
+      if (key === 'g') {
+        this.pingCtl.setGDown(true);
+        return;
+      }
+
+      if (e.ctrlKey && key === 'z') {
+        // Undo the last line, not the last map edit: during play the sketch is the only
+        // thing being added, and reaching into the map's history would be a nasty surprise.
+        if (this.gameTool() === 'draw') {
+          e.preventDefault();
+          this.undoLastSketch();
+        }
+        return;
+      }
+
+      switch (key) {
+        case 's':
+          e.preventDefault();
+          this.selectGameTool('cursor');
+          return;
+        case 'b':
+          e.preventDefault();
+          this.selectGameTool('draw');
+          this.eraserMode.set(false);
+          return;
+        case 'm':
+          e.preventDefault();
+          this.selectGameTool('measure');
+          return;
+        case 'e':
+          if (this.gameTool() === 'draw') {
+            e.preventDefault();
+            this.eraserMode.update(v => !v);
+            this.redrawCursor();
+          }
+          return;
+        case 'v':
+          if (this.isGM()) {
+            e.preventDefault();
+            this.selectGameTool('cursor');
+            this.fogMode.update(m => (m === 'reveal' ? 'hide' : 'reveal'));
+            this.redrawCursor();
+          }
+          return;
+        case 'd':
+          if (this.isGM()) {
+            e.preventDefault();
+            this.fogMode.set('neutral');
+            this.redrawCursor();
+          }
+          return;
+        case 'escape':
+          this.endMeasure();
+          this.selectedTokenId.set(null);
+          return;
+        case 'delete':
+        case 'backspace':
+          if (this.selectedTokenId()) {
+            e.preventDefault();
+            this.deleteSelectedToken();
+          }
+          return;
       }
       return;
     }

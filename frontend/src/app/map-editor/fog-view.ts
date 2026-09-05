@@ -50,6 +50,52 @@ export const FOG_ALPHA_PLAYER = 0.97;
 /** GM opacity — enough to see the fog's edge, little enough to work through it. */
 export const FOG_ALPHA_GM = 0.42;
 
+/** What the current texture was drawn for. */
+export interface FogDrawState {
+  bounds: Bounds;
+  gm: boolean;
+  revision: number;
+}
+
+/** The region to draw, padded so small pans and zooms need no new texture. */
+export function paddedBounds(view: Bounds, fraction = 0.35): Bounds {
+  const mx = (view.maxX - view.minX) * fraction;
+  const my = (view.maxY - view.minY) * fraction;
+  return {
+    minX: view.minX - mx,
+    minY: view.minY - my,
+    maxX: view.maxX + mx,
+    maxY: view.maxY + my,
+  };
+}
+
+/**
+ * Whether the fog texture has to be rebuilt.
+ *
+ * Pure, and separated from the drawing so it can be tested: the bug it encodes was a
+ * *scheduling* one. The first version keyed on a quantised viewport and skipped the redraw
+ * *and* the sprite placement together, so while zooming the texture kept being stretched
+ * over bounds it had not been drawn for and the fog edge visibly slid and flashed.
+ *
+ * The rule now is simply: redraw unless the view still lies inside what was drawn, for the
+ * same audience and the same fog.
+ */
+export function fogNeedsRedraw(
+  drawn: FogDrawState | null,
+  view: Bounds,
+  gm: boolean,
+  revision: number,
+): boolean {
+  if (!drawn) return true;
+  if (drawn.gm !== gm || drawn.revision !== revision) return true;
+  return (
+    view.minX < drawn.bounds.minX ||
+    view.minY < drawn.bounds.minY ||
+    view.maxX > drawn.bounds.maxX ||
+    view.maxY > drawn.bounds.maxY
+  );
+}
+
 export class FogView {
   readonly container = new Container();
 
@@ -65,8 +111,10 @@ export class FogView {
    */
   private texture: Texture;
 
-  /** What the last draw was for, so panning a pixel does not re-upload a texture. */
-  private key = '';
+  /** The bounds the current texture was drawn for. The sprite always sits on exactly these. */
+  private drawn: Bounds | null = null;
+  private drawnGm = false;
+  private drawnRevision = -1;
   private enabled = false;
 
   constructor() {
@@ -81,7 +129,7 @@ export class FogView {
   setEnabled(on: boolean): void {
     this.enabled = on;
     this.container.visible = on;
-    if (!on) this.key = '';
+    if (!on) this.drawn = null;
   }
 
   get isEnabled(): boolean {
@@ -90,7 +138,7 @@ export class FogView {
 
   /** Force the next `update` to redraw, after the revealed set changed. */
   invalidate(): void {
-    this.key = '';
+    this.drawn = null;
   }
 
   /**
@@ -99,18 +147,23 @@ export class FogView {
    * `revision` is what makes a fog edit show up: the revealed set is a live object whose
    * contents change without its identity doing so, so the caller bumps a counter instead.
    */
-  update(bounds: Bounds, revealed: ReadonlySet<string>, gm: boolean, revision: number): void {
+  update(view: Bounds, revealed: ReadonlySet<string>, gm: boolean, revision: number): void {
     if (!this.enabled || !this.ctx) return;
 
-    // Quantised so a slow pan does not redraw every frame for a sub-pixel shift.
-    const q = (v: number) => Math.round(v / 64);
-    const next = `${q(bounds.minX)},${q(bounds.minY)},${q(bounds.maxX)},${q(bounds.maxY)}:${gm}:${revision}`;
-    if (next === this.key) return;
-    this.key = next;
+    const state = this.drawn
+      ? { bounds: this.drawn, gm: this.drawnGm, revision: this.drawnRevision }
+      : null;
+    if (!fogNeedsRedraw(state, view, gm, revision)) return;
+
+    const bounds = paddedBounds(view);
 
     const w = bounds.maxX - bounds.minX;
     const h = bounds.maxY - bounds.minY;
     if (w <= 0 || h <= 0) return;
+
+    this.drawn = bounds;
+    this.drawnGm = gm;
+    this.drawnRevision = revision;
 
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);

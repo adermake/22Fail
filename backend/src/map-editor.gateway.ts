@@ -220,27 +220,30 @@ export class MapEditorGateway implements OnGatewayDisconnect {
       .emit('mapEditorMeasure', all);
   }
 
+  /**
+   * Relay a radial ping.
+   *
+   * The payload is the shared `PingBroadcast` the lobby and the old world map already use, so
+   * the same overlay, animation and sounds serve every map in the app. Only `createdBy` is
+   * overwritten, from the handshake — taken from the body it could be forged.
+   */
   @SubscribeMessage('mapEditorPing')
   ping(
     @MessageBody()
-    data: { worldName: string; ping: { x: number; y: number; color?: string } },
+    data: {
+      worldName: string;
+      ping: { id: string; type: string; worldX: number; worldY: number };
+    },
     @ConnectedSocket() client: Socket,
   ) {
     const { worldName, ping } = data ?? ({} as any);
     if (!worldName || !ping) return;
-    if (!Number.isFinite(ping.x) || !Number.isFinite(ping.y)) return;
+    if (!Number.isFinite(ping.worldX) || !Number.isFinite(ping.worldY)) return;
 
-    // The name is stamped server-side from the handshake, never taken from the payload.
     this.server
       .to(this.gmRoom(worldName))
       .to(this.room(worldName))
-      .emit('mapEditorPing', {
-        id: `${client.id}-${Date.now()}`,
-        x: ping.x,
-        y: ping.y,
-        color: typeof ping.color === 'string' ? ping.color : '#ffcc44',
-        by: this.userId(client),
-      });
+      .emit('mapEditorPing', { ...ping, createdBy: this.userId(client) });
   }
 
   @SubscribeMessage('mapEditorMeasure')

@@ -346,6 +346,14 @@ export interface SketchStroke extends MapObjectBase {
   points: Point[];
   color: string;
   width: number;
+  /**
+   * A rubbing-out stroke rather than a coloured one.
+   *
+   * Drawn with destination-out blending, so it removes earlier lines instead of painting
+   * over them in a background colour — which would leave a visible smear as soon as the map
+   * underneath changed, and would be wrong on a map that has no single background.
+   */
+  erase?: boolean;
   /** User id that drew it: a player may clear their own lines, the GM may clear everyone's. */
   author: string;
 }

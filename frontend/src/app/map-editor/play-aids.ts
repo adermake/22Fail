@@ -11,19 +11,33 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { Bounds } from './map-camera';
 import { MapToken } from './map-editor.model';
-import { worldToKm } from './map-hex';
+import { KM_PER_HEX, hexDistance, worldToHex } from './map-hex';
 
-/** How long a ping stays on screen. Long enough to look at, short enough not to litter. */
-export const PING_MS = 2600;
+/** Dash pattern along a segment, in world units. */
+export function dashSegments(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  dash: number,
+  gap: number,
+): { from: { x: number; y: number }; to: { x: number; y: number } }[] {
+  const total = Math.hypot(b.x - a.x, b.y - a.y);
+  const out: { from: { x: number; y: number }; to: { x: number; y: number } }[] = [];
+  if (total <= 0 || dash <= 0) return out;
 
-export interface Ping {
-  id: string;
-  x: number;
-  y: number;
-  color: string;
-  by: string;
-  /** Local arrival time; pings expire on the viewer's clock, not the sender's. */
-  at: number;
+  const ux = (b.x - a.x) / total;
+  const uy = (b.y - a.y) / total;
+  const step = dash + Math.max(0, gap);
+
+  // Capped so a ruler dragged across a continent cannot emit tens of thousands of segments.
+  const maxDashes = 2000;
+  for (let i = 0, d = 0; d < total && i < maxDashes; i++, d += step) {
+    const end = Math.min(d + dash, total);
+    out.push({
+      from: { x: a.x + ux * d, y: a.y + uy * d },
+      to: { x: a.x + ux * end, y: a.y + uy * end },
+    });
+  }
+  return out;
 }
 
 export interface MeasureLine {
@@ -33,9 +47,15 @@ export interface MeasureLine {
   by: string;
 }
 
-/** Straight-line distance in km, via the hex pitch the map is built on. */
+/**
+ * Distance in km, counted in **hex steps** rather than straight-line pixels.
+ *
+ * This is what the old map reported and what the table expects: movement happens hex by hex,
+ * so "how far is that" means "how many hexes", and a euclidean answer disagrees with the
+ * grid the party is counting on. Both ends are snapped to hex centres before this is called.
+ */
 export function measureKm(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return worldToKm(Math.hypot(b.x - a.x, b.y - a.y));
+  return hexDistance(worldToHex(a.x, a.y), worldToHex(b.x, b.y)) * KM_PER_HEX;
 }
 
 export class PlayAidsView {
@@ -43,7 +63,6 @@ export class PlayAidsView {
 
   private tokenGfx = new Graphics();
   private measureGfx = new Graphics();
-  private pingGfx = new Graphics();
   private labels = new Container();
 
   private tokens = new Map<string, MapToken>();
@@ -51,7 +70,7 @@ export class PlayAidsView {
   private labelsUsed = 0;
 
   constructor() {
-    this.container.addChild(this.tokenGfx, this.measureGfx, this.pingGfx, this.labels);
+    this.container.addChild(this.tokenGfx, this.measureGfx, this.labels);
   }
 
   setTokens(tokens: readonly MapToken[]): void {
@@ -84,17 +103,18 @@ export class PlayAidsView {
   /**
    * Redraw everything transient.
    *
-   * One pass for all three because they share the label pool and all depend on zoom: outlines
-   * and text are kept at a constant *screen* size, so a token does not become a hairline when
-   * you zoom out to look at the whole continent.
+   * Tokens and the ruler share a label pool and both depend on zoom: outlines and text are
+   * kept at a constant *screen* size, so a token does not become a hairline when you zoom out
+   * to look at the whole continent.
+   *
+   * Pings are **not** here. They are drawn by the shared `app-ping-layer` overlay, the same
+   * one the lobby and the old world map use, so they animate and sound identical everywhere.
    */
   render(
     bounds: Bounds,
     zoom: number,
-    pings: readonly Ping[],
     lines: readonly MeasureLine[],
     selectedTokenId: string | null,
-    now: number,
   ): void {
     const px = 1 / Math.max(zoom, 1e-6);
     this.labelsUsed = 0;
@@ -118,38 +138,42 @@ export class PlayAidsView {
       if (r * zoom > 12) this.label(t.name, t.x, t.y + r + 8 * px, zoom, 0xffffff);
     }
 
+    /*
+     * The ruler's look is copied from the old map deliberately: a dark casing under a dashed
+     * amber line, with ringed endpoints. Plain amber vanished over parchment and desert, and
+     * the outline is what makes it readable over any terrain.
+     */
     this.measureGfx.clear();
     for (const line of lines) {
-      this.measureGfx.moveTo(line.start.x, line.start.y);
-      this.measureGfx.lineTo(line.end.x, line.end.y);
-      this.measureGfx.stroke({ color: 0xffd166, width: 2 * px, alpha: 0.9 });
+      for (const seg of dashSegments(line.start, line.end, 10 * px, 5 * px)) {
+        this.measureGfx.moveTo(seg.from.x, seg.from.y);
+        this.measureGfx.lineTo(seg.to.x, seg.to.y);
+      }
+      this.measureGfx.stroke({ color: 0x0f172a, width: 7 * px, alpha: 0.85, cap: 'round' });
 
-      this.measureGfx.circle(line.end.x, line.end.y, 4 * px);
-      this.measureGfx.fill({ color: 0xffd166, alpha: 0.9 });
+      for (const seg of dashSegments(line.start, line.end, 10 * px, 5 * px)) {
+        this.measureGfx.moveTo(seg.from.x, seg.from.y);
+        this.measureGfx.lineTo(seg.to.x, seg.to.y);
+      }
+      this.measureGfx.stroke({ color: 0xf59e0b, width: 3 * px, alpha: 1, cap: 'round' });
+
+      for (const pt of [line.start, line.end]) {
+        this.measureGfx.circle(pt.x, pt.y, 7 * px);
+        this.measureGfx.fill({ color: 0x0f172a, alpha: 0.9 });
+        this.measureGfx.circle(pt.x, pt.y, 5 * px);
+        this.measureGfx.fill({ color: 0xf59e0b, alpha: 1 });
+        this.measureGfx.circle(pt.x, pt.y, 5 * px);
+        this.measureGfx.stroke({ color: 0xffffff, width: 1.5 * px, alpha: 1 });
+      }
 
       const km = measureKm(line.start, line.end);
       this.label(
         `${km.toFixed(1)} km`,
         (line.start.x + line.end.x) / 2,
-        (line.start.y + line.end.y) / 2,
+        (line.start.y + line.end.y) / 2 - 22 * px,
         zoom,
-        0xffd166,
+        0xfbbf24,
       );
-    }
-
-    this.pingGfx.clear();
-    for (const ping of pings) {
-      const age = (now - ping.at) / PING_MS;
-      if (age < 0 || age > 1) continue;
-
-      // Three rings expanding out of the point, fading as they go.
-      for (let i = 0; i < 3; i++) {
-        const phase = age + i * 0.22;
-        if (phase > 1) continue;
-        this.pingGfx.circle(ping.x, ping.y, 10 * px + phase * 90 * px);
-        this.pingGfx.stroke({ color: ping.color, width: 2.5 * px, alpha: (1 - phase) * 0.9 });
-      }
-      if (ping.by) this.label(ping.by, ping.x, ping.y - 26 * px, zoom, 0xffffff);
     }
 
     // Retire labels this pass did not claim.

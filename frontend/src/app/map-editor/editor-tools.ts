@@ -36,28 +36,57 @@ export interface TabDef {
 /**
  * Tools for game mode.
  *
- * A separate set from the editing tools, and a separate mode, because the two answer
- * different questions. Editing asks "what is on the map"; playing asks "what can the party
- * see, where is everyone, how far is that". Mixing them put a terrain brush one slip of the
- * hand away from the ruler in the middle of a session.
+ * Deliberately the same three the old world map had, with the same letters and the same
+ * icons, because they are what everybody at the table already has in their fingers. The two
+ * things that are *not* tools there are not tools here either:
+ *
+ *  - **Fog is a mode, not a tool** (`FogMode`). V flips reveal/hide, D steps out of it. It
+ *    rides on the cursor tool, so covering ground and moving a figure are one gesture apart
+ *    instead of a toolbar trip.
+ *  - **Pings are a chord**, G + left-drag, live on every tool. A ping is something you do
+ *    *while* doing something else; making it a tool would mean leaving whatever you were
+ *    doing to point at something.
+ *
+ * `reveal` is the one addition — secrets did not exist in v1 — and it earns a tool because it
+ * is a deliberate, one-off act rather than something you do mid-gesture.
  */
-export type GameTool = 'ruler' | 'ping' | 'sketch' | 'fog' | 'token' | 'reveal';
+export type GameTool = 'cursor' | 'draw' | 'measure' | 'reveal';
 
-export const GAME_TOOL_DEFS: ToolDef<GameTool>[] = [
-  { id: 'ruler', icon: 'measuring_tool_64', label: 'Entfernung messen' },
-  { id: 'ping', icon: 'warning_32', label: 'Markieren (Ping)' },
-  { id: 'sketch', icon: 'path_tool_64', label: 'Skizzieren' },
-  { id: 'fog', icon: 'invisible', label: 'Nebel' },
-  { id: 'token', icon: 'map_anchor', label: 'Figuren' },
-  { id: 'reveal', icon: 'visible', label: 'Geheimnis aufdecken' },
+/** Fog painting state. `neutral` means the cursor tool moves figures instead. */
+export type FogMode = 'neutral' | 'reveal' | 'hide';
+
+export interface GameToolDef extends ToolDef<GameTool> {
+  /** Single-key shortcut, shown in the tooltip so it can be learnt by using it. */
+  shortcut: string;
+  gmOnly?: boolean;
+}
+
+/** Icons are the shared `app-icon` masks, the same artwork the old map used. */
+export const GAME_TOOL_DEFS: GameToolDef[] = [
+  { id: 'cursor', icon: 'i-token-drag', label: 'Figuren bewegen', shortcut: 'S' },
+  { id: 'draw', icon: 'i-draw', label: 'Zeichnen', shortcut: 'B' },
+  { id: 'measure', icon: 'i-ruler', label: 'Messen', shortcut: 'M' },
+  { id: 'reveal', icon: 'i-visibility-on', label: 'Geheimnis aufdecken', shortcut: 'R', gmOnly: true },
 ];
 
-/** Tools a player may use. The rest change the world and stay with the GM. */
-export const PLAYER_GAME_TOOLS: readonly GameTool[] = ['ruler', 'ping', 'sketch'];
-
-export function gameToolsFor(isGM: boolean): ToolDef<GameTool>[] {
-  return isGM ? GAME_TOOL_DEFS : GAME_TOOL_DEFS.filter(t => PLAYER_GAME_TOOLS.includes(t.id));
+export function gameToolsFor(isGM: boolean): GameToolDef[] {
+  return isGM ? GAME_TOOL_DEFS : GAME_TOOL_DEFS.filter(t => !t.gmOnly);
 }
+
+/** Pen widths offered as presets, matching the old toolbar. */
+export const PEN_SIZES = [2, 4, 8, 12, 20];
+
+export const DRAW_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#ffffff',
+  '#000000',
+];
 
 export const TAB_DEFS: TabDef[] = [
   { id: 'water', label: 'Wasser' },

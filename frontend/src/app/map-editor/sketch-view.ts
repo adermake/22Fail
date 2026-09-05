@@ -15,10 +15,20 @@ import { Container, Graphics } from 'pixi.js';
 import { SketchStroke } from './map-editor.model';
 import { Bounds } from './map-camera';
 
+/**
+ * Colour an eraser stroke is drawn in.
+ *
+ * Irrelevant to what is seen — the blend mode discards the colour and keeps only coverage —
+ * but it has to be *something*, and white keeps the live preview legible while dragging.
+ */
+export const ERASER_COLOR = '#ffffff';
+
 export class SketchView {
   readonly container = new Container();
 
   private finished = new Graphics();
+  /** Rubbing-out strokes, blended to remove rather than cover. */
+  private erased = new Graphics();
   /** The line currently under the pointer, redrawn every move; kept apart so the rest is not. */
   private live = new Graphics();
 
@@ -26,7 +36,8 @@ export class SketchView {
   private dirty = true;
 
   constructor() {
-    this.container.addChild(this.finished, this.live);
+    this.erased.blendMode = 'erase';
+    this.container.addChild(this.finished, this.erased, this.live);
   }
 
   rebuild(strokes: readonly SketchStroke[]): void {
@@ -77,6 +88,17 @@ export class SketchView {
     strokePath(this.live, points, color, width);
   }
 
+  /**
+   * Rebuild committed strokes into the layer.
+   *
+   * Erasing needs the whole sketch to be its own render target: `destination-out` only
+   * removes what is already drawn *in the same target*, so with the strokes going straight
+   * onto the stage an eraser would punch a hole through the map itself.
+   */
+  private ensureRenderGroup(): void {
+    if (!this.container.isRenderGroup) this.container.enableRenderGroup();
+  }
+
   endLive(): void {
     this.live.clear();
   }
@@ -91,10 +113,26 @@ export class SketchView {
     if (!this.dirty) return;
     this.dirty = false;
 
+    this.ensureRenderGroup();
     this.finished.clear();
+
+    /*
+     * Erasers are drawn in their own pass, after everything else.
+     *
+     * One `Graphics` cannot mix blend modes, and order matters anyway: an eraser only has
+     * meaning against the lines already down, so replaying strokes strictly in draw order
+     * would need a Graphics per switch between drawing and erasing. Two passes give the
+     * right result for the only case that matters — rubbing out what is already there.
+     */
     for (const stroke of this.strokes.values()) {
-      if (!overlapsStroke(stroke, bounds)) continue;
+      if (stroke.erase || !overlapsStroke(stroke, bounds)) continue;
       strokePath(this.finished, stroke.points, stroke.color, stroke.width);
+    }
+
+    this.erased.clear();
+    for (const stroke of this.strokes.values()) {
+      if (!stroke.erase || !overlapsStroke(stroke, bounds)) continue;
+      strokePath(this.erased, stroke.points, ERASER_COLOR, stroke.width);
     }
   }
 

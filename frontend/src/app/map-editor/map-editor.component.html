@@ -58,14 +58,16 @@
       <aside class="tool-rail">
         <div class="tool-icons">
           @for (t of gameTools(); track t.id) {
+            <!-- Dieselben Symbole und Tasten wie auf der alten Weltkarte: die sitzen bei
+                 allen am Tisch schon in den Fingern. -->
             <button
               type="button"
               class="rail-btn"
               [class.active]="gameTool() === t.id"
-              [title]="t.label"
+              [title]="t.label + ' (' + t.shortcut + ')'"
               (click)="selectGameTool(t.id)"
             >
-              <img [src]="icon(t.icon)" [alt]="t.label" />
+              <span class="app-icon {{ t.icon }}"></span>
             </button>
           }
         </div>
@@ -155,8 +157,19 @@
         #pixiHost
         class="pixi-host"
         [class.brush-cursor]="isGM() && !inGame() && isTerrainTab()"
-        [class.place-cursor]="isPlacingSymbols() || (inGame() && gameTool() === 'token')"
+        [class.place-cursor]="isPlacingSymbols()"
       ></div>
+
+      <!-- Dieselbe Ping-Ebene wie Lobby und alte Weltkarte — gleiche Animation, gleiche
+           Geräusche. G halten und ziehen öffnet das Rad. -->
+      <app-ping-layer [pings]="renderedPings()" />
+      @if (pingCtl.wheelOpen) {
+        <app-ping-wheel
+          [x]="pingCtl.wheelScreen.x"
+          [y]="pingCtl.wheelScreen.y"
+          [selected]="pingCtl.wheelType"
+        />
+      }
 
       @if (marquee(); as m) {
         <div
@@ -274,138 +287,176 @@
       <aside class="settings-panel">
         <div class="settings-title">{{ gameToolLabel() }}</div>
 
-        @if (gameTool() === 'ruler') {
-          <p class="hint">
-            Ziehen misst die Entfernung. Alle am Tisch sehen die Linie, solange die Maustaste
-            gehalten wird.
-          </p>
-        }
-
-        @if (gameTool() === 'ping') {
-          <p class="hint">Klicken markiert eine Stelle für alle — kurz, dann verschwindet sie.</p>
-          <label class="base-row">
-            <span>Farbe</span>
-            <input
-              type="color"
-              [value]="sketchColor()"
-              (input)="sketchColor.set($any($event.target).value)"
-            />
-          </label>
-        }
-
-        @if (gameTool() === 'sketch') {
-          <!-- Zeichnet auf eine Ebene ÜBER der Karte, nie in das Gelände: eine Geste im
-               Spiel darf nicht dauerhaft Teil der Karte werden. -->
-          <label class="base-row">
-            <span>Farbe</span>
-            <input
-              type="color"
-              [value]="sketchColor()"
-              (input)="sketchColor.set($any($event.target).value)"
-            />
-          </label>
-          <label class="slider-row">
-            <span>Breite</span>
-            <input
-              type="range"
-              min="6"
-              max="120"
-              step="1"
-              [value]="sketchWidth()"
-              (input)="sketchWidth.set(+$any($event.target).value)"
-            />
-            <em>{{ sketchWidth() }}</em>
-          </label>
-          <div class="history-row">
-            <button type="button" (click)="clearSketch()">
-              {{ isGM() ? 'Alle Linien löschen' : 'Meine Linien löschen' }}
-            </button>
-          </div>
-          <p class="hint">
-            {{ sketchCount() }} Linie(n) · liegt über der Karte und verändert das Gelände nicht.
-          </p>
-        }
-
-        @if (gameTool() === 'fog' && isGM()) {
-          <div class="history-row">
-            <button
-              type="button"
-              [class.active-toggle]="fogReveals()"
-              (click)="fogReveals.set(true)"
-            >
-              Aufdecken
-            </button>
-            <button
-              type="button"
-              [class.active-toggle]="!fogReveals()"
-              (click)="fogReveals.set(false)"
-            >
-              Verdecken
-            </button>
-          </div>
-          <label class="slider-row">
-            <span>Radius</span>
-            <input
-              type="range"
-              min="0"
-              max="12"
-              step="1"
-              [value]="fogRadius()"
-              (input)="fogRadius.set(+$any($event.target).value)"
-            />
-            <em>{{ fogRadius() }}</em>
-          </label>
-          <div class="history-row">
-            <button type="button" (click)="fogAll(true)">Sichtbereich aufdecken</button>
-          </div>
-          <div class="history-row">
-            <button type="button" (click)="fogAll(false)">Alles verdecken</button>
-          </div>
-          <p class="hint">
-            {{ revealedCount() }} Hex aufgedeckt. Du siehst durch den Nebel hindurch, die
-            Spieler nicht.
-          </p>
-        }
-
-        @if (gameTool() === 'token' && isGM()) {
-          <label class="base-row">
-            <span>Name</span>
-            <input
-              type="text"
-              class="text-input"
-              [value]="tokenName()"
-              (input)="tokenName.set($any($event.target).value)"
-            />
-          </label>
-          <label class="base-row">
-            <span>Farbe</span>
-            <input
-              type="color"
-              [value]="tokenColor()"
-              (input)="tokenColor.set($any($event.target).value)"
-            />
-          </label>
-          <label class="slider-row">
-            <span>Größe</span>
-            <input
-              type="range"
-              min="60"
-              max="480"
-              step="10"
-              [value]="tokenSize()"
-              (input)="tokenSize.set(+$any($event.target).value)"
-            />
-            <em>{{ tokenSize() }}</em>
-          </label>
-          @if (selectedTokenId()) {
+        @if (isGM()) {
+          <!-- Nebel ist ein Modus, kein Werkzeug: V wechselt zwischen Auf- und Verdecken,
+               D steigt aus. So liegt "Boden aufdecken" einen Tastendruck neben "Figur
+               bewegen" statt einer Reise durch die Werkzeugleiste. -->
+          <div class="panel-section">
+            <div class="panel-title">Nebel</div>
             <div class="history-row">
-              <button type="button" (click)="deleteSelectedToken()">Figur entfernen</button>
+              <button
+                type="button"
+                [class.active-toggle]="fogMode() === 'reveal'"
+                title="V"
+                (click)="setFogMode('reveal')"
+              >
+                Aufdecken
+              </button>
+              <button
+                type="button"
+                [class.active-toggle]="fogMode() === 'hide'"
+                title="V"
+                (click)="setFogMode('hide')"
+              >
+                Verdecken
+              </button>
+              <button
+                type="button"
+                [class.active-toggle]="fogMode() === 'neutral'"
+                title="D"
+                (click)="setFogMode('neutral')"
+              >
+                Aus
+              </button>
             </div>
-          }
+            @if (fogMode() !== 'neutral') {
+              <p class="hint">Radius {{ fogRadius() }} · Shift + ziehen ändert die Größe.</p>
+            }
+            <div class="history-row">
+              <button type="button" (click)="fogAll(true)">Sichtbereich aufdecken</button>
+              <button type="button" (click)="fogAll(false)">Alles verdecken</button>
+            </div>
+            <p class="hint">
+              {{ revealedCount() }} Hex aufgedeckt. Du siehst hindurch, die Spieler nicht.
+            </p>
+          </div>
+        }
+
+        @if (gameTool() === 'draw') {
+          <div class="panel-section">
+            <div class="panel-title">
+              Zeichnen
+              @if (eraserMode()) {
+                <span class="preset-current">· Radieren (E)</span>
+              }
+            </div>
+
+            <div class="history-row">
+              <button
+                type="button"
+                [class.active-toggle]="!eraserMode()"
+                title="B"
+                (click)="eraserMode.set(false)"
+              >
+                Stift
+              </button>
+              <button
+                type="button"
+                [class.active-toggle]="eraserMode()"
+                title="E"
+                (click)="eraserMode.set(true)"
+              >
+                Radierer
+              </button>
+            </div>
+
+            <div class="swatches">
+              @for (c of drawColors; track c) {
+                <button
+                  type="button"
+                  class="swatch"
+                  [class.active]="sketchColor() === c"
+                  [style.background]="c"
+                  (click)="sketchColor.set(c)"
+                ></button>
+              }
+              <span class="swatch-wrap">
+                <input
+                  type="color"
+                  class="hidden-color"
+                  [value]="sketchColor()"
+                  (input)="sketchColor.set($any($event.target).value)"
+                />
+                <button type="button" class="swatch add">+</button>
+              </span>
+            </div>
+
+            <div class="profile-row">
+              @for (sz of penSizes; track sz) {
+                <button
+                  type="button"
+                  class="profile-btn"
+                  [class.active]="!eraserMode() && penSize() === sz"
+                  (click)="eraserMode.set(false); penSize.set(sz)"
+                >
+                  {{ sz }}
+                </button>
+              }
+            </div>
+
+            <p class="hint">Shift + ziehen ändert die Pinselgröße · Strg+Z nimmt zurück.</p>
+            <div class="history-row">
+              <button type="button" (click)="clearSketch()">
+                {{ isGM() ? 'Alle Linien löschen' : 'Meine Linien löschen' }}
+              </button>
+            </div>
+            <p class="hint">
+              {{ sketchCount() }} Linie(n) · liegt über der Karte und verändert das Gelände nicht.
+            </p>
+          </div>
+        }
+
+        @if (gameTool() === 'measure') {
           <p class="hint">
-            Klick auf leeres Feld setzt eine Figur, Ziehen verschiebt sie. Figuren rasten auf
-            Hexmitten ein, weil Entfernungen daran gemessen werden.
+            Ziehen misst in Hexschritten — beide Enden rasten auf Hexmitten ein. Alle am Tisch
+            sehen die Linie, solange die Maustaste gehalten wird.
           </p>
+        }
+
+        @if (gameTool() === 'cursor' && isGM()) {
+          <div class="panel-section">
+            <div class="panel-title">Figuren</div>
+            <label class="base-row">
+              <span>Name</span>
+              <input
+                type="text"
+                class="text-input"
+                [value]="tokenName()"
+                (input)="tokenName.set($any($event.target).value)"
+              />
+            </label>
+            <label class="base-row">
+              <span>Farbe</span>
+              <input
+                type="color"
+                [value]="tokenColor()"
+                (input)="tokenColor.set($any($event.target).value)"
+              />
+            </label>
+            <label class="slider-row">
+              <span>Größe</span>
+              <input
+                type="range"
+                min="60"
+                max="480"
+                step="10"
+                [value]="tokenSize()"
+                (input)="tokenSize.set(+$any($event.target).value)"
+              />
+              <em>{{ tokenSize() }}</em>
+            </label>
+            @if (selectedTokenId()) {
+              <div class="history-row">
+                <button type="button" (click)="deleteSelectedToken()">
+                  Figur entfernen (Entf)
+                </button>
+              </div>
+            }
+            <p class="hint">
+              Alt + Klick setzt eine Figur, Ziehen verschiebt sie. Sie rasten auf Hexmitten ein,
+              weil Entfernungen daran gemessen werden.
+            </p>
+          </div>
         }
 
         @if (gameTool() === 'reveal' && isGM()) {
@@ -414,6 +465,17 @@
             alle Spieler.
           </p>
         }
+
+        <div class="panel-section">
+          <div class="panel-title">Tasten</div>
+          <p class="hint">
+            S Figuren · B Zeichnen · E Radierer · M Messen
+            @if (isGM()) {
+              · V Nebel · D Nebel aus
+            }
+            · G halten + ziehen für Ping · Mittlere Maustaste schiebt die Karte
+          </p>
+        </div>
       </aside>
     } @else if (isGM()) {
       <!-- RIGHT: settings for the active tool only. -->
