@@ -205,13 +205,17 @@ export function builtinWeaponTypes(): WeaponTypeBlock[] {
 }
 
 /**
- * Library types win over built-ins of the same name (case-insensitive), so redefining "Axt" in a
- * library replaces the hardcoded one rather than showing it twice.
+ * The Waffentypen on offer: **once a library defines any, they are the whole list**. The built-ins
+ * are only a fallback for a world that has not defined a single type yet.
+ *
+ * This does not invalidate anything already forged. A weapon stores its type's data on itself
+ * (`weaponTypeName`, `damageTypes`, both ranges, `handed`, `reloadAction`) at the moment it is
+ * made, and nothing ever resolves that name back against this list — so an existing "Langschwert"
+ * keeps working exactly as before even after the built-in Langschwert stops being offered.
  */
 export function mergeWeaponTypes(library: readonly WeaponTypeBlock[]): WeaponTypeBlock[] {
-  const overridden = new Set(library.map((w) => w.name.trim().toLowerCase()));
-  const builtins = builtinWeaponTypes().filter((w) => !overridden.has(w.name.toLowerCase()));
-  return [...library, ...builtins].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  const sorted = [...library].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  return sorted.length ? sorted : builtinWeaponTypes();
 }
 
 /** `Nahkampf 1,5m` / `Fernkampf 50m` / both, for a compact listing. */
