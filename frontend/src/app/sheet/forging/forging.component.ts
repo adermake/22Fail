@@ -21,9 +21,10 @@ import {
 } from '../../model/forging.model';
 import { CraftAccessMode } from '../../model/brewing.model';
 import {
-  DAMAGE_TYPES, WEAPON_HANDED_LABELS, WEAPON_WEIGHTS, WEAPON_WEIGHT_LABELS,
-  WeaponTypeBlock, createEmptyWeaponType, describeDamageTypes, describeWeaponReach, forgeSizeFor,
-  toBuiltinShape, toggleDamageType,
+  DAMAGE_TYPES, RELOAD_ACTIONS, RELOAD_ACTION_LABELS, ReloadAction, WEAPON_HANDED_LABELS,
+  WEAPON_WEIGHTS, WEAPON_WEIGHT_LABELS, WeaponTypeBlock, createEmptyWeaponType,
+  describeDamageTypes, describeWeaponReach, forgeSizeFor, formatRangeMeters, primaryDamageType,
+  toggleDamageType,
 } from '../../model/weapon-type-block.model';
 import { WeaponTypeService } from '../../services/weapon-type.service';
 import { ItemBlock, ItemRequirements } from '../../model/item-block.model';
@@ -89,18 +90,20 @@ export class ForgingComponent implements OnInit {
   traitDiscount = 0;
   /** Enforced = only owned resources; Free = all known materials. */
   accessMode: CraftAccessMode = 'enforced';
-  /** Selected weapon type — cosmetic, stored in produced ItemBlock. */
-  selectedWeaponType: WeaponType | null = null;
+  /**
+   * The chosen Waffentyp, held as the full library block rather than the legacy `WeaponType`
+   * shape. Going through `toBuiltinShape` here used to flatten the type down to one range and one
+   * damage type, which silently dropped everything the Bibliothek defines — both reaches,
+   * handedness, the reload cost and the extra effect.
+   */
+  selectedWeaponType: WeaponTypeBlock | null = null;
 
   /**
    * Waffentypen come from the libraries (GM-defined) merged over the built-ins, so a type added in
    * the Bibliothek shows up here without a code change. Starts as the built-ins and is replaced
    * once the fetch lands.
    */
-  weaponTypes: WeaponType[] = WEAPON_TYPES;
-
-  /** The library entry behind `selectedWeaponType`, for its extra effect and both reaches. */
-  selectedWeaponTypeBlock: WeaponTypeBlock | null = null;
+  weaponTypes: WeaponTypeBlock[] = [];
 
   /** Free-form mode: the player designs a type instead of picking one. */
   customTypeMode = false;
@@ -108,6 +111,8 @@ export class ForgingComponent implements OnInit {
   readonly weaponWeights = WEAPON_WEIGHTS;
   readonly weaponWeightLabels = WEAPON_WEIGHT_LABELS;
   readonly weaponHandedLabels = WEAPON_HANDED_LABELS;
+  readonly reloadActions = RELOAD_ACTIONS;
+  readonly reloadLabels = RELOAD_ACTION_LABELS;
   readonly damageTypeOptions = DAMAGE_TYPES;
   readonly weaponCategories: WeaponCategory[] = ['LEICHT', 'FERNKAMPF', 'SCHWER'];
   readonly weaponCategoryLabels = WEAPON_CATEGORY_LABELS;
@@ -319,11 +324,11 @@ export class ForgingComponent implements OnInit {
     return Array.from(seen);
   }
 
-  getWeaponTypesForCategory(cat: WeaponCategory): WeaponType[] {
+  getWeaponTypesForCategory(cat: WeaponCategory): WeaponTypeBlock[] {
     return this.weaponTypes.filter(w => w.category === cat);
   }
 
-  compareByName(a: WeaponType | null, b: WeaponType | null): boolean {
+  compareByName(a: WeaponTypeBlock | null, b: WeaponTypeBlock | null): boolean {
     if (!a && !b) return true;
     if (!a || !b) return false;
     return a.name === b.name;
@@ -331,13 +336,14 @@ export class ForgingComponent implements OnInit {
 
   onWeaponTypeChange(): void {
     if (this.selectedWeaponType) {
-      this.weaponSize = this.selectedWeaponType.defaultForgeSize;
-      this.selectedWeaponTypeBlock =
-        this.weaponTypeService.byName(this.selectedWeaponType.name) ?? null;
-    } else {
-      this.selectedWeaponTypeBlock = null;
+      this.weaponSize = forgeSizeFor(this.selectedWeaponType);
     }
     this.cdr.markForCheck();
+  }
+
+  /** One-line summary of the picked type, for the dropdown options and the preview line. */
+  describeType(w: WeaponTypeBlock): string {
+    return `${describeDamageTypes(w)}, ${describeWeaponReach(w)}`;
   }
 
   /**
@@ -347,7 +353,7 @@ export class ForgingComponent implements OnInit {
   toggleCustomType(on: boolean): void {
     this.customTypeMode = on;
     if (on) {
-      const base = this.selectedWeaponTypeBlock;
+      const base = this.selectedWeaponType;
       this.customType = base
         ? { ...createEmptyWeaponType(base.name), ...base, id: createEmptyWeaponType().id, builtin: undefined }
         : createEmptyWeaponType('Eigener Typ');
@@ -358,12 +364,16 @@ export class ForgingComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  /** Push the hand-authored type into the fields the forge actually reads. */
+  /** The hand-authored type IS the selection while custom mode is on. */
   applyCustomType(): void {
-    this.selectedWeaponType = toBuiltinShape(this.customType);
-    this.selectedWeaponTypeBlock = this.customType;
+    this.selectedWeaponType = this.customType;
     this.weaponSize = forgeSizeFor(this.customType);
     this.cdr.markForCheck();
+  }
+
+  setCustomReload(r: ReloadAction): void {
+    this.customType.reloadAction = r;
+    this.applyCustomType();
   }
 
   get customReachSummary(): string {
@@ -372,7 +382,12 @@ export class ForgingComponent implements OnInit {
 
   /** All damage types of the selected/authored type, e.g. "Schnitt / Stich". */
   get selectedDamageSummary(): string {
-    return this.selectedWeaponTypeBlock ? describeDamageTypes(this.selectedWeaponTypeBlock) : '';
+    return this.selectedWeaponType ? describeDamageTypes(this.selectedWeaponType) : '';
+  }
+
+  /** Reach summary of the selected type, e.g. "Nahkampf 2m · Fernkampf 30m". */
+  get selectedReachSummary(): string {
+    return this.selectedWeaponType ? describeWeaponReach(this.selectedWeaponType) : '';
   }
 
   hasCustomDamage(t: DamageType): boolean {
@@ -398,8 +413,15 @@ export class ForgingComponent implements OnInit {
     // Unlocked (GM/NPC) forging is free-mode by definition: reflect it in the toggle.
     if (this.unlockAll) this.accessMode = 'free';
     // Library-defined Waffentypen; the built-ins remain available if this fails.
+    this.weaponTypes = this.weaponTypeService.types();
     this.weaponTypeService.load().then((types) => {
-      this.weaponTypes = types.map(toBuiltinShape);
+      this.weaponTypes = types;
+      // Re-point the selection at the freshly loaded block of the same name, so an edit made in
+      // the Bibliothek is picked up rather than the stale copy being kept.
+      if (this.selectedWeaponType && !this.customTypeMode) {
+        this.selectedWeaponType =
+          this.weaponTypeService.byName(this.selectedWeaponType.name) ?? this.selectedWeaponType;
+      }
       this.onWeaponTypeChange();
       this.cdr.markForCheck();
     });
@@ -611,15 +633,24 @@ export class ForgingComponent implements OnInit {
         const reqKey = WEAPON_STAT_TO_REQUIREMENT[this.statRequirement];
         item.requirements = { [reqKey]: this.finalStatRequirement } as ItemRequirements;
       }
-      if (this.selectedWeaponType) {
-        item.weaponTypeName = this.selectedWeaponType.name;
-        item.damageType     = this.selectedWeaponType.damageType;
-        item.range          = this.selectedWeaponType.range;
-        // A type can deal several kinds of damage; keep the full list alongside the primary.
-        const allDamage = this.selectedWeaponTypeBlock?.damageTypes;
-        if (allDamage?.length) item.damageTypes = [...allDamage];
+      // Everything the Waffentyp defines lands on the forged weapon, not just a name and one
+      // range — the type is real data now, so the item carries all of it.
+      const wt = this.selectedWeaponType;
+      if (wt) {
+        item.weaponTypeName = wt.name;
+        item.weaponCategory = wt.category;
+        item.damageType     = primaryDamageType(wt);
+        item.damageTypes    = [...(wt.damageTypes ?? [primaryDamageType(wt)])];
+        item.meleeRange     = wt.meleeRange || undefined;
+        item.rangedRange    = wt.rangedRange || undefined;
+        // Kept as text for everything that already displays a single range.
+        item.range          = formatRangeMeters(
+          wt.rangedRange > 0 && !wt.meleeRange ? wt.rangedRange : wt.meleeRange,
+        );
+        item.handed         = wt.handed;
+        item.reloadAction   = wt.reloadAction;
         // The type's own effect text belongs on the finished weapon, next to the material effects.
-        const typeEffect = this.selectedWeaponTypeBlock?.extraEffect?.trim();
+        const typeEffect = wt.extraEffect?.trim();
         if (typeEffect && !(item.description ?? '').includes(typeEffect)) {
           item.description = [item.description?.trim(), typeEffect].filter(Boolean).join('\n');
         }
@@ -687,7 +718,13 @@ export class ForgingComponent implements OnInit {
     if (this.itemType === 'weapon') {
       const sizeLabel = { LIGHT: 'Leicht', MEDIUM: 'Mittel', HEAVY: 'Schwer' }[this.weaponSize];
       if (this.selectedWeaponType) {
-        lines.push(`Typ: ${this.selectedWeaponType.name}  ·  ${this.selectedWeaponType.damageType}  ·  ${this.selectedWeaponType.range}`);
+        const t = this.selectedWeaponType;
+        const parts = [t.name, describeDamageTypes(t), describeWeaponReach(t)];
+        if (t.handed === 'TWO') parts.push(this.weaponHandedLabels['TWO']);
+        if (t.reloadAction !== 'FREE') {
+          parts.push(`Nachladen: ${this.reloadLabels[t.reloadAction]}`);
+        }
+        lines.push(`Typ: ${parts.join('  ·  ')}`);
       }
       lines.push(`Größe: ${sizeLabel} (×${this.WEIGHT_MULT[this.weaponSize]})`);
     } else {

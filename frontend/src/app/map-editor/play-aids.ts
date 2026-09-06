@@ -9,8 +9,6 @@
  */
 
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
-import { Bounds } from './map-camera';
-import { MapToken } from './map-editor.model';
 import { KM_PER_HEX, hexDistance, worldToHex } from './map-hex';
 
 /** Dash pattern along a segment, in world units. */
@@ -61,82 +59,27 @@ export function measureKm(a: { x: number; y: number }, b: { x: number; y: number
 export class PlayAidsView {
   readonly container = new Container();
 
-  private tokenGfx = new Graphics();
   private measureGfx = new Graphics();
   private labels = new Container();
 
-  private tokens = new Map<string, MapToken>();
   private labelPool: Text[] = [];
   private labelsUsed = 0;
 
   constructor() {
-    this.container.addChild(this.tokenGfx, this.measureGfx, this.labels);
-  }
-
-  setTokens(tokens: readonly MapToken[]): void {
-    this.tokens.clear();
-    for (const t of tokens) this.tokens.set(t.id, t);
-  }
-
-  addToken(token: MapToken): void {
-    this.tokens.set(token.id, token);
-  }
-
-  removeToken(id: string): void {
-    this.tokens.delete(id);
-  }
-
-  getToken(id: string): MapToken | undefined {
-    return this.tokens.get(id);
-  }
-
-  /** Token under a world point, topmost first — tokens overlap constantly in a scrum. */
-  tokenAt(x: number, y: number): MapToken | null {
-    let best: MapToken | null = null;
-    for (const t of this.tokens.values()) {
-      const r = t.size / 2;
-      if (Math.hypot(t.x - x, t.y - y) <= r && (!best || t.y > best.y)) best = t;
-    }
-    return best;
+    this.container.addChild(this.measureGfx, this.labels);
   }
 
   /**
    * Redraw everything transient.
    *
-   * Tokens and the ruler share a label pool and both depend on zoom: outlines and text are
-   * kept at a constant *screen* size, so a token does not become a hairline when you zoom out
-   * to look at the whole continent.
-   *
-   * Pings are **not** here. They are drawn by the shared `app-ping-layer` overlay, the same
-   * one the lobby and the old world map use, so they animate and sound identical everywhere.
+   * Only the ruler is drawn here now. Figures are the shared `app-lobby-token` component on
+   * an HTML layer, and pings the shared `app-ping-layer` overlay — both the same ones the
+   * lobby and the old world map use, because a second kind of either looked wrong beside the
+   * first. What is left is the one thing with no existing component: the measuring line.
    */
-  render(
-    bounds: Bounds,
-    zoom: number,
-    lines: readonly MeasureLine[],
-    selectedTokenId: string | null,
-  ): void {
+  render(zoom: number, lines: readonly MeasureLine[]): void {
     const px = 1 / Math.max(zoom, 1e-6);
     this.labelsUsed = 0;
-
-    this.tokenGfx.clear();
-    for (const t of this.tokens.values()) {
-      const r = t.size / 2;
-      if (t.x + r < bounds.minX || t.x - r > bounds.maxX) continue;
-      if (t.y + r < bounds.minY || t.y - r > bounds.maxY) continue;
-
-      this.tokenGfx.circle(t.x, t.y, r);
-      this.tokenGfx.fill({ color: t.color, alpha: 0.9 });
-      this.tokenGfx.circle(t.x, t.y, r);
-      this.tokenGfx.stroke({
-        color: t.id === selectedTokenId ? 0xffffff : 0x101014,
-        width: (t.id === selectedTokenId ? 3 : 1.5) * px,
-        alpha: 0.95,
-      });
-
-      // Names only once a token is big enough on screen to sit under one.
-      if (r * zoom > 12) this.label(t.name, t.x, t.y + r + 8 * px, zoom, 0xffffff);
-    }
 
     /*
      * The ruler's look is copied from the old map deliberately: a dark casing under a dashed
@@ -211,7 +154,6 @@ export class PlayAidsView {
 
   destroy(): void {
     this.container.destroy({ children: true });
-    this.tokens.clear();
     this.labelPool = [];
   }
 }

@@ -168,6 +168,20 @@
   padding: 0;
 }
 
+/*
+ * `.app-icon` is a CSS mask painted with `currentColor` at `1em`. A button inherits neither
+ * here, so the shared icons came out black and about 13px — invisible on this dark rail.
+ */
+.rail-btn .app-icon {
+  color: #d6d6de;
+  font-size: 24px;
+}
+
+.rail-btn:hover:not(:disabled) .app-icon,
+.rail-btn.active .app-icon {
+  color: #fff;
+}
+
 .rail-btn img {
   width: 28px;
   height: 28px;
@@ -800,3 +814,75 @@
 }
 
 
+
+/* ── game mode: tokens and context menu ── */
+
+/*
+ * Figures are the shared `app-lobby-token` component, not something drawn into the canvas.
+ * They are HTML positioned in screen space over the map, which is how the lobby and the old
+ * world map draw them — a second, canvas-drawn kind of token looked wrong beside the first.
+ */
+.token-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.token-layer > * {
+  pointer-events: auto;
+}
+
+.context-menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 190px;
+  padding: 6px;
+  background: #1f1f25;
+  border: 1px solid #3a3a46;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.context-menu button:hover {
+  background: #343440;
+}
+
+.quick-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.quick-token-form input {
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+/* The brush outline while shift-dragging to resize, drawn in screen space. */
+.brush-size-circle {
+  position: absolute;
+  border: 2px dashed rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 45;
+}

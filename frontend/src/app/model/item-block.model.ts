@@ -111,7 +111,16 @@ export class ItemBlock {
   damageType?: 'Schnitt' | 'Stich' | 'Wucht'; // Primary weapon damage type (= damageTypes[0])
   /** Every damage type the weapon deals — a sword is Schnitt AND Stich. */
   damageTypes?: ('Schnitt' | 'Stich' | 'Wucht')[];
-  range?: string; // Effective range e.g. '2m', '100m'
+  range?: string; // Effective range as text, e.g. '2m', '100m' (the one that matters in play)
+  /** Waffenart of the type it was forged from: how it is fought with. */
+  weaponCategory?: 'LEICHT' | 'SCHWER' | 'FERNKAMPF';
+  /** Reach in melee, in metres. Undefined = not usable in melee. */
+  meleeRange?: number;
+  /** Reach thrown or fired, in metres. Undefined = not a ranged weapon. */
+  rangedRange?: number;
+  handed?: 'ONE' | 'TWO';
+  /** What reloading / re-readying costs in combat. Undefined = free. */
+  reloadAction?: 'ACTION' | 'BONUS' | 'FREE';
   
   // Stat modifiers
   statModifiers?: StatModifier[];

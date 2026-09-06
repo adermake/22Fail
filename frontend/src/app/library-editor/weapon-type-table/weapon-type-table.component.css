@@ -106,7 +106,8 @@
 .c-range  { width: 74px; }
 .c-weight { width: 100px; }
 .c-handed { width: 118px; }
-.c-effect { min-width: 200px; }
+.c-reload { width: 118px; }
+.c-effect { min-width: 180px; }
 .c-tier   { width: 112px; }
 .c-del    { width: 108px; text-align: right; white-space: nowrap; }
 

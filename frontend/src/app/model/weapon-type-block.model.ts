@@ -49,6 +49,27 @@ export const WEAPON_HANDED_LABELS: Record<WeaponHanded, string> = {
   TWO: 'Zweihändig',
 };
 
+/**
+ * What reloading / re-readying the weapon costs in combat. Most weapons cost nothing, so `FREE`
+ * is the default; a crossbow is the reason this field exists.
+ */
+export type ReloadAction = 'ACTION' | 'BONUS' | 'FREE';
+
+export const RELOAD_ACTIONS: ReloadAction[] = ['ACTION', 'BONUS', 'FREE'];
+
+export const RELOAD_ACTION_LABELS: Record<ReloadAction, string> = {
+  ACTION: 'Aktion',
+  BONUS: 'Bonusaktion',
+  FREE: 'Freie Aktion',
+};
+
+/** Short labels for the table cell. */
+export const RELOAD_ACTION_SHORT: Record<ReloadAction, string> = {
+  ACTION: 'Akt',
+  BONUS: 'Bonus',
+  FREE: 'Frei',
+};
+
 export const DAMAGE_TYPES: DamageType[] = ['Schnitt', 'Stich', 'Wucht'];
 
 /** Short labels for cramped table cells — Schnitt and Stich both start with "S". */
@@ -79,6 +100,8 @@ export interface WeaponTypeBlock {
   rangedRange: number;
   weight: WeaponWeight;
   handed: WeaponHanded;
+  /** What it costs to reload / ready the weapon again. Defaults to `FREE`. */
+  reloadAction: ReloadAction;
   /** Free text folded into the forged weapon's description. */
   extraEffect: string;
   description?: string;
@@ -101,6 +124,7 @@ export function createEmptyWeaponType(name = 'Neuer Waffentyp'): WeaponTypeBlock
     rangedRange: 0,
     weight: 'MITTEL',
     handed: 'ONE',
+    reloadAction: 'FREE',
     extraEffect: '',
     description: '',
     knowledgeTier: 'bekannt',
@@ -166,8 +190,10 @@ export function weaponTypeFromBuiltin(w: BuiltinWeaponType): WeaponTypeBlock {
     meleeRange: ranged ? 0 : meters,
     rangedRange: ranged ? meters : 0,
     weight: WEIGHT_FROM_FORGE_SIZE[w.defaultForgeSize],
-    // Nothing in the old list recorded this; the heavy types are the two-handed ones.
+    // Nothing in the old list recorded either of these; the heavy types are the two-handed ones,
+    // and no built-in weapon has ever had a reload cost.
     handed: w.category === 'SCHWER' ? 'TWO' : 'ONE',
+    reloadAction: 'FREE',
     extraEffect: '',
     builtin: true,
   };
@@ -256,6 +282,8 @@ export function normalizeWeaponType(w: WeaponTypeBlock): WeaponTypeBlock {
     ...w,
     category,
     weight: WEAPON_WEIGHTS.includes(w.weight) ? w.weight : 'MITTEL',
+    // Entries created before this field existed reload for free, which is what they did.
+    reloadAction: RELOAD_ACTIONS.includes(w.reloadAction) ? w.reloadAction : 'FREE',
     damageTypes,
     damageType: damageTypes[0],
   };

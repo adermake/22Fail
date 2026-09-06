@@ -6,6 +6,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 
+import { WeaponTypeService } from '../../services/weapon-type.service';
+import {
+  WeaponTypeBlock, describeDamageTypes, describeWeaponReach, primaryDamageType,
+} from '../../model/weapon-type-block.model';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile } from '../../model/asset-browser.model';
 import { MaterialBlock, ForgeTrait, WEAPON_TYPES, WeaponType, WeaponCategory } from '../../model/forging.model';
@@ -49,6 +53,7 @@ export class WeaponGeneratorComponent implements OnInit, OnDestroy {
   private api    = inject(AssetBrowserApiService);
   private svc    = inject(WeaponGeneratorService);
   private cdr    = inject(ChangeDetectorRef);
+  private weaponTypeService = inject(WeaponTypeService);
 
   // ── Library data ─────────────────────────────────────────────────────────
   allMaterials: MaterialBlock[] = [];
@@ -76,7 +81,12 @@ export class WeaponGeneratorComponent implements OnInit, OnDestroy {
   isGenerating = false;
 
   // ── Weapon type helpers ───────────────────────────────────────────────────
-  readonly weaponTypes = WEAPON_TYPES;
+  /** Library-defined Waffentypen merged over the built-ins. */
+  weaponTypes: WeaponTypeBlock[] = this.weaponTypeService.types();
+
+  primaryDamage(w: WeaponTypeBlock): string { return primaryDamageType(w); }
+  damageSummary(w: WeaponTypeBlock): string { return describeDamageTypes(w); }
+  reachSummary(w: WeaponTypeBlock): string { return describeWeaponReach(w); }
   readonly weaponCategories: WeaponCategory[] = ['LEICHT', 'FERNKAMPF', 'SCHWER'];
   readonly categoryLabels: Record<WeaponCategory, string> = {
     LEICHT: 'Leicht', FERNKAMPF: 'Fernkampf', SCHWER: 'Schwer',
@@ -85,6 +95,10 @@ export class WeaponGeneratorComponent implements OnInit, OnDestroy {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   async ngOnInit(): Promise<void> {
+    this.weaponTypeService.load().then((types) => {
+      this.weaponTypes = types;
+      this.cdr.markForCheck();
+    });
     this.loadFromStorage();
     await this.loadLibraryData();
   }
@@ -261,8 +275,8 @@ export class WeaponGeneratorComponent implements OnInit, OnDestroy {
     return slot.entries.map(e => this.entryLabel(e)).join(', ');
   }
 
-  getWeaponTypesForCategory(cat: WeaponCategory): WeaponType[] {
-    return WEAPON_TYPES.filter(w => w.category === cat);
+  getWeaponTypesForCategory(cat: WeaponCategory): WeaponTypeBlock[] {
+    return this.weaponTypes.filter(w => w.category === cat);
   }
 
   get effectiveSPBudget(): number {

@@ -10,7 +10,8 @@ import { AssetFile } from '../../model/asset-browser.model';
 import { KNOWLEDGE_TIERS, KnowledgeTier } from '../../utils/knowledge-tier.util';
 import { DamageType } from '../../model/forging.model';
 import {
-  DAMAGE_TYPES, DAMAGE_TYPE_SHORT, WEAPON_CATEGORIES, WEAPON_CATEGORY_LABELS, WEAPON_HANDED_LABELS,
+  DAMAGE_TYPES, DAMAGE_TYPE_SHORT, RELOAD_ACTIONS, RELOAD_ACTION_LABELS, ReloadAction,
+  WEAPON_CATEGORIES, WEAPON_CATEGORY_LABELS, WEAPON_HANDED_LABELS,
   WEAPON_WEIGHTS, WEAPON_WEIGHT_LABELS, WeaponCategory, WeaponHanded, WeaponTypeBlock,
   WeaponWeight, createEmptyWeaponType, describeWeaponReach, normalizeWeaponType,
   setWeaponTypeKnowledgeTier, toggleDamageType, weaponTypeKnowledgeTier,
@@ -53,6 +54,8 @@ export class WeaponTypeTableComponent implements OnInit, OnDestroy {
   readonly handedLabels = WEAPON_HANDED_LABELS;
   readonly damageTypes = DAMAGE_TYPES;
   readonly damageShort = DAMAGE_TYPE_SHORT;
+  readonly reloadActions = RELOAD_ACTIONS;
+  readonly reloadLabels = RELOAD_ACTION_LABELS;
   readonly knowledgeTiers = KNOWLEDGE_TIERS;
 
   /** The pending new row at the bottom of the table. */
@@ -135,6 +138,11 @@ export class WeaponTypeTableComponent implements OnInit, OnDestroy {
 
   setHanded(file: AssetFile, h: WeaponHanded) {
     this.block(file).handed = h;
+    this.onFieldChange(file);
+  }
+
+  setReload(file: AssetFile, r: ReloadAction) {
+    this.block(file).reloadAction = r;
     this.onFieldChange(file);
   }
 

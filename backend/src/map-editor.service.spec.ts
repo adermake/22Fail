@@ -256,6 +256,41 @@ describe('MapEditorService — Persistenz', () => {
       }
     });
 
+    it('erlaubt einem Spieler, eine Figur zu verschieben', () => {
+      // Die eigene Figur über die Karte zu ziehen ist das Gewöhnlichste, was ein Spieler in
+      // einer Sitzung tut; die alte Karte konnte das auch.
+      expect(
+        svc.isPlayerWritableOp(
+          { t: 'upd', c: 'tokens', id: 't1', v: { x: 1, y: 2, position: { q: 0, r: 0 } } } as any,
+          'Alice',
+        ),
+      ).toBe(true);
+    });
+
+    it('lässt Spieler an einer Figur nur die Position ändern', () => {
+      // Sonst ließe sich über denselben Weg umbenennen oder auf geheim stellen.
+      for (const v of [{ name: 'Boss' }, { vis: 'secret' }, { x: 1, name: 'Boss' }]) {
+        expect(svc.isPlayerWritableOp({ t: 'upd', c: 'tokens', id: 't1', v } as any, 'Alice')).toBe(
+          false,
+        );
+      }
+    });
+
+    it('verweigert Spielern das Anlegen und Löschen von Figuren', () => {
+      expect(
+        svc.isPlayerWritableOp({ t: 'add', c: 'tokens', v: { id: 't1' } } as any, 'Alice'),
+      ).toBe(false);
+      expect(svc.isPlayerWritableOp({ t: 'del', c: 'tokens', id: 't1' } as any, 'Alice')).toBe(
+        false,
+      );
+    });
+
+    it('verweigert einen leeren Figuren-Patch', () => {
+      expect(svc.isPlayerWritableOp({ t: 'upd', c: 'tokens', id: 't1', v: {} } as any, 'A')).toBe(
+        false,
+      );
+    });
+
     it('verweigert das Ändern einer bestehenden Linie', () => {
       // `upd` fehlt bewusst: sonst ließe sich eine Linie nachträglich in etwas anderes
       // umschreiben, an der Prüfung beim Anlegen vorbei.

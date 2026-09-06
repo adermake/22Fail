@@ -19,10 +19,13 @@ import {
   WEAPON_HANDED_LABELS,
   WEAPON_WEIGHTS,
   WEAPON_WEIGHT_LABELS,
+  RELOAD_ACTIONS,
+  RELOAD_ACTION_LABELS,
   builtinWeaponTypes,
   describeDamageTypes,
   describeWeaponReach,
   weaponTypeKnowledgeTier,
+  type ReloadAction,
   type WeaponCategory,
   type WeaponTypeBlock,
   type WeaponWeight,
@@ -120,6 +123,14 @@ function renderWeapons(attrs: DirectiveAttrs, env: RulebookEnv): string {
   const damageTypesOf = (w: WeaponTypeBlock) =>
     w.damageTypes?.length ? w.damageTypes : w.damageType ? [w.damageType] : [];
   const rawHanded = (attrs['handed'] ?? attrs['fuehrung'] ?? '').trim().toLowerCase();
+  const rawReload = (attrs['reload'] ?? attrs['nachladen'] ?? '').trim().toUpperCase();
+  if (rawReload && !RELOAD_ACTIONS.includes(rawReload as ReloadAction)) {
+    env.warnings.push(`Unbekannte Nachladeaktion "reload=${rawReload}"`);
+    return emptyNote(
+      `Unbekannte Nachladeaktion: <code>${esc(rawReload)}</code>. Verfügbar: ` +
+        RELOAD_ACTIONS.join(', ').toLowerCase(),
+    );
+  }
   if (rawHanded && !/^(one|two|einhändig|einhaendig|zweihändig|zweihaendig)$/.test(rawHanded)) {
     env.warnings.push(`Unbekannte Führung "handed=${rawHanded}"`);
     return emptyNote(`Unbekannte Führung: <code>${esc(rawHanded)}</code>. Verfügbar: one, two`);
@@ -133,7 +144,8 @@ function renderWeapons(attrs: DirectiveAttrs, env: RulebookEnv): string {
       (!rawCategory || w.category === rawCategory) &&
       (!rawWeight || w.weight === rawWeight) &&
       (!rawDamage || damageTypesOf(w).some((d) => d.toLowerCase() === rawDamage)) &&
-      (!rawHanded || (w.handed === 'TWO') === wantsTwo),
+      (!rawHanded || (w.handed === 'TWO') === wantsTwo) &&
+      (!rawReload || (w.reloadAction ?? 'FREE') === rawReload),
   );
   if (!rows.length) return emptyNote('Keine Waffentypen für diese Auswahl.');
 
@@ -141,6 +153,10 @@ function renderWeapons(attrs: DirectiveAttrs, env: RulebookEnv): string {
     `<span class="rb-chip"><b>${cell(w.name)}</b>` +
     `<small>${cell(describeDamageTypes(w))} · ${cell(describeWeaponReach(w))}</small>` +
     `<small>${cell(WEAPON_WEIGHT_LABELS[w.weight])} · ${cell(WEAPON_HANDED_LABELS[w.handed])}` +
+    // Only worth saying when it actually costs something.
+    `${(w.reloadAction ?? 'FREE') !== 'FREE'
+        ? ` · Nachladen: ${cell(RELOAD_ACTION_LABELS[w.reloadAction])}`
+        : ''}` +
     `${w.extraEffect ? ` · ${cell(w.extraEffect)}` : ''}</small></span>`;
 
   // An explicit name list or a single-category request needs no grouping headings.

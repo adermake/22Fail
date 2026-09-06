@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T21:12:39.279Z",
+  "generatedAt": "2026-09-06T10:51:47.250Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -8,7 +8,7 @@
       "tab": "Grundlagen",
       "icon": "dice",
       "order": 10,
-      "hash": "1e0087cc",
+      "hash": "54bed71c",
       "outline": [
         {
           "id": "grundlagen",
@@ -49,7 +49,7 @@
       "tab": "Stats",
       "icon": "stat_icon",
       "order": 20,
-      "hash": "53081eb1",
+      "hash": "57d3bf84",
       "outline": [
         {
           "id": "stats",
@@ -130,6 +130,12 @@
           "kind": "section"
         },
         {
+          "id": "schlaf",
+          "text": "Schlaf",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
           "id": "sonstige-stats",
           "text": "Sonstige Stats",
           "level": 2,
@@ -192,7 +198,7 @@
       "tab": "Kampf",
       "icon": "effektivity",
       "order": 30,
-      "hash": "15aa2c0b",
+      "hash": "9c3a298c",
       "outline": [
         {
           "id": "kampf",
@@ -249,6 +255,18 @@
           "kind": "section"
         },
         {
+          "id": "statuseffekte",
+          "text": "Statuseffekte",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "statusheilung",
+          "text": "Statusheilung",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
           "id": "sonstige-regeln",
           "text": "Sonstige Regeln",
           "level": 2,
@@ -292,7 +310,7 @@
         },
         {
           "id": "status-attacks",
-          "text": "Statuseffekte",
+          "text": "Statusangriffe",
           "level": 3,
           "kind": "section"
         },
@@ -323,7 +341,7 @@
       "tab": "Klassen",
       "icon": "ability",
       "order": 40,
-      "hash": "1d574e2a",
+      "hash": "5fdff126",
       "outline": [
         {
           "id": "klassen",
@@ -358,7 +376,7 @@
       "tab": "Rassen",
       "icon": "races",
       "order": 50,
-      "hash": "00c9c48b",
+      "hash": "30dd5f5c",
       "outline": [
         {
           "id": "rassen",
@@ -381,7 +399,7 @@
         {
           "id": "vor-und-nachteile",
           "text": "Vor- und Nachteile",
-          "level": 2,
+          "level": 3,
           "kind": "heading"
         }
       ]
@@ -393,7 +411,7 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "c8ce8be4",
+      "hash": "e2ad25ff",
       "outline": [
         {
           "id": "magiesystem",
@@ -518,7 +536,7 @@
       "tab": "Ausrüstung",
       "icon": "equipment",
       "order": 70,
-      "hash": "944de8ef",
+      "hash": "5c8dd588",
       "outline": [
         {
           "id": "ausruestung",
@@ -553,7 +571,7 @@
       "tab": "Herstellung",
       "icon": "carfting",
       "order": 80,
-      "hash": "161eb909",
+      "hash": "5dbb825f",
       "outline": [
         {
           "id": "herstellung",
@@ -590,6 +608,89 @@
           "text": "Brauen",
           "level": 2,
           "kind": "heading"
+        },
+        {
+          "id": "extraktoren",
+          "text": "Extraktoren",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "braumaterialien",
+          "text": "Braumaterialien",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "merkmale",
+          "text": "Merkmale",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "kochen",
+          "text": "Kochen",
+          "level": 2,
+          "kind": "heading"
+        }
+      ]
+    },
+    {
+      "id": "begleiter",
+      "file": "begleiter.md",
+      "title": "Begleiter",
+      "tab": "Begleiter",
+      "icon": "companion",
+      "order": 90,
+      "hash": "0fc1f84e",
+      "outline": [
+        {
+          "id": "begleiter",
+          "text": "Begleiter",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "stats",
+          "text": "Stats",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "grundstats",
+          "text": "Grundstats",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "konditionsstats",
+          "text": "Konditionsstats",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "sonstige-stats",
+          "text": "Sonstige Stats",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "beschwoerungen",
+          "text": "Beschwörungen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "seele",
+          "text": "Seele",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "koerper",
+          "text": "Körper",
+          "level": 3,
+          "kind": "heading"
         }
       ]
     },
@@ -600,7 +701,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "764f8438",
+      "hash": "2793a100",
       "outline": [
         {
           "id": "syntax-beispiel",

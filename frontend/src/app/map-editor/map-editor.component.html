@@ -160,6 +160,63 @@
         [class.place-cursor]="isPlacingSymbols()"
       ></div>
 
+      @if (inGame()) {
+        <!-- Figuren sind dieselbe Komponente wie in Lobby und alter Weltkarte, als HTML
+             über der Karte. In den Canvas gemalte Kreise sahen daneben schlicht falsch aus. -->
+        <div class="token-layer">
+          @for (t of renderedTokens(); track t.token.id) {
+            <app-lobby-token
+              [token]="$any(t.token)"
+              [position]="{ x: t.x, y: t.y }"
+              [scale]="tokenScale()"
+              [isSelected]="selectedTokenId() === t.token.id"
+              [isInteractive]="gameTool() === 'cursor'"
+              [isDragging]="dragTokenId() === t.token.id"
+              [isCurrentTurn]="false"
+              [showResources]="false"
+              (dragStart)="onTokenDragStart(t.token, $event)"
+              (contextMenu)="onTokenContextMenu(t.token, $event)"
+            />
+          }
+        </div>
+
+        @if (contextMenu(); as menu) {
+          <div
+            class="context-menu"
+            [style.left.px]="menu.x"
+            [style.top.px]="menu.y"
+            (mousedown)="$event.stopPropagation()"
+          >
+            @if (menu.tokenId) {
+              <button type="button" (click)="removeContextToken()">
+                <span class="app-icon i-restore-trash"></span> Figur entfernen
+              </button>
+            } @else {
+              <div class="quick-token-form">
+                <input
+                  type="text"
+                  placeholder="Name der Figur"
+                  [value]="quickTokenName()"
+                  (input)="quickTokenName.set($any($event.target).value)"
+                  (keydown.enter)="createTokenFromMenu()"
+                />
+                <button type="button" (click)="createTokenFromMenu()">Figur erstellen</button>
+              </div>
+            }
+          </div>
+        }
+
+        @if (brushPreview(); as b) {
+          <div
+            class="brush-size-circle"
+            [style.left.px]="b.x"
+            [style.top.px]="b.y"
+            [style.width.px]="b.r * 2"
+            [style.height.px]="b.r * 2"
+          ></div>
+        }
+      }
+
       <!-- Dieselbe Ping-Ebene wie Lobby und alte Weltkarte — gleiche Animation, gleiche
            Geräusche. G halten und ziehen öffnet das Rad. -->
       <app-ping-layer [pings]="renderedPings()" />
@@ -287,17 +344,31 @@
       <aside class="settings-panel">
         <div class="settings-title">{{ gameToolLabel() }}</div>
 
-        @if (isGM()) {
-          <!-- Nebel ist ein Modus, kein Werkzeug: V wechselt zwischen Auf- und Verdecken,
-               D steigt aus. So liegt "Boden aufdecken" einen Tastendruck neben "Figur
-               bewegen" statt einer Reise durch die Werkzeugleiste. -->
+        @if (gameTool() === 'cursor') {
+          <div class="panel-section">
+            <div class="panel-title">Figuren</div>
+            <p class="hint">
+              Rechtsklick auf die Karte erstellt eine Figur mit Namen, Rechtsklick auf eine
+              Figur entfernt sie. Ziehen verschiebt — auch für Spieler.
+            </p>
+            @if (selectedTokenId() && isGM()) {
+              <div class="history-row">
+                <button type="button" (click)="deleteSelectedToken()">
+                  Figur entfernen (Entf)
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+        @if (gameTool() === 'fog' && isGM()) {
           <div class="panel-section">
             <div class="panel-title">Nebel</div>
             <div class="history-row">
               <button
                 type="button"
                 [class.active-toggle]="fogMode() === 'reveal'"
-                title="V"
+                title="V wechselt"
                 (click)="setFogMode('reveal')"
               >
                 Aufdecken
@@ -305,23 +376,13 @@
               <button
                 type="button"
                 [class.active-toggle]="fogMode() === 'hide'"
-                title="V"
+                title="V wechselt"
                 (click)="setFogMode('hide')"
               >
                 Verdecken
               </button>
-              <button
-                type="button"
-                [class.active-toggle]="fogMode() === 'neutral'"
-                title="D"
-                (click)="setFogMode('neutral')"
-              >
-                Aus
-              </button>
             </div>
-            @if (fogMode() !== 'neutral') {
-              <p class="hint">Radius {{ fogRadius() }} · Shift + ziehen ändert die Größe.</p>
-            }
+            <p class="hint">Radius {{ fogRadius() }} Hex · Shift + ziehen ändert die Größe.</p>
             <div class="history-row">
               <button type="button" (click)="fogAll(true)">Sichtbereich aufdecken</button>
               <button type="button" (click)="fogAll(false)">Alles verdecken</button>
@@ -360,26 +421,28 @@
               </button>
             </div>
 
-            <div class="swatches">
-              @for (c of drawColors; track c) {
-                <button
-                  type="button"
-                  class="swatch"
-                  [class.active]="sketchColor() === c"
-                  [style.background]="c"
-                  (click)="sketchColor.set(c)"
-                ></button>
-              }
-              <span class="swatch-wrap">
-                <input
-                  type="color"
-                  class="hidden-color"
-                  [value]="sketchColor()"
-                  (input)="sketchColor.set($any($event.target).value)"
-                />
-                <button type="button" class="swatch add">+</button>
-              </span>
-            </div>
+            @if (!eraserMode()) {
+              <div class="swatches">
+                @for (c of drawColors; track c) {
+                  <button
+                    type="button"
+                    class="swatch"
+                    [class.active]="sketchColor() === c"
+                    [style.background]="c"
+                    (click)="sketchColor.set(c)"
+                  ></button>
+                }
+                <span class="swatch-wrap">
+                  <input
+                    type="color"
+                    class="hidden-color"
+                    [value]="sketchColor()"
+                    (input)="sketchColor.set($any($event.target).value)"
+                  />
+                  <button type="button" class="swatch add">+</button>
+                </span>
+              </div>
+            }
 
             <div class="profile-row">
               @for (sz of penSizes; track sz) {
@@ -413,52 +476,6 @@
           </p>
         }
 
-        @if (gameTool() === 'cursor' && isGM()) {
-          <div class="panel-section">
-            <div class="panel-title">Figuren</div>
-            <label class="base-row">
-              <span>Name</span>
-              <input
-                type="text"
-                class="text-input"
-                [value]="tokenName()"
-                (input)="tokenName.set($any($event.target).value)"
-              />
-            </label>
-            <label class="base-row">
-              <span>Farbe</span>
-              <input
-                type="color"
-                [value]="tokenColor()"
-                (input)="tokenColor.set($any($event.target).value)"
-              />
-            </label>
-            <label class="slider-row">
-              <span>Größe</span>
-              <input
-                type="range"
-                min="60"
-                max="480"
-                step="10"
-                [value]="tokenSize()"
-                (input)="tokenSize.set(+$any($event.target).value)"
-              />
-              <em>{{ tokenSize() }}</em>
-            </label>
-            @if (selectedTokenId()) {
-              <div class="history-row">
-                <button type="button" (click)="deleteSelectedToken()">
-                  Figur entfernen (Entf)
-                </button>
-              </div>
-            }
-            <p class="hint">
-              Alt + Klick setzt eine Figur, Ziehen verschiebt sie. Sie rasten auf Hexmitten ein,
-              weil Entfernungen daran gemessen werden.
-            </p>
-          </div>
-        }
-
         @if (gameTool() === 'reveal' && isGM()) {
           <p class="hint">
             Klick auf ein verborgenes Objekt deckt sein ganzes Geheimnis auf — sofort und für
@@ -466,12 +483,40 @@
           </p>
         }
 
+        @if (isGM()) {
+          <!-- Zwei verschiedene Fragen im Spiel: "was gibt es hier" und "was sehen die
+               Spieler gerade". Deshalb umschaltbar statt eines Kompromisses. -->
+          <div class="panel-section">
+            <div class="panel-title">Geheimnisse</div>
+            <div class="history-row">
+              <button
+                type="button"
+                [class.active-toggle]="secretView() === 'marked'"
+                (click)="setSecretView('marked')"
+              >
+                Markiert zeigen
+              </button>
+              <button
+                type="button"
+                [class.active-toggle]="secretView() === 'hidden'"
+                (click)="setSecretView('hidden')"
+              >
+                Wie Spieler
+              </button>
+            </div>
+            <p class="hint">
+              Markiert: verborgene Geheimnisse blass und grün gerahmt, aufgedeckte normal.
+              Wie Spieler: genau das, was am Spielertisch auf dem Schirm steht.
+            </p>
+          </div>
+        }
+
         <div class="panel-section">
           <div class="panel-title">Tasten</div>
           <p class="hint">
             S Figuren · B Zeichnen · E Radierer · M Messen
             @if (isGM()) {
-              · V Nebel · D Nebel aus
+              · V Nebel · D Figuren · R Aufdecken
             }
             · G halten + ziehen für Ping · Mittlere Maustaste schiebt die Karte
           </p>

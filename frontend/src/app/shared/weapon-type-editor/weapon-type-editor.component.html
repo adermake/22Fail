@@ -92,6 +92,21 @@
     </div>
   </div>
 
+  <!-- Reload cost -->
+  <div class="form-row">
+    <label>
+      Nachladen
+      <span class="hint"> — was erneutes Bereitmachen im Kampf kostet</span>
+    </label>
+    <div class="wt-btns">
+      @for (r of reloadActions; track r) {
+        <button type="button" class="wt-btn"
+                [class.wt-btn--active]="edit.reloadAction === r"
+                (click)="setReload(r)">{{ reloadLabels[r] }}</button>
+      }
+    </div>
+  </div>
+
   <!-- Extra effect -->
   <div class="form-row">
     <label>

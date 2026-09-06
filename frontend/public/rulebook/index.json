@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T15:24:48.064Z",
+  "generatedAt": "2026-09-06T10:51:47.250Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -701,7 +701,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "764f8438",
+      "hash": "2793a100",
       "outline": [
         {
           "id": "syntax-beispiel",

@@ -312,6 +312,39 @@ describe('renderMarkdown', () => {
     expect(bad.warnings.join()).toContain('Unbekannte Farbe');
   });
 
+  it('shows and filters the reload cost, staying quiet when it is free', async () => {
+    const weaponTypes = [
+      { id: '1', name: 'Armbrust', category: 'FERNKAMPF', damageTypes: ['Stich'],
+        meleeRange: 0, rangedRange: 100, weight: 'MITTEL', handed: 'TWO',
+        reloadAction: 'ACTION', extraEffect: '' },
+      { id: '2', name: 'Kurzbogen', category: 'FERNKAMPF', damageTypes: ['Stich'],
+        meleeRange: 0, rangedRange: 50, weight: 'LEICHT', handed: 'TWO',
+        reloadAction: 'FREE', extraEffect: '' },
+      // Older entries predate the field entirely and reload for free.
+      { id: '3', name: 'Schleuder', category: 'FERNKAMPF', damageTypes: ['Wucht'],
+        meleeRange: 0, rangedRange: 50, weight: 'LEICHT', handed: 'ONE', extraEffect: '' },
+    ] as unknown as WeaponTypeBlock[];
+
+    const all = await renderMarkdown(md(':::data{source=weapons}', ':::'), 'g', { weaponTypes });
+    expect(all.warnings).toEqual([]);
+    expect(all.html).toContain('Nachladen: Aktion');
+    // A free reload is the norm — it must not clutter every other row.
+    expect((all.html.match(/Nachladen/g) ?? []).length).toBe(1);
+
+    const costly = await renderMarkdown(md(':::data{source=weapons reload=action}', ':::'), 'g', { weaponTypes });
+    expect(costly.html).toContain('Armbrust');
+    expect(costly.html).not.toContain('Kurzbogen');
+
+    // An entry with no reloadAction at all counts as free.
+    const free = await renderMarkdown(md(':::data{source=weapons reload=free}', ':::'), 'g', { weaponTypes });
+    expect(free.html).toContain('Schleuder');
+    expect(free.html).toContain('Kurzbogen');
+    expect(free.html).not.toContain('Armbrust');
+
+    const bad = await renderMarkdown(md(':::data{source=weapons reload=irgendwas}', ':::'), 'g', { weaponTypes });
+    expect(bad.warnings.join()).toContain('Nachladeaktion');
+  });
+
   it('supports several damage types on one weapon type', async () => {
     const weaponTypes = [
       // A sword cuts AND thrusts.

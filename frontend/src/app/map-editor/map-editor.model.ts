@@ -326,12 +326,19 @@ export interface MapSecret {
  */
 export interface MapToken extends MapObjectBase {
   name: string;
-  color: string;
-  /** Diameter in world px. A hex is `HEX_WIDTH` across, so this is usually a fraction of it. */
-  size: number;
+  /** Empty for a token drawn on the spot rather than standing for a character sheet. */
+  characterId: string;
+  /**
+   * Hex the token stands on, kept beside the world `x/y`.
+   *
+   * Both, because they answer different questions: `x/y` places it for hit-testing and the
+   * spatial pipeline, `position` is what `app-lobby-token` renders from — and reusing that
+   * component is what makes a figure here look like a figure everywhere else in the app.
+   */
+  position: { q: number; r: number };
+  isQuickToken?: boolean;
   portrait?: string;
-  /** Set when the token stands for a character sheet rather than being drawn on the spot. */
-  characterId?: string;
+  team?: string;
 }
 
 /**

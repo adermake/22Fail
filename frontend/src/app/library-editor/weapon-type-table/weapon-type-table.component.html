@@ -21,6 +21,7 @@
             <th class="c-range" title="Reichweite geworfen/geschossen (m)">Fern</th>
             <th class="c-weight" title="Nur für die vorgeschlagene Schmiedegröße">Gewicht</th>
             <th class="c-handed">Führung</th>
+            <th class="c-reload" title="Was erneutes Bereitmachen im Kampf kostet">Nachladen</th>
             <th class="c-effect">Zusatzeffekt</th>
             <th class="c-tier" title="Wissensstufe">Wissen</th>
             <th class="c-del"></th>
@@ -75,6 +76,14 @@
                 <select [ngModel]="block(file).handed" (ngModelChange)="setHanded(file, $event)">
                   <option [ngValue]="'ONE'">{{ handedLabels['ONE'] }}</option>
                   <option [ngValue]="'TWO'">{{ handedLabels['TWO'] }}</option>
+                </select>
+              </td>
+
+              <td class="c-reload">
+                <select [ngModel]="block(file).reloadAction" (ngModelChange)="setReload(file, $event)">
+                  @for (r of reloadActions; track r) {
+                    <option [ngValue]="r">{{ reloadLabels[r] }}</option>
+                  }
                 </select>
               </td>
 
@@ -139,6 +148,13 @@
               <select [(ngModel)]="draft.handed">
                 <option [ngValue]="'ONE'">{{ handedLabels['ONE'] }}</option>
                 <option [ngValue]="'TWO'">{{ handedLabels['TWO'] }}</option>
+              </select>
+            </td>
+            <td class="c-reload">
+              <select [(ngModel)]="draft.reloadAction">
+                @for (r of reloadActions; track r) {
+                  <option [ngValue]="r">{{ reloadLabels[r] }}</option>
+                }
               </select>
             </td>
             <td class="c-effect">

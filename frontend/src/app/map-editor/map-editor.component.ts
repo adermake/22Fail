@@ -86,6 +86,7 @@ import { MeasureLine, PlayAidsView } from './play-aids';
 import { PingController } from '../shared/ping/ping-controller';
 import { PingLayerComponent, RenderedPing } from '../shared/ping/ping-layer.component';
 import { PingWheelComponent } from '../shared/ping/ping-wheel.component';
+import { LobbyTokenComponent } from '../lobby/lobby-token/lobby-token.component';
 import {
   OverviewGroup,
   OverviewItem,
@@ -136,6 +137,7 @@ import { LabelView, defaultLabelStyle } from './label-view';
 import { LabelPreset, LabelStyle, MapLabel, MapRegion, Point } from './map-editor.model';
 import { MIN_ZOOM, MAX_ZOOM } from './map-camera';
 import {
+  HEX_X_SPACING,
   KM_PER_HEX,
   hexCorners,
   hexKey,
@@ -149,7 +151,7 @@ import {
 @Component({
   selector: 'app-map-editor',
   standalone: true,
-  imports: [CommonModule, PingLayerComponent, PingWheelComponent],
+  imports: [CommonModule, PingLayerComponent, PingWheelComponent, LobbyTokenComponent],
   templateUrl: './map-editor.component.html',
   styleUrls: ['./map-editor.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -680,7 +682,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * mode means covering ground and moving a figure are one keystroke apart rather than a
    * round trip through the toolbar, which is what a GM actually does during a session.
    */
-  readonly fogMode = signal<FogMode>('neutral');
+  readonly fogMode = signal<FogMode>('reveal');
   readonly eraserMode = signal(false);
 
   setMode(mode: 'edit' | 'game'): void {
@@ -696,8 +698,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   setFogMode(mode: FogMode): void {
     if (!this.isGM()) return;
-    // Fog rides on the cursor tool, so arming it switches to the tool that can paint it.
-    if (mode !== 'neutral') this.gameTool.set('cursor');
     this.fogMode.set(mode);
     this.redrawCursor();
   }
@@ -776,7 +776,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     // Editing overlays have no business on screen during play, and vice versa.
     this.secretOverview?.setAudit(this.overviewActive());
-    this.renderer.setDim(this.overviewActive() ? 0.62 : 0);
+    this.renderer.setDim(this.overviewDim());
     this.scheduleStream();
     this.redrawCursor();
   }
@@ -812,7 +812,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const centre = worldToHex(world.x, world.y);
     const keys = hexesInRadius(centre.q, centre.r, this.fogRadius()).map(h => hexKey(h.q, h.r));
 
-    const reveal = this.fogMode() !== 'hide';
+    const reveal = this.fogMode() === 'reveal';
     const changed = keys.filter(k => this.revealedSet.has(k) !== reveal);
     if (!changed.length) return;
 
@@ -871,7 +871,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private beginSketch(world: Point): void {
     this.sketchDraft = [{ x: world.x, y: world.y }];
-    this.sketchView?.drawLive(this.sketchDraft, this.strokeColor(), this.strokeWidth());
+    this.sketchView?.drawLive(
+      this.sketchDraft,
+      this.strokeColor(),
+      this.strokeWidth(),
+      this.eraserMode(),
+    );
   }
 
   /**
@@ -896,7 +901,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (Math.hypot(world.x - last.x, world.y - last.y) < minStep) return;
 
     draft.push({ x: world.x, y: world.y });
-    this.sketchView?.drawLive(draft, this.strokeColor(), this.strokeWidth());
+    this.sketchView?.drawLive(draft, this.strokeColor(), this.strokeWidth(), this.eraserMode());
   }
 
   private endSketch(): void {
@@ -964,37 +969,142 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   // ── tokens ──
 
-  private dragToken: { id: string; before: MapToken } | null = null;
+  // ── context menu (right click), the way figures are created on the old map ──
 
-  private placeToken(world: Point): void {
+  readonly contextMenu = signal<{ x: number; y: number; tokenId: string | null } | null>(null);
+  readonly quickTokenName = signal('');
+
+  closeContextMenu(): void {
+    this.contextMenu.set(null);
+  }
+
+  /**
+   * Right click during play opens the figure menu.
+   *
+   * On a figure it offers to remove it; on empty ground it offers to create one, with a name
+   * field — which is how figures have always been made here. Placing on a plain click would
+   * scatter figures across the map every time somebody clicked to deselect.
+   */
+  private openGameContextMenu(e: MouseEvent, world: Point, screen: Point): void {
     if (!this.isGM()) return;
+    const hit = this.tokenAt(world);
+    this.selectedTokenId.set(hit?.id ?? null);
+    this.quickTokenName.set('');
+    this.contextMenu.set({ x: screen.x, y: screen.y, tokenId: hit?.id ?? null });
+    this.cdr.markForCheck();
+  }
 
-    // Snapped to the hex centre: the grid is what distances are measured in, so a figure
+  createTokenFromMenu(): void {
+    const menu = this.contextMenu();
+    if (!menu || !this.isGM()) return;
+
+    const world = this.renderer.camera.screenToWorld(menu.x, menu.y);
+    const hex = worldToHex(world.x, world.y);
+    // Snapped to the hex centre: the grid is what distances are counted on, so a figure
     // between two hexes has no answer to "how far can it move".
-    const centre = hexToWorld(worldToHex(world.x, world.y));
+    const centre = hexToWorld(hex);
+
     const token: MapToken = {
       id: generateId(),
       x: centre.x,
       y: centre.y,
       vis: 'public',
-      name: this.tokenName() || 'Figur',
-      color: this.tokenColor(),
-      size: this.tokenSize(),
+      name: this.quickTokenName().trim() || 'Figur',
+      characterId: '',
+      position: { q: hex.q, r: hex.r },
+      isQuickToken: true,
     };
 
-    this.playAids?.addToken(token);
+    this.tokens.update(list => [...list, token]);
     this.store.addObject('tokens', token);
     this.selectedTokenId.set(token.id);
+    this.closeContextMenu();
     this.scheduleStream();
+  }
+
+  removeContextToken(): void {
+    const id = this.contextMenu()?.tokenId;
+    this.closeContextMenu();
+    if (id) this.removeToken(id);
   }
 
   deleteSelectedToken(): void {
     const id = this.selectedTokenId();
-    if (!id || !this.isGM()) return;
-    this.playAids?.removeToken(id);
+    if (id) this.removeToken(id);
+  }
+
+  private removeToken(id: string): void {
+    if (!this.isGM()) return;
+    this.tokens.update(list => list.filter(t => t.id !== id));
     this.store.deleteObject('tokens', id);
-    this.selectedTokenId.set(null);
+    if (this.selectedTokenId() === id) this.selectedTokenId.set(null);
     this.scheduleStream();
+  }
+
+  private tokenAt(world: Point): MapToken | null {
+    const hex = worldToHex(world.x, world.y);
+    return (
+      this.tokens().find(t => t.position.q === hex.q && t.position.r === hex.r) ?? null
+    );
+  }
+
+  // ── figures, drawn as HTML by the shared token component ──
+
+  readonly tokens = signal<MapToken[]>([]);
+
+  /**
+   * Figures on screen, positioned for the current camera.
+   *
+   * `viewEpoch` is read so this recomputes as the map is panned and zoomed — the tokens
+   * themselves have not changed, only where they are.
+   */
+  readonly renderedTokens = computed(() => {
+    void this.viewEpoch();
+    const dragging = this.dragTokenId();
+    const dragWorld = this.dragTokenWorld();
+    return this.tokens().map(token => {
+      const world =
+        token.id === dragging && dragWorld ? dragWorld : { x: token.x, y: token.y };
+      const screen = this.renderer.camera.worldToScreen(world.x, world.y);
+      return { token, x: screen.x, y: screen.y };
+    });
+  });
+
+  /** Token size follows the zoom, so a figure covers its hex at any scale. */
+  readonly tokenScale = computed(() => {
+    void this.viewEpoch();
+    return Math.max(0.25, Math.min(3, (this.renderer.camera.zoom * HEX_X_SPACING) / 90));
+  });
+
+  readonly dragTokenId = signal<string | null>(null);
+  private readonly dragTokenWorld = signal<Point | null>(null);
+  private dragTokenFrom: MapToken | null = null;
+
+  /**
+   * Start dragging a figure.
+   *
+   * Open to players, not just the GM: moving your own figure across the map is the single
+   * most ordinary thing a player does during a session, and the old map allowed it.
+   */
+  onTokenDragStart(token: MapToken, event: MouseEvent): void {
+    if (this.gameTool() !== 'cursor') return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.selectedTokenId.set(token.id);
+    this.dragTokenId.set(token.id);
+    this.dragTokenWorld.set({ x: token.x, y: token.y });
+    this.dragTokenFrom = clone(token);
+    this.closeContextMenu();
+  }
+
+  onTokenContextMenu(token: MapToken, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const p = this.localPoint(event as unknown as PointerEvent);
+    this.selectedTokenId.set(token.id);
+    this.contextMenu.set({ x: p.x, y: p.y, tokenId: token.id });
+    this.cdr.markForCheck();
   }
 
   // ── secrets ──
@@ -1059,15 +1169,43 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    */
   readonly overviewOn = signal(false);
 
+  /**
+   * How the GM sees secret objects while playing.
+   *
+   * During a session the GM has to know two different things about a secret: that it is
+   * there, and whether the party has already been shown it. `marked` keeps both on screen —
+   * unrevealed secrets faded and framed, revealed ones drawn normally — while `hidden` gives
+   * the players' view, which is the only way to check what they can actually see.
+   */
+  readonly secretView = signal<'marked' | 'hidden'>('marked');
+
+  setSecretView(mode: 'marked' | 'hidden'): void {
+    this.secretView.set(mode);
+    this.saveBrushPrefs();
+    this.applyMode();
+  }
+
+  /** Whether secret objects are drawn at all for this viewer. */
+  readonly showSecrets = computed(
+    () => this.isGM() && (!this.inGame() || this.secretView() === 'marked'),
+  );
+
   toggleOverview(): void {
     this.overviewOn.update(on => !on);
     this.saveBrushPrefs();
     this.applyOverview();
   }
 
-  readonly overviewActive = computed(
-    () => !this.inGame() && this.tab() === 'secrets' && this.overviewOn(),
+  readonly overviewActive = computed(() =>
+    this.inGame()
+      ? this.isGM() && this.secretView() === 'marked'
+      : this.tab() === 'secrets' && this.overviewOn(),
   );
+
+  /** The dark veil belongs to the editing audit, not to play. */
+  private overviewDim(): number {
+    return !this.inGame() && this.overviewActive() ? 0.62 : 0;
+  }
 
   /**
    * Turn the audit view on or off.
@@ -1077,7 +1215,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    */
   private applyOverview(): void {
     const on = this.overviewActive();
-    this.renderer.setDim(on ? 0.62 : 0);
+    this.renderer.setDim(this.overviewDim());
+    void on;
     this.secretOverview?.setAudit(on);
     this.drawOverview();
   }
@@ -1138,12 +1277,20 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const byGroup = new Map<string, OverviewItem[]>();
     const looseLabels: Bounds[] = [];
 
+    /*
+     * Red frames mark forgotten labels — an editing question, not a playing one.
+     *
+     * During a session the frames answer "what have the players not been shown yet", and
+     * ringing every public name in red on top of that would bury the green.
+     */
+    const auditing = !this.inGame();
+
     for (const label of data.labels) {
       const bounds = this.labelView.worldBounds(label);
       if (!boundsOverlap(bounds, view)) continue;
       if (label.secret) push(byGroup, label.secret, { bounds });
       // A public name is the miss the red frames are for; a public tree is not.
-      else if (label.vis !== 'secret') looseLabels.push(bounds);
+      else if (auditing && label.vis !== 'secret') looseLabels.push(bounds);
     }
 
     for (const sym of data.symbols) {
@@ -1162,10 +1309,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     const groups: OverviewGroup[] = [];
     for (const [id, members] of byGroup) {
-      groups.push({ id, members, active: id === active });
+      // While playing, a group the party has already been shown needs no frame: it is simply
+      // part of the map now, and framing it would keep drawing attention to a spent secret.
+      if (!auditing && this.groupRevealed(data, id)) continue;
+      groups.push({ id, members, active: auditing && id === active });
     }
 
     this.secretOverview.draw(groups, looseLabels, this.renderer.camera.zoom);
+  }
+
+  /** Whether every member of a group is public — i.e. the party has seen it. */
+  private groupRevealed(data: MapEditorData, id: string): boolean {
+    const members = membersOf(data, id);
+    return members.length > 0 && members.every(m => find(data, m)?.vis !== 'secret');
   }
 
   /**
@@ -2010,8 +2166,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private isPanning = false;
   private isPainting = false;
   private lastPointer = { x: 0, y: 0 };
-  private brushResize: { x: number; initial: number; scaling: 'brush' | 'symbol' | 'game' } | null =
-    null;
+  private brushResize: {
+    x: number;
+    initial: number;
+    scaling: 'brush' | 'symbol' | 'game';
+    /** Where the drag started on screen, so the size ring can be drawn there. */
+    screen?: { x: number; y: number };
+  } | null = null;
   private dragSymbols: {
     startWorld: { x: number; y: number };
     moved: boolean;
@@ -2167,7 +2328,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.revealedSet = new Set(data.fog?.revealed ?? []);
     this.sketchView.rebuild(data.sketch ?? []);
     this.sketchCount.set(this.sketchView.count);
-    this.playAids.setTokens(data.tokens ?? []);
+    this.tokens.set(data.tokens ?? []);
 
     this.subs.push(
       // The controller dedupes our own echo by id and plays the sound once.
@@ -2233,9 +2394,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
             if (l) this.labelView.update(l);
           }
         } else if (op.c === 'tokens') {
-          if (op.t === 'add') this.playAids?.addToken(op.v as MapToken);
-          else if (op.t === 'del') this.playAids?.removeToken(op.id);
-          else this.playAids?.setTokens(data?.tokens ?? []);
+          // Rebuilt from the document rather than patched here, so a remote move and a local
+          // one cannot end up disagreeing about where a figure stands.
+          this.tokens.set([...(data?.tokens ?? [])]);
+          this.cdr.markForCheck();
         } else if (op.c === 'sketch') {
           if (op.t === 'add') this.sketchView?.add(op.v as SketchStroke);
           else if (op.t === 'del') this.sketchView?.remove(op.id);
@@ -2326,11 +2488,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       // is loaded, and the view's shorter lead stays inside the streamer's.
       this.terrain?.update(view, tier, zoom);
 
-      this.symbols?.render(view, zoom, this.isGM());
+      this.symbols?.render(view, zoom, this.showSecrets());
       // Dash spacing and handle size are zoom-dependent, so regions redraw on view change.
-      this.regionView.render(view, zoom, this.isGM(), true);
+      this.regionView.render(view, zoom, this.showSecrets(), true);
       // Zoom drives the selection outline's width, so it stays one screen pixel.
-      this.labelView.render(view, this.isGM(), zoom);
+      this.labelView.render(view, this.showSecrets(), zoom);
 
       // Last: the marks frame boxes the views above have just recomputed, so drawing them
       // any earlier would frame where things were on the previous frame.
@@ -2338,7 +2500,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
       this.fogView?.update(view, this.revealedSet, this.isGM(), this.fogRevision);
       this.sketchView?.render(view);
-      this.playAids?.render(view, zoom, this.allMeasureLines(), this.selectedTokenId());
+      this.playAids?.render(zoom, this.allMeasureLines());
       // Screen-space overlays (pings, the wheel) follow the camera through this.
       this.viewEpoch.update(n => n + 1);
     });
@@ -2961,7 +3123,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
      */
     if (this.inGame()) {
       this.previewSprite.visible = false;
-      if (this.gameTool() === 'cursor' && this.fogMode() !== 'neutral') {
+      if (this.gameTool() === 'fog') {
         const centreHex = worldToHex(world.x, world.y);
         for (const hex of hexesInRadius(centreHex.q, centreHex.r, this.fogRadius())) {
           const centre = hexToWorld(hex);
@@ -3396,6 +3558,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    // Right click during play opens the figure menu; it is how figures have always been
+    // created here. Middle-drag still pans, and right-drag still pans while editing.
+    if (e.button === 2 && this.inGame()) {
+      this.openGameContextMenu(e, world, p);
+      return;
+    }
+
     if (e.button === 1 || e.button === 2) {
       this.isPanning = true;
       this.lastPointer = { x: e.clientX, y: e.clientY };
@@ -3555,7 +3724,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         x: e.clientX,
         initial: this.activeGameBrushSize(),
         scaling: 'game',
+        screen,
       };
+      this.showBrushPreview();
       return;
     }
 
@@ -3576,26 +3747,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.revealSecretAt(world);
         break;
 
-      case 'cursor': {
-        // Fog first: while a fog mode is armed the cursor paints instead of grabbing.
-        if (this.isGM() && this.fogMode() !== 'neutral') {
+      case 'fog':
+        if (this.isGM()) {
           this.fogPainting = true;
           this.paintFog(world);
-          break;
-        }
-        const hit = this.playAids?.tokenAt(world.x, world.y) ?? null;
-        if (hit) {
-          this.selectedTokenId.set(hit.id);
-          if (this.isGM()) this.dragToken = { id: hit.id, before: clone(hit) };
-        } else if (this.isGM() && e.altKey) {
-          // Alt to place, so an ordinary click on empty map deselects instead of littering
-          // the board with figures nobody asked for.
-          this.placeToken(world);
-        } else {
-          this.selectedTokenId.set(null);
         }
         break;
-      }
+
+      case 'cursor':
+        // Figures are HTML on their own layer and start their own drags, so a click that
+        // reaches the canvas here landed on empty map: clear the selection.
+        this.selectedTokenId.set(null);
+        this.closeContextMenu();
+        break;
     }
     this.scheduleStream();
   }
@@ -3604,8 +3768,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   /** Whether shift-drag has a brush to resize right now. */
   private resizableBrush(): boolean {
-    if (this.gameTool() === 'draw') return true;
-    return this.isGM() && this.gameTool() === 'cursor' && this.fogMode() !== 'neutral';
+    return this.gameTool() === 'draw' || (this.isGM() && this.gameTool() === 'fog');
   }
 
   private activeGameBrushSize(): number {
@@ -3622,7 +3785,27 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     } else {
       this.fogRadius.set(Math.round(Math.min(20, Math.max(0, value))));
     }
+    this.showBrushPreview();
     this.redrawCursor();
+  }
+
+  /**
+   * Screen-space ring shown while shift-dragging a brush size.
+   *
+   * Without it the gesture had no feedback at all: the number changed in a panel nobody is
+   * looking at mid-drag, so resizing read as doing nothing.
+   */
+  readonly brushPreview = signal<{ x: number; y: number; r: number } | null>(null);
+
+  private showBrushPreview(): void {
+    const at = this.brushResize?.screen;
+    if (!at) return;
+    const zoom = this.renderer.camera.zoom;
+    const r =
+      this.gameTool() === 'draw'
+        ? (this.strokeWidth() / 2) * zoom
+        : (this.fogRadius() + 0.5) * HEX_X_SPACING * zoom;
+    this.brushPreview.set({ x: at.x, y: at.y, r: Math.max(4, r) });
   }
 
   /**
@@ -3824,14 +4007,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.redrawCursor();
       return;
     }
-    if (this.dragToken) {
-      const token = this.playAids?.getToken(this.dragToken.id);
-      if (!token) return;
-      const centre = hexToWorld(worldToHex(world.x, world.y));
-      if (token.x === centre.x && token.y === centre.y) return;
-      token.x = centre.x;
-      token.y = centre.y;
-      this.scheduleStream();
+    if (this.dragTokenId()) {
+      // Follows the cursor freely and only snaps on release, so the figure does not jump
+      // between hexes under the pointer while you are still deciding.
+      this.dragTokenWorld.set({ x: world.x, y: world.y });
+      this.viewEpoch.update(n => n + 1);
+      this.cdr.markForCheck();
     }
   }
 
@@ -3843,6 +4024,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
     if (this.brushResize?.scaling === 'game') {
       this.brushResize = null;
+      this.brushPreview.set(null);
       return;
     }
     if (this.measureDrag) {
@@ -3857,14 +4039,27 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.fogPainting = false;
       return;
     }
-    if (this.dragToken) {
-      const token = this.playAids?.getToken(this.dragToken.id);
-      const before = this.dragToken.before;
-      this.dragToken = null;
-      // One op at the end, not one per hex crossed while dragging across the map.
-      if (token && (token.x !== before.x || token.y !== before.y)) {
-        this.store.updateObject('tokens', token.id, { x: token.x, y: token.y });
+    const dragId = this.dragTokenId();
+    if (dragId) {
+      const at = this.dragTokenWorld();
+      const from = this.dragTokenFrom;
+      this.dragTokenId.set(null);
+      this.dragTokenWorld.set(null);
+      this.dragTokenFrom = null;
+      if (!at || !from) return;
+
+      const hex = worldToHex(at.x, at.y);
+      const centre = hexToWorld(hex);
+      if (hex.q === from.position.q && hex.r === from.position.r) {
+        this.viewEpoch.update(n => n + 1);
+        return;
       }
+
+      const patch = { x: centre.x, y: centre.y, position: { q: hex.q, r: hex.r } };
+      this.tokens.update(list => list.map(t => (t.id === dragId ? { ...t, ...patch } : t)));
+      // One op at the end, not one per hex crossed while dragging across the map.
+      this.store.updateObject('tokens', dragId, patch);
+      this.scheduleStream();
     }
   }
 
@@ -4168,16 +4363,26 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         case 'v':
           if (this.isGM()) {
             e.preventDefault();
-            this.selectGameTool('cursor');
-            this.fogMode.update(m => (m === 'reveal' ? 'hide' : 'reveal'));
+            // First V picks up the fog brush; pressing it again flips reveal/hide, which is
+            // the gesture the old map had.
+            if (this.gameTool() === 'fog') {
+              this.fogMode.update(m => (m === 'reveal' ? 'hide' : 'reveal'));
+            } else {
+              this.selectGameTool('fog');
+            }
             this.redrawCursor();
           }
           return;
         case 'd':
           if (this.isGM()) {
             e.preventDefault();
-            this.fogMode.set('neutral');
-            this.redrawCursor();
+            this.selectGameTool('cursor');
+          }
+          return;
+        case 'r':
+          if (this.isGM()) {
+            e.preventDefault();
+            this.selectGameTool('reveal');
           }
           return;
         case 'escape':

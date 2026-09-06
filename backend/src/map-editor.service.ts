@@ -550,19 +550,23 @@ export class MapEditorService implements OnModuleDestroy {
    * whose entire purpose is that a player can trace "we go along this valley" during a
    * session. So this is a whitelist of exactly that, not a relaxation of the GM check:
    *
-   *  - only the `sketch` collection, so no terrain, symbol, label, token or setting is
-   *    reachable;
-   *  - only `add` and `del`, so an existing stroke cannot be rewritten into something else;
-   *  - a stroke must be public and carry the sender's own id as `author`, so nobody can post
-   *    a secret object or forge a line as somebody else;
-   *  - deleting is checked against the stored stroke's author by the caller, so one player
-   *    cannot wipe another's.
+   *  - **sketch**: `add` and `del` only. A stroke must be public and carry the sender's own
+   *    id as `author`, so nobody can post a secret object or sign a line as somebody else;
+   *    deleting is checked against the stored author by the caller, so one player cannot wipe
+   *    another's. `upd` is absent on purpose — it would let a stroke be rewritten into
+   *    something else after passing the checks that applied when it was created.
+   *  - **tokens**: `upd` of position only. Moving your own figure across the map is the most
+   *    ordinary thing a player does in a session, and the old map allowed it. Restricted to
+   *    the position fields, so a player cannot rename a figure, re-colour it, or flip it to
+   *    secret. Creating and removing figures stays with the GM.
    *
-   * The shape is validated here rather than trusted, because this is the only path where the
-   * client sending the op is not the person who owns the map.
+   * Everything else — terrain, symbols, labels, settings, fog — is refused. The shape is
+   * validated here rather than trusted, because this is the only path where the client
+   * sending the op is not the person who owns the map.
    */
   isPlayerWritableOp(op: MapOp, userId: string): boolean {
     if (!userId) return false;
+
     if (op.t === 'add') {
       const v = op.v as Record<string, unknown> | undefined;
       return (
@@ -573,7 +577,15 @@ export class MapEditorService implements OnModuleDestroy {
         Array.isArray(v['points'])
       );
     }
+
     if (op.t === 'del') return op.c === 'sketch';
+
+    if (op.t === 'upd' && op.c === 'tokens') {
+      const allowed = new Set(['x', 'y', 'position']);
+      const keys = Object.keys(op.v ?? {});
+      return keys.length > 0 && keys.every((k) => allowed.has(k));
+    }
+
     return false;
   }
 

@@ -5,10 +5,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 
+import { WeaponTypeService } from '../../services/weapon-type.service';
+import { WeaponTypeBlock } from '../../model/weapon-type-block.model';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile } from '../../model/asset-browser.model';
 import {
-  ForgeTrait, MaterialBlock, WEAPON_CATEGORY_LABELS, WEAPON_TYPES, WeaponCategory,
+  ForgeTrait, MaterialBlock, WEAPON_CATEGORY_LABELS, WeaponCategory,
   WEAPON_STAT_KEYS, WeaponStatKey,
 } from '../../model/forging.model';
 import { ItemBlock } from '../../model/item-block.model';
@@ -51,6 +53,7 @@ export class GearGeneratorComponent implements OnInit {
 
   private api = inject(AssetBrowserApiService);
   private cdr = inject(ChangeDetectorRef);
+  private weaponTypeService = inject(WeaponTypeService);
 
   isLoading = signal(true);
   activeTab: 'armor' | 'weapons' = 'armor';
@@ -79,12 +82,18 @@ export class GearGeneratorComponent implements OnInit {
     } as unknown as CharacterSheet;
   })();
 
-  readonly weaponTypes = WEAPON_TYPES;
+  /** Library-defined Waffentypen merged over the built-ins — the same list the Schmiede shows. */
+  weaponTypes: WeaponTypeBlock[] = this.weaponTypeService.types();
   readonly weaponCategories: WeaponCategory[] = ['LEICHT', 'FERNKAMPF', 'SCHWER'];
   readonly categoryLabels = WEAPON_CATEGORY_LABELS;
   readonly statKeys = WEAPON_STAT_KEYS;
 
   async ngOnInit(): Promise<void> {
+    // Library Waffentypen; the built-ins stay available until (and if) this resolves.
+    this.weaponTypeService.load().then((types) => {
+      this.weaponTypes = types;
+      this.cdr.markForCheck();
+    });
     this.settings = {
       ...DEFAULT_GEAR_SETTINGS,
       seed: Math.floor(Math.random() * 1_000_000),
@@ -187,7 +196,12 @@ export class GearGeneratorComponent implements OnInit {
 
   /** Any slider move re-derives from the same seed — nothing else shifts underfoot. */
   regenerate(): void {
-    const ctx = { materials: this.allMaterials, traits: this.allTraits, settings: this.settings };
+    const ctx = {
+      materials: this.allMaterials,
+      traits: this.allTraits,
+      settings: this.settings,
+      weaponTypes: this.weaponTypes,
+    };
     this.armorPieces = generateArmorSet(ctx);
     this.weaponPieces = generateWeapons(ctx, this.weaponRequests);
     this.cdr.markForCheck();
@@ -210,7 +224,7 @@ export class GearGeneratorComponent implements OnInit {
       ...this.weaponRequests,
       {
         id: 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-        weaponTypeName: WEAPON_TYPES[0].name,
+        weaponTypeName: this.weaponTypes[0]?.name ?? '',
         statRequirementKey: 'STR',
       },
     ];

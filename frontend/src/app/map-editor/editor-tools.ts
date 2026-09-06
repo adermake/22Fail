@@ -40,20 +40,21 @@ export interface TabDef {
  * icons, because they are what everybody at the table already has in their fingers. The two
  * things that are *not* tools there are not tools here either:
  *
- *  - **Fog is a mode, not a tool** (`FogMode`). V flips reveal/hide, D steps out of it. It
- *    rides on the cursor tool, so covering ground and moving a figure are one gesture apart
- *    instead of a toolbar trip.
  *  - **Pings are a chord**, G + left-drag, live on every tool. A ping is something you do
  *    *while* doing something else; making it a tool would mean leaving whatever you were
  *    doing to point at something.
+ *  - **Fog keeps V**, but as a tool of its own. It started as a mode riding on the cursor,
+ *    the way the old map had it; that put "reveal the party's surroundings" and "move a
+ *    figure" in one panel, and they have nothing to do with each other. Pressing V again
+ *    while the tool is active flips reveal/hide, so the gesture is unchanged.
  *
  * `reveal` is the one addition — secrets did not exist in v1 — and it earns a tool because it
  * is a deliberate, one-off act rather than something you do mid-gesture.
  */
-export type GameTool = 'cursor' | 'draw' | 'measure' | 'reveal';
+export type GameTool = 'cursor' | 'draw' | 'measure' | 'fog' | 'reveal';
 
-/** Fog painting state. `neutral` means the cursor tool moves figures instead. */
-export type FogMode = 'neutral' | 'reveal' | 'hide';
+/** Which way the fog brush paints. */
+export type FogMode = 'reveal' | 'hide';
 
 export interface GameToolDef extends ToolDef<GameTool> {
   /** Single-key shortcut, shown in the tooltip so it can be learnt by using it. */
@@ -66,6 +67,9 @@ export const GAME_TOOL_DEFS: GameToolDef[] = [
   { id: 'cursor', icon: 'i-token-drag', label: 'Figuren bewegen', shortcut: 'S' },
   { id: 'draw', icon: 'i-draw', label: 'Zeichnen', shortcut: 'B' },
   { id: 'measure', icon: 'i-ruler', label: 'Messen', shortcut: 'M' },
+  // Fog is its own tool rather than a mode on the cursor: covering ground and moving a
+  // figure have nothing to do with each other, and sharing a tool meant sharing a panel.
+  { id: 'fog', icon: 'i-fog', label: 'Nebel', shortcut: 'V', gmOnly: true },
   { id: 'reveal', icon: 'i-visibility-on', label: 'Geheimnis aufdecken', shortcut: 'R', gmOnly: true },
 ];
 

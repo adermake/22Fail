@@ -305,6 +305,7 @@ Filter für Waffentypen — alle kombinierbar:
 | `weight=` | **Gewichtsklasse**: `leicht`, `mittel`, `schwer` |
 | `damage=` | `schnitt`, `stich`, `wucht` — trifft, wenn der Typ diese Art **auch** hat |
 | `handed=` | `one` oder `two` |
+| `reload=` | `action`, `bonus`, `free` — was Nachladen im Kampf kostet |
 | `tier=` | Wissensstufen. Standard blendet `geheim` aus; `tier=all` zeigt alles |
 | `names="Messer, Speer"` | feste Auswahl, in dieser Reihenfolge |
 

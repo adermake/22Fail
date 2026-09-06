@@ -11,7 +11,7 @@
  * records who drew it and the server checks that before it stores or deletes anything.
  */
 
-import { Container, Graphics } from 'pixi.js';
+import { AlphaFilter, Container, Graphics } from 'pixi.js';
 import { SketchStroke } from './map-editor.model';
 import { Bounds } from './map-camera';
 
@@ -22,6 +22,16 @@ import { Bounds } from './map-camera';
  * but it has to be *something*, and white keeps the live preview legible while dragging.
  */
 export const ERASER_COLOR = '#ffffff';
+
+/**
+ * Live preview colour for an eraser stroke.
+ *
+ * The committed stroke rubs out; the *preview* cannot, because it is drawn before the pass
+ * that would isolate it. Showing it as a pale outline says "this is where the rubbing will
+ * happen" without briefly painting a black smear across the map, which is what a live erase
+ * blend did.
+ */
+export const ERASER_PREVIEW_ALPHA = 0.35;
 
 export class SketchView {
   readonly container = new Container();
@@ -83,21 +93,43 @@ export class SketchView {
    * every line on the map — a session's worth of scribbling would otherwise get slower the
    * longer it went on.
    */
-  drawLive(points: readonly { x: number; y: number }[], color: string, width: number): void {
+  drawLive(
+    points: readonly { x: number; y: number }[],
+    color: string,
+    width: number,
+    erasing = false,
+  ): void {
     this.live.clear();
-    strokePath(this.live, points, color, width);
+    strokePath(this.live, points, color, width, erasing ? ERASER_PREVIEW_ALPHA : 0.9);
   }
 
   /**
-   * Rebuild committed strokes into the layer.
+   * Isolate the sketch onto its own render target while any eraser stroke exists.
    *
-   * Erasing needs the whole sketch to be its own render target: `destination-out` only
-   * removes what is already drawn *in the same target*, so with the strokes going straight
-   * onto the stage an eraser would punch a hole through the map itself.
+   * `erase` blending is `(ZERO, ONE_MINUS_SRC_ALPHA)` — it multiplies whatever is *already in
+   * the target* down to nothing. Drawn straight onto the stage the target is the finished
+   * map, so an eraser did not rub out earlier lines at all: it painted flat black over the
+   * terrain, which is exactly what it looked like.
+   *
+   * A filter is what forces Pixi to render this container into a temporary transparent
+   * texture first, so the erase blend meets only the sketch and composites back as a hole.
+   * Applied only when an eraser is actually present, so an ordinary sketch costs no extra
+   * render target.
    */
-  private ensureRenderGroup(): void {
-    if (!this.container.isRenderGroup) this.container.enableRenderGroup();
+  private syncEraseIsolation(): void {
+    let hasEraser = false;
+    for (const s of this.strokes.values()) {
+      if (s.erase) {
+        hasEraser = true;
+        break;
+      }
+    }
+    if (hasEraser === this.isolated) return;
+    this.isolated = hasEraser;
+    this.container.filters = hasEraser ? [new AlphaFilter()] : [];
   }
+
+  private isolated = false;
 
   endLive(): void {
     this.live.clear();
@@ -113,7 +145,7 @@ export class SketchView {
     if (!this.dirty) return;
     this.dirty = false;
 
-    this.ensureRenderGroup();
+    this.syncEraseIsolation();
     this.finished.clear();
 
     /*
@@ -132,7 +164,8 @@ export class SketchView {
     this.erased.clear();
     for (const stroke of this.strokes.values()) {
       if (!stroke.erase || !overlapsStroke(stroke, bounds)) continue;
-      strokePath(this.erased, stroke.points, ERASER_COLOR, stroke.width);
+      // Alpha 1: the blend keeps only coverage, and anything less rubs out only partly.
+      strokePath(this.erased, stroke.points, ERASER_COLOR, stroke.width, 1);
     }
   }
 
@@ -151,19 +184,20 @@ function strokePath(
   points: readonly { x: number; y: number }[],
   color: string,
   width: number,
+  alpha = 0.9,
 ): void {
   if (points.length === 0) return;
 
   // A single tap should still leave a mark, or a click that does not travel looks broken.
   if (points.length === 1) {
     g.circle(points[0].x, points[0].y, width / 2);
-    g.fill({ color, alpha: 0.9 });
+    g.fill({ color, alpha });
     return;
   }
 
   g.moveTo(points[0].x, points[0].y);
   for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
-  g.stroke({ color, width, alpha: 0.9, cap: 'round', join: 'round' });
+  g.stroke({ color, width, alpha, cap: 'round', join: 'round' });
 }
 
 /** Cheap viewport test over a stroke's own extent. */

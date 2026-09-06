@@ -8,14 +8,18 @@
  * automatically propagate to the generator.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   MaterialBlock, ForgeTrait,
   MaterialSlotState, SlotMaterialEntry, AppliedTraitState, ForgedStatPreview,
   computeForgedStats, totalForgeSPSpent, formatTraitEffect,
-  WeaponType, WEAPON_TYPES,
+  WeaponType,
 } from '../model/forging.model';
 import { ItemBlock } from '../model/item-block.model';
+import {
+  WeaponTypeBlock, describeDamageTypes, describeWeaponReach, formatRangeMeters, primaryDamageType,
+} from '../model/weapon-type-block.model';
+import { WeaponTypeService } from './weapon-type.service';
 
 export type ItemFilterState = 'neutral' | 'whitelist' | 'blacklist';
 
@@ -44,7 +48,7 @@ export interface GeneratorParams {
 }
 
 export interface GeneratedWeaponResult {
-  weaponType: WeaponType;
+  weaponType: WeaponTypeBlock;
   weaponSize: 'LIGHT' | 'MEDIUM' | 'HEAVY';
   primarySlot: MaterialSlotState;
   secondarySlot: MaterialSlotState;
@@ -64,6 +68,7 @@ export interface GeneratedWeaponResult {
 
 @Injectable({ providedIn: 'root' })
 export class WeaponGeneratorService {
+  private weaponTypeService = inject(WeaponTypeService);
 
   /**
    * Try to generate a random weapon up to maxAttempts times.
@@ -105,9 +110,12 @@ export class WeaponGeneratorService {
     availMaterials: MaterialBlock[],
     availTraits: ForgeTrait[],
   ): GeneratedWeaponResult | null {
+    // Waffentypen come from the libraries (GM-defined) merged over the built-ins — the same list
+    // the Schmiede offers, so a generated weapon can never be a type nobody can forge by hand.
+    const pool = this.weaponTypeService.types();
     const weaponType = params.weaponTypeName
-      ? (WEAPON_TYPES.find(w => w.name === params.weaponTypeName) ?? this.pick(WEAPON_TYPES))
-      : this.pick(WEAPON_TYPES);
+      ? (pool.find(w => w.name === params.weaponTypeName) ?? this.pick(pool))
+      : this.pick(pool);
 
     const weaponSize: 'LIGHT' | 'MEDIUM' | 'HEAVY' =
       params.weaponSize ?? this.pick(['LIGHT', 'MEDIUM', 'HEAVY'] as const);
@@ -305,9 +313,18 @@ export class WeaponGeneratorService {
     item.name = itemName.trim() || result.weaponType.name;
     item.itemType = 'weapon';
     item.armorType = 'weapon';
-    item.weaponTypeName = result.weaponType.name;
-    item.damageType = result.weaponType.damageType;
-    item.range = result.weaponType.range;
+    const wt = result.weaponType;
+    item.weaponTypeName = wt.name;
+    item.weaponCategory = wt.category;
+    item.damageType = primaryDamageType(wt);
+    item.damageTypes = [...(wt.damageTypes ?? [primaryDamageType(wt)])];
+    item.meleeRange = wt.meleeRange || undefined;
+    item.rangedRange = wt.rangedRange || undefined;
+    item.range = formatRangeMeters(
+      wt.rangedRange > 0 && !wt.meleeRange ? wt.rangedRange : wt.meleeRange,
+    );
+    item.handed = wt.handed;
+    item.reloadAction = wt.reloadAction;
     item.weight = result.finalWeight;
     item.hasDurability = true;
     item.durability = result.finalHaltbarkeit;
@@ -327,7 +344,7 @@ export class WeaponGeneratorService {
     const entryLabel = (entry: SlotMaterialEntry) =>
       `${entry.material.name}${entry.forgeCount > 0 ? ` (+${entry.forgeCount}×)` : ''}`;
     const lines: string[] = [
-      `Typ: ${result.weaponType.name}  ·  ${result.weaponType.damageType}  ·  ${result.weaponType.range}`,
+      `Typ: ${wt.name}  ·  ${describeDamageTypes(wt)}  ·  ${describeWeaponReach(wt)}`,
       `Größe: ${sizeLabel}`,
     ];
     if (result.primarySlot.entries.length > 0) {

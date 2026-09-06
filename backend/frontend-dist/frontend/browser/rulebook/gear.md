@@ -115,7 +115,6 @@ Bestimmt, wie lange ein Rüstungsteil benutzt werden kann, bevor sie kaputtgeht.
 :::
 Eine kaputte Rüstung bietet keine Stabilität mehr, muss aber abgelegt werden um den Rüstungsmalus loszuwerden. Wie eine Waffe kann ein Rüstungsteil bei einem Schmied mit Beigabe des Primärmaterials repariert werden.
 :::
-:::
 
 :::actions
 :jump[Zurück zu Magie]{to=zauber}

@@ -5,6 +5,9 @@ import {
   DAMAGE_TYPES,
   WEAPON_CATEGORIES,
   WEAPON_CATEGORY_LABELS,
+  RELOAD_ACTIONS,
+  RELOAD_ACTION_LABELS,
+  ReloadAction,
   WEAPON_HANDED_LABELS,
   WEAPON_WEIGHTS,
   WEAPON_WEIGHT_LABELS,
@@ -46,6 +49,8 @@ export class WeaponTypeEditorComponent implements OnInit {
   readonly weights = WEAPON_WEIGHTS;
   readonly weightLabels = WEAPON_WEIGHT_LABELS;
   readonly handedLabels = WEAPON_HANDED_LABELS;
+  readonly reloadActions = RELOAD_ACTIONS;
+  readonly reloadLabels = RELOAD_ACTION_LABELS;
 
   edit: WeaponTypeBlock = createEmptyWeaponType();
 
@@ -98,6 +103,10 @@ export class WeaponTypeEditorComponent implements OnInit {
 
   setHanded(h: WeaponHanded): void {
     this.edit.handed = h;
+  }
+
+  setReload(r: ReloadAction): void {
+    this.edit.reloadAction = r;
   }
 
   onSave(): void {

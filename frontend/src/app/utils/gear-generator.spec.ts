@@ -3,6 +3,7 @@ import {
   generateArmorSet, generatePiece, generateWeapons, makeRng, seedFor, spendOnForges,
 } from './gear-generator.util';
 import { aggregateSlot, buildForgedItem, halveSlot, spentForgePoints } from './forge-calc.util';
+import type { WeaponTypeBlock } from '../model/weapon-type-block.model';
 import { ForgeTrait, MaterialBlock, SlotMaterialEntry } from '../model/forging.model';
 
 /** Two plain materials plus one that only works for weapons, so filtering is observable. */
@@ -190,6 +191,31 @@ describe('generating weapons', () => {
     expect(weapon.item.itemType).toBe('weapon');
     expect(weapon.item.damageType).toBe('Schnitt');
     expect(weapon.item.efficiency).toBeGreaterThan(0);
+  });
+
+  it('uses the library Waffentypen from the context, not the hardcoded list', () => {
+    // A type that exists in no built-in list — it can only come from ctx.weaponTypes.
+    const speer: WeaponTypeBlock = {
+      id: 'wt1', name: 'Wurfspeer der Ahnen', category: 'SCHWER',
+      damageTypes: ['Stich', 'Schnitt'], damageType: 'Stich',
+      meleeRange: 3, rangedRange: 30, weight: 'MITTEL', handed: 'TWO',
+      reloadAction: 'BONUS', extraEffect: 'Kehrt zur Hand zurück',
+    };
+    const [weapon] = generateWeapons(
+      { ...ctx(), weaponTypes: [speer] },
+      [{ id: 'w1', weaponTypeName: 'Wurfspeer der Ahnen' }],
+    );
+
+    expect(weapon.item.weaponTypeName).toBe('Wurfspeer der Ahnen');
+    // Everything the type defines reaches the forged item, not just a name and one range.
+    expect(weapon.item.weaponCategory).toBe('SCHWER');
+    expect(weapon.item.damageTypes).toEqual(['Stich', 'Schnitt']);
+    expect(weapon.item.damageType).toBe('Stich');
+    expect(weapon.item.meleeRange).toBe(3);
+    expect(weapon.item.rangedRange).toBe(30);
+    expect(weapon.item.handed).toBe('TWO');
+    expect(weapon.item.reloadAction).toBe('BONUS');
+    expect(weapon.item.description).toContain('Kehrt zur Hand zurück');
   });
 
   it('rolls each weapon independently but reproducibly', () => {

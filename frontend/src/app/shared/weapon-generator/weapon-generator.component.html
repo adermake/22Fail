@@ -53,7 +53,7 @@
           @for (cat of weaponCategories; track cat) {
             <optgroup [label]="categoryLabels[cat]">
               @for (wt of getWeaponTypesForCategory(cat); track wt.name) {
-                <option [value]="wt.name">{{ wt.name }} ({{ wt.damageType }}, {{ wt.range }})</option>
+                <option [value]="wt.name">{{ wt.name }} ({{ damageSummary(wt) }}, {{ reachSummary(wt) }})</option>
               }
             </optgroup>
           }
@@ -200,11 +200,11 @@
       <div class="wg-result">
         <div class="wg-result-header">
           <span class="wg-result-type">{{ result.weaponType.name }}</span>
-          <span class="wg-damage-badge wg-damage-{{ result.weaponType.damageType.toLowerCase() }}">
-            {{ result.weaponType.damageType }}
+          <span class="wg-damage-badge wg-damage-{{ primaryDamage(result.weaponType).toLowerCase() }}">
+            {{ damageSummary(result.weaponType) }}
           </span>
           <span class="wg-size-badge">{{ resultSizeBadge }}</span>
-          <span class="wg-range-badge">{{ result.weaponType.range }}</span>
+          <span class="wg-range-badge">{{ reachSummary(result.weaponType) }}</span>
         </div>
 
         <div class="wg-result-stats">

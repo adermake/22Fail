@@ -4,6 +4,7 @@ import {
   computeForgedStats, formatTraitEffect, totalForgeSPSpent,
 } from '../model/forging.model';
 import { ItemBlock, ItemRequirements } from '../model/item-block.model';
+import type { WeaponTypeBlock } from '../model/weapon-type-block.model';
 
 /**
  * The forging maths, in one place: the manual Schmiede and the gear generator both run through
@@ -140,6 +141,11 @@ export interface ForgedItemInput {
   weaponTypeName?: string;
   damageType?: string;
   range?: string;
+  /**
+   * The full Waffentyp, when the caller has one. Everything it defines is written onto the item;
+   * the three scalar fields above stay as the fallback for callers that don't.
+   */
+  weaponType?: WeaponTypeBlock;
   /** Armor only — the slot the piece goes into. */
   armorSlot?: ItemBlock['armorType'];
   totalSP: number;
@@ -178,6 +184,23 @@ export function buildForgedItem(input: ForgedItemInput): ItemBlock {
     if (input.weaponTypeName) item.weaponTypeName = input.weaponTypeName;
     if (input.damageType) item.damageType = input.damageType as ItemBlock['damageType'];
     if (input.range) item.range = input.range;
+
+    // A full Waffentyp carries more than a name and one range — keep all of it on the weapon so
+    // the generated item matches what the Schmiede would produce from the same type.
+    const wt = input.weaponType;
+    if (wt) {
+      item.weaponCategory = wt.category;
+      item.damageTypes = [...(wt.damageTypes ?? [])];
+      if (item.damageTypes.length) item.damageType = item.damageTypes[0];
+      item.meleeRange = wt.meleeRange || undefined;
+      item.rangedRange = wt.rangedRange || undefined;
+      item.handed = wt.handed;
+      item.reloadAction = wt.reloadAction;
+      const typeEffect = wt.extraEffect?.trim();
+      if (typeEffect && !(item.description ?? '').includes(typeEffect)) {
+        item.description = [item.description?.trim(), typeEffect].filter(Boolean).join('\n');
+      }
+    }
   } else {
     item.stability = totals.effektivitaet;
     item.armorDebuff = totals.ruestungsmalus || undefined;

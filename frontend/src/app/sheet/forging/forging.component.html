@@ -60,16 +60,20 @@
               @for (cat of weaponCategories; track cat) {
                 <optgroup [label]="weaponCategoryLabels[cat]">
                   @for (wt of getWeaponTypesForCategory(cat); track wt.name) {
-                    <option [ngValue]="wt">{{ wt.name }} ({{ wt.damageType }}, {{ wt.range }})</option>
+                    <option [ngValue]="wt">{{ wt.name }} ({{ describeType(wt) }})</option>
                   }
                 </optgroup>
               }
             </select>
-            @if (selectedWeaponTypeBlock) {
+            @if (selectedWeaponType) {
               <div class="wt-extra">
-                {{ selectedDamageSummary }}
-                @if (selectedWeaponTypeBlock!.extraEffect) {
-                  <span class="wt-extra-effect"> — {{ selectedWeaponTypeBlock!.extraEffect }}</span>
+                {{ selectedDamageSummary }} · {{ selectedReachSummary }}
+                · {{ weaponHandedLabels[selectedWeaponType!.handed] }}
+                @if (selectedWeaponType!.reloadAction !== 'FREE') {
+                  · Nachladen: {{ reloadLabels[selectedWeaponType!.reloadAction] }}
+                }
+                @if (selectedWeaponType!.extraEffect) {
+                  <span class="wt-extra-effect"> — {{ selectedWeaponType!.extraEffect }}</span>
                 }
               </div>
             }
@@ -129,6 +133,15 @@
                 <select [(ngModel)]="customType.handed" (ngModelChange)="applyCustomType()">
                   <option [ngValue]="'ONE'">{{ weaponHandedLabels['ONE'] }}</option>
                   <option [ngValue]="'TWO'">{{ weaponHandedLabels['TWO'] }}</option>
+                </select>
+              </div>
+
+              <div class="wt-custom-row">
+                <label>Nachladen</label>
+                <select [ngModel]="customType.reloadAction" (ngModelChange)="setCustomReload($event)">
+                  @for (r of reloadActions; track r) {
+                    <option [ngValue]="r">{{ reloadLabels[r] }}</option>
+                  }
                 </select>
               </div>
 

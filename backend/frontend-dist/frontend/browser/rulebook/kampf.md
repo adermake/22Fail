@@ -25,11 +25,9 @@ Jeder Kämpfer darf nur während seines Zuges agieren. Die Reihenfolge, in der j
 :::formula
 Initiative: Geschwindigkeit + 15
 :::
-Charaktere mit hoher Geschwindigkeit sind also tendenziell häufiger am Zug. Bestimmte [Statuseffekte](status) und [Fähigkeiten](skills)
-oder [Zauber](spells) können diesen Wert ebenfalls beeinflussen. Zusätzlich kann unter bestimmten Bedingungen unabhängig dieser Logik
-die Zugreihenfolge verändert werden, z.B. durch bestimmte Fähigkeiten oder Story-Ereignisse.
+Charaktere mit hoher Geschwindigkeit sind also tendenziell häufiger am Zug. Bestimmte [Statuseffekte](kampf#statuseffekte) und [Fähigkeiten](klassen#fähigkeiten) oder [Zauber](zauber) können diesen Wert ebenfalls beeinflussen. Zusätzlich kann unter bestimmten Bedingungen unabhängig dieser Logik die Zugreihenfolge verändert werden, z.B. durch bestimmte Fähigkeiten oder Story-Ereignisse.
 
-Wenn zwei Charaktere im selben Team nacheinander am Zug sind, können sie diesen [synchron](sync) ausführen.
+Wenn zwei Charaktere im selben Team nacheinander am Zug sind, können sie diesen [synchron](kampf#sync) ausführen.
 :::
 
 :::section{title="Aktionsarten" icon=ability id=aktionen}
@@ -101,6 +99,30 @@ Schadensreduktion: 100/(Stabilität+100)
 Die Stabilität errechnet sich aus der Stabilität aller getragenen Rüstungsteile, kann aber auch durch Fähigkeiten oder Zauber verändert werden.
 :::
 
+## Statuseffekte
+
+Neben direktem Schaden sind Statuseffekte der beste Weg, einen Gegner zu besiegen. Gleichzeitig können positive Statuseffekte dir und deinen Verbündeten helfen, Vorteile im Kampf zu erhalten.
+
+Statuseffekte besitzen neben ihren einzigartigen Effekten 3 Attribute:
+
+:::card{title="Wirkstärke" color="#ef4444"}
+Die Wirkstärke beschreibt, wie schwer ein Statuseffekt zu entfernen ist. Mehr dazu [hier](kampf#statusheilung).
+:::
+:::card{title="Stapelbarkeit" color="#dddddd"}
+Bestimmt, ob ein Statuseffekt stapelbar ist. Wird ein stapelbarer Effekt mehrmals zugefügt, werden die Stapel addiert, behalten aber ihre jeweilige Länge unabhängig voneinander. Bei nicht stapelbaren Effekten wird lediglich die Dauer aufaddiert.
+:::
+:::card{title="Dauer" color="#ef9533"}
+Die Dauer bestimmt, wie viele Runden ein Effekt aktiv ist. Manche Effekte können unter bestimmten Bedingungen aber auch schon vorher beendet werden.
+:::
+
+:::note{type=tip}
+Alle Effekte werden am Anfang eines Zuges ausgelöst. Wenn ein Effekt, der deine Aktionen einschränkt am Anfang dieses Zuges abläuft, hat er keinen Einfluss mehr.
+:::
+
+### Statusheilung
+
+Bestimmte Items, Fähigkeiten oder Zauber sind in der Lage, Statuseffekte zu heilen. Sie besitzen dabei eine bestimmte Anzahl an Heilungspunkten, die verwendet werden können, um entweder die Rundenzahl bei nicht stapelbaren Effekten oder die Ladungen von stapelbaren Effekten um 1 zu reduzieren. Wie viele Punkte das verbraucht hängt von der Wirkstärke des Effekts ab. Schlafen heilt ebenfalls alle Statuseffekte, **mit der Ausnahme von Erschöpfung**, bei der es nur bis zu 3 Ladungen tilgt. Mehr dazu [hier](stats#schlaf). Der Statuseffekt Schlaf kann ebenfalls Statuseffekte heilen, allerdings mit einer reduzierten Stärke.
+
 ## Sonstige Regeln
 
 :::section{title="Gelegenheitsangriffe" icon=reaction id="gelegenheit"}
@@ -126,8 +148,8 @@ Einen Gegner anzugreifen, bevor er den Angreifer bemerkt, gilt als Überraschung
 - Werfbare Fernkampfwaffen erhalten auch die Schadenreduktion, aber keinen Würfelmalus
 - Manche Fernkampfwaffen müssen erst geladen oder gespannt werden, was je nach Waffenart eine Aktion oder Bonusaktion kostet
 :::
-:::section{title="Statuseffekte" icon=status_effect id="status-attacks"}
-Bestimmte Waffen oder Angriffsweisen können [Statuseffekte](status) auslösen. Normale Angriffe können aber ebenfalls bestimmte Statuseffekte auslösen, wenn der Spieler seinen Angriff explizit dafür nutzt. Die Erfolgschance und der Schaden von solch einem Angriff wird aber reduziert, kann aber je nach Situation stark variieren.
+:::section{title="Statusangriffe" icon=status_effect id="status-attacks"}
+Bestimmte Waffen oder Angriffsweisen können [Statuseffekte](kampf#statuseffekte) auslösen. Normale Angriffe können aber ebenfalls bestimmte Statuseffekte auslösen, wenn der Spieler seinen Angriff explizit dafür nutzt. Die Erfolgschance und der Schaden von solch einem Angriff wird aber reduziert, kann aber je nach Situation stark variieren.
 :::
 :::section{title="Flair" icon=flair id="flair"}
 Kreative oder unterhaltsame Angriffe, die zum Charakter und zur Situation passen, können zusätzliche Boni oder Mali erhalten.

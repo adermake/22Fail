@@ -116,7 +116,7 @@ export class MapEditorGateway implements OnGatewayDisconnect {
         return;
       }
       // A player may rub out their own lines, never anyone else's.
-      if (op.t === 'del') {
+      if (op.t === 'del' && op.c === 'sketch') {
         const author = this.mapEditor.sketchAuthor(worldName, op.id);
         if (author !== user) {
           this.logger.warn(

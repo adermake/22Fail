@@ -1,8 +1,11 @@
 import {
   AppliedTraitState, ARMOR_TYPES, ARMOR_WEIGHT_MULT, ForgeTrait, ForgingArmorType,
-  MaterialBlock, SlotMaterialEntry, WEAPON_TYPES, WeaponStatKey, WeaponType,
+  MaterialBlock, SlotMaterialEntry, WeaponStatKey,
   nextForgeCost,
 } from '../model/forging.model';
+import {
+  WeaponTypeBlock, builtinWeaponTypes, forgeSizeFor, formatRangeMeters, primaryDamageType,
+} from '../model/weapon-type-block.model';
 import { ItemBlock } from '../model/item-block.model';
 import { buildForgedItem, effectiveTraitCost, materialFits, spentForgePoints } from './forge-calc.util';
 
@@ -63,6 +66,12 @@ export interface GearGenContext {
   materials: MaterialBlock[];
   traits: ForgeTrait[];
   settings: GearGenSettings;
+  /**
+   * The Waffentypen to draw from — passed in rather than imported, so the generator uses the
+   * same library-defined list the Schmiede does instead of a hardcoded copy. Falls back to the
+   * built-ins when a caller does not supply one.
+   */
+  weaponTypes?: WeaponTypeBlock[];
 }
 
 /** One generated piece plus the reasoning behind it, so the GM can see what happened. */
@@ -116,7 +125,7 @@ interface PieceRequest {
   isWeapon: boolean;
   weightMultiplier: number;
   armorSlot?: ItemBlock['armorType'];
-  weaponType?: WeaponType;
+  weaponType?: WeaponTypeBlock;
   statRequirementKey?: WeaponStatKey;
 }
 
@@ -188,8 +197,9 @@ export function generatePiece(ctx: GearGenContext, request: PieceRequest): Gener
     description: `Automatisch geschmiedet · ${spent}/${budget} SP`,
     statRequirementKey: request.statRequirementKey ?? 'STR',
     weaponTypeName: request.weaponType?.name,
-    damageType: request.weaponType?.damageType,
-    range: request.weaponType?.range,
+    damageType: request.weaponType ? primaryDamageType(request.weaponType) : undefined,
+    range: request.weaponType ? weaponRangeText(request.weaponType) : undefined,
+    weaponType: request.weaponType,
     armorSlot: request.armorSlot,
     totalSP: budget,
     spentSP: spent,
@@ -235,15 +245,21 @@ export interface WeaponRequest {
   statRequirementKey?: WeaponStatKey;
 }
 
+/** The single range text an item shows: the ranged reach for a pure ranged type, else melee. */
+function weaponRangeText(w: WeaponTypeBlock): string {
+  return formatRangeMeters(w.rangedRange > 0 && !w.meleeRange ? w.rangedRange : w.meleeRange);
+}
+
 export function generateWeapons(ctx: GearGenContext, requests: readonly WeaponRequest[]): GeneratedPiece[] {
   return requests
     .map(req => {
-      const type = WEAPON_TYPES.find(w => w.name === req.weaponTypeName) ?? WEAPON_TYPES[0];
+      const pool = ctx.weaponTypes?.length ? ctx.weaponTypes : builtinWeaponTypes();
+      const type = pool.find(w => w.name === req.weaponTypeName) ?? pool[0];
       return generatePiece(ctx, {
         key: 'weapon:' + req.id,
         label: type.name,
         isWeapon: true,
-        weightMultiplier: WEAPON_SIZE_MULT[type.defaultForgeSize],
+        weightMultiplier: WEAPON_SIZE_MULT[forgeSizeFor(type)],
         weaponType: type,
         statRequirementKey: req.statRequirementKey,
       });
