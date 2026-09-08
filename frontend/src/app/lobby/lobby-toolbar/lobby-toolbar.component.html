@@ -13,7 +13,7 @@
 
   <!-- Tool buttons -->
   <div class="tool-group">
-    @for (tool of tools; track tool.id) {
+    @for (tool of visibleTools; track tool.id) {
       <button
         class="tool-btn"
         [class.active]="currentTool === tool.id"
@@ -31,8 +31,8 @@
   @if (currentTool === 'draw' || currentTool === 'texture') {
     <div class="eraser-mode-slot">
       @if (isEraserMode) {
-        <span class="eraser-badge" title="Eraser Mode Active (Press E to toggle)">
-          🧹 ERASE MODE
+        <span class="eraser-badge" title="Radiermodus aktiv (E zum Umschalten)">
+          RADIEREN
         </span>
       }
     </div>
@@ -44,8 +44,8 @@
   <!-- Drawing options (visible when draw tool selected) -->
   @if (currentTool === 'lasso') {
     <div class="tool-group drawing-options">
-      <span class="tool-hint">Draw to select · Drag inside to move · 8 handles to scale · Green handle to rotate · Shift+corner = uniform · Enter to place</span>
-      <span class="tool-hint">Ctrl+C copy · Ctrl+X cut · Ctrl+V paste · Ctrl+Z undo</span>
+      <span class="tool-hint">Ziehen zum Auswählen · innen ziehen zum Verschieben · 8 Griffe zum Skalieren · grüner Griff dreht · Umschalt+Ecke = gleichmäßig · Eingabe platziert</span>
+      <span class="tool-hint">Strg+C kopieren · Strg+X ausschneiden · Strg+V einfügen · Strg+Z rückgängig</span>
     </div>
   }
 
@@ -95,21 +95,31 @@
           [checked]="drawWithWalls"
           (change)="toggleDrawWithWalls()"
         />
-        <span>+ Walls</span>
+        <span>+ Wände</span>
       </label>
     </div>
 
     <div class="toolbar-divider"></div>
 
-    <!-- Clear buttons -->
+    <!-- Clear buttons: everyone may rub out their own lines, only the GM everyone's. -->
     <div class="tool-group">
-      <button 
-        class="tool-btn danger" 
-        (click)="clearDrawings.emit()"
-        title="Clear All Drawings"
+      <button
+        class="tool-btn danger"
+        (click)="clearOwnDrawings.emit()"
+        title="Eigene Zeichnungen löschen"
       >
         <span class="app-icon i-restore-trash"></span>
       </button>
+      @if (isGM) {
+        <button
+          class="tool-btn danger"
+          (click)="clearDrawings.emit()"
+          title="Alle Zeichnungen löschen (auch die der Spieler)"
+        >
+          <span class="app-icon i-restore-trash"></span>
+          <span class="tool-btn-sup">Alle</span>
+        </button>
+      }
     </div>
   }
 
@@ -122,7 +132,7 @@
           class="type-btn"
           [class.active]="textureBrushType === 'hard'"
           (click)="selectTextureBrushType('hard')"
-          title="Hard Brush"
+          title="Harter Pinsel"
         >
           ⬤
         </button>
@@ -130,7 +140,7 @@
           class="type-btn"
           [class.active]="textureBrushType === 'soft'"
           (click)="selectTextureBrushType('soft')"
-          title="Soft/Airbrush"
+          title="Weich / Airbrush"
         >
           ◉
         </button>
@@ -138,13 +148,13 @@
 
       <!-- Texture scale (brush size adjustable via Shift+drag) -->
       <div class="texture-scales">
-        <span class="option-label">Scale:</span>
+        <span class="option-label">Skalierung:</span>
         @for (scale of textureScales; track scale) {
           <button
             class="scale-btn"
             [class.active]="textureScale === scale"
             (click)="selectTextureScale(scale)"
-            [title]="'Tile scale: ' + scale + 'x'"
+            [title]="'Kachel-Skalierung: ' + scale + 'x'"
           >
             {{ scale }}x
           </button>
@@ -157,7 +167,7 @@
     <!-- Color blend controls -->
     <div class="tool-group texture-color-controls">
       <div class="slider-control">
-        <span class="option-label">Color Blend:</span>
+        <span class="option-label">Farbmischung:</span>
         <input
           type="range"
           min="0"
@@ -165,7 +175,7 @@
           [value]="textureColorBlend"
           (input)="onTextureColorBlendInput($event)"
           class="blend-slider"
-          title="0% = pure texture, 100% = solid color"
+          title="0% = reine Textur, 100% = volle Farbe"
         />
         <span class="slider-value">{{ textureColorBlend }}%</span>
       </div>
@@ -175,11 +185,11 @@
         [value]="textureBlendColor"
         (input)="onTextureBlendColorInput($event)"
         class="color-input"
-        title="Blend Color"
+        title="Mischfarbe"
       />
 
       <div class="slider-control">
-        <span class="option-label">Hue:</span>
+        <span class="option-label">Farbton:</span>
         <input
           type="range"
           min="-180"
@@ -187,13 +197,13 @@
           [value]="textureHue"
           (input)="onTextureHueInput($event)"
           class="hue-slider"
-          title="Shift hue (-180° to +180°)"
+          title="Farbton verschieben (-180° bis +180°)"
         />
         <span class="slider-value">{{ textureHue }}°</span>
       </div>
 
       <div class="slider-control">
-        <span class="option-label">Strength:</span>
+        <span class="option-label">Stärke:</span>
         <input
           type="range"
           min="0"
@@ -201,7 +211,7 @@
           [value]="textureBrushStrength * 100"
           (input)="onTextureBrushStrengthInput($event)"
           class="strength-slider"
-          title="Brush strength (0% = transparent, 100% = opaque)"
+          title="Pinselstärke (0% = transparent, 100% = deckend)"
         />
         <span class="slider-value">{{ (textureBrushStrength * 100).toFixed(0) }}%</span>
       </div>
@@ -215,9 +225,9 @@
         class="tool-btn danger" 
         [class.gm-locked]="!isGM"
         (click)="clearTextures.emit()"
-        title="Clear All Textures"
+        title="Alle Texturen entfernen"
       >
-        <span class="app-icon i-restore-trash"></span> Textures
+        <span class="app-icon i-restore-trash"></span> Texturen
       </button>
     </div>
   }
@@ -229,7 +239,7 @@
         class="tool-btn" 
         [class.active]="dragMode === 'free'"
         (click)="setDragMode('free')"
-        title="Free Movement (no restrictions)"
+        title="Freie Bewegung (ohne Einschränkung)"
       >
         🆓
       </button>
@@ -237,7 +247,7 @@
         class="tool-btn" 
         [class.active]="dragMode === 'enforced'"
         (click)="setDragMode('enforced')"
-        title="Enforced Movement (pathfinding + speed limits)"
+        title="Geführte Bewegung (Wegfindung + Reichweite)"
       >
         <span class="app-icon i-stability"></span>
       </button>
@@ -264,7 +274,7 @@
       <!-- Eraser indicator -->
       @if (isEraserMode) {
         <span class="eraser-badge" title="Löscht Kriegsnebel (E drücken zum wechseln)">
-          🧹 RADIEREN
+          RADIEREN
         </span>
         <div class="toolbar-divider" style="margin: 0 4px;"></div>
       }
@@ -312,7 +322,7 @@
         [class.gm-locked]="!isGM"
         [title]="isGM ? 'Weltuhr-Einstellungen öffnen' : 'Aktuelle Weltzeit'"
       >
-        🕐 {{ worldClockLabel }}
+        {{ worldClockLabel }}
       </button>
       @if (isGM) {
         <button class="tool-btn clock-shift-btn" (click)="shiftClockBy10.emit()" title="+10 Minuten">+10′</button>
@@ -344,7 +354,7 @@
       (click)="mapSettingsClicked.emit()"
       title="Karteneinstellungen"
     >
-      ⚙️
+      <span class="app-icon i-settings"></span>
     </button>
 
     <!-- Kampfrunde toggle (all players; GM syncs to world) -->

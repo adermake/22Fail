@@ -12,7 +12,13 @@
   /* Resource bar colors - change these to customize health/energy/mana colors */
   --health-color: #ef4444;
   --energy-color: #22c55e;
-  --mana-color: #3b82f6;
+  --mana-color: #60a5fa;
+
+  /* Spell values. Effektivität is the deeper blue, Mana the lighter one, Fokus purple.
+     Before these existed every chip carried its own hex and the three disagreed across files —
+     Effektivität was indigo in the Wissen list, green in the rune editor and amber inline. */
+  --eff-color: #2563eb;
+  --fokus-color: #a78bfa;
 }
 
 html, body {
@@ -232,6 +238,8 @@ label {
 .i-knowledge     { -webkit-mask-image: url('/icons/passive_icon.svg');      mask-image: url('/icons/passive_icon.svg'); }
 .i-currency      { -webkit-mask-image: url('/icons/effektivity.svg');       mask-image: url('/icons/effektivity.svg'); }
 .i-logo          { -webkit-mask-image: url('/icons/logo.svg');              mask-image: url('/icons/logo.svg'); }
+.i-lock          { -webkit-mask-image: url('/icons/lock.svg');              mask-image: url('/icons/lock.svg'); }
+.i-settings      { -webkit-mask-image: url('/icons/settings.svg');          mask-image: url('/icons/settings.svg'); }
 
 /* ── Dice modifier convention (lower is better) ──
    Every displayed d20 modifier follows one rule: a NEGATIVE value helps the roll (green),

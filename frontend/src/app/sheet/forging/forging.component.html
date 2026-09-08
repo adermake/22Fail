@@ -211,7 +211,7 @@
                       <button class="entry-remove" (click)="removeMaterialEntry(slot, i)" title="Entfernen">&#x2715;</button>
                     </div>
                     @if (!isBonusSlot(slotCfg.key)) {
-                      @let sc = entryScaling(entry);
+                      @let sc = entryScaling(entry, slotCfg.key);
                       <div class="entry-forge-row">
                         <button class="forg-btn forg-minus" (click)="unforge(entry)" [disabled]="entry.forgeCount <= 0">&#x2212;</button>
                         <span class="forg-num">{{ entry.forgeCount }}&times;</span>
@@ -373,6 +373,9 @@
         <div class="picker-title-block">
           <span class="picker-title">Material w&#xE4;hlen</span>
           <span class="picker-subtitle">{{ accessMode === 'enforced' ? 'Nur Ressourcen' : 'Alles bekannte Wissen' }} · {{ pickingSlotLabel }}</span>
+          @if (pickingSlot === 'secondary') {
+            <span class="picker-note">Im Sekund&#xE4;rslot z&#xE4;hlt nur die H&#xE4;lfte der unten gezeigten Materialwerte.</span>
+          }
         </div>
         <button class="picker-close-btn" (click)="closePicker()">&#x2715;</button>
       </div>

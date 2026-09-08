@@ -1,4 +1,5 @@
 import { ItemBlock, ItemType } from '../model/item-block.model';
+import { roundTo } from './round.util';
 
 /**
  * Kurzinfos für Bibliothekszeilen und Schreibtisch-Einträge.
@@ -67,7 +68,7 @@ export function previewText(name: string, data: unknown): string {
   const stats: string[] = [];
   const num = (key: string, label: string, suffix = '') => {
     const v = d[key];
-    if (typeof v === 'number' && v !== 0) stats.push(`${label}: ${v}${suffix}`);
+    if (typeof v === 'number' && v !== 0) stats.push(`${label}: ${roundTo(v)}${suffix}`);
   };
   num('efficiency', 'Effizienz');
   num('stability', 'Stabilität');

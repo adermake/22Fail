@@ -68,10 +68,20 @@ export class RuneBlock {
   tags!: string[];
   glowColor?: string;         // Glow color for drawing strokes (default: #8b5cf6)
   fokus?: number;             // Base Fokus cost
-  fokusVerlust?: number;      // Fokus cost per unused input port
   mana?: number;              // Base Mana cost
-  manaMult?: number;          // Mana cost multiplier
   effektivitaet?: number;     // Effektivität value
+  /**
+   * @deprecated Never read by any calculation. It was meant as "Fokus cost per unused input
+   * port", but nothing ever implemented that, and the rune table even labelled its column
+   * "Fokus-Multiplikator". Kept on the interface so stored JSON survives a round-trip.
+   */
+  fokusVerlust?: number;
+  /**
+   * @deprecated The spell cost estimator multiplied mana by this, while both creation paths
+   * seeded it with 0 — so every rune authored in the UI estimated `mana × 0 = 0`. Dropping it
+   * is what makes mana estimation work again. Kept for round-tripping only.
+   */
+  manaMult?: number;
   cost?: number;              // Gold / shop value of the rune
   statRequirements?: RuneStatRequirements;
   identified?: boolean;       // false = show only image, hide all text info

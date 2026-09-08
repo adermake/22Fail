@@ -23,6 +23,8 @@ import {
   soulPointBudget,
   soulPointsSpent,
   soulPointsRemaining,
+  distributeByRatio,
+  normalizeNpcSoul,
 } from '../../model/npc-statblock.model';
 import { AssetFile } from '../../model/asset-browser.model';
 import { SkillBlock } from '../../model/skill-block.model';
@@ -201,6 +203,9 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
         this.draft.soul.stats[k] = Math.max(1, (this.draft as any)[k] || 1);
       }
     }
+    // Legacy `growth` souls become locked ones; their stats stay exactly as summoned until the
+    // level is actually moved.
+    normalizeNpcSoul(this.draft.soul);
     if (!this.draft.body) this.draft.body = createEmptyNpcBody();
     if (!this.draft.body.mods) this.draft.body.mods = [];
     if (!this.draft.customSkills) this.draft.customSkills = [];
@@ -296,31 +301,53 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   setLevel(v: number): void {
     this.soul.level = Math.max(1, Math.floor(v) || 1);
-    // Soul-locked summons scale their stats by the per-level growth when the level moves.
-    const g = this.soul.growth;
-    if (g) {
-      for (const k of this.statKeys) this.soul.stats[k] = Math.max(1, Math.round((g[k] || 0) * this.soul.level));
+    // Locked: the new budget is dealt out again along the frozen ratio. Unlocked: the level only
+    // moves the budget, and the extra point waits for someone to place it.
+    if (this.soul.locked) {
+      this.soul.stats = distributeByRatio(this.budget, this.soul.ratio);
     }
     this.recalc();
   }
 
-  /** Per-level growth shown in the stat pad: the soul's stored growth, else stat ÷ level. */
+  get growthLocked(): boolean { return !!this.soul.locked; }
+
+  /**
+   * Freezes the current proportions and lets the level drive the stats, or hands them back.
+   *
+   * Locking re-deals immediately so the pad shows the numbers the level actually implies —
+   * locking at the level you are already on is a no-op in practice, which is what makes it safe
+   * to toggle mid-build. Unlocking keeps whatever is on the pad.
+   */
+  toggleGrowthLock(): void {
+    if (this.soul.locked) {
+      this.soul.locked = false;
+    } else {
+      this.soul.locked = true;
+      this.soul.ratio = { ...this.soul.stats };
+      this.soul.stats = distributeByRatio(this.budget, this.soul.ratio);
+    }
+    this.recalc();
+  }
+
+  /** Share of the budget a stat holds, in percent — what the ratio means in practice. */
   growthOf(k: NpcStatKey): number {
-    const g = this.soul.growth?.[k] ?? (this.soul.stats[k] / Math.max(1, this.soul.level));
-    return Math.round(g * 100) / 100;
+    const total = this.spent || 1;
+    return Math.round((this.soul.stats[k] / total) * 100);
   }
 
   incStat(key: NpcStatKey): void {
-    if (this.remaining <= 0) return;
+    if (this.growthLocked || this.remaining <= 0) return;
     this.soul.stats[key]++;
     this.recalc();
   }
   decStat(key: NpcStatKey): void {
+    if (this.growthLocked) return;
     if (this.soul.stats[key] <= 1) return; // min 1 in every stat
     this.soul.stats[key]--;
     this.recalc();
   }
   setStat(key: NpcStatKey, v: number): void {
+    if (this.growthLocked) return;
     let n = Math.max(1, Math.floor(v) || 1);
     // Clamp so the total never exceeds the budget.
     const others = this.spent - this.soul.stats[key];

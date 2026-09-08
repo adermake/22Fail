@@ -58,6 +58,8 @@ export class LobbyToolbarComponent {
   @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() drawLayerVisibleChange = new EventEmitter<boolean>();
   @Output() clearDrawings = new EventEmitter<void>();
+  /** Only the strokes this viewer drew — the one clear a player is allowed. */
+  @Output() clearOwnDrawings = new EventEmitter<void>();
   @Output() clearWalls = new EventEmitter<void>();
   @Output() clearTextures = new EventEmitter<void>();
   @Output() toggleLobbyPanels = new EventEmitter<void>();
@@ -69,17 +71,26 @@ export class LobbyToolbarComponent {
   @Output() fogBrushSizeChange = new EventEmitter<number>();
   @Output() clearFog = new EventEmitter<void>();
 
-  // Tool definitions
-  tools: { id: ToolType; icon: string; label: string; shortcut: string }[] = [
-    { id: 'cursor', icon: 'i-token-drag', label: 'Select/Move', shortcut: 'S' },
+  /**
+   * Tool definitions. `gmOnly` tools shape the map itself — a player reaching for one is almost
+   * always an accident (a stray V used to wipe the fog for the whole table), so they are not
+   * rendered at all rather than merely dimmed.
+   */
+  tools: { id: ToolType; icon: string; label: string; shortcut: string; gmOnly?: boolean }[] = [
+    { id: 'cursor', icon: 'i-token-drag', label: 'Auswählen/Bewegen', shortcut: 'S' },
     { id: 'lasso', icon: 'i-lasso', label: 'Lasso', shortcut: 'F' },
     { id: 'draw', icon: 'i-draw', label: 'Zeichnen', shortcut: 'B' },
-    { id: 'walls', icon: 'i-wall', label: 'Wände', shortcut: 'W' },
+    { id: 'walls', icon: 'i-wall', label: 'Wände', shortcut: 'W', gmOnly: true },
     { id: 'measure', icon: 'i-ruler', label: 'Messen', shortcut: 'R' },
-    { id: 'image', icon: 'i-image', label: 'Bilder', shortcut: 'I' },
-    { id: 'texture', icon: 'i-texture', label: 'Textur Pinsel', shortcut: 'T' },
-    { id: 'fog', icon: 'i-fog', label: 'Kriegsnebel', shortcut: 'V' },
+    { id: 'image', icon: 'i-image', label: 'Bilder', shortcut: 'I', gmOnly: true },
+    { id: 'texture', icon: 'i-texture', label: 'Textur Pinsel', shortcut: 'T', gmOnly: true },
+    { id: 'fog', icon: 'i-fog', label: 'Kriegsnebel', shortcut: 'V', gmOnly: true },
   ];
+
+  /** The tools this viewer may actually pick up. */
+  get visibleTools(): { id: ToolType; icon: string; label: string; shortcut: string; gmOnly?: boolean }[] {
+    return this.isGM ? this.tools : this.tools.filter(t => !t.gmOnly);
+  }
 
   // Brush sizes
   penBrushSizes = [2, 4, 8, 12, 20];

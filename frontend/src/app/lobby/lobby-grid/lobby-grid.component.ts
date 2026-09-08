@@ -34,7 +34,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
-import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine, LinkedTokenType, DrawBitmap } from '../../model/lobby.model';
+import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine, LinkedTokenType, DrawBitmap, isStrokeBy } from '../../model/lobby.model';
 import {
   createLassoRegionFromPolygon,
   flattenDrawLayerContent,
@@ -3885,6 +3885,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const world = this.screenToWorld(screenX, screenY);
     const hex = HexMath.pixelToHex(world);
 
+    if (this.toolBlocked()) return;
+
     switch (this.currentTool) {
       case 'cursor':
         this.handleCursorDown(event, world, hex);
@@ -3912,6 +3914,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.handleLassoDown(event, world);
         break;
     }
+  }
+
+  /**
+   * Tools that reshape the map itself. A non-GM has no business driving them, and the three
+   * pointer dispatches below all bail on this rather than each of the ten handlers checking for
+   * itself. The toolbar and the shortcuts already hide them; this is the backstop for the paths
+   * that don't go through either (a tool left selected when a GM hands over, say).
+   */
+  private readonly gmOnlyTools = new Set(['walls', 'image', 'texture', 'fog']);
+
+  private toolBlocked(): boolean {
+    return !this.isGM && this.gmOnlyTools.has(this.currentTool);
+  }
+
+  /** A stroke this client may treat as its own. */
+  private isOwnStroke(stroke: Stroke): boolean {
+    return isStrokeBy(stroke, this.store.currentAuthor(), this.isGM);
+  }
+
+  private ownStrokes(): Stroke[] {
+    return this.store.strokes.filter(s => this.isOwnStroke(s));
   }
 
   private handleTextureBrushSizeAdjust(event: MouseEvent, world: Point): void {
@@ -3969,6 +3992,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.scheduleRender();
       return;
     }
+
+    if (this.toolBlocked()) return;
 
     switch (this.currentTool) {
       case 'cursor':
@@ -4030,6 +4055,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const screenY = event.clientY - rect.top;
     const world = this.screenToWorld(screenX, screenY);
     const hex = HexMath.pixelToHex(world);
+
+    if (this.toolBlocked()) return;
 
     switch (this.currentTool) {
       case 'cursor':
@@ -6100,10 +6127,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
+    /*
+     * A player's lasso only ever grabs their own lines; the GM's lasso grabs everything.
+     * Raster regions carry no author, so they stay out of a player's reach entirely.
+     */
+    const lassoStrokes = this.isGM ? this.store.strokes : this.ownStrokes();
+    const lassoBitmaps = this.isGM ? this.store.drawBitmaps : [];
+
     const extracted = createLassoRegionFromPolygon(
       polygon,
-      this.store.strokes,
-      this.store.drawBitmaps,
+      lassoStrokes,
+      lassoBitmaps,
       sourceLayerId,
       defaultDrawId,
       (c, bmp) => this.drawBitmapForCut(c, bmp)
@@ -6117,15 +6151,31 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     const cleaned = removeLayerContentInPolygon(
-      this.store.strokes,
-      this.store.drawBitmaps,
+      lassoStrokes,
+      lassoBitmaps,
       sourceLayerId,
       polygon,
       defaultDrawId,
       (c, bmp) => this.drawBitmapForCut(c, bmp)
     );
-    this.preloadDrawBitmaps(cleaned.drawBitmaps);
-    this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
+
+    /*
+     * `cleaned` only covers what the lasso was allowed to see, so writing it back as-is would
+     * delete everyone else's work. For a player, fold the result back into the full lists:
+     * strokes keep their original order (some have no `drawOrder` and fall back to their array
+     * index), and the leftover raster the cut produced is appended to the untouched bitmaps —
+     * dropping it would make the part of their line outside the lasso disappear.
+     */
+    const survived = new Set(cleaned.strokes.map(s => s.id));
+    const nextStrokes = this.isGM
+      ? cleaned.strokes
+      : this.store.strokes.filter(s => !this.isOwnStroke(s) || survived.has(s.id));
+    const nextBitmaps = this.isGM
+      ? cleaned.drawBitmaps
+      : [...this.store.drawBitmaps, ...cleaned.drawBitmaps];
+
+    this.preloadDrawBitmaps(nextBitmaps);
+    this.store.applyDrawChanges(nextStrokes, nextBitmaps);
 
     const selectionDataUrl = imageDataToDataUrl(extracted.imageData);
     this.floatingSelection = {

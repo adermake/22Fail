@@ -11,6 +11,7 @@ import { isConsumable } from '../../services/consumption.service';
 import { hasRestBlock, listTriggers } from '../../scripting/interpreter';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { DragSplitService } from '../../services/drag-split.service';
+import { roundTo } from '../../utils/round.util';
 
 @Component({
   selector: 'app-item',
@@ -350,7 +351,7 @@ export class ItemComponent implements OnChanges {
 
   get totalWeight(): number {
     if (this.item.stackable && (this.item.amount ?? 1) > 1) {
-      return (this.item.weight || 0) * (this.item.amount ?? 1);
+      return roundTo((this.item.weight || 0) * (this.item.amount ?? 1));
     }
     return this.item.weight || 0;
   }

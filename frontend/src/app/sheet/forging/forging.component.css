@@ -633,6 +633,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .picker-title-block { display: flex; flex-direction: column; gap: 0.1rem; }
 .picker-title { font-size: 1.05rem; font-weight: 800; color: var(--text, #e5e7eb); }
 .picker-subtitle { font-size: 0.78rem; color: var(--text-muted, #9ca3af); }
+.picker-note { font-size: 0.74rem; color: #fbbf24; }
 .picker-close-btn {
   background: none;
   border: none;

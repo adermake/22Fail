@@ -2,20 +2,20 @@
  * WeaponGeneratorService
  *
  * Generates random forged weapons using the forging system's pure functions
- * exclusively. No stat math is duplicated here — all computations go through
- * computeForgedStats, totalForgeSPSpent, nextForgeCost, and formatTraitEffect
- * from forging.model.ts. This guarantees that rule changes in the model
- * automatically propagate to the generator.
+ * exclusively. No stat math is duplicated here — the slot aggregation, the Sekundär
+ * halving and the totals all go through forge-calc.util, the same path the manual
+ * Schmiede takes, so a generated piece equals a hand-forged one with the same inputs.
  */
 
 import { Injectable, inject } from '@angular/core';
 import {
   MaterialBlock, ForgeTrait,
-  MaterialSlotState, SlotMaterialEntry, AppliedTraitState, ForgedStatPreview,
-  computeForgedStats, totalForgeSPSpent, formatTraitEffect,
+  MaterialSlotState, SlotMaterialEntry, AppliedTraitState,
+  totalForgeSPSpent, formatTraitEffect,
   WeaponType,
 } from '../model/forging.model';
 import { ItemBlock } from '../model/item-block.model';
+import { aggregateSlot, computeForgeTotals, halveSlot } from '../utils/forge-calc.util';
 import {
   WeaponTypeBlock, describeDamageTypes, describeWeaponReach, formatRangeMeters, primaryDamageType,
 } from '../model/weapon-type-block.model';
@@ -202,36 +202,26 @@ export class WeaponGeneratorService {
     const secondarySlot: MaterialSlotState = { entries: [secondaryEntry] };
     const bonusSlot:     MaterialSlotState = { entries: [bonusEntry] };
 
-    // ── Compute final stats using forging system functions ────────────────────
-    const pri    = this.aggregateSlot(primarySlot);
-    const secRaw = this.aggregateSlot(secondarySlot);
-    const sec: ForgedStatPreview | null = secRaw ? {
-      ...secRaw,
-      haltbarkeit:   Math.floor(secRaw.haltbarkeit   / 2),
-      effektivitaet: Math.floor(secRaw.effektivitaet / 2),
-      weight:        secRaw.weight / 2,
-    } : null;
-    const bon = this.aggregateSlot(bonusSlot);
+    // ── Compute final stats ───────────────────────────────────────────────────
+    // Through forge-calc.util, the same path the manual Schmiede takes, so a generated piece
+    // equals a hand-forged one with the same inputs. The private copy this replaced diverged
+    // on three points: it left the Sekundär stat requirement unhalved (its comment claimed the
+    // forging component did the same — it does not), dropped ruestungsmalus entirely, and
+    // skipped the size multiplier on the requirement.
+    const pri = aggregateSlot(primarySlot.entries, true);
+    const sec = halveSlot(aggregateSlot(secondarySlot.entries, true));
+    const bon = aggregateSlot(bonusSlot.entries, true);
 
-    const finalHaltbarkeit   = Math.round(((pri?.haltbarkeit   ?? 0) + (sec?.haltbarkeit   ?? 0)) * sizeMult);
-    const finalEffektivitaet = Math.round(((pri?.effektivitaet ?? 0) + (sec?.effektivitaet ?? 0)) * sizeMult);
-    const finalWeight = Math.round(
-      ((pri?.weight ?? 0) + (sec?.weight ?? 0)) * sizeMult * 10
-    ) / 10;
-    // Secondary stat requirement is NOT halved (same as forging component)
-    const finalStatRequirement = (pri?.statRequirement ?? 0) + (secRaw?.statRequirement ?? 0);
+    const totals = computeForgeTotals(pri, sec, bon, sizeMult);
+    const finalHaltbarkeit     = totals.haltbarkeit;
+    const finalEffektivitaet   = totals.effektivitaet;
+    const finalWeight          = totals.weight;
+    const finalStatRequirement = totals.statRequirement;
 
     const spentSP = spBudget - remainingSP;
     const totalCost = materialGoldCost + spentSP * params.costPerSP;
 
-    // Collect extra effects
-    const allExtraEffects: string[] = [];
-    for (const preview of [pri, sec, bon]) {
-      if (!preview?.extraEffect) continue;
-      for (const eff of preview.extraEffect.split(',').map(s => s.trim()).filter(Boolean)) {
-        if (!allExtraEffects.includes(eff)) allExtraEffects.push(eff);
-      }
-    }
+    const allExtraEffects = totals.extraEffects;
 
     const allTraitEffects = appliedTraits.map(t => formatTraitEffect(t.trait, t.level));
 
@@ -242,41 +232,6 @@ export class WeaponGeneratorService {
       finalHaltbarkeit, finalEffektivitaet, finalWeight, finalStatRequirement,
       allExtraEffects, allTraitEffects,
     };
-  }
-
-  /**
-   * Aggregates the stats of all entries in a slot.
-   * Delegates per-entry computation to computeForgedStats from forging.model.ts.
-   */
-  private aggregateSlot(slot: MaterialSlotState): ForgedStatPreview | null {
-    if (slot.entries.length === 0) return null;
-    let h = 0, e = 0, w = 0, req = 0;
-    const effectParts: string[] = [];
-    const seenMats = new Set<string>();
-    const stackCounts = new Map<string, number>();
-    for (const entry of slot.entries) {
-      stackCounts.set(entry.material.id, (stackCounts.get(entry.material.id) ?? 0) + 1);
-    }
-    for (const entry of slot.entries) {
-      const preview = computeForgedStats(entry.material, entry.forgeCount, true);
-      if (!preview) continue;
-      h += preview.haltbarkeit;
-      e += preview.effektivitaet;
-      w += preview.weight;
-      req += preview.statRequirement;
-      if (!seenMats.has(entry.material.id)) {
-        seenMats.add(entry.material.id);
-        const mat = entry.material;
-        const count = stackCounts.get(mat.id) ?? 1;
-        if (mat.stackable && mat.stackLevels && mat.stackLevels.length > 0) {
-          const idx = Math.min(count - 1, mat.stackLevels.length - 1);
-          if (mat.stackLevels[idx]) effectParts.push(mat.stackLevels[idx]);
-        } else if (preview.extraEffect) {
-          effectParts.push(preview.extraEffect);
-        }
-      }
-    }
-    return { haltbarkeit: h, effektivitaet: e, weight: w, extraEffect: effectParts.join(', '), statRequirement: req };
   }
 
   /**

@@ -136,7 +136,7 @@
 <!-- Sticky Action Buttons - Horizontal Layout -->
 <div class="sticky-actions horizontal">
   <button class="action-btn cast-btn" [class.active]="showCastWindow" (click)="toggleCastWindow()" title="Zauber und Fähigkeiten (C)">
-    <span class="app-icon i-spell"></span>
+    <span class="app-icon i-ability"></span>
   </button>
   <button class="action-btn dice-btn" [class.active]="showDiceRoller" (click)="toggleDiceRoller()" title="Würfeln (D)">
     <span class="app-icon i-dice"></span>
@@ -145,15 +145,15 @@
     <span class="app-icon i-effektivity"></span>
   </button>
   <button class="action-btn resource-btn" [class.active]="showResourcePanel" (click)="toggleResourcePanel()" title="Ressourcen (R)">
-    💎
+    <span class="app-icon i-life"></span>
   </button>
   <button class="action-btn rest-btn" (click)="openRest()"
           [attr.data-count]="(sheet.consumedItems || []).length || null"
           title="Rast — löst alle onRest-Effekte aus und leert die Verbraucht-Liste">
     <span class="app-icon i-rest"></span>
   </button>
-  <button class="action-btn info-btn" [class.active]="showGameInfo" (click)="toggleGameInfo()" title="Game Guide (H)">
-    <span class="app-icon i-folder"></span>
+  <button class="action-btn info-btn" [class.active]="showGameInfo" (click)="toggleGameInfo()" title="Regelwerk (H)">
+    <span class="app-icon i-spell"></span>
   </button>
 </div>
 

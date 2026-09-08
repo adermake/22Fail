@@ -145,6 +145,9 @@
 }
 
 .r-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   padding: 1px 3px;
   border-radius: 3px;
   font-size: 0.58rem;
@@ -153,9 +156,10 @@
   border: 1px solid;
   line-height: 1.4;
 }
-.r-eff   { background: #1e1b4b; border-color: #6366f1; color: #a5b4fc; }
-.r-fokus { background: #4a2c00; border-color: #f97316; color: #fdba74; }
-.r-mana  { background: #0c1a2e; border-color: #3b82f6; color: #93c5fd; }
+/* Farben aus den globalen Token — Effektivität blau, Fokus lila, Mana helleres Blau. */
+.r-eff   { background: color-mix(in srgb, var(--eff-color) 18%, transparent);   border-color: var(--eff-color);   color: color-mix(in srgb, var(--eff-color) 55%, #fff); }
+.r-fokus { background: color-mix(in srgb, var(--fokus-color) 18%, transparent); border-color: var(--fokus-color); color: color-mix(in srgb, var(--fokus-color) 55%, #fff); }
+.r-mana  { background: color-mix(in srgb, var(--mana-color) 18%, transparent);  border-color: var(--mana-color);  color: color-mix(in srgb, var(--mana-color) 55%, #fff); }
 
 /* ─── Slot media (image / glyph) ─────────────────────────────────────────── */
 .rune-slot-media {
@@ -389,10 +393,9 @@
 }
 
 .tag-generic { background: var(--bg, #111827); border-color: var(--border, #374151); color: var(--text-muted, #9ca3af); }
-.tag-eff     { background: #1e1b4b; border-color: #6366f1; color: #a5b4fc; }
-.tag-fokus   { background: #4a2c00; border-color: #f97316; color: #fdba74; }
-.tag-mana    { background: #0c1a2e; border-color: #3b82f6; color: #93c5fd; }
-.tag-mult    { font-size: 0.65rem; opacity: 0.75; }
+.tag-eff     { background: color-mix(in srgb, var(--eff-color) 18%, transparent);   border-color: var(--eff-color);   color: color-mix(in srgb, var(--eff-color) 55%, #fff); }
+.tag-fokus   { background: color-mix(in srgb, var(--fokus-color) 18%, transparent); border-color: var(--fokus-color); color: color-mix(in srgb, var(--fokus-color) 55%, #fff); }
+.tag-mana    { background: color-mix(in srgb, var(--mana-color) 18%, transparent);  border-color: var(--mana-color);  color: color-mix(in srgb, var(--mana-color) 55%, #fff); }
 
 /* ─── Detail image — always square ─────────────────────────────────────── */
 .rune-detail-img-wrap {

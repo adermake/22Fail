@@ -8,6 +8,7 @@
 
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import { AuthService } from './auth.service';
 import { LobbyApiService } from './lobby-api.service';
 import { LobbySocketService } from './lobby-socket.service';
 import { ImageService } from './image.service';
@@ -31,6 +32,7 @@ import {
   Layer,
   LayerType,
   generateId,
+  isStrokeBy,
   createEmptyLobby,
   createEmptyMap,
 } from '../model/lobby.model';
@@ -43,6 +45,10 @@ export class LobbyStoreService {
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
   private mapStorage = inject(MapStorageService);
+  private auth = inject(AuthService);
+
+  /** Who this client draws as. Empty when nobody is signed in. */
+  currentAuthor(): string { return this.auth.currentUser()?.name ?? ''; }
 
   // Core state
   private lobbySubject = new BehaviorSubject<LobbyData | null>(null);
@@ -872,6 +878,9 @@ export class LobbyStoreService {
     const newStroke: Stroke = {
       ...stroke,
       layerId,
+      // Signed here rather than by the caller, so every stroke carries an author and "clear my
+      // own" can tell them apart.
+      author: stroke.author ?? this.currentAuthor(),
       drawOrder: stroke.drawOrder ?? this.getNextDrawOrder(),
       id: generateId(),
     };
@@ -1014,20 +1023,33 @@ export class LobbyStoreService {
   }
 
   /**
-   * Clear all strokes.
+   * Clear strokes on a draw layer.
+   *
+   * `scope` decides whose: 'all' empties the layer, 'mine' removes only the strokes `author`
+   * drew. Players only ever get 'mine' — the trash button used to wipe the active layer for
+   * everyone, so a player tidying up their own scribble took the GM's markings with it.
+   *
+   * Raster regions (`drawBitmaps`) carry no per-stroke identity, so they are only touched by
+   * an 'all' clear.
    */
-  clearStrokes(layerId?: string): void {
+  clearStrokes(layerId?: string, scope: 'all' | 'mine' = 'all', author?: string, isGM = false): void {
     const targetId = layerId || this.getActiveDrawLayerId();
-    const hasStrokes = this.strokes.some(s => (s.layerId || targetId) === targetId);
-    const hasBitmaps = this.drawBitmaps.some(b => b.layerId === targetId);
+    const onLayer = (s: Stroke) => (s.layerId || targetId) === targetId;
+
+    const doomed = (s: Stroke) =>
+      onLayer(s) && (scope === 'all' || isStrokeBy(s, author ?? '', isGM));
+    const hasStrokes = this.strokes.some(doomed);
+    const hasBitmaps = scope === 'all' && this.drawBitmaps.some(b => b.layerId === targetId);
     if (!hasStrokes && !hasBitmaps) return;
 
     this.captureDrawSnapshot();
 
-    const strokes = this.strokes.filter(s => (s.layerId || targetId) !== targetId);
-    const drawBitmaps = this.drawBitmaps.filter(b => b.layerId !== targetId);
+    const strokes = this.strokes.filter(s => !doomed(s));
     this.applyPatch({ path: 'strokes', value: strokes });
-    this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
+    if (scope === 'all') {
+      const drawBitmaps = this.drawBitmaps.filter(b => b.layerId !== targetId);
+      this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
+    }
   }
 
   /**

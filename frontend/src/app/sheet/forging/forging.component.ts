@@ -538,15 +538,29 @@ export class ForgingComponent implements OnInit {
     return this.remainingSP >= nextForgeCost(entry.forgeCount);
   }
 
-  /** Returns the per-forge stat gain for a single entry based on current itemType. */
-  entryScaling(entry: SlotMaterialEntry): { halt: number; eff: number } {
+  /**
+   * Per-forge stat gain for a single entry, as it will actually land on the item.
+   *
+   * The slot matters: Sekundär contributes half (see `secondaryPreview` and `halveSlot` in
+   * forge-calc.util). Without it the badge next to "Schmieden" promised the full scaling while
+   * the forged item gained half.
+   */
+  entryScaling(entry: SlotMaterialEntry, slotKey: SlotType): { halt: number; eff: number } {
     const stats = this.itemType === 'weapon'
       ? entry.material.weaponStats
       : entry.material.armorStats;
-    return {
-      halt: stats?.haltbarkeitSkalierung ?? 0,
-      eff:  stats?.effektivitaetSkalierung ?? 0,
-    };
+    return this.scaleForSlot(
+      stats?.haltbarkeitSkalierung ?? 0,
+      stats?.effektivitaetSkalierung ?? 0,
+      slotKey,
+    );
+  }
+
+  /** Halves a scaling pair for the Sekundär slot, matching `halveSlot` in forge-calc.util. */
+  scaleForSlot(halt: number, eff: number, slotKey: SlotType): { halt: number; eff: number } {
+    return slotKey === 'secondary'
+      ? { halt: Math.floor(halt / 2), eff: Math.floor(eff / 2) }
+      : { halt, eff };
   }
 
   forge(entry: SlotMaterialEntry): void {

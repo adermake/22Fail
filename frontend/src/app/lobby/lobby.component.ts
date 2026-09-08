@@ -27,7 +27,9 @@ import { tokenLabel } from '../utils/entry-preview.util';
 import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
 import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
-import { NpcStatblock } from '../model/npc-statblock.model';
+import {
+  NpcStatblock, NpcStatKey, distributeByRatio, soulPointBudget,
+} from '../model/npc-statblock.model';
 import { soulFromNpc } from '../model/soul-block.model';
 import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
@@ -114,7 +116,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
   npcStatblocks = signal<{ id: string; name: string; statblock: NpcStatblock }[]>([]);
 
-  // Soul extraction (GM): target NPC statblock + chosen player + quality multiplier
+  // Soul extraction (GM): target NPC statblock + chosen player + the level it is captured at
+  // (the level IS the quality — a good roll buys a higher one, and with it a bigger point budget)
   soulExtractStatblock = signal<NpcStatblock | null>(null);
   soulExtractTarget = signal<string>('');
   soulExtractLevel = signal<number>(1);
@@ -807,6 +810,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     const key = event.key.toLowerCase();
 
+    // The GM-only tools bail out here as well as in the toolbar: the shortcuts used to select
+    // them regardless of role, so a stray V cleared the fog for the whole table.
     switch (key) {
       case 'e':
         this.isEraserMode.set(!this.isEraserMode());
@@ -818,6 +823,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
         event.preventDefault();
         break;
       case 't':
+        if (!this.isGM()) break;
         this.currentTool.set('texture');
         this.isEraserMode.set(false);
         this.sidebarTab.set('textures' as any);
@@ -825,6 +831,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
         break;
       // V (not G — G is held to arm the radial ping wheel in lobby-grid).
       case 'v':
+        if (!this.isGM()) break;
         this.currentTool.set('fog');
         this.isEraserMode.set(false);
         event.preventDefault();
@@ -840,6 +847,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
         event.preventDefault();
         break;
       case 'delete':
+        // Players move tokens freely, but removing one is the GM's call.
+        if (!this.isGM()) break;
         if (this.selectedTokenId()) {
           this.store.removeToken(this.selectedTokenId()!);
           this.selectedTokenId.set(null);
@@ -862,11 +871,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
         break;
       }
       case 'w':
+        if (!this.isGM()) break;
         this.currentTool.set('walls');
         this.isEraserMode.set(false);
         event.preventDefault();
         break;
       case 'i':
+        if (!this.isGM()) break;
         this.currentTool.set('image');
         this.isEraserMode.set(false);
         this.sidebarTab.set('textures' as any);
@@ -916,7 +927,24 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onClearFog(): void {
+    if (!this.isGM()) return;
     this.store.clearFog();
+  }
+
+  onClearWalls(): void {
+    if (!this.isGM()) return;
+    this.store.clearWalls();
+  }
+
+  /** GM only: empties the active draw layer, players' strokes included. */
+  onClearAllDrawings(): void {
+    if (!this.isGM()) return;
+    this.store.clearStrokes(undefined, 'all');
+  }
+
+  /** Rubs out only what this viewer drew — the one clear a player is allowed. */
+  onClearOwnDrawings(): void {
+    this.store.clearStrokes(undefined, 'mine', this.store.currentAuthor(), this.isGM());
   }
 
   onTextureBrushSizeChange(size: number): void {
@@ -948,7 +976,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onClearAllTextures(): void {
-    if (confirm('Clear all texture strokes? This cannot be undone.')) {
+    if (!this.isGM()) return;
+    if (confirm('Alle Texturen entfernen? Das lässt sich nicht rückgängig machen.')) {
       this.store.clearAllTextures();
     }
   }
@@ -958,6 +987,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onDrawWithWallsChange(enabled: boolean): void {
+    // Drawing walls along a line shapes the map, so it stays with the GM.
+    if (!this.isGM()) return;
     this.drawWithWalls.set(enabled);
   }
 
@@ -1194,22 +1225,31 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.soulExtractLevel.set(1);
   }
 
-  /** Preview stats at the chosen extraction level (scaled by the NPC's per-level growth), 3×2 order,
-   *  with the roll modifier and the per-level growth value. */
-  get soulExtractStats(): { label: string; value: number; mod: number; growth: number }[] {
+  /**
+   * Preview of the soul at the chosen extraction level, in 3×2 order, with roll modifier and the
+   * share each stat holds of the budget.
+   *
+   * Runs through `distributeByRatio` — the very function `soulFromNpc` uses — so the dialog
+   * cannot promise numbers the extraction then fails to deliver.
+   */
+  get soulExtractStats(): { label: string; value: number; mod: number; share: number }[] {
     const sb = this.soulExtractStatblock();
     if (!sb) return [];
-    const npcLevel = Math.max(1, sb.soul?.level ?? sb.level ?? 1);
     const L = Math.max(1, this.soulExtractLevel() || 1);
-    const mk = (label: string, raw: number) => {
-      const growth = raw / npcLevel;
-      const value = Math.max(1, Math.round(growth * L));
+    const ratio: Record<NpcStatKey, number> = {
+      strength: sb.strength, dexterity: sb.dexterity, speed: sb.speed,
+      intelligence: sb.intelligence, constitution: sb.constitution, wille: sb.wille,
+    };
+    const stats = distributeByRatio(soulPointBudget(L), ratio);
+    const budget = soulPointBudget(L) || 1;
+    const mk = (label: string, key: NpcStatKey) => {
+      const value = stats[key];
       // Dice convention: negative modifier helps the roll, positive hurts it.
-      return { label, value, mod: Math.trunc((10 - value) / 4), growth: Math.round(growth * 100) / 100 };
+      return { label, value, mod: Math.trunc((10 - value) / 4), share: Math.round((value / budget) * 100) };
     };
     return [
-      mk('STR', sb.strength), mk('KON', sb.constitution), mk('SPD', sb.speed),
-      mk('GES', sb.dexterity), mk('INT', sb.intelligence), mk('WIL', sb.wille),
+      mk('STR', 'strength'), mk('KON', 'constitution'), mk('SPD', 'speed'),
+      mk('GES', 'dexterity'), mk('INT', 'intelligence'), mk('WIL', 'wille'),
     ];
   }
 
@@ -1272,6 +1312,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
  onPlaceImage(data: { imageId: string; x: number; y: number; width: number; height: number }): void {
+    if (!this.isGM()) return;
     const newImageId = this.store.addImage(data.imageId, data.x, data.y, data.width, data.height);
     // Auto-select the newly placed image so user can immediately transform it
     this.selectedImageId.set(newImageId);
@@ -1284,10 +1325,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onTransformImage(data: { id: string; transform: Partial<{ x: number; y: number; width: number; height: number; rotation: number }> }): void {
+    if (!this.isGM()) return;
     this.store.updateImage(data.id, data.transform);
   }
 
   onDeleteImage(id: string): void {
+    if (!this.isGM()) return;
     this.store.removeImage(id);
     if (this.selectedImageId() === id) {
       this.selectedImageId.set(null);

@@ -45,6 +45,24 @@ export interface Stroke {
   isEraserFill?: boolean; // Filled polygon eraser (lasso cut)
   layerId?: string; // Reference to draw Layer.id
   drawOrder?: number; // Chronological order within the map
+  /**
+   * Who drew it, by user name. A player may rub out their own lines, the GM may rub out
+   * everyone's — the same rule the map editor's sketch layer uses (`SketchStroke.author`).
+   * Strokes from before this field existed have no author; see `isStrokeBy`.
+   */
+  author?: string;
+}
+
+/**
+ * Whether `author` may treat this stroke as theirs.
+ *
+ * Strokes drawn before authorship existed carry no name. Handing them to whoever happens to be
+ * signed out would let any such viewer wipe the map's history, so they belong to the GM instead —
+ * the only role that could already clear everything.
+ */
+export function isStrokeBy(stroke: Stroke, author: string, isGM: boolean): boolean {
+  const owner = stroke.author ?? '';
+  return owner === '' ? isGM : owner === author;
 }
 
 /** A raster region placed on a draw layer (from lasso selection) */

@@ -32,6 +32,7 @@ import {
 } from '../model/weapon-type-block.model';
 import type { MaterialBlock, MaterialStats } from '../model/forging.model';
 import { KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf } from '../utils/knowledge-tier.util';
+import { roundTo } from '../utils/round.util';
 import {
   BREW_SLOT_LABELS,
   type BrewEffectSlot,
@@ -338,7 +339,7 @@ function renderMaterials(attrs: DirectiveAttrs, env: RulebookEnv): string {
         return (
           `<tr><td><b>${cell(m.name)}</b></td>` +
           `<td>${cell(RARITY_LABELS[m.rarity ?? 'COMMON'])}</td>` +
-          `<td>${cell(st.weight ?? 0)} kg</td>` +
+          `<td>${cell(roundTo(st.weight ?? 0))} kg</td>` +
           `<td>${scaling(st.haltbarkeit, st.haltbarkeitSkalierung)}</td>` +
           `<td>${scaling(st.effektivitaet, st.effektivitaetSkalierung)}</td>` +
           (isArmor ? `<td>${cell(st.ruestungsmalus ?? 0)}</td>` : '') +

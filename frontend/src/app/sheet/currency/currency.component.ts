@@ -5,6 +5,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
 import { COIN_WEIGHT } from '../../model/currency-model';
+import { roundTo } from '../../utils/round.util';
 
 @Component({
   selector: 'app-currency',
@@ -39,7 +40,7 @@ export class CurrencyComponent {
   }
 
   get currencyWeight(): number {
-    return this.totalCoins * COIN_WEIGHT;
+    return roundTo(this.totalCoins * COIN_WEIGHT);
   }
 
   get totalValue(): number {

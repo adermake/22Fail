@@ -11,6 +11,7 @@ import { CdkDragDrop, CdkDragStart, DragDropModule } from '@angular/cdk/drag-dro
 import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
 import { getEquipSlot } from '../../utils/equip-slot.utils';
+import { roundTo } from '../../utils/round.util';
 
 @Component({
   selector: 'app-equipment',
@@ -52,7 +53,7 @@ export class EquipmentComponent {
   }
 
   get armorWeight(): number {
-    return this.sheet.equipment?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
+    return roundTo(this.sheet.equipment?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0);
   }
 
   get totalArmorDebuff(): number {

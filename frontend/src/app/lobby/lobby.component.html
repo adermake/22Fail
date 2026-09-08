@@ -93,8 +93,9 @@
     (drawWithWallsChange)="onDrawWithWallsChange($event)"
     (dragModeChange)="onDragModeChange($event)"
     (drawLayerVisibleChange)="onDrawLayerVisibleChange($event)"
-    (clearDrawings)="store.clearStrokes()"
-    (clearWalls)="store.clearWalls()"
+    (clearDrawings)="onClearAllDrawings()"
+    (clearOwnDrawings)="onClearOwnDrawings()"
+    (clearWalls)="onClearWalls()"
     (clearTextures)="onClearAllTextures()"
     [showLobbyPanels]="showLobbyPanels()"
     (toggleLobbyPanels)="toggleLobbyPanels()"
@@ -370,7 +371,7 @@
       </label>
 
       <div class="sx-preview">
-        <span class="sx-preview-lbl">Seelen-Werte auf Level {{ soulExtractLevel() }} (Wachstum/Level):</span>
+        <span class="sx-preview-lbl">Seelen-Werte auf Level {{ soulExtractLevel() }} (Anteil am Punktbudget):</span>
         <div class="sx-stats">
           @for (s of soulExtractStats; track s.label) {
             <div class="sx-stat">
@@ -380,7 +381,7 @@
                     [class.dice-good]="s.mod < 0" [class.dice-bad]="s.mod > 0" [class.dice-zero]="s.mod === 0">
                 {{ s.mod > 0 ? '+' : '' }}{{ s.mod }}
               </span>
-              <span class="sx-stat-g">{{ s.growth }}/Lv</span>
+              <span class="sx-stat-g">{{ s.share }}&thinsp;%</span>
             </div>
           }
         </div>

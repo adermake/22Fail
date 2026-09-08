@@ -5,7 +5,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { KNOWLEDGE_TIERS, KnowledgeTier } from '../../utils/knowledge-tier.util';
-import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType, runeKnowledgeTier, setRuneKnowledgeTier } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType, RUNE_TYPE_LABELS, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType, runeKnowledgeTier, setRuneKnowledgeTier } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -54,10 +54,11 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   private canvasReady = false;
   private keyHandler = this.onKeyDown.bind(this);
 
-  statKeys: Array<{ key: keyof RuneStatRequirements; label: string }> = [
+  /** The six attribute requirement fields, in the order the grid shows them. */
+  readonly statKeys: Array<{ key: keyof RuneStatRequirements; label: string }> = [
     { key: 'strength',     label: 'STR' },
     { key: 'dexterity',    label: 'GES' },
-    { key: 'speed',        label: 'GES' },
+    { key: 'speed',        label: 'SPD' },
     { key: 'intelligence', label: 'INT' },
     { key: 'constitution', label: 'KON' },
     { key: 'chill',        label: 'WIL' },
@@ -70,8 +71,8 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.editRune = {
         name: '', description: '', drawing: '', tags: [],
-        glowColor: '#06b6d4', fokus: 0, fokusVerlust: 0,
-        mana: 0, manaMult: 0, effektivitaet: 0,
+        glowColor: '#06b6d4',
+        fokus: 0, mana: 0, effektivitaet: 0, cost: 0,
         statRequirements: { strength: 0, dexterity: 0, speed: 0, intelligence: 0, constitution: 0, chill: 0 },
         identified: true, learned: false,
       };
@@ -130,14 +131,9 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ctx.lineCap   = 'round';
     this.ctx.lineJoin  = 'round';
     this.ctx.strokeStyle = color;
-    this.ctx.shadowColor = color;
-    this.ctx.shadowBlur  = 20;
-  }
-
-  private fillBlack() {
-    const c = this.canvasRef.nativeElement;
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, c.width, c.height);
+    // No canvas shadow: the glow is a display effect, applied in CSS. See `stroke`.
+    this.ctx.shadowBlur  = 0;
+    this.ctx.shadowColor = 'transparent';
   }
 
   private loadDrawingFromId(imageId: string) {
@@ -202,24 +198,25 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       this.ctx.globalCompositeOperation = 'source-over';
       this.ctx.lineWidth = 6;
     } else {
-      // Multi-pass glow — wide outer glow passes
-      const color = this.editRune.glowColor || '#06b6d4';
+      /*
+       * A plain line — the glow is NOT drawn here.
+       *
+       * This used to be four passes of decreasing shadowBlur, which baked the glow into the
+       * saved PNG. Two things went wrong with that: recolouring a rune left every earlier
+       * stroke glowing in the old colour, and the spell node editor adds its own CSS glow
+       * (`filter: drop-shadow`, driven by `--glow`) on top, so the same rune looked different
+       * depending on where you saw it. The stored image is now just the line, and every view
+       * lights it up from `glowColor` itself.
+       */
       this.ctx.globalCompositeOperation = 'source-over';
-      for (const [blur, width] of [[40, 9], [20, 7], [10, 6], [4, 6]] as [number, number][]) {
-        this.ctx.strokeStyle = color;
-        this.ctx.shadowColor = color;
-        this.ctx.shadowBlur = blur;
-        this.ctx.lineWidth = width;
-        this.ctx.setLineDash([]);
-        this.ctx.lineDashOffset = 0;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.lastX, this.lastY);
-        this.ctx.lineTo(x, y);
-        this.ctx.stroke();
-      }
-      // Reset shadow
+      this.ctx.strokeStyle = this.editRune.glowColor || '#06b6d4';
       this.ctx.shadowBlur = 0;
       this.ctx.shadowColor = 'transparent';
+      this.ctx.lineWidth = 6;
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.lastX, this.lastY);
+      this.ctx.lineTo(x, y);
+      this.ctx.stroke();
     }
   }
 
@@ -269,8 +266,6 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ─── File upload ─────────────────────────────────────────────────────────
-
-  triggerFileUpload() { this.fileInputRef.nativeElement.click(); }
 
   async onFileSelected(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -334,7 +329,6 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ─── Runentyp ──────────────────────────────────────────────
 
-  readonly runeTypes = RUNE_TYPES;
   readonly runeTypeLabels = RUNE_TYPE_LABELS;
   readonly runeGroups = RUNE_GROUPS;
   readonly runeGroupLabels = RUNE_GROUP_LABELS;

@@ -243,7 +243,6 @@
 .action-btn.cast-btn {
   background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
   box-shadow: 0 4px 15px rgba(139, 92, 246, 0.5);
-  font-size: 1.1rem;
   animation: castPulse 2s ease-in-out infinite;
 }
 

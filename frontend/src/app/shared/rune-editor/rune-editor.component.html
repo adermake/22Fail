@@ -3,33 +3,19 @@
 
     <!-- ── Header ─────────────────────────────────────────────────────── -->
     <div class="editor-header">
-      <div class="header-left">
-        <span class="header-rune-icon">᚛</span>
-        <h2>{{ isNewRune ? 'Neue Rune erstellen' : 'Rune bearbeiten' }}</h2>
-      </div>
-      <div class="header-actions">
-        @if (!isNewRune) {
-          <button class="delete-btn" (click)="deleteRune()">🗑 Löschen</button>
-        }
-        <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
-        <button class="save-btn"
-                (click)="saveRune()"
-                [disabled]="!editRune.name.trim() || isSavingCanvas()">
-          {{ isSavingCanvas() ? 'Speichert…' : (isNewRune ? 'Erstellen' : 'Speichern') }}
-        </button>
-        <button class="close-btn" (click)="cancelEdit()">×</button>
-      </div>
+      <h2><span class="app-icon i-rune"></span> {{ isNewRune ? 'Neue Rune erstellen' : 'Rune bearbeiten' }}</h2>
+      <button class="close-btn" (click)="cancelEdit()" title="Schließen">&times;</button>
     </div>
 
-    <!-- ── Body: two columns ──────────────────────────────────────────── -->
-    <div class="editor-body">
+    <!-- ── Content: two columns ───────────────────────────────────────── -->
+    <div class="editor-content">
 
       <!-- LEFT COLUMN ─────────────────────────────────────────────────── -->
-      <div class="editor-col">
+      <div class="editor-column">
 
-        <!-- Basics -->
-        <section class="ed-section">
-          <h3 class="section-title">Grundlegendes</h3>
+        <!-- Grundlegendes -->
+        <section class="editor-section">
+          <h3>Grundlegendes</h3>
 
           <div class="form-group">
             <label>Name *</label>
@@ -38,31 +24,38 @@
                    placeholder="Runenname…">
           </div>
 
-          <div class="toggle-row">
+          <div class="toggle-group">
             <label class="toggle-label">
               <input type="checkbox" [(ngModel)]="editRune.identified">
-              <span>Identifiziert</span>
+              <span class="toggle-text">Identifiziert</span>
+              <span class="toggle-hint">{{ editRune.identified ? 'Details sichtbar' : 'Nur Bild sichtbar' }}</span>
             </label>
-            <span class="toggle-hint">{{ editRune.identified ? 'Details sichtbar' : 'Nur Bild sichtbar' }}</span>
             @if (showLearnedToggle) {
               <label class="toggle-label">
                 <input type="checkbox" [(ngModel)]="editRune.learned">
-                <span>Gelernt</span>
+                <span class="toggle-text">Gelernt</span>
+                <span class="toggle-hint">Steht auf dem Bogen zur Verfügung</span>
               </label>
             }
           </div>
         </section>
 
-        <!-- Drawing / Image ─────────────────────────────────────────── -->
-        <section class="ed-section draw-section">
+        <!-- Runenbild ────────────────────────────────────────────────── -->
+        <section class="editor-section draw-section">
           <div class="section-title-row">
-            <h3 class="section-title">Runenbild</h3>
+            <h3>Runenbild</h3>
             <div class="image-action-btns">
               @if (!showDrawPanel()) {
-                <button class="sm-btn" (click)="openDrawPanel()">✏ Zeichnen</button>
-                <label class="sm-btn" for="runeFileInput">⬆ Hochladen</label>
+                <button class="sm-btn" (click)="openDrawPanel()">
+                  <span class="app-icon i-draw"></span> Zeichnen
+                </button>
+                <label class="sm-btn" for="runeFileInput">
+                  <span class="app-icon i-image"></span> Hochladen
+                </label>
               } @else {
-                <button class="sm-btn danger" (click)="removeImage()">✕ Entfernen</button>
+                <button class="sm-btn danger" (click)="removeImage()">
+                  <span class="app-icon i-restore-trash"></span> Entfernen
+                </button>
               }
               <input id="runeFileInput" #fileInput type="file" accept="image/*" style="display:none"
                      (change)="onFileSelected($event)">
@@ -71,14 +64,17 @@
 
           @if (!showDrawPanel() && editRune.drawing) {
             <div class="image-preview-box">
-              <img [src]="editRune.drawing | imageUrl" alt="Rune" class="rune-preview-img">
-              <button class="img-edit-btn" (click)="openDrawPanel()">✏ Bearbeiten</button>
+              <img [src]="editRune.drawing | imageUrl" alt="Rune" class="rune-preview-img"
+                   [style.--glow]="editRune.glowColor || '#06b6d4'">
+              <button class="img-edit-btn" (click)="openDrawPanel()">
+                <span class="app-icon i-draw"></span> Bearbeiten
+              </button>
             </div>
           }
 
           @if (!showDrawPanel() && !editRune.drawing) {
             <div class="image-placeholder">
-              <span class="ph-icon">᚛</span>
+              <span class="app-icon i-rune ph-icon"></span>
               <span class="ph-text">Kein Bild vorhanden</span>
             </div>
           }
@@ -105,10 +101,18 @@
                        class="color-input-native">
               </div>
               <div class="tool-group">
-                <button class="tool-btn" [class.active]="!isErasing()" (click)="setDraw()" title="Zeichnen">✏</button>
-                <button class="tool-btn" [class.active]="isErasing()" (click)="toggleEraser()" title="Radierer">⌫</button>
-                <button class="tool-btn" (click)="undo()" title="Rückgängig (Strg+Z)">↩</button>
-                <button class="tool-btn danger" (click)="clearCanvas()" title="Alles löschen">🗑</button>
+                <button class="tool-btn" [class.active]="!isErasing()" (click)="setDraw()" title="Zeichnen">
+                  <span class="app-icon i-draw"></span>
+                </button>
+                <button class="tool-btn" [class.active]="isErasing()" (click)="toggleEraser()" title="Radierer">
+                  <span class="app-icon i-texture"></span>
+                </button>
+                <button class="tool-btn" (click)="undo()" title="Rückgängig (Strg+Z)">
+                  <span class="app-icon i-sync"></span>
+                </button>
+                <button class="tool-btn danger" (click)="clearCanvas()" title="Alles löschen">
+                  <span class="app-icon i-restore-trash"></span>
+                </button>
               </div>
               <span class="toolbar-hint">Strg+Z = Rückgängig</span>
             </div>
@@ -118,6 +122,7 @@
                       [width]="canvasWidth()"
                       [height]="canvasHeight()"
                       class="rune-canvas"
+                      [style.--glow]="editRune.glowColor || '#06b6d4'"
                       [class.eraser-cursor]="isErasing()"
                       (mousedown)="onCanvasMouseDown($event)"
                       (mousemove)="onCanvasMouseMove($event)"
@@ -129,8 +134,8 @@
         </section>
 
         <!-- Tags ────────────────────────────────────────────────────── -->
-        <section class="ed-section">
-          <h3 class="section-title">Tags</h3>
+        <section class="editor-section">
+          <h3>Tags</h3>
 
           <div class="preset-tags">
             @for (tag of defaultTags; track tag) {
@@ -163,7 +168,7 @@
             @for (tag of editRune.tags; track $index; let i = $index) {
               <span class="tag-chip">
                 {{ tag }}
-                <button class="tag-remove" (click)="removeTag(i)">×</button>
+                <button class="tag-remove" (click)="removeTag(i)">&times;</button>
               </span>
             }
           </div>
@@ -172,74 +177,82 @@
       </div><!-- /left col -->
 
       <!-- RIGHT COLUMN ────────────────────────────────────────────────── -->
-      <div class="editor-col">
+      <div class="editor-column">
 
-        <!-- Effect Description -->
-        <section class="ed-section">
-          <h3 class="section-title">Effektbeschreibung</h3>
+        <!-- Effektbeschreibung -->
+        <section class="editor-section">
+          <h3>Effektbeschreibung</h3>
           <div class="form-group">
-            <textarea [(ngModel)]="editRune.description" rows="3"
+            <textarea [(ngModel)]="editRune.description" rows="4"
                       placeholder="Beschreibung des Runeneffekts…"></textarea>
           </div>
         </section>
 
-        <!-- Costs & Values -->
-        <section class="ed-section">
-          <h3 class="section-title">Kosten &amp; Werte</h3>
-          <div class="cost-compact">
-            <span class="cc-lbl mana-label">Mana</span>
-            <input type="number" [(ngModel)]="editRune.mana" min="0" class="cc-input" placeholder="0">
-            <span class="cc-mult">&times;</span>
-            <input type="number" [(ngModel)]="editRune.manaMult" min="0" step="0.1" class="cc-input" placeholder="0">
-
-            <span class="cc-lbl fokus-label">Fokus</span>
-            <input type="number" [(ngModel)]="editRune.fokus" min="0" class="cc-input" placeholder="0">
-            <span class="cc-mult">V</span>
-            <input type="number" [(ngModel)]="editRune.fokusVerlust" min="0" step="0.1" class="cc-input" placeholder="0" title="Fokus-Verlust pro ungenutztem Eingangsport">
-
-            <span class="cc-lbl eff-label">Effekt.</span>
-            <input type="number" [(ngModel)]="editRune.effektivitaet" min="0" class="cc-input" placeholder="0">
-            <span></span><span></span>
+        <!-- Kosten & Werte -->
+        <section class="editor-section">
+          <h3>Kosten &amp; Werte</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="lbl-mana"><span class="app-icon i-mana"></span> Mana</label>
+              <input type="number" [(ngModel)]="editRune.mana" min="0" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="lbl-fokus"><span class="app-icon i-focus"></span> Fokus</label>
+              <input type="number" [(ngModel)]="editRune.fokus" min="0" placeholder="0">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="lbl-eff"><span class="app-icon i-effektivity"></span> Effektivität</label>
+              <input type="number" [(ngModel)]="editRune.effektivitaet" min="0" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>Preis</label>
+              <input type="number" [(ngModel)]="editRune.cost" min="0" placeholder="0">
+            </div>
           </div>
         </section>
 
-        <!-- Stat Requirements -->
-        <section class="ed-section">
-          <h3 class="section-title">Attributanforderungen</h3>
-          <div class="req-compact">
-            <div class="req-ci"><span class="req-lbl">STR</span><input type="number" [(ngModel)]="editRune.statRequirements!.strength" min="0" placeholder="0" class="req-tiny"></div>
-            <div class="req-ci"><span class="req-lbl">GES</span><input type="number" [(ngModel)]="editRune.statRequirements!.dexterity" min="0" placeholder="0" class="req-tiny"></div>
-            <div class="req-ci"><span class="req-lbl">SPD</span><input type="number" [(ngModel)]="editRune.statRequirements!.speed" min="0" placeholder="0" class="req-tiny"></div>
-            <div class="req-ci"><span class="req-lbl">INT</span><input type="number" [(ngModel)]="editRune.statRequirements!.intelligence" min="0" placeholder="0" class="req-tiny"></div>
-            <div class="req-ci"><span class="req-lbl">KON</span><input type="number" [(ngModel)]="editRune.statRequirements!.constitution" min="0" placeholder="0" class="req-tiny"></div>
-            <div class="req-ci"><span class="req-lbl">CHR</span><input type="number" [(ngModel)]="editRune.statRequirements!.chill" min="0" placeholder="0" class="req-tiny"></div>
+        <!-- Attributanforderungen -->
+        <section class="editor-section">
+          <h3>Attributanforderungen</h3>
+          <div class="requirements-grid">
+            @for (s of statKeys; track s.key) {
+              <div class="req-item">
+                <label>{{ s.label }}</label>
+                <input type="number" min="0" placeholder="0"
+                       [(ngModel)]="editRune.statRequirements![s.key]">
+              </div>
+            }
           </div>
         </section>
 
         <!-- Wissensstufe -->
-        <section class="ed-section">
-          <h3 class="section-title">Wissensstufe</h3>
-          <select class="kt-select" [ngModel]="tier" (ngModelChange)="setTier($event)">
-            @for (t of knowledgeTiers; track t.value) {
-              <option [value]="t.value">{{ t.label }}</option>
-            }
-          </select>
-          <div class="kt-hint">{{ tierHint }}</div>
+        <section class="editor-section">
+          <h3>Wissensstufe</h3>
+          <div class="form-group">
+            <select [ngModel]="tier" (ngModelChange)="setTier($event)">
+              @for (t of knowledgeTiers; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="section-info">{{ tierHint }}</div>
         </section>
 
         <!-- Runentyp -->
-        <section class="ed-section">
-          <h3 class="section-title">Runentyp</h3>
-          <div class="rt-type-groups">
+        <section class="editor-section">
+          <h3>Runentyp</h3>
+          <div class="rt-groups">
             @for (g of runeGroups; track g) {
-              <div class="rt-type-group" [class.rt-type-group--split]="isGroupedRuneType(g)">
+              <div class="rt-group" [class.rt-group--split]="isGroupedRuneType(g)">
                 @if (isGroupedRuneType(g)) {
                   <div class="rt-group-label">{{ runeGroupLabels[g] }}</div>
                 }
-                <div class="rt-type-row">
+                <div class="rt-row">
                   @for (t of runeGroupMembers[g]; track t) {
-                    <button class="rt-type-btn"
-                            [class.rtb-active]="currentRuneType === t"
+                    <button class="rt-btn"
+                            [class.rt-active]="currentRuneType === t"
                             (click)="setRuneType(t)"
                             [title]="runeTypeLabels[t]">{{ runeTypeLabels[t] }}</button>
                   }
@@ -251,6 +264,20 @@
 
       </div><!-- /right col -->
 
-    </div><!-- /editor-body -->
-  </div><!-- /modal -->
-</div><!-- /overlay -->
+    </div><!-- /editor-content -->
+
+    <!-- ── Footer ─────────────────────────────────────────────────────── -->
+    <div class="editor-footer">
+      @if (!isNewRune) {
+        <button class="delete-btn" (click)="deleteRune()">Löschen</button>
+      }
+      <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
+      <button class="save-btn"
+              (click)="saveRune()"
+              [disabled]="!editRune.name.trim() || isSavingCanvas()">
+        {{ isSavingCanvas() ? 'Speichert…' : (isNewRune ? 'Erstellen' : 'Speichern') }}
+      </button>
+    </div>
+
+  </div>
+</div>

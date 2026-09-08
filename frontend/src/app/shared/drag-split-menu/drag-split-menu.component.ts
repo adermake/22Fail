@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, NgZone, OnDestroy, OnInit, inject, signal,
+  ChangeDetectionStrategy, Component, NgZone, OnDestroy, OnInit, effect, inject, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragSplitService } from '../../services/drag-split.service';
@@ -82,6 +82,17 @@ export class DragSplitMenuComponent implements OnInit, OnDestroy {
 
   private typedDigits = '';
   private frame = 0;
+
+  constructor() {
+    // The component is mounted once for the whole sheet, so the digit buffer outlives every
+    // drag. Without this it survives into the next one: type 5 on the first drag, 3 on the
+    // second, and the second reads 53 — clamped to the stack, which looks like the split
+    // silently stopped working.
+    effect(() => {
+      this.split.isDragging();
+      this.typedDigits = '';
+    });
+  }
 
   // ── Following the cursor ──────────────────────────────────────────────────
 

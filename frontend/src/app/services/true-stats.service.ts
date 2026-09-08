@@ -10,6 +10,7 @@ import { hashSeed } from '../scripting/dice';
 import { SkillBlock } from '../model/skill-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import { isItemEquipped } from '../utils/equip-slot.utils';
+import { roundTo } from '../utils/round.util';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
 export interface DerivedModifier {
@@ -816,7 +817,7 @@ export class TrueStatsService {
     if (!item) return 0;
     const w = item.weight || 0;
     const qty = item.stackable && (item.amount ?? 1) > 1 ? (item.amount ?? 1) : 1;
-    return w * qty;
+    return roundTo(w * qty);
   }
 
   /** Max spell fokus pool from calculated intelligence + sheet bonuses + status effects. */
@@ -934,8 +935,10 @@ export class TrueStatsService {
       (sheet.currency.gold || 0) +
       (sheet.currency.platinum || 0)
     ) * COIN_WEIGHT : 0;
-    
-    return Math.floor(itemWeight + equipmentWeight + currencyWeight);
+
+    // Rounded, not floored: flooring hid the float artefacts but also reported a 0.9 kg load
+    // as 0. Encumbrance now moves with the fractional weights the items actually carry.
+    return roundTo(itemWeight + equipmentWeight + currencyWeight);
   }
 
   /**

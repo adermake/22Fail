@@ -119,8 +119,24 @@ export const NPC_STAT_KEYS: NpcStatKey[] =
 export interface NpcSoul {
   level: number;
   stats: Record<NpcStatKey, number>;
-  /** Set for soul-locked summons: per-level growth. When present, stats = round(growth × level),
-   *  and changing the level rescales the stats (the soul "moving" to another level). */
+  /**
+   * Locked: the level distributes the point budget by itself, keeping `ratio`.
+   *
+   * This is a convenience, not a second economy — locked and unlocked souls of the same level
+   * hold exactly `soulPointBudget(level)` points. Unlocked, a level-up just adds a point to the
+   * budget for someone to place by hand; locked, the whole budget is re-dealt along the frozen
+   * ratio. Use it wherever nobody is there to spend points — soul extraction, or simply
+   * "make me a level 10 eagle out of this level 1 bird".
+   */
+  locked?: boolean;
+  /** The stat proportions frozen at the moment of locking. Only read while `locked`. */
+  ratio?: Record<NpcStatKey, number>;
+  /**
+   * @deprecated Replaced by `locked` + `ratio`. Was `stats = round(growth × level)`, which
+   * ignored the point budget entirely — a level 10 creature scaled to 40 ended up with roughly
+   * 240 points where a hand-built level 40 NPC has 69. Kept on the interface so stored JSON
+   * survives a round-trip; migrated by `normalizeNpcSoul`, read nowhere else.
+   */
   growth?: Record<NpcStatKey, number>;
 }
 
@@ -151,6 +167,66 @@ export function soulPointsSpent(soul: NpcSoul): number {
 }
 export function soulPointsRemaining(soul: NpcSoul): number {
   return soulPointBudget(soul.level) - soulPointsSpent(soul);
+}
+
+/**
+ * Deals `budget` points across the six stats in the proportions of `ratio`.
+ *
+ * Every stat keeps its minimum of 1; what is left over is handed out by largest remainder, so
+ * the six values sum to exactly `budget`. That exactness is the point: rounding each stat on its
+ * own would drift, and a soul taken from level 8 to 9 and back would not land on the numbers it
+ * started with.
+ *
+ * A ratio that is empty or all zeroes spreads the surplus evenly — there is nothing to weight by.
+ */
+export function distributeByRatio(
+  budget: number,
+  ratio: Record<NpcStatKey, number> | undefined,
+): Record<NpcStatKey, number> {
+  const out = {} as Record<NpcStatKey, number>;
+  for (const k of NPC_STAT_KEYS) out[k] = 1;
+
+  const surplus = Math.max(0, Math.floor(budget) - NPC_STAT_KEYS.length);
+  if (surplus === 0) return out;
+
+  const weights = NPC_STAT_KEYS.map(k => Math.max(0, ratio?.[k] ?? 0));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  const shares = total > 0
+    ? weights.map(w => (w / total) * surplus)
+    : NPC_STAT_KEYS.map(() => surplus / NPC_STAT_KEYS.length);
+
+  let handedOut = 0;
+  NPC_STAT_KEYS.forEach((k, i) => {
+    const whole = Math.floor(shares[i]!);
+    out[k] += whole;
+    handedOut += whole;
+  });
+
+  // The floors leave a few points over; they go to the largest fractional parts, ties to the
+  // earlier stat so the result is deterministic.
+  const remainders = NPC_STAT_KEYS
+    .map((k, i) => ({ k, frac: shares[i]! - Math.floor(shares[i]!), i }))
+    .sort((a, b) => (b.frac - a.frac) || (a.i - b.i));
+  for (let n = 0; n < surplus - handedOut; n++) {
+    out[remainders[n % remainders.length]!.k]++;
+  }
+  return out;
+}
+
+/**
+ * Brings a stored soul onto the current model: legacy `growth` becomes `locked` + `ratio`.
+ *
+ * The stats themselves are deliberately left alone. A companion summoned under the old
+ * `growth × level` rule keeps the numbers it was summoned with and only joins the point budget
+ * once somebody actually moves its level — no migration pass, nothing silently weakened.
+ */
+export function normalizeNpcSoul(soul: NpcSoul): NpcSoul {
+  if (soul.growth && !soul.ratio) {
+    soul.locked = true;
+    soul.ratio = { ...soul.stats };
+  }
+  if (soul.locked && !soul.ratio) soul.ratio = { ...soul.stats };
+  return soul;
 }
 
 export function createEmptyNpcSoul(): NpcSoul {

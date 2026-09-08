@@ -30,9 +30,7 @@
             <th class="c-name">Name</th>
             <th class="c-color" title="Leuchtfarbe">Farbe</th>
             <th class="c-num" title="Fokus-Basis">Fok</th>
-            <th class="c-num" title="Fokus-Multiplikator">×F</th>
             <th class="c-num" title="Mana-Basis">Man</th>
-            <th class="c-num" title="Mana-Multiplikator">×M</th>
             <th class="c-num" title="Effektivität">Eff</th>
             <th class="c-num" title="Goldwert">Preis</th>
             <th class="c-stat" title="Stärke">STR</th>
@@ -80,16 +78,10 @@
               <td><input type="number" class="rt-num"
                          [(ngModel)]="file.data.fokus"
                          (ngModelChange)="onFieldChange(file)" min="0"></td>
-              <td><input type="number" class="rt-num"
-                         [(ngModel)]="file.data.fokusVerlust"
-                         (ngModelChange)="onFieldChange(file)" min="0"></td>
 
               <!-- Mana -->
               <td><input type="number" class="rt-num"
                          [(ngModel)]="file.data.mana"
-                         (ngModelChange)="onFieldChange(file)" min="0"></td>
-              <td><input type="number" class="rt-num"
-                         [(ngModel)]="file.data.manaMult"
                          (ngModelChange)="onFieldChange(file)" min="0"></td>
 
               <!-- Effektivität -->

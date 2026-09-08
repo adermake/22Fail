@@ -161,6 +161,19 @@ export class WorldComponent implements OnInit, OnDestroy {
   /** Rohstoffe/Wirkstoffe/Extraktoren als echte Gegenstände (Bogen: Materialien). */
   resourceBrowseItems = signal<BrowseEntry[]>([]);
 
+  /** Die Katalogarten, die der Schreibtisch aus den verknüpften Bibliotheken zeigt. */
+  readonly catalogKinds = ['item', 'spell', 'skill', 'rune', 'status-effect'] as const;
+
+  /**
+   * Dieselben Arten, aber über den Asset-Browser geladen — mit Ordnerpfad.
+   *
+   * `/api/library` liefert flache Arrays: `readAssetsFromDir` packt nur die Nutzlast aus der
+   * Wrapper-Datei aus und wirft deren `path` weg. Der Schreibtisch gruppiert nach `folder`,
+   * bekam also für jeden Eintrag `'/'` und warf alles in einen Ordner „Wurzel". Der
+   * Asset-Browser liefert vollständige `AssetFile`s, `toBrowseEntry` liest den Ordner daraus.
+   */
+  catalogBrowseAssets = signal<Record<string, BrowseEntry[]>>({});
+
   // Drag state
   private dragScrollInterval?: number;
   private isDragging = false;
@@ -326,15 +339,27 @@ export class WorldComponent implements OnInit, OnDestroy {
     const world = this.store.worldValue;
     const libs = this.loadedLibraries();
     const linked = world?.linkedLibraries ?? [];
+    const fromAssets = this.catalogBrowseAssets();
 
     const collect = (pick: (lib: Library) => { id?: string; name?: string }[] | undefined,
                      ownArray: { id?: string; name?: string }[] | undefined,
                      key: string): BrowseEntry[] => {
       const out: BrowseEntry[] = [];
-      // Die veralteten welt-eigenen Arrays haben keine Bibliothek — sie bleiben ohne Herkunft.
+      // Die veralteten welt-eigenen Arrays haben keine Bibliothek — sie bleiben ohne Herkunft,
+      // und ohne Datei auch ohne Ordner.
       for (const [i, data] of (ownArray ?? []).entries()) {
         if (data) out.push({ id: data.id || `${key}-welt-${i}`, name: data.name || 'Unbenannt', folder: '/', data });
       }
+
+      // Der Asset-Durchlauf kennt den Ordner; die flachen `/api/library`-Arrays nicht. Solange
+      // er noch lädt, bleibt der bisherige Weg als Rückfall — sonst wäre der Schreibtisch beim
+      // ersten Rendern leer.
+      const assets = (fromAssets[key] ?? []).filter(e => !e.libraryId || linked.includes(e.libraryId));
+      if (assets.length) {
+        out.push(...assets);
+        return out;
+      }
+
       for (const libId of linked) {
         const lib = libs.find(l => l.id === libId);
         for (const [i, data] of (pick(lib as Library) ?? []).entries()) {
@@ -1297,11 +1322,34 @@ export class WorldComponent implements OnInit, OnDestroy {
         ...byKind['material'], ...byKind['ingredient'], ...byKind['extractor'],
       ]);
 
+      await this.loadCatalogData(libraries);
+
       this.knowledgeDataLoaded = true;
       this.cdr.markForCheck();
     } catch (e) {
       console.error('[WORLD] Fehler beim Laden der Wissensdaten', e);
     }
+  }
+
+  /**
+   * Gegenstände/Zauber/Fertigkeiten/Runen/Statuseffekte für den Schreibtisch, mit Ordnerpfad.
+   *
+   * Lädt aus ALLEN Bibliotheken; auf die verknüpften filtert `deskCatalog`. Der Aufruf sitzt in
+   * `ngOnInit` vor `store.load()`, die Welt ist hier also noch nicht da — würde hier gefiltert,
+   * käme nie etwas an. Im Computed ist die Verknüpfungsliste reaktiv und immer aktuell.
+   */
+  private async loadCatalogData(libraries: { id: string; name: string }[]): Promise<void> {
+    const byKind: Record<string, BrowseEntry[]> = {};
+    for (const kind of this.catalogKinds) byKind[kind] = [];
+
+    for (const lib of libraries) {
+      for (const kind of this.catalogKinds) {
+        const files = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', [kind]));
+        byKind[kind]!.push(...files.map(f => this.toBrowseEntry(f, lib.id, lib.name)));
+      }
+    }
+
+    this.catalogBrowseAssets.set(byKind);
   }
 
   /** Eine Asset-Datei als Browser-Eintrag; der Ordner kommt aus dem Pfad der Datei. */

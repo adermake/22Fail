@@ -91,6 +91,24 @@
 .npc-soul-input { width: 46px; text-align: center; padding: 4px 4px; background: var(--card, #2d3748); border: 1px solid var(--border, #4a5568); border-radius: 5px; color: var(--text, #e5e7eb); font-weight: 700; font-size: 0.85rem; }
 .npc-soul-input:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 .npc-budget-over { color: #ef4444 !important; background: rgba(239,68,68,0.14) !important; }
+
+/* Wachstum sperren: gleiche Pillenform wie die Budget-Anzeige, aber anklickbar. */
+.npc-lock-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; font-weight: 600;
+  padding: 2px 9px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border, #4a5568);
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.npc-lock-btn:hover { color: var(--text, #e5e7eb); border-color: var(--accent, #8b5cf6); }
+.npc-lock-on {
+  background: rgba(139, 92, 246, 0.16);
+  border-color: var(--accent, #8b5cf6);
+  color: #c4b5fd;
+}
 .npc-warn { color: #ef4444; font-weight: 600; }
 .npc-body-grid-2 { grid-template-columns: 1fr 1fr; }
 
