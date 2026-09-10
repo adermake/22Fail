@@ -16,11 +16,12 @@ import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.mo
 import { SpellGraph } from '../../shared/spell-node-editor/spell-node.model';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 import { actionMacroToScript } from '../../scripting/decompiler';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 @Component({
   selector: 'app-spell-editor-overlay',
   standalone: true,
-  imports: [CommonModule, FormsModule, SpellNodeEditorComponent, ScriptEditorComponent],
+  imports: [CommonModule, FormsModule, SpellNodeEditorComponent, ScriptEditorComponent, ImageUrlPipe],
   templateUrl: './spell-editor-overlay.component.html',
   styleUrl: './spell-editor-overlay.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

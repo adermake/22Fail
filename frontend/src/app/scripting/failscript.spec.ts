@@ -202,3 +202,74 @@ describe('seeded dice in effectActive', () => {
     expect(run()).toEqual(a);
   });
 });
+
+// ── Schmiedemerkmale: item targets and per-trait level ───────────────────────
+
+/** A context where `merkmalLevel` reads back a specific trait level. */
+function atLevel(level: number): CharacterContext {
+  return { ...dummyCtx, readScalar: (name: string) => (name === 'merkmalLevel' ? level : 10) };
+}
+
+describe('FailScript item targets', () => {
+  it('accepts the four writable item properties inside effectActive', () => {
+    const src = 'effectActive { item.effectivity += 1 item.stability += 1 '
+      + 'item.armorDebuff += 1 item.weight -= 1 }';
+    expect(compileScript(src).ok).toBe(true);
+  });
+
+  it('rejects an unknown item property', () => {
+    const e = errs('effectActive { item.schaerfe += 1 }');
+    expect(e.some(m => m.includes("Unbekannte Gegenstands-Eigenschaft 'schaerfe'"))).toBe(true);
+  });
+
+  it('rejects an item assignment outside effectActive (stat leak)', () => {
+    expect(errs('item.effectivity += 5').some(m => m.includes('Stat-Leak'))).toBe(true);
+  });
+
+  it('still rejects assignment to any other property', () => {
+    expect(errs('effectActive { strength.base += 1 }')
+      .some(m => m.includes('Zuweisung an Eigenschaften'))).toBe(true);
+  });
+
+  it('collects item modifiers separately from wearer modifiers', () => {
+    const r = runScript(
+      'effectActive { item.effectivity += 3 speed += 2 }', dummyCtx, { collect: true });
+    expect(r.itemModifiers).toEqual([{ target: 'effectivity', op: 'add', amount: 3 }]);
+    expect(r.modifiers.map(m => m.target)).toEqual(['speed']);
+  });
+
+  it('carries the assignment operator through to the item modifier', () => {
+    const r = runScript(
+      'effectActive { item.weight *= 0.5 }', dummyCtx, { collect: true });
+    expect(r.itemModifiers).toEqual([{ target: 'weight', op: 'mul', amount: 0.5 }]);
+  });
+
+  it('emits no item modifiers on a non-collect run', () => {
+    expect(runScript('effectActive { item.effectivity += 3 }', dummyCtx).itemModifiers).toEqual([]);
+  });
+});
+
+describe('FailScript merkmalLevel', () => {
+  const src = 'effectActive { item.effectivity += 2 * merkmalLevel }';
+
+  it('scales with the level of the trait being run', () => {
+    const amount = (level: number) =>
+      runScript(src, atLevel(level), { collect: true }).itemModifiers[0]!.amount;
+    expect(amount(1)).toBe(2);
+    expect(amount(3)).toBe(6);
+  });
+
+  it('keeps two traits at different levels apart', () => {
+    // The reason trait scripts are run separately instead of concatenated: Parry 2 alongside
+    // Attackbuff 1 must not collapse into both seeing the same level.
+    const parry = runScript('effectActive { item.effectivity += merkmalLevel }', atLevel(2),
+      { collect: true }).itemModifiers[0]!.amount;
+    const buff = runScript('effectActive { item.stability += merkmalLevel }', atLevel(1),
+      { collect: true }).itemModifiers[0]!.amount;
+    expect([parry, buff]).toEqual([2, 1]);
+  });
+
+  it('is a known symbol, not an undeclared variable', () => {
+    expect(compileScript('effectActive { item.effectivity += merkmalLevel }').ok).toBe(true);
+  });
+});

@@ -5,11 +5,12 @@ import { ForgeTrait, createEmptyForgeTrait } from '../../model/forging.model';
 import {
   KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, setKnowledgeTier,
 } from '../../utils/knowledge-tier.util';
+import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 
 @Component({
   selector: 'app-forge-trait-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ScriptEditorComponent],
   templateUrl: './forge-trait-editor.component.html',
   styleUrl: './forge-trait-editor.component.css',
 })

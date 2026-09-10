@@ -92,7 +92,7 @@
               @for (node of graphRuneNodes; track $index) {
                 <div class="rune-mini-chip" [class.rune-mini-unknown]="!node.known" [title]="node.known ? node.runeId : '??? (Rune nicht gelernt)'">
                   @if (node.drawing) {
-                    <img class="rune-mini-img" [src]="node.drawing" [alt]="node.runeId" />
+                    <img class="rune-mini-img" [src]="node.drawing | imageUrl" [alt]="node.runeId" />
                   } @else if (node.known) {
                     <span class="rune-mini-glyph">{{ node.icon }}</span>
                   } @else {

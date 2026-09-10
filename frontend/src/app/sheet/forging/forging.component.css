@@ -1178,15 +1178,20 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .weapon-type-select:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 
 /* Forge action group: merges gain-block and button visually */
+/*
+ * Cost/gain and the Schmieden button read as one control, so they hug their content instead of
+ * stretching across the row. Letting the gain block take `flex: 1` pushed the numbers to the far
+ * left and the button to the far right, with the eye having to travel between them.
+ */
 .forg-action-group {
-  flex: 1;
+  flex: 0 1 auto;
   display: flex;
   align-items: stretch;
   gap: 0;
   min-width: 0;
 }
 .forg-action-group .forg-gain-block {
-  flex: 1;
+  flex: 0 1 auto;
   border-radius: 6px 0 0 6px;
 }
 .forg-action-group .forg-btn.forg-plus {

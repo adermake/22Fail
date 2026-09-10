@@ -7,8 +7,8 @@
  */
 
 import {
-  ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTIN_MAP, POLARITY_NAMES, RESOURCE_NAMES, STYLE_NAMES,
-  SYMBOL_MAP, TALENT_IDS,
+  ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTIN_MAP, ITEM_WRITABLE, POLARITY_NAMES,
+  RESOURCE_NAMES, STYLE_NAMES, SYMBOL_MAP, TALENT_IDS,
 } from './symbols';
 import { parse } from './parser';
 import { Block, Diagnostic, Expr, Program, Stmt } from './ast';
@@ -196,6 +196,23 @@ class Checker {
     const target = stmt.target;
 
     if (target.kind === 'Member') {
+      // `item.<prop>` is the one writable property access: it modifies the item the script
+      // belongs to. Everything else stays read-only.
+      if (target.object.kind === 'Identifier' && target.object.name === 'item') {
+        if (!ITEM_WRITABLE[target.property]) {
+          this.err(target.propertySpan.from, target.propertySpan.to,
+            `Unbekannte Gegenstands-Eigenschaft '${target.property}' ` +
+            `(erlaubt: ${Object.keys(ITEM_WRITABLE).join(', ')})`);
+          return;
+        }
+        if (this.lifecycleDepth === 0) {
+          this.err(stmt.from, stmt.to,
+            `Direkte Änderung von 'item.${target.property}' ist nicht erlaubt (Stat-Leak). ` +
+            `Verwende 'effectActive { item.${target.property} += … }' — der Wert gilt, solange ` +
+            `der Effekt aktiv ist.`);
+        }
+        return;
+      }
       this.err(target.from, target.to, 'Zuweisung an Eigenschaften ist nicht erlaubt (nur lesen).');
       return;
     }
@@ -287,6 +304,14 @@ class Checker {
       if (obj.name === 'talent') {
         if (!TALENT_IDS.has(expr.property)) {
           this.err(expr.propertySpan.from, expr.propertySpan.to, `Unbekanntes Talent '${expr.property}'`);
+        }
+        return;
+      }
+      if (obj.name === 'item') {
+        if (!ITEM_WRITABLE[expr.property]) {
+          this.err(expr.propertySpan.from, expr.propertySpan.to,
+            `Unbekannte Gegenstands-Eigenschaft '${expr.property}' ` +
+            `(erlaubt: ${Object.keys(ITEM_WRITABLE).join(', ')})`);
         }
         return;
       }

@@ -512,4 +512,127 @@ describe('TrueStatsService', () => {
       expect(svc.calculateSpentFreeStatPoints(sheet)).toBe(3);
     });
   });
+
+  // ── Schmiedemerkmale as scripts ───────────────────────────────────────────
+
+  /** An equipped weapon carrying forged traits. */
+  function forged(partial: Partial<ItemBlock>, traits: { name: string; level: number; script?: string }[]): ItemBlock {
+    return item({
+      id: 'it_' + Math.random().toString(36).slice(2),
+      itemType: 'weapon',
+      armorType: 'weapon',
+      efficiency: 10,
+      ...partial,
+      forgingData: {
+        createdAt: 0, itemType: 'weapon', appliedTraits: traits, totalSP: 0, spentSP: 0,
+      },
+    });
+  }
+
+  describe('forged trait scripts', () => {
+    it('leaves an item without trait scripts at its forged value', () => {
+      const sheet = makeSheet();
+      const weapon = forged({}, [{ name: 'Parry', level: 2 }]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveEfficiency(sheet, weapon)).toBe(10);
+    });
+
+    it('applies a trait script to the item it is forged into', () => {
+      const sheet = makeSheet();
+      const weapon = forged({}, [
+        { name: 'Schärfe', level: 1, script: 'effectActive { item.effectivity += 5 }' },
+      ]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveEfficiency(sheet, weapon)).toBe(15);
+    });
+
+    it('scales with the trait level via merkmalLevel', () => {
+      const sheet = makeSheet();
+      const weapon = forged({}, [
+        { name: 'Schärfe', level: 3, script: 'effectActive { item.effectivity += 2 * merkmalLevel }' },
+      ]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveEfficiency(sheet, weapon)).toBe(16); // 10 + 2*3
+    });
+
+    it('keeps two traits on one item at their own levels', () => {
+      // The isolation requirement: Parry 2 next to Schärfe 1 must not see the same level.
+      const sheet = makeSheet();
+      const weapon = forged({}, [
+        { name: 'Parry',   level: 2, script: 'effectActive { item.effectivity += merkmalLevel }' },
+        { name: 'Schärfe', level: 1, script: 'effectActive { item.effectivity += merkmalLevel }' },
+      ]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveEfficiency(sheet, weapon)).toBe(13); // 10 + 2 + 1
+    });
+
+    it('does not leak one item\'s trait onto another item', () => {
+      const sheet = makeSheet();
+      const buffed = forged({ name: 'Zornklinge' }, [
+        { name: 'Schärfe', level: 1, script: 'effectActive { item.effectivity += 5 }' },
+      ]);
+      const plain = forged({ name: 'Stockdegen' }, []);
+      sheet.equipment = [buffed, plain];
+      expect(svc.resolveEfficiency(sheet, buffed)).toBe(15);
+      expect(svc.resolveEfficiency(sheet, plain)).toBe(10);
+    });
+
+    it('re-derives when a condition\'s input changes', () => {
+      // The cache-key test: without health in the fingerprint the bonus would survive healing.
+      const sheet = makeSheet();
+      const weapon = forged({}, [{
+        name: 'Blutdurst', level: 1,
+        script: 'effectActive { if (health < healthMax / 2) { item.effectivity += 5 } }',
+      }]);
+      sheet.equipment = [weapon];
+
+      const life = sheet.statuses?.find(s => s.formulaType === FormulaType.LIFE);
+      const max = svc.calculateResourceMax(sheet, FormulaType.LIFE);
+
+      life!.statusCurrent = 1;
+      expect(svc.resolveEfficiency(sheet, weapon)).toBe(15);
+
+      life!.statusCurrent = max;
+      expect(svc.resolveEfficiency(sheet, weapon)).toBe(10);
+    });
+
+    it('attributes each modifier to the Merkmal that produced it', () => {
+      const sheet = makeSheet();
+      const weapon = forged({}, [
+        { name: 'Schärfe', level: 1, script: 'effectActive { item.effectivity += 5 }' },
+        { name: 'Bleifuß', level: 1, script: 'effectActive { item.weight += 2 }' },
+      ]);
+      sheet.equipment = [weapon];
+      expect(svc.getItemModifierBreakdown(sheet, weapon)).toEqual([
+        { target: 'effectivity', op: 'add', amount: 5, source: 'Schärfe' },
+        { target: 'weight', op: 'add', amount: 2, source: 'Bleifuß' },
+      ]);
+    });
+
+    it('reports nothing while a condition is false', () => {
+      const sheet = makeSheet();
+      const weapon = forged({}, [{
+        name: 'Blutdurst', level: 1,
+        script: 'effectActive { if (health < 1) { item.effectivity += 5 } }',
+      }]);
+      sheet.equipment = [weapon];
+      expect(svc.getItemModifierBreakdown(sheet, weapon)).toEqual([]);
+    });
+
+    it('feeds a changed item stability into the character total', () => {
+      const sheet = makeSheet();
+      const armour = item({
+        id: 'arm_1', itemType: 'armor', armorType: 'chestplate', stability: 10,
+        forgingData: {
+          createdAt: 0, itemType: 'armor', totalSP: 0, spentSP: 0,
+          appliedTraits: [
+            { name: 'Härtung', level: 1, script: 'effectActive { item.stability += 10 }' },
+          ],
+        },
+      });
+      sheet.equipment = [armour];
+      // Defence is the summed stability ÷ 5, so 20 rather than 10 lands as 4.
+      expect(svc.calculateTotalStability(sheet)).toBe(4);
+    });
+  });
 });

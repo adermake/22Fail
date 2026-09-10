@@ -107,14 +107,14 @@
             @if (showDetails) {
               <span class="tag tag-weight" [class.tag-big]="(full || !isFolded)">{{ totalWeight }} kg</span>
             }
-            @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
-              <span class="tag tag-eff" [class.tag-big]="(full || !isFolded)"><span class="app-icon i-effektivity"></span> {{ item.efficiency }}</span>
+            @if (showDetails && item.itemType === 'weapon' && effectivity) {
+              <span class="tag tag-eff" [class.tag-big]="(full || !isFolded)"><span class="app-icon i-effektivity"></span> {{ effectivity }}</span>
             }
-            @if (showDetails && item.itemType === 'armor' && item.stability) {
-              <span class="tag tag-stab" [class.tag-big]="(full || !isFolded)"><span class="app-icon i-stability"></span> {{ item.stability }}</span>
+            @if (showDetails && item.itemType === 'armor' && stability) {
+              <span class="tag tag-stab" [class.tag-big]="(full || !isFolded)"><span class="app-icon i-stability"></span> {{ stability }}</span>
             }
-            @if (showDetails && item.armorDebuff) {
-              <span class="tag tag-debuff">-{{ item.armorDebuff }} SPD</span>
+            @if (showDetails && armorDebuff) {
+              <span class="tag tag-debuff">-{{ armorDebuff }} SPD</span>
             }
             @if (showDetails && !canUseItem && !item.broken && !item.lost) {
               <span class="tag tag-unusable">Unbrauchbar</span>
@@ -126,11 +126,11 @@
         </div>
   
         <div class="item-controls">
-          @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
+          @if (showDetails && item.itemType === 'weapon' && effectivity) {
             <button class="roll-damage-btn"
-                    (click)="rollDamage.emit(item.efficiency!); $event.stopPropagation()"
+                    (click)="rollDamage.emit(effectivity); $event.stopPropagation()"
                     (mousedown)="$event.stopPropagation()"
-                    title="Schaden würfeln (Eff: {{ item.efficiency }})">
+                    title="Schaden würfeln (Eff: {{ effectivity }})">
               <span class="app-icon i-effektivity"></span>
             </button>
           }
@@ -172,8 +172,21 @@
         }
   
         <!-- 2. Effects -->
-        @if (item.primaryEffect || item.secondaryEffect || item.specialEffect) {
+        @if (item.primaryEffect || item.secondaryEffect || item.specialEffect || activeEffects.length) {
           <div class="effects-section">
+            <!-- What the item's Merkmal scripts are doing right now. Derived, not typed by hand,
+                 so it cannot drift from the mechanics — and a conditional Merkmal only shows up
+                 here while its condition holds. -->
+            @if (showDetails && activeEffects.length) {
+              <div class="effect-item derived">
+                <span class="effect-label">Wirkung</span>
+                <span class="effect-text">
+                  @for (line of activeEffects; track line) {
+                    <span class="derived-line">{{ line }}</span>
+                  }
+                </span>
+              </div>
+            }
             @if (item.primaryEffect) {
               <div class="effect-item primary">
                 <span class="effect-label">Primäreffekt</span>

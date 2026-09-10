@@ -39,6 +39,7 @@
             @switch (type) {
               @case ('forge-trait') {
                 <th class="c-text">Effekt</th>
+                <th class="c-num" title="Hat eine skriptgesteuerte Wirkung">Wirkt</th>
                 <th class="c-num" title="Schmiedepunkte">SP</th>
                 <th class="c-num" title="Maximale Stufe">Max</th>
                 <th class="c-num" title="Stufig steigerbar">Stufig</th>
@@ -122,6 +123,16 @@
                     <input class="ct-input" type="text"
                            [ngModel]="forgeTrait(file).effect"
                            (ngModelChange)="forgeTrait(file).effect = $event; onFieldChange(file)" />
+                  </td>
+                  <!-- Read-only marker: the script itself is edited in the Merkmal editor, which
+                       has the CodeMirror surface. Here it only answers "does this one do
+                       anything mechanically, or is it text for the table to interpret?" -->
+                  <td class="c-num">
+                    @if (forgeTrait(file).script?.trim()) {
+                      <span class="ct-has-script" title="Hat eine Wirkung (Skript)">
+                        <span class="app-icon i-ability"></span>
+                      </span>
+                    }
                   </td>
                   <td class="c-num">
                     <input class="ct-input ct-num" type="number"

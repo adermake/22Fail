@@ -219,7 +219,7 @@
                           <div class="forg-gain-block">
                             <span class="forg-cost" [class.forg-cost-warn]="!canForge(entry)">{{ nextForgeCostFor(entry) }}&thinsp;SP</span>
                             <span class="forg-arrow">&#x2192;</span>
-                            <span class="forg-gain">+{{ sc.halt }}&thinsp;&#x2390; +{{ sc.eff }}&thinsp;{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
+                            <span class="forg-gain">+{{ sc.halt | number:'1.0-2' }}&thinsp;&#x2390; +{{ sc.eff | number:'1.0-2' }}&thinsp;{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
                           </div>
                           <button class="forg-btn forg-plus" (click)="forge(entry)" [disabled]="!canForge(entry)">Schmieden</button>
                         </div>

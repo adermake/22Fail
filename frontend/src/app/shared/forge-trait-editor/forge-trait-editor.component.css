@@ -28,6 +28,29 @@
   font-weight: 400;
 }
 
+/* Wirkung: the script half of a Merkmal. */
+.script-hint {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-muted, #9ca3af);
+}
+
+.script-hint code {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgba(139, 92, 246, 0.16);
+  color: #c4b5fd;
+  font-size: 0.72rem;
+}
+
+.script-host {
+  border: 1px solid var(--border, #374151);
+  border-radius: 6px;
+  overflow: hidden;
+  min-height: 150px;
+}
+
 .form-row input,
 .form-row textarea {
   padding: 0.5rem 0.75rem;

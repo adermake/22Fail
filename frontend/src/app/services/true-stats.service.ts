@@ -5,11 +5,16 @@ import { LibraryStoreService } from './library-store.service';
 import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { createPlayerContext } from '../scripting/character-context';
-import { ModifierOp, runScript, ScriptDiceBonus, ScriptGrantedSkill } from '../scripting/interpreter';
+import {
+  ItemModifierTarget, ModifierOp, runScript, ScriptDiceBonus, ScriptGrantedSkill,
+  ScriptItemModifier,
+} from '../scripting/interpreter';
 import { hashSeed } from '../scripting/dice';
+import { ItemBlock } from '../model/item-block.model';
 import { SkillBlock } from '../model/skill-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import { isItemEquipped } from '../utils/equip-slot.utils';
+import { stackAmount } from '../utils/item-stack.util';
 import { roundTo } from '../utils/round.util';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
@@ -24,17 +29,33 @@ export interface DerivedModifier {
 export interface DerivedGrantedSkill extends ScriptGrantedSkill { source: string; }
 /** A dice bonus declared by an active effect/skill/item script, tagged with where it came from. */
 export interface DerivedDiceBonus extends ScriptDiceBonus { source: string; }
+/**
+ * An `item.<prop>` modifier plus the Schmiedemerkmal that produced it.
+ *
+ * The source is what lets the item card say "Schärfe: Effektivität +5" instead of leaving the
+ * player to guess which of four Merkmale moved the number.
+ */
+export interface DerivedItemModifier extends ScriptItemModifier { source: string; }
 
 interface DerivedEntry {
   fp: string;
   mods: DerivedModifier[];
   skills: DerivedGrantedSkill[];
   diceBonuses: DerivedDiceBonus[];
+  /** `item.<prop>` modifiers, keyed by the id of the item they belong to. */
+  itemMods: Map<string, DerivedItemModifier[]>;
 }
-const EMPTY_DERIVED: DerivedEntry = { fp: '', mods: [], skills: [], diceBonuses: [] };
+const EMPTY_DERIVED: DerivedEntry = {
+  fp: '', mods: [], skills: [], diceBonuses: [], itemMods: new Map(),
+};
 
 /** Flat Leben every character gains per level, on top of Konstitution ×5. */
 export const HEALTH_PER_LEVEL = 2;
+
+/** Identity for item-modifier bookkeeping. Falls back to the name for items without an id. */
+function itemKey(item: ItemBlock): string {
+  return item.id || item.name;
+}
 
 /** Combine a modifier with the running value in the ordered stat pipeline. */
 function applyOp(acc: number, op: ModifierOp, amount: number): number {
@@ -199,8 +220,8 @@ export class TrueStatsService {
     const fp = this.effectFingerprint(sheet);
     const cached = this.derivedCache.get(sheet);
     if (cached && cached.fp === fp) return cached;
-    const { mods, skills, diceBonuses } = this.collectEffectActive(sheet);
-    const entry: DerivedEntry = { fp, mods, skills, diceBonuses };
+    const { mods, skills, diceBonuses, itemMods } = this.collectEffectActive(sheet);
+    const entry: DerivedEntry = { fp, mods, skills, diceBonuses, itemMods };
     this.derivedCache.set(sheet, entry);
     return entry;
   }
@@ -225,21 +246,39 @@ export class TrueStatsService {
     for (const spell of sheet.spells ?? []) {
       if (spell.script && activeSpells.includes(spell.name)) s += `|SP:${spell.name}#${spell.script}`;
     }
-    // Equipped items carry scripts too — swapping or losing gear must recompute.
+    // Equipped items carry scripts too — swapping or losing gear must recompute. So do the
+    // Schmiedemerkmale forged into them, each with its own level.
     for (const item of sheet.equipment ?? []) {
-      if (item?.script && isItemEquipped(item)) {
-        s += `|IT:${item.name}#${item.durability ?? ''}#${item.script}`;
+      if (!isItemEquipped(item)) continue;
+      if (item?.script) s += `|IT:${item.name}#${item.durability ?? ''}#${item.script}`;
+      for (const t of item?.forgingData?.appliedTraits ?? []) {
+        if (t.script) s += `|MK:${item.name}/${t.name}@${t.level}#${t.script}`;
       }
     }
+
+    /*
+     * The state a condition might read.
+     *
+     * `if (health < healthMax / 2) { item.effectivity += 5 }` has to re-derive when health moves,
+     * or the sword keeps its bonus after healing. Current resources and the six base attributes
+     * cover what conditions realistically test; derived stats need no entry because the collect
+     * pass reads them pre-effect anyway (the snapshot rule), so they cannot vary independently.
+     */
+    for (const st of sheet.statuses ?? []) s += `|R:${st.formulaType}=${st.statusCurrent ?? ''}`;
+    s += `|A:${sheet.strength?.current ?? ''}/${sheet.dexterity?.current ?? ''}`
+      + `/${sheet.speed?.current ?? ''}/${sheet.intelligence?.current ?? ''}`
+      + `/${sheet.constitution?.current ?? ''}/${sheet.chill?.current ?? ''}`;
     return s;
   }
 
   private collectEffectActive(sheet: CharacterSheet): {
     mods: DerivedModifier[]; skills: DerivedGrantedSkill[]; diceBonuses: DerivedDiceBonus[];
+    itemMods: Map<string, DerivedItemModifier[]>;
   } {
     const mods: DerivedModifier[] = [];
     const skills: DerivedGrantedSkill[] = [];
     const diceBonuses: DerivedDiceBonus[] = [];
+    const itemMods = new Map<string, DerivedItemModifier[]>();
     this.collectingEffectActive = true;
     try {
       for (const active of sheet.activeStatusEffects ?? []) {
@@ -299,22 +338,63 @@ export class TrueStatsService {
       // anything else in Extra. The item itself is in scope, so its script can read
       // `durability` and `counter("…")`.
       for (const item of sheet.equipment ?? []) {
-        if (!item?.script || !isItemEquipped(item)) continue;
-        const src = item.script;
-        if (!src.includes('effectActive') && !src.includes('untilNextTurn')) continue;
-        const ctx = createPlayerContext(sheet, this, {
-          inCombat: true, stacks: 1, turn: 0, duration: 0, effectStrength: 0, item,
-          seed: hashSeed(item.id || item.name),
-        });
-        const res = runScript(src, ctx, { collect: true });
-        for (const m of res.modifiers) mods.push({ ...m, priority: 0, source: item.name });
-        for (const g of res.grantedSkills) skills.push({ ...g, source: item.name });
-        for (const d of res.diceBonuses) diceBonuses.push({ ...d, source: item.name });
+        if (!isItemEquipped(item)) continue;
+
+        /*
+         * An item contributes through two channels: its own script, and the script of each
+         * Schmiedemerkmal forged into it. Merkmale are run SEPARATELY, one call each, because
+         * every one needs its own `merkmalLevel` — Parry 2 next to Attackbuff 1 must not collapse
+         * into both seeing the same level. Concatenating them into one script would also share a
+         * variable scope, so a `var x` in one Merkmal would clobber the next one's.
+         */
+        // `source` labels wearer-facing effects (where the item name is the useful part);
+        // `label` labels item-facing ones on the item's own card (where its name is redundant
+        // and the Merkmal's name is what you want to see).
+        const runs: {
+          src: string; source: string; label: string; level?: number; seedKey: string;
+        }[] = [];
+        if (item.script) {
+          runs.push({
+            src: item.script, source: item.name, label: item.name,
+            seedKey: item.id || item.name,
+          });
+        }
+        for (const t of item.forgingData?.appliedTraits ?? []) {
+          if (!t.script) continue;
+          runs.push({
+            src: t.script,
+            source: `${item.name} — ${t.name}`,
+            label: t.name,
+            level: t.level,
+            seedKey: `${item.id || item.name}#${t.name}`,
+          });
+        }
+
+        for (const run of runs) {
+          if (!run.src.includes('effectActive') && !run.src.includes('untilNextTurn')) continue;
+          const ctx = createPlayerContext(sheet, this, {
+            inCombat: true, stacks: run.level ?? 1, turn: 0, duration: 0, effectStrength: 0, item,
+            merkmalLevel: run.level,
+            seed: hashSeed(run.seedKey),
+          });
+          const res = runScript(run.src, ctx, { collect: true });
+          for (const m of res.modifiers) mods.push({ ...m, priority: 0, source: run.source });
+          for (const g of res.grantedSkills) skills.push({ ...g, source: run.source });
+          for (const d of res.diceBonuses) diceBonuses.push({ ...d, source: run.source });
+          if (res.itemModifiers.length) {
+            const key = itemKey(item);
+            const list = itemMods.get(key) ?? [];
+            // `run.label` is the Merkmal's own name where there is one, so the item card can
+            // attribute the change; the item's own script is attributed to the item.
+            for (const m of res.itemModifiers) list.push({ ...m, source: run.label });
+            itemMods.set(key, list);
+          }
+        }
       }
     } finally {
       this.collectingEffectActive = false;
     }
-    return { mods, skills, diceBonuses };
+    return { mods, skills, diceBonuses, itemMods };
   }
 
   /** Apply the derived modifiers for `target` (sorted by priority) on top of `base`. */
@@ -384,7 +464,7 @@ export class TrueStatsService {
   calculateTotalStability(sheet: CharacterSheet): number {
     const equip = (sheet.equipment ?? [])
       .filter(i => !i.lost)
-      .reduce((sum, i) => sum + (i.stability ?? 0), 0);
+      .reduce((sum, i) => sum + this.resolveItemStat(sheet, i, 'stability'), 0);
     const core = Math.floor(equip / 5)
       + this.getStatusModifierTotal(sheet, 'stability')
       + this.getSkillItemModifierTotal(sheet, 'stability');
@@ -812,6 +892,62 @@ export class TrueStatsService {
     return `1 Punkt negiert 1 Malus-Punkt (Rüstung + Belastung)\nMalus gesamt: ${malus}, Negation: ${neg}\nVerbleibender Malus: ${after}`;
   }
 
+  /**
+   * An item's stat after its own script and its Schmiedemerkmale have had their say.
+   *
+   * Always go through this rather than reading `item.efficiency` directly, or the sheet and the
+   * lobby will disagree the moment a Merkmal is conditional.
+   *
+   * While the collect pass is running this returns the raw forged value — that is the snapshot
+   * rule: a Merkmal that reads `armorMalus` sees the total from *before* item effects applied,
+   * which keeps the whole thing acyclic and independent of the order items are processed in. The
+   * cost is that such a condition can be one step behind what the sheet finally shows.
+   */
+  resolveItemStat(
+    sheet: CharacterSheet,
+    item: ItemBlock | null | undefined,
+    prop: ItemModifierTarget,
+  ): number {
+    const base = this.rawItemStat(item, prop);
+    if (!item || this.collectingEffectActive) return base;
+    const mods = this.getDerived(sheet).itemMods.get(itemKey(item));
+    if (!mods?.length) return base;
+    let acc = base;
+    for (const m of mods) if (m.target === prop) acc = applyOp(acc, m.op, m.amount);
+    return acc;
+  }
+
+  /** The forged value on the item, before any script touches it. */
+  private rawItemStat(item: ItemBlock | null | undefined, prop: ItemModifierTarget): number {
+    if (!item) return 0;
+    switch (prop) {
+      case 'effectivity': return item.efficiency ?? 0;
+      case 'stability':   return item.stability ?? 0;
+      case 'armorDebuff': return item.armorDebuff ?? 0;
+      case 'weight':      return item.weight ?? 0;
+    }
+  }
+
+  /** Convenience for the most-read one: a weapon's effectivity after scripts. */
+  resolveEfficiency(sheet: CharacterSheet, item: ItemBlock | null | undefined): number {
+    return this.resolveItemStat(sheet, item, 'effectivity');
+  }
+
+  /**
+   * What this item's scripts are currently doing to it, with the Merkmal that did each.
+   *
+   * Only the modifiers actually in effect right now: a Merkmal whose condition is false emits
+   * nothing and appears nowhere. That is deliberate — the list answers "why is this number what
+   * it is", which a static description of every branch could not.
+   */
+  getItemModifierBreakdown(
+    sheet: CharacterSheet,
+    item: ItemBlock | null | undefined,
+  ): DerivedItemModifier[] {
+    if (!item || this.collectingEffectActive) return [];
+    return this.getDerived(sheet).itemMods.get(itemKey(item)) ?? [];
+  }
+
   /** Stack-aware item weight (weight × amount when stackable). */
   getItemStackWeight(item: { weight?: number; stackable?: boolean; amount?: number } | null | undefined): number {
     if (!item) return 0;
@@ -924,8 +1060,11 @@ export class TrueStatsService {
    * @returns Total weight in pounds/kg
    */
   getTotalWeight(sheet: CharacterSheet): number {
+    // Only equipped items run scripts, so only their weight can be script-modified; anything in
+    // the backpack weighs what it says it weighs.
     const itemWeight = sheet.inventory?.reduce((sum, item) => sum + this.getItemStackWeight(item), 0) || 0;
-    const equipmentWeight = sheet.equipment?.reduce((sum, item) => sum + this.getItemStackWeight(item), 0) || 0;
+    const equipmentWeight = sheet.equipment?.reduce(
+      (sum, item) => sum + roundTo(this.resolveItemStat(sheet, item, 'weight') * stackAmount(item)), 0) || 0;
     
     // Currency weight (using COIN_WEIGHT constant)
     const COIN_WEIGHT = 0.02; // 50 coins per pound
@@ -967,7 +1106,7 @@ export class TrueStatsService {
     let sumOfArmorDebuffs = 0;
     let brokenPenalty = 0;
     for (const item of sheet.equipment) {
-      sumOfArmorDebuffs += item.armorDebuff || 0;
+      sumOfArmorDebuffs += this.resolveItemStat(sheet, item, 'armorDebuff');
       if (item.broken && item.itemType === 'armor') {
         brokenPenalty += 5;
       }

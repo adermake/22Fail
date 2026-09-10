@@ -556,11 +556,16 @@ export class ForgingComponent implements OnInit {
     );
   }
 
-  /** Halves a scaling pair for the Sekundär slot, matching `halveSlot` in forge-calc.util. */
+  /**
+   * Halves a scaling pair for the Sekundär slot.
+   *
+   * Deliberately NOT floored, unlike `halveSlot` in forge-calc.util: that one halves the summed
+   * slot total once, at the end. Here the value is a single forge's contribution, which is added
+   * up first — flooring each one would report a 1.5 scaling as 0 and then a second forge as 0
+   * again, while the item really gains 1 from the two. The template rounds it for display.
+   */
   scaleForSlot(halt: number, eff: number, slotKey: SlotType): { halt: number; eff: number } {
-    return slotKey === 'secondary'
-      ? { halt: Math.floor(halt / 2), eff: Math.floor(eff / 2) }
-      : { halt, eff };
+    return slotKey === 'secondary' ? { halt: halt / 2, eff: eff / 2 } : { halt, eff };
   }
 
   forge(entry: SlotMaterialEntry): void {

@@ -236,8 +236,8 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       <div class="weapon-choice">
         @for (w of wieldedWeapons; track $index) {
           <button class="wc-btn" [class.active]="isWeaponChoice($index)"
-                  (click)="setWeaponChoice($index)" [title]="w.name + ' — Effektivität ' + w.efficiency">
-            {{ w.name }} <span class="wc-eff">{{ w.efficiency }}</span>
+                  (click)="setWeaponChoice($index)" [title]="w.name + ' — Effektivität ' + itemEffectivity(w)">
+            {{ w.name }} <span class="wc-eff">{{ itemEffectivity(w) }}</span>
           </button>
         }
         <button class="wc-btn wc-both" [class.active]="isWeaponChoice('both')"
@@ -675,7 +675,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                 @if (item.itemType === 'weapon' && item.efficiency !== undefined) {
                   <div class="equip-stat-row">
                     <span class="equip-stat-label"><span class="app-icon i-effektivity"></span> Effizienz</span>
-                    <span class="equip-stat-val">{{ item.efficiency }}</span>
+                    <span class="equip-stat-val">{{ itemEffectivity(item) }}</span>
                   </div>
                 }
                 @if (item.itemType === 'armor' && item.stability !== undefined) {
@@ -1853,13 +1853,26 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return this.weaponChoice() === choice;
   }
 
+  /**
+   * A weapon's effectivity after its Schmiedemerkmale have run.
+   *
+   * Only resolvable for a player sheet — an NPC statblock has no `effectActive` collection to
+   * draw item modifiers from, so its gear reports its forged value.
+   */
+  itemEffectivity(item: ItemBlock): number {
+    return this.character
+      ? this.trueStats.resolveEfficiency(this.character, item)
+      : (item.efficiency ?? 0);
+  }
+
   /** Effectivity of the chosen weapon — or the sum of all of them when 'both' is picked. */
   get chosenWeaponEfficiency(): number {
     const weapons = this.wieldedWeapons;
     if (!weapons.length) return 0;
     const choice = this.weaponChoice();
-    if (choice === 'both') return weapons.reduce((sum, w) => sum + (w.efficiency ?? 0), 0);
-    return weapons[Math.min(choice, weapons.length - 1)]?.efficiency ?? 0;
+    if (choice === 'both') return weapons.reduce((sum, w) => sum + this.itemEffectivity(w), 0);
+    const picked = weapons[Math.min(choice, weapons.length - 1)];
+    return picked ? this.itemEffectivity(picked) : 0;
   }
 
   /** Effectivity used by the panel and the damage calculator. NPCs use their body Effizienz

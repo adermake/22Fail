@@ -18,8 +18,8 @@ import { tags as t } from '@lezer/highlight';
 import { compileScript } from '../checker';
 import {
   ACTION_TYPE_INFO, ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTINS, BUILTIN_MAP, ICON_CHOICES,
-  KEYWORD_INFO, POLARITY_INFO, POLARITY_NAMES, RESOURCE_INFO, RESOURCE_NAMES, STYLE_NAMES,
-  SYMBOLS, SYMBOL_MAP, TALENT_INFO,
+  ITEM_WRITABLE, KEYWORD_INFO, POLARITY_INFO, POLARITY_NAMES, RESOURCE_INFO, RESOURCE_NAMES,
+  STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
 } from '../symbols';
 import { KEYWORDS } from '../lexer';
 
@@ -258,12 +258,21 @@ function completions(context: CompletionContext): CompletionResult | null {
   const text = before ? before.text : '';
   const dot = text.lastIndexOf('.');
 
-  // Member completion: talent.<id> or <attr>.<member>
+  // Member completion: talent.<id>, item.<prop> or <attr>.<member>
   if (dot >= 0) {
     const objName = text.slice(0, dot);
     const from = (before!.from) + dot + 1;
     if (objName === 'talent') {
       return { from, options: TALENT_INFO.map(tl => ({ label: tl.id, type: 'property', detail: tl.statLabel, info: `${tl.name} — ${tl.description}` })) };
+    }
+    if (objName === 'item') {
+      return {
+        from,
+        options: Object.entries(ITEM_WRITABLE).map(([k, v]) => ({
+          label: k, type: 'property', detail: 'Gegenstand',
+          info: `${v}. Ändert DIESEN Gegenstand — nicht den Träger.`,
+        })),
+      };
     }
     if (SYMBOL_MAP.get(objName)?.category === 'attribute') {
       return { from, options: Object.entries(ATTRIBUTE_MEMBERS).map(([k, v]) => ({ label: k, type: 'property', info: v })) };
@@ -280,6 +289,7 @@ function completions(context: CompletionContext): CompletionResult | null {
     ...BUILTINS.map(f => snippetCompletion(`${f.name}(${'${}'})`, { label: f.name, type: 'function', detail: f.signature, info: f.description })),
     ...SYMBOLS.filter(s => s.category !== 'namespace').map(s => ({ label: s.name, type: 'variable', detail: s.category, info: s.description })),
     { label: 'talent', type: 'namespace', info: 'Talent-Würfelboni: talent.<name>' },
+    { label: 'item', type: 'namespace', info: 'Werte dieses Gegenstands: item.<eigenschaft> — schreibbar in effectActive' },
     ...localVarNames(context.state.doc.toString()).map(n => ({ label: n, type: 'variable', detail: 'lokal' })),
   ];
   return { from, options, validFor: /^[\w]*$/ };
@@ -370,7 +380,13 @@ const failscriptHover = hoverTooltip((view, pos) => {
     const start = m.index, end = m.index + m[0].length;
     if (rel >= start && rel <= end) {
       const word = m[0];
-      const info = describeSymbol(word);
+      // `item.effectivity` hovers as the property, not as the bare word — the whole point is the
+      // difference between changing the item and changing its wearer.
+      const isItemProp = text.slice(0, start).trimEnd().endsWith('item.') && ITEM_WRITABLE[word];
+      const info = isItemProp
+        ? `item.${word} — ${ITEM_WRITABLE[word]}. Ändert DIESEN Gegenstand; ohne 'item.' ` +
+          `wäre es ein Modifikator auf den Träger.`
+        : describeSymbol(word);
       if (!info) return null;
       return {
         pos: from + start, end: from + end, above: true,

@@ -34,6 +34,14 @@ export interface ScriptRuntime {
   seed?: number;
   /** The item whose script is running — exposes its durability and counter bars. */
   item?: ItemBlock;
+  /**
+   * Stufe des Schmiedemerkmals, dessen Skript gerade läuft.
+   *
+   * Jedes Merkmal wird einzeln ausgeführt und sieht nur seine eigene Stufe — Parry 2 neben
+   * Angriffsbuff 1 bleibt genau das, statt dass sich beide auf denselben Wert einigen. Deshalb
+   * werden Merkmalsskripte auch nicht zu einem Item-Skript verkettet.
+   */
+  merkmalLevel?: number;
 }
 
 export function createPlayerContext(
@@ -90,6 +98,7 @@ export function createPlayerContext(
     itemWeight: () => runtime.item?.weight ?? 0,
     // Runtime context of the current effect/execution
     stacks: () => runtime.stacks,
+    merkmalLevel: () => runtime.merkmalLevel ?? runtime.stacks ?? 1,
     turn: () => runtime.turn,
     duration: () => runtime.duration,
     effectStrength: () => runtime.effectStrength,

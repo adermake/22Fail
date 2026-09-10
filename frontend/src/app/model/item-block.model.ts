@@ -1,5 +1,6 @@
 import { SkillBlock } from './skill-block.model';
 import { SpellBlock } from './spell-block-model';
+import type { ForgingData } from './forging.model';
 
 export interface ItemRequirements {
   strength?: number;
@@ -156,6 +157,13 @@ export class ItemBlock {
   /** FailScript action code. For Verbrauchsgegenstände this holds the effect on use and the
    *  `onRest { … }` block that resolves once the character rests. */
   script?: string;
+
+  /**
+   * What the Schmiede produced this from: materials, spent SP, and the applied Schmiedemerkmale
+   * with their levels and scripts. `buildForgedItem` writes it; the stat resolver reads the
+   * traits back out to run them.
+   */
+  forgingData?: ForgingData;
 
   // Source tracking (for display purposes)
   isItemBased?: boolean; // Flag for skills/spells from this item

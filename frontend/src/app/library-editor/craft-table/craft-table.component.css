@@ -311,3 +311,6 @@
 .ct-jump:hover { color: #e2e8f0; border-color: #8b5cf6; }
 
 .ct-cost { color: #fbbf24; }
+
+/* Marks a Merkmal that carries a script, so a text-only one is tellable at a glance. */
+.ct-has-script { color: #4ade80; }

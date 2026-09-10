@@ -220,11 +220,15 @@ export function buildForgedItem(input: ForgedItemInput): ItemBlock {
     primaryMaterials: toRecords(input.primary),
     secondaryMaterials: toRecords(input.secondary),
     bonusMaterials: toRecords(input.bonus),
-    appliedTraits: input.traits.map(t => ({ name: t.trait.name, level: t.level })),
+    appliedTraits: input.traits.map(t => ({
+      name: t.trait.name,
+      level: t.level,
+      ...(t.trait.script?.trim() ? { script: t.trait.script } : {}),
+    })),
     totalSP: input.totalSP,
     spentSP: input.spentSP,
   };
-  (item as unknown as { forgingData: ForgingData }).forgingData = forgingData;
+  item.forgingData = forgingData;
 
   return item;
 }

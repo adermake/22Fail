@@ -73,6 +73,25 @@
     </div>
   }
 
+  <!-- Wirkung (optional) -->
+  <div class="form-row">
+    <label>
+      Wirkung <span class="hint">— optional. Ohne Skript bleibt das Merkmal reiner Text.</span>
+    </label>
+    <p class="script-hint">
+      L&auml;uft, solange der geschmiedete Gegenstand ausger&uuml;stet ist.
+      <code>item.effectivity</code> &auml;ndert den <b>Gegenstand</b>, ein blo&szlig;es
+      <code>speed</code> den <b>Tr&auml;ger</b>. <code>merkmalLevel</code> ist die Stufe dieses
+      Merkmals &mdash; dasselbe wie <code>[L]</code> im Text oben.
+    </p>
+    <div class="script-host">
+      <app-script-editor
+        [value]="edit.script || ''"
+        (valueChange)="edit.script = $event">
+      </app-script-editor>
+    </div>
+  </div>
+
   <!-- Actions -->
   <div class="editor-actions">
     <button class="btn-cancel" (click)="onCancel()">Abbrechen</button>

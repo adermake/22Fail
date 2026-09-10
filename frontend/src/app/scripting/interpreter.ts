@@ -29,6 +29,19 @@ export type ModifierOp = 'add' | 'sub' | 'mul' | 'div' | 'set';
 /** A stat modifier produced by an `effectActive` block. Priority/source added by the collector. */
 export interface ScriptModifier { target: StatusModifierTarget; op: ModifierOp; amount: number; }
 
+/** Properties of the item a script belongs to that `item.<prop> = …` may change. */
+export type ItemModifierTarget = 'effectivity' | 'stability' | 'armorDebuff' | 'weight';
+
+/**
+ * A modifier on the ITEM carrying the script, from `item.<prop> …` inside `effectActive`.
+ *
+ * Kept apart from `modifiers` because the two land in different places: these change this one
+ * piece of equipment, the others change the wearer. `item.stability += 5` and `stability += 5`
+ * are genuinely different — the first makes this armour better and then feeds the character's
+ * total like any equipped item, the second modifies the character's total directly.
+ */
+export interface ScriptItemModifier { target: ItemModifierTarget; op: ModifierOp; amount: number; }
+
 export interface ScriptGrantedSkill {
   name: string;
   description: string;
@@ -63,6 +76,8 @@ export interface ScriptResult {
    * TrueStatsService to derive stats while the effect is active). Empty on trigger runs.
    */
   modifiers: ScriptModifier[];
+  /** Modifiers on the item this script belongs to. Populated in "collect" runs, like `modifiers`. */
+  itemModifiers: ScriptItemModifier[];
   grantedSkills: ScriptGrantedSkill[];
   /** Dice bonuses declared inside `effectActive` — collected, never "executed". */
   diceBonuses: ScriptDiceBonus[];
@@ -116,7 +131,7 @@ class ScriptError extends Error {}
 export function runScript(src: string, ctx: CharacterContext, opts: RunOptions = {}): ScriptResult {
   const result: ScriptResult = {
     ok: false, displays: [], rolls: [], resourceChanges: [], diceBonuses: [],
-    modifiers: [], grantedSkills: [], statusOps: [], givenStatuses: [], errors: [],
+    modifiers: [], itemModifiers: [], grantedSkills: [], statusOps: [], givenStatuses: [], errors: [],
   };
   const compiled = compileScript(src);
   if (!compiled.ok) {
@@ -315,6 +330,20 @@ class Interpreter {
   private execAssign(stmt: Extract<Stmt, { kind: 'Assign' }>, frame: Frame): void {
     const rhs = this.evalExpr(stmt.value, frame);
     const target = stmt.target;
+
+    // `item.<prop> …` — a modifier on the item carrying this script.
+    if (target.kind === 'Member') {
+      if (target.object.kind === 'Identifier' && target.object.name === 'item' && this.inEffectActive) {
+        this.result.itemModifiers.push({
+          target: target.property as ItemModifierTarget,
+          op: opFromAssign(stmt.op),
+          amount: toNum(rhs),
+        });
+        return;
+      }
+      throw new ScriptError('Ungültiges Zuweisungsziel');
+    }
+
     if (target.kind !== 'Identifier') throw new ScriptError('Ungültiges Zuweisungsziel');
     const name = target.name;
 

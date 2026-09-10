@@ -157,6 +157,15 @@ export interface ForgeTrait {
   description?: string;
   /** Effect text. Use [L] as a placeholder replaced by the current level (application count). */
   effect: string;
+  /**
+   * Optional FailScript. Runs while the forged item is equipped, with `merkmalLevel` bound to
+   * this trait's level — so `item.effectivity += 2 * merkmalLevel` scales with how often it was
+   * applied, exactly like `[L]` does in the text.
+   *
+   * The text above stays the description; this is what actually happens. Traits without a script
+   * behave exactly as before — text only, applied by hand at the table.
+   */
+  script?: string;
   schmiedepunktKosten: number;
   /** Maximum times this trait may be added. undefined or 1 = not scalable. */
   maxLevel: number;
@@ -230,6 +239,14 @@ export interface ForgedMaterialRecord {
 export interface ForgedTraitRecord {
   name: string;
   level: number;
+  /**
+   * The trait's script, copied onto the item at forge time.
+   *
+   * Snapshotted rather than looked up, so a looted item keeps working without the library it was
+   * forged from — the same reason the effect text is baked into `secondaryEffect`. The trade is
+   * that rebalancing a trait later does not reach items already forged.
+   */
+  script?: string;
 }
 
 export interface ForgingData {

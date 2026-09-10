@@ -133,13 +133,34 @@ export const SYMBOLS: SymbolInfo[] = [
 
   // Runtime context (of the current effect/execution)
   { name: 'stacks', category: 'runtime', type: 'number', description: 'Stapelanzahl des aktuellen Effekts (Code verarbeitet Stapel selbst)' },
+  { name: 'merkmalLevel', category: 'runtime', type: 'number', description: 'Stufe DIESES Schmiedemerkmals (entspricht [L] im Effekttext). Jedes Merkmal sieht nur seine eigene Stufe.' },
   { name: 'turn', category: 'runtime', type: 'number', description: 'Aktuelle Zugnummer (0 außerhalb des Kampfes)' },
   { name: 'duration', category: 'runtime', type: 'number', description: 'Verbleibende Dauer des Effekts in Runden' },
   { name: 'effectStrength', category: 'runtime', type: 'number', description: 'Stärke des aktuellen Status-Effekts' },
 
   // Namespace
   { name: 'talent', category: 'namespace', type: 'namespace', description: 'Talent-Würfelboni: talent.<name>' },
+  { name: 'item', category: 'namespace', type: 'namespace', description: 'Werte DIESES Gegenstands: item.<eigenschaft> — schreibbar in effectActive' },
 ];
+
+/**
+ * Writable properties of the item a script belongs to, e.g. `item.effectivity += 2`.
+ *
+ * These modify the ITEM, not the wearer — the distinction that matters most here. A bare
+ * `stability += 5` is a modifier on the character; `item.stability += 5` changes this piece of
+ * armour, which then feeds the character's total like any other equipped item would.
+ *
+ * `effectivity` is the safe one: nothing computes a character stat from it. The other three flow
+ * back into character stats (defence, speed penalty, encumbrance), so a condition reading those
+ * totals sees the value from before this effect applied — see the snapshot rule in the
+ * interpreter.
+ */
+export const ITEM_WRITABLE: Record<string, string> = {
+  effectivity: 'Effektivität dieses Gegenstands (Waffe)',
+  stability: 'Stabilität dieses Gegenstands (Rüstung)',
+  armorDebuff: 'Rüstungsmalus dieses Gegenstands',
+  weight: 'Gewicht dieses Gegenstands in kg',
+};
 
 export const SYMBOL_MAP = new Map(SYMBOLS.map(s => [s.name, s]));
 

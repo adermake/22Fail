@@ -11,6 +11,8 @@ import { isConsumable } from '../../services/consumption.service';
 import { hasRestBlock, listTriggers } from '../../scripting/interpreter';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { DragSplitService } from '../../services/drag-split.service';
+import { TrueStatsService } from '../../services/true-stats.service';
+import { describeItemModifiers } from '../../utils/item-modifier-text.util';
 import { roundTo } from '../../utils/round.util';
 
 @Component({
@@ -22,6 +24,7 @@ import { roundTo } from '../../utils/round.util';
 })
 export class ItemComponent implements OnChanges {
   private dragSplit = inject(DragSplitService);
+  private trueStats = inject(TrueStatsService);
   /** Tracks the last opened context menu instance so others can close themselves */
   private static activeContextMenu: ItemComponent | null = null;
 
@@ -350,10 +353,35 @@ export class ItemComponent implements OnChanges {
   }
 
   get totalWeight(): number {
+    const unit = this.trueStats.resolveItemStat(this.sheet, this.item, 'weight');
     if (this.item.stackable && (this.item.amount ?? 1) > 1) {
-      return roundTo((this.item.weight || 0) * (this.item.amount ?? 1));
+      return roundTo(unit * (this.item.amount ?? 1));
     }
-    return this.item.weight || 0;
+    return unit;
+  }
+
+  /**
+   * Effectivity after the item's Schmiedemerkmale have run — never `item.efficiency` raw, or a
+   * conditional Merkmal would show one number here and another in the lobby.
+   */
+  get effectivity(): number {
+    return this.trueStats.resolveEfficiency(this.sheet, this.item);
+  }
+
+  get stability(): number {
+    return this.trueStats.resolveItemStat(this.sheet, this.item, 'stability');
+  }
+
+  get armorDebuff(): number {
+    return this.trueStats.resolveItemStat(this.sheet, this.item, 'armorDebuff');
+  }
+
+  /**
+   * What this item's Schmiedemerkmale are doing to it right now, as readable lines
+   * (`Schärfe: Effektivität +5`). Empty when nothing is scripted or no condition holds.
+   */
+  get activeEffects(): string[] {
+    return describeItemModifiers(this.trueStats.getItemModifierBreakdown(this.sheet, this.item));
   }
 
   get showDetails(): boolean {
