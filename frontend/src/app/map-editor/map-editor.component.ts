@@ -391,8 +391,27 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly categorySprites = signal<string[]>([]);
   readonly symbolQuery = signal('');
   /** What the picker shows: the category, narrowed by the search box. */
-  readonly visibleSprites = computed(() =>
+  /**
+   * How many picker cells are rendered at once.
+   *
+   * The grid draws a DOM button per sprite with no virtualisation, and the library grew from
+   * ~965 sprites to over 2000 when the bought packs landed — a single category can now hold
+   * nearly 800. Rendering all of them makes opening the tab the slowest thing in the editor.
+   * The search box above it is the way to reach the rest.
+   */
+  private static readonly PICKER_LIMIT = 240;
+
+  private readonly matchingSprites = computed(() =>
     this.assets.search(this.categorySprites(), this.symbolQuery()),
+  );
+
+  readonly visibleSprites = computed(() =>
+    this.matchingSprites().slice(0, MapEditorComponent.PICKER_LIMIT),
+  );
+
+  /** How many matches the cap is hiding, so the count is not silently wrong. */
+  readonly hiddenSpriteCount = computed(() =>
+    Math.max(0, this.matchingSprites().length - MapEditorComponent.PICKER_LIMIT),
   );
   readonly currentSprite = signal<string>('');
   /** Alt mirrors the stamp while held. */
@@ -2290,6 +2309,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (await this.assets.load()) {
       this.paperOptions.set(this.assets.paperTextures);
       this.assetsReady.set(true);
+
+      // Standalone prop textures arrive after the frame that asked for them; without this
+      // a symbol panned into view would stay invisible until something else moved.
+      this.assets.onTextureLoaded = () => {
+        this.symbols?.markDirty();
+        this.scheduleStream();
+      };
 
       this.symbols = new SymbolView(this.assets);
       this.symbols.setLandColor(this.symbolLandColor);

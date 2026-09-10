@@ -71,6 +71,11 @@ export class SymbolView {
     this.forceRefresh = true;
   }
 
+  /** Force a re-sync — used when a lazily loaded texture finally arrives. */
+  markDirty(): void {
+    this.forceRefresh = true;
+  }
+
   setSelection(ids: Iterable<string>): void {
     this.selected = new Set(ids);
     this.forceRefresh = true;

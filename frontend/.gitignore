@@ -50,3 +50,7 @@ Thumbs.db
 # NOTE: public/mapassets/ is deliberately NOT ignored. The deployed server builds the
 # frontend from a git checkout and has no copy of DraftExtract, so the generated atlases
 # have to travel in the repo or symbols silently disappear in production.
+
+# Bought isometric asset packs: the extracted source, like DraftExtract, is large and
+# licensed. The generator turns it into public/mapassets/, which is what ships.
+/tools/IsoPacks/

@@ -37,3 +37,7 @@ graphify-out/
 
 # Scratch folder for previewing/rendering SVG assets locally (regenerable)
 .logo-preview/
+
+# Drop folder for bought asset-pack zips. The extracted copy lives in
+# frontend/tools/IsoPacks/ and the generator turns it into public/mapassets/.
+/TMP_ICONS_ZIP/

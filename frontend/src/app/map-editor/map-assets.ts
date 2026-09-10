@@ -13,7 +13,12 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 
 const BASE = '/mapassets';
 
-export type SymbolCategory = 'trees' | 'mountains' | 'misc';
+/**
+ * `props` holds the battlemap clutter from the bought packs — market stalls, carts, washing
+ * lines. On a map where one hex is 4 km it is rarely wanted, so it gets its own tab rather
+ * than padding out the pickers used constantly. See `tools/iso-classify.mjs`.
+ */
+export type SymbolCategory = 'trees' | 'mountains' | 'misc' | 'props';
 
 export interface SpriteMeta {
   page: number;
@@ -42,6 +47,21 @@ export interface SpriteMeta {
    * disappear. These take a colour the user chooses instead.
    */
   tintable?: boolean;
+
+  /**
+   * Set on sprites that live in their own file instead of an atlas page.
+   *
+   * The bought isometric packs are an order of magnitude larger than the Wonderdraft
+   * library — packed at native size they would need 36 atlas pages, all resident from
+   * startup. The atlas exists because a map scatters *thousands* of trees; nobody scatters a
+   * thousand mansions, so these load individually when one is actually placed and VRAM then
+   * follows the map rather than the library.
+   *
+   * `page`/`x`/`y` are absent when this is set, and vice versa.
+   */
+  file?: string;
+  /** Where this sprite's picker thumbnail sits on a `thumbPages` sheet. */
+  thumb?: { page: number; x: number; y: number; w: number; h: number };
 }
 
 export interface GroupMeta {
@@ -61,6 +81,8 @@ export interface PaperTextureMeta {
 
 export interface AssetManifest {
   pages: { file: string; width: number; height: number }[];
+  /** Small thumbnails for the standalone sprites, for the picker only — never the map. */
+  thumbPages?: { file: string; width: number; height: number }[];
   paperTextures: PaperTextureMeta[];
   categories: Record<string, string[]>;
   groups: Record<string, GroupMeta>;
@@ -135,6 +157,12 @@ export class MapAssets {
     const meta = this.manifest?.sprites[id];
     if (!meta) return null;
 
+    // Standalone sprite: not on any page, so fetch it and report back when it lands.
+    if (meta.file) {
+      this.loadStandalone(id, meta.file);
+      return null;
+    }
+
     const page = this.pages[meta.page];
     if (!page) return null;
 
@@ -167,17 +195,29 @@ export class MapAssets {
    */
   thumbStyle(id: string, box: number, tint?: string): Record<string, string> {
     const meta = this.manifest?.sprites[id];
-    const page = meta ? this.manifest?.pages[meta.page] : null;
-    if (!meta || !page) return {};
+    if (!meta) return {};
+
+    /*
+     * A standalone sprite is browsed from the thumbnail sheet, never from its own file.
+     * The picker shows hundreds at once; pointing it at the full-size files would fetch
+     * megabytes to draw 44px cells, and do it again on every scroll.
+     */
+    const onThumbSheet = !!meta.file && !!meta.thumb;
+    const page = onThumbSheet
+      ? this.manifest?.thumbPages?.[meta.thumb!.page]
+      : this.manifest?.pages[meta.page];
+    if (!page) return {};
+
+    const src = onThumbSheet ? meta.thumb! : meta;
 
     // Fit the longest side into the box; small sprites are not blown up past 1:1.
-    const scale = Math.min(box / Math.max(meta.w, meta.h), 1);
-    const w = meta.w * scale;
-    const h = meta.h * scale;
+    const scale = Math.min(box / Math.max(src.w, src.h), 1);
+    const w = src.w * scale;
+    const h = src.h * scale;
 
     const url = `url(${BASE}/${page.file})`;
     const size = `${page.width * scale}px ${page.height * scale}px`;
-    const pos = `${-meta.x * scale}px ${-meta.y * scale}px`;
+    const pos = `${-src.x * scale}px ${-src.y * scale}px`;
 
     const base: Record<string, string> = {
       width: `${w}px`,
@@ -267,6 +307,34 @@ export class MapAssets {
 
   get paperTextures(): PaperTextureMeta[] {
     return this.manifest?.paperTextures ?? [];
+  }
+
+  /**
+   * Fetch a standalone sprite's texture once, and tell the caller when it arrives.
+   *
+   * `sprite()` has to stay synchronous — it is called from the render loop, per visible
+   * symbol, per frame — so the first request returns nothing and the symbol appears on the
+   * next frame after the fetch resolves. `onTextureLoaded` is what schedules that frame;
+   * without it a freshly panned-to prop would sit invisible until something else moved.
+   */
+  onTextureLoaded?: () => void;
+
+  private pendingStandalone = new Set<string>();
+
+  private loadStandalone(id: string, file: string): void {
+    if (this.pendingStandalone.has(id)) return;
+    this.pendingStandalone.add(id);
+
+    Assets.load<Texture>(`${BASE}/${file}`)
+      .then(texture => {
+        this.spriteTextures.set(id, texture);
+        this.onTextureLoaded?.();
+      })
+      .catch(err => {
+        // Left in `pendingStandalone` on purpose: a missing file would otherwise be retried
+        // every frame for as long as the symbol is on screen.
+        console.warn('[MapAssets] Failed to load sprite', id, err);
+      });
   }
 
   /**

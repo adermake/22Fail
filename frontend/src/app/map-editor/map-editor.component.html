@@ -746,6 +746,11 @@
                 </button>
               }
             </div>
+            @if (hiddenSpriteCount()) {
+              <p class="hint">
+                {{ hiddenSpriteCount() }} weitere Treffer — über die Suche eingrenzen.
+              </p>
+            }
             <p class="hint">Shift + Mausrad wechselt zum nächsten Symbol.</p>
 
             @if (symbolIsTintable()) {

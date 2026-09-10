@@ -28,6 +28,13 @@ import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
+import {
+  PROP_MAX_SIDE,
+  THUMB_MAX_SIDE,
+  collectIsoProps,
+  downscale,
+  trim,
+} from './iso-packs.mjs';
 
 /**
  * Multi-slot groups whose artwork is drawn buildings rather than flat markers.
@@ -39,6 +46,8 @@ const BUILDING_SLOT_GROUPS = ['custom_colored_town'];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = join(HERE, 'DraftExtract', 'sprites');
 const TEXTURE_SRC = join(HERE, 'DraftExtract', 'textures', 'ground');
+/** Bought isometric packs, extracted one folder per pack. See `iso-packs.mjs`. */
+const ISO_SRC = join(HERE, 'IsoPacks');
 const OUT = join(HERE, '..', 'public', 'mapassets');
 
 /**
@@ -325,8 +334,9 @@ async function newestMtime(dir) {
 async function isUpToDate() {
   try {
     const manifest = await stat(join(OUT, 'manifest.json'));
-    let newest = await newestMtime(SRC);
+    let newest = existsSync(SRC) ? await newestMtime(SRC) : 0;
     if (existsSync(TEXTURE_SRC)) newest = Math.max(newest, await newestMtime(TEXTURE_SRC));
+    if (existsSync(ISO_SRC)) newest = Math.max(newest, await newestMtime(ISO_SRC));
     return newest <= manifest.mtimeMs;
   } catch {
     return false; // no manifest yet
@@ -465,8 +475,8 @@ async function buildPaperTextures() {
 }
 
 async function main() {
-  if (!existsSync(SRC)) {
-    console.log('[map-atlas] no DraftExtract/sprites found — skipping atlas generation');
+  if (!existsSync(SRC) && !existsSync(ISO_SRC)) {
+    console.log('[map-atlas] no sprite sources found — skipping atlas generation');
     return;
   }
 
@@ -477,8 +487,14 @@ async function main() {
   }
 
   console.log('[map-atlas] scanning sprite library …');
-  const { sprites, groups } = await collectSprites();
+  const { sprites, groups } = existsSync(SRC)
+    ? await collectSprites()
+    : { sprites: [], groups: new Map() };
   console.log(`[map-atlas] ${sprites.length} sprites in ${groups.size} groups`);
+
+  console.log('[map-atlas] scanning bought asset packs …');
+  const props = await collectIsoProps(ISO_SRC);
+  console.log(`[map-atlas] ${props.length} pack assets`);
 
   const pages = pack(sprites);
   console.log(`[map-atlas] packed into ${pages.length} page(s)`);
@@ -501,6 +517,80 @@ async function main() {
     console.log(`[map-atlas]   ${file}  ${PAGE_SIZE}x${height}  (${page.sprites.length} sprites)`);
   }
 
+  /*
+   * Pack assets are written as individual files, not into the atlas.
+   *
+   * At their native size they would need 36 atlas pages — 2.3 GB of VRAM, all of it resident
+   * from startup. The atlas is there because a map scatters thousands of trees; nobody
+   * scatters a thousand mansions. As separate textures the client loads only what is actually
+   * placed, so VRAM follows the map instead of the library.
+   */
+  const propEntries = [];
+  const thumbs = [];
+  if (props.length) {
+    await mkdir(join(OUT, 'props'), { recursive: true });
+    let bytes = 0;
+    /*
+     * Sanitising an id can collapse two of them onto one filename — `half-timber_inn` and
+     * `half_timber_inn` both become `half_timber_inn`. Left alone the second silently
+     * overwrote the first, and 1196 assets produced 1170 files with 26 quietly missing.
+     */
+    const usedFiles = new Set();
+
+    for (const prop of props) {
+      // Trim first: these are cut-outs from larger scenes and many carry wide empty margins,
+      // which would otherwise cost file size and make the symbol's centre meaningless.
+      const full = downscale(trim(prop.png), PROP_MAX_SIDE);
+      let stem = prop.id.replace(/[^a-z0-9]+/gi, '_');
+      if (usedFiles.has(stem)) {
+        let n = 2;
+        while (usedFiles.has(`${stem}_${n}`)) n++;
+        stem = `${stem}_${n}`;
+      }
+      usedFiles.add(stem);
+      const file = `props/${stem}.png`;
+      const buf = PNG.sync.write(full);
+      await writeFile(join(OUT, file), buf);
+      bytes += buf.length;
+
+      const thumb = downscale(full, THUMB_MAX_SIDE);
+      thumbs.push({ id: prop.id, png: thumb, w: thumb.width, h: thumb.height });
+
+      propEntries.push({
+        id: prop.id,
+        groupId: prop.groupId,
+        category: prop.category,
+        name: prop.name,
+        file,
+        w: full.width,
+        h: full.height,
+        // No sidecar to read: the artwork is centred in its own trimmed box, and half the
+        // longest side is the same rule the Wonderdraft importer falls back to.
+        radius: Math.round(Math.max(full.width, full.height) / 2),
+        offsetX: 0,
+        offsetY: 0,
+      });
+    }
+    console.log(
+      `[map-atlas]   ${propEntries.length} prop files, ${(bytes / 1e6).toFixed(1)} MB total`,
+    );
+  }
+
+  const thumbPageFiles = [];
+  if (thumbs.length) {
+    for (const page of pack(thumbs)) {
+      const full = renderPage(page);
+      const height = usedHeight(page);
+      const cropped = new PNG({ width: PAGE_SIZE, height });
+      PNG.bitblt(full, cropped, 0, 0, PAGE_SIZE, height, 0, 0);
+
+      const file = `thumbs-${page.index}.png`;
+      await writeFile(join(OUT, file), PNG.sync.write(cropped));
+      thumbPageFiles.push({ file, width: PAGE_SIZE, height });
+      console.log(`[map-atlas]   ${file}  ${PAGE_SIZE}x${height}  (${page.sprites.length} thumbs)`);
+    }
+  }
+
   console.log('[map-atlas] building paper textures …');
   const paperTextures = await buildPaperTextures();
   const icons = await buildIcons();
@@ -511,6 +601,8 @@ async function main() {
   // identical bytes.
   const manifest = {
     pages: pageFiles,
+    /** Picker thumbnails for the standalone prop textures; never used for the map itself. */
+    thumbPages: thumbPageFiles,
     paperTextures,
     icons,
     categories: {},
@@ -554,6 +646,52 @@ async function main() {
       colorable: s.colorable,
       tintable: s.tintable,
     };
+  }
+
+  /*
+   * Pack assets join the same `sprites` map as the atlas ones, distinguished only by
+   * carrying `file` instead of page coordinates. Keeping one collection means the picker,
+   * placement, hit-testing and the symbol view need no idea that two libraries exist.
+   */
+  const thumbById = new Map(thumbs.map(t => [t.id, t]));
+  const propGroups = new Map();
+
+  for (const entry of propEntries) {
+    const thumb = thumbById.get(entry.id);
+    manifest.sprites[entry.id] = {
+      file: entry.file,
+      w: entry.w,
+      h: entry.h,
+      name: entry.name,
+      radius: entry.radius,
+      offsetX: entry.offsetX,
+      offsetY: entry.offsetY,
+      drawMode: 'normal',
+      colorable: false,
+      tintable: false,
+      thumb:
+        thumb && thumb.page !== undefined
+          ? { page: thumb.page, x: thumb.x, y: thumb.y, w: thumb.w, h: thumb.h }
+          : undefined,
+    };
+
+    let group = propGroups.get(entry.groupId);
+    if (!group) {
+      group = {
+        id: entry.groupId,
+        category: entry.category,
+        name: prettify(entry.groupId.split('/').pop()),
+        deprioritised: false,
+        sprites: [],
+      };
+      propGroups.set(entry.groupId, group);
+    }
+    group.sprites.push(entry.id);
+  }
+
+  for (const [id, g] of propGroups) {
+    manifest.groups[id] = g;
+    (manifest.categories[g.category] ??= []).push(id);
   }
 
   await writeFile(join(OUT, 'manifest.json'), JSON.stringify(manifest), 'utf-8');

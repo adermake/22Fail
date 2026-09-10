@@ -144,6 +144,8 @@ export const SYMBOL_TOOL_DEFS: ToolDef<SymbolTool>[] = [
   { id: 'trees', icon: 'tree_brush_64', label: 'Bäume' },
   { id: 'mountains', icon: 'mountain_brush_64', label: 'Berge' },
   { id: 'misc', icon: 'symbol_tool_64', label: 'Symbole' },
+  // Battlemap clutter from the bought packs, kept out of the everyday pickers.
+  { id: 'props', icon: 'box_tool_64', label: 'Requisiten' },
   { id: 'select', icon: 'symbol_move_tool_64', label: 'Auswahl' },
 ];
 
@@ -179,6 +181,11 @@ export function usesWaterPalette(tool: TerrainTool): boolean {
  */
 export function autoVaries(category: SymbolCategory): boolean {
   return category === 'trees' || category === 'mountains';
+}
+
+/** Categories whose sprites live in their own files rather than the atlas. */
+export function isPropCategory(category: SymbolCategory): boolean {
+  return category === 'props';
 }
 
 export function iconUrl(name: string): string {
