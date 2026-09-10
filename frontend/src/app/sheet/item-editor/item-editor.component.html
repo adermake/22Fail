@@ -230,6 +230,48 @@
           </div>
         </section>
 
+        <!--
+          Merkmale forged into the item, fully editable. The script here is this item's own copy,
+          taken at forge time — so changing it affects THIS item only, never the Merkmal in the
+          library or any other weapon carrying it. That is also why the Aktionscode box above
+          stays empty on a forged weapon: that one is the item's own script, this is the Merkmale's.
+        -->
+        @if (canHaveTraits) {
+          <section class="editor-section">
+            <h3>Schmiedemerkmale</h3>
+            <p class="ie-script-hint">
+              Beim Schmieden &uuml;bernommen. &Auml;nderungen hier gelten nur f&uuml;r
+              <b>diesen</b> Gegenstand &mdash; das Merkmal in der Bibliothek bleibt unber&uuml;hrt.
+              <code>merkmalLevel</code> ist die Stufe rechts daneben.
+            </p>
+            @for (t of forgedTraits; track $index; let i = $index) {
+              <div class="ie-trait">
+                <div class="ie-trait-head">
+                  <input class="ie-trait-name-input" type="text"
+                         [ngModel]="t.name" (ngModelChange)="setTraitName(i, $event)"
+                         placeholder="Merkmalname" />
+                  <label class="ie-trait-level">
+                    Stufe
+                    <input type="number" min="1"
+                           [ngModel]="t.level" (ngModelChange)="setTraitLevel(i, $event)" />
+                  </label>
+                  <button class="ie-trait-remove" (click)="removeTrait(i)"
+                          title="Merkmal von diesem Gegenstand entfernen">
+                    <span class="app-icon i-restore-trash"></span>
+                  </button>
+                </div>
+                <div class="ie-trait-script-host">
+                  <app-script-editor
+                    [value]="t.script || ''"
+                    (valueChange)="setTraitScript(i, $event)">
+                  </app-script-editor>
+                </div>
+              </div>
+            }
+            <button class="add-btn" (click)="addTrait()">+ Merkmal hinzuf&uuml;gen</button>
+          </section>
+        }
+
         <!-- Attributmodifikatoren are gone: an item's effect is written as a script now
              (effectActive applies while the item is worn). Stat requirements take this spot. -->
         <!-- Requirements — top right, where the modifiers used to be -->

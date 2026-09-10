@@ -11,6 +11,7 @@ import {
   AttachedSpell 
 } from '../../model/item-block.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { ForgedTraitRecord } from '../../model/forging.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
@@ -93,6 +94,75 @@ export class ItemEditorComponent implements OnInit {
     '#14b8a6', // Teal
     '#6b7280'  // Gray
   ];
+
+  /**
+   * The Schmiedemerkmale baked into this item.
+   *
+   * They live in `forgingData`, not in `script` — the Aktionscode box stays empty on a forged
+   * weapon, which is exactly what makes the Merkmale look like they never saved.
+   *
+   * Editable, because the copy on the item is already its own: the forge snapshots the script so
+   * a looted weapon works without the library it came from. Changing it here therefore forks
+   * nothing that was not already forked — it retunes this one item.
+   */
+  get forgedTraits(): ForgedTraitRecord[] {
+    return this.editItem?.forgingData?.appliedTraits ?? [];
+  }
+
+  private traitAt(index: number): ForgedTraitRecord | undefined {
+    return this.editItem?.forgingData?.appliedTraits?.[index];
+  }
+
+  setTraitName(index: number, name: string): void {
+    const trait = this.traitAt(index);
+    if (trait) trait.name = name;
+  }
+
+  setTraitLevel(index: number, level: number): void {
+    const trait = this.traitAt(index);
+    // Level drives `merkmalLevel`, so a zero or blank would silently zero out a scaling Merkmal.
+    if (trait) trait.level = Math.max(1, Math.floor(Number(level)) || 1);
+  }
+
+  setTraitScript(index: number, script: string): void {
+    const trait = this.traitAt(index);
+    if (trait) trait.script = script;
+  }
+
+  removeTrait(index: number): void {
+    const traits = this.editItem?.forgingData?.appliedTraits;
+    if (traits) traits.splice(index, 1);
+  }
+
+  /** The Merkmal section is offered for gear, and for anything that already carries one. */
+  get canHaveTraits(): boolean {
+    return this.forgedTraits.length > 0
+      || this.editItem?.itemType === 'weapon'
+      || this.editItem?.itemType === 'armor';
+  }
+
+  /**
+   * Hang a new Merkmal on this item by hand.
+   *
+   * An item that was never forged has no `forgingData`, so one is seeded here — a found sword the
+   * GM wants to make special does not have to go through the Schmiede first.
+   */
+  addTrait(): void {
+    if (!this.editItem.forgingData) {
+      this.editItem.forgingData = {
+        createdAt: Date.now(),
+        itemType: this.editItem.itemType === 'armor' ? 'armor' : 'weapon',
+        appliedTraits: [],
+        totalSP: 0,
+        spentSP: 0,
+      };
+    }
+    this.editItem.forgingData.appliedTraits.push({
+      name: 'Neues Merkmal',
+      level: 1,
+      script: 'effectActive {\n  item.effectivity += merkmalLevel\n}',
+    });
+  }
 
   ngOnInit() {
     if (this.item) {

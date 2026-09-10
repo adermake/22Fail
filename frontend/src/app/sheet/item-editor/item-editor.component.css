@@ -798,3 +798,65 @@
 /* Aktionscode holds the right half, opposite Grundlegendes — it is the heart of an item, but it
    never needed the full width, and pushing everything else below it wasted the screen. */
 .ie-script-host { height: 340px; min-height: 260px; }
+
+/* Forged Merkmale — this item's own copy, editable per item. */
+.ie-trait {
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--card, #2d3748);
+}
+.ie-trait-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ie-trait-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  background: var(--bg, #1e293b);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 5px;
+  color: var(--text, #e5e7eb);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.ie-trait-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: #c4b5fd;
+}
+.ie-trait-level input {
+  width: 52px;
+  padding: 5px 6px;
+  text-align: center;
+  background: var(--bg, #1e293b);
+  border: 1px solid var(--accent, #8b5cf6);
+  border-radius: 5px;
+  color: #c4b5fd;
+  font-size: 0.82rem;
+}
+.ie-trait-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 5px;
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ie-trait-remove:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+/* Shorter than the Aktionscode surface: a Merkmal is usually two or three lines. */
+.ie-trait-script-host { height: 170px; min-height: 140px; }
