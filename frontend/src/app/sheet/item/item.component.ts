@@ -13,6 +13,7 @@ import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dial
 import { DragSplitService } from '../../services/drag-split.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { describeItemModifiers } from '../../utils/item-modifier-text.util';
+import { formatRangeMeters } from '../../model/weapon-type-block.model';
 import { roundTo } from '../../utils/round.util';
 
 @Component({
@@ -377,11 +378,30 @@ export class ItemComponent implements OnChanges {
   }
 
   /**
+   * Reach as it reads in play, derived from the resolved numbers rather than the `range` text
+   * baked in at forge time — otherwise a Merkmal that extends reach would move the number and
+   * leave the label saying the old one.
+   *
+   * A weapon that can do both shows both; a thrown-only weapon just its throw.
+   */
+  get rangeLabel(): string {
+    const melee = this.trueStats.resolveItemStat(this.sheet, this.item, 'meleeRange');
+    const ranged = this.trueStats.resolveItemStat(this.sheet, this.item, 'rangedRange');
+    const parts: string[] = [];
+    if (melee > 0) parts.push(formatRangeMeters(roundTo(melee, 1)));
+    if (ranged > 0) parts.push(`${formatRangeMeters(roundTo(ranged, 1))} geworfen/geschossen`);
+    return parts.join(' · ');
+  }
+
+  /**
    * What this item's Schmiedemerkmale are doing to it right now, as readable lines
    * (`Schärfe: Effektivität +5`). Empty when nothing is scripted or no condition holds.
    */
   get activeEffects(): string[] {
-    return describeItemModifiers(this.trueStats.getItemModifierBreakdown(this.sheet, this.item));
+    return describeItemModifiers(
+      this.trueStats.getItemModifierBreakdown(this.sheet, this.item),
+      this.trueStats.getItemChoiceBreakdown(this.sheet, this.item),
+    );
   }
 
   get showDetails(): boolean {

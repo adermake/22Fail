@@ -695,11 +695,18 @@ export class ForgingComponent implements OnInit {
       primaryMaterials: toRecords(this.primarySlot),
       secondaryMaterials: toRecords(this.secondarySlot),
       bonusMaterials: toRecords(this.bonusSlot),
-      appliedTraits: this.appliedTraits.map(t => ({ name: t.trait.name, level: t.level })),
+      // The script travels with the item, so a Merkmal keeps working on looted gear without the
+      // library it came from. Forgetting it here is why forged items had trait names but no
+      // effect — this path builds its own item rather than going through `buildForgedItem`.
+      appliedTraits: this.appliedTraits.map(t => ({
+        name: t.trait.name,
+        level: t.level,
+        ...(t.trait.script?.trim() ? { script: t.trait.script } : {}),
+      })),
       totalSP: this.schmiedepunkte,
       spentSP: this.spentSP,
     };
-    (item as any)['forgingData'] = forgingData;
+    item.forgingData = forgingData;
 
     this.patch.emit({ path: '/inventory/-', value: item });
     if (this.accessMode === 'enforced' && !this.unlockAll) {

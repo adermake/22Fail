@@ -239,6 +239,7 @@ label {
 .i-currency      { -webkit-mask-image: url('/icons/effektivity.svg');       mask-image: url('/icons/effektivity.svg'); }
 .i-logo          { -webkit-mask-image: url('/icons/logo.svg');              mask-image: url('/icons/logo.svg'); }
 .i-lock          { -webkit-mask-image: url('/icons/lock.svg');              mask-image: url('/icons/lock.svg'); }
+.i-range         { -webkit-mask-image: url('/icons/range.svg');             mask-image: url('/icons/range.svg'); }
 .i-settings      { -webkit-mask-image: url('/icons/settings.svg');          mask-image: url('/icons/settings.svg'); }
 
 /* ── Dice modifier convention (lower is better) ──

@@ -18,8 +18,8 @@ import { tags as t } from '@lezer/highlight';
 import { compileScript } from '../checker';
 import {
   ACTION_TYPE_INFO, ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTINS, BUILTIN_MAP, ICON_CHOICES,
-  ITEM_WRITABLE, KEYWORD_INFO, POLARITY_INFO, POLARITY_NAMES, RESOURCE_INFO, RESOURCE_NAMES,
-  STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
+  ITEM_CHOICE_WRITABLE, ITEM_WRITABLE, KEYWORD_INFO, POLARITY_INFO, POLARITY_NAMES, RESOURCE_INFO,
+  RESOURCE_NAMES, STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
 } from '../symbols';
 import { KEYWORDS } from '../lexer';
 
@@ -253,6 +253,26 @@ function completions(context: CompletionContext): CompletionResult | null {
     return { from: before ? before.from : context.pos, options: argChoices, validFor: /^\w*$/ };
   }
 
+  /*
+   * Inside the quotes of `item.reloadAction = "…"`, offer exactly the values that property
+   * accepts. Nobody can be expected to remember that the reload actions are spelled FREE / BONUS
+   * / ACTION, and the checker rejects anything else — so the editor had better say so first.
+   */
+  const choiceAssign = /item\.(\w+)\s*=\s*"([^"]*)$/.exec(textBefore);
+  if (choiceAssign) {
+    const info = ITEM_CHOICE_WRITABLE[choiceAssign[1]];
+    if (info) {
+      return {
+        from: context.pos - choiceAssign[2].length,
+        options: info.values.map(v => ({
+          label: v.value, type: 'enum', detail: v.label,
+          info: `${info.description} — ${v.label}`,
+        })),
+        validFor: /^[^"]*$/,
+      };
+    }
+  }
+
   if (!before && !context.explicit) return null;
 
   const text = before ? before.text : '';
@@ -268,10 +288,19 @@ function completions(context: CompletionContext): CompletionResult | null {
     if (objName === 'item') {
       return {
         from,
-        options: Object.entries(ITEM_WRITABLE).map(([k, v]) => ({
-          label: k, type: 'property', detail: 'Gegenstand',
-          info: `${v}. Ändert DIESEN Gegenstand — nicht den Träger.`,
-        })),
+        options: [
+          ...Object.entries(ITEM_WRITABLE).map(([k, v]) => ({
+            label: k, type: 'property', detail: 'Gegenstand',
+            info: `${v}. Ändert DIESEN Gegenstand — nicht den Träger.`,
+          })),
+          // Choices complete to `= "` so the value list opens straight away.
+          ...Object.entries(ITEM_CHOICE_WRITABLE).map(([k, info]) =>
+            snippetCompletion(`${k} = "\${}"`, {
+              label: k, type: 'property', detail: 'Auswahl',
+              info: `${info.description}. Nur '=' mit einem von: `
+                + info.values.map(v => v.value).join(', '),
+            })),
+        ],
       };
     }
     if (SYMBOL_MAP.get(objName)?.category === 'attribute') {
@@ -382,11 +411,15 @@ const failscriptHover = hoverTooltip((view, pos) => {
       const word = m[0];
       // `item.effectivity` hovers as the property, not as the bare word — the whole point is the
       // difference between changing the item and changing its wearer.
-      const isItemProp = text.slice(0, start).trimEnd().endsWith('item.') && ITEM_WRITABLE[word];
-      const info = isItemProp
-        ? `item.${word} — ${ITEM_WRITABLE[word]}. Ändert DIESEN Gegenstand; ohne 'item.' ` +
-          `wäre es ein Modifikator auf den Träger.`
-        : describeSymbol(word);
+      const afterItemDot = text.slice(0, start).trimEnd().endsWith('item.');
+      const choice = afterItemDot ? ITEM_CHOICE_WRITABLE[word] : undefined;
+      const info = choice
+        ? `item.${word} — ${choice.description}. Auswahl, nur '=': `
+          + choice.values.map(v => `"${v.value}" (${v.label})`).join(', ')
+        : afterItemDot && ITEM_WRITABLE[word]
+          ? `item.${word} — ${ITEM_WRITABLE[word]}. Ändert DIESEN Gegenstand; ohne 'item.' ` +
+            `wäre es ein Modifikator auf den Träger.`
+          : describeSymbol(word);
       if (!info) return null;
       return {
         pos: from + start, end: from + end, above: true,

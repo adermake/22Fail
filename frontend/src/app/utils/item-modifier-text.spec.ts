@@ -48,4 +48,25 @@ describe('describeItemModifiers', () => {
   it('says nothing when nothing is in force', () => {
     expect(describeItemModifiers([])).toEqual([]);
   });
+
+  it('renders a categorical change with its label', () => {
+    expect(describeItemModifiers([], [
+      { target: 'reloadAction', value: 'FREE', source: 'Schnellspanner' },
+    ])).toEqual(['Schnellspanner: Nachladen → Umsonst']);
+  });
+
+  it('lists only the choice that actually won', () => {
+    // Last writer wins, so showing the overridden one would describe an effect not in force.
+    expect(describeItemModifiers([], [
+      { target: 'handed', value: 'TWO', source: 'Wuchtgriff' },
+      { target: 'handed', value: 'ONE', source: 'Balance' },
+    ])).toEqual(['Balance: Führung → Einhändig']);
+  });
+
+  it('puts numbers and choices from one Merkmal on the same line', () => {
+    expect(describeItemModifiers(
+      [{ target: 'effectivity', op: 'add', amount: 3, source: 'Umbau' }],
+      [{ target: 'handed', value: 'TWO', source: 'Umbau' }],
+    )).toEqual(['Umbau: Effektivität +3, Führung → Zweihändig']);
+  });
 });

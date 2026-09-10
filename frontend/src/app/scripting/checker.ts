@@ -7,8 +7,8 @@
  */
 
 import {
-  ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTIN_MAP, ITEM_WRITABLE, POLARITY_NAMES,
-  RESOURCE_NAMES, STYLE_NAMES, SYMBOL_MAP, TALENT_IDS,
+  ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTIN_MAP, ITEM_CHOICE_WRITABLE, ITEM_PROPERTY_INFO,
+  ITEM_WRITABLE, POLARITY_NAMES, RESOURCE_NAMES, STYLE_NAMES, SYMBOL_MAP, TALENT_IDS,
 } from './symbols';
 import { parse } from './parser';
 import { Block, Diagnostic, Expr, Program, Stmt } from './ast';
@@ -199,10 +199,32 @@ class Checker {
       // `item.<prop>` is the one writable property access: it modifies the item the script
       // belongs to. Everything else stays read-only.
       if (target.object.kind === 'Identifier' && target.object.name === 'item') {
+        const choice = ITEM_CHOICE_WRITABLE[target.property];
+        if (choice) {
+          // A choice is set, never accumulated: `+=` on a reload action means nothing.
+          if (stmt.op !== '=') {
+            this.err(stmt.from, stmt.to,
+              `'item.${target.property}' ist eine Auswahl — nur '=' ist erlaubt, nicht '${stmt.op}'.`);
+            return;
+          }
+          const allowed = choice.values.map(v => v.value);
+          if (stmt.value.kind !== 'String' || !allowed.includes(stmt.value.value)) {
+            this.err(stmt.value.from, stmt.value.to,
+              `'item.${target.property}' erwartet einen dieser Werte: ` +
+              allowed.map(v => `"${v}"`).join(', '));
+            return;
+          }
+          if (this.lifecycleDepth === 0) {
+            this.err(stmt.from, stmt.to,
+              `Direkte Änderung von 'item.${target.property}' ist nicht erlaubt (Stat-Leak). ` +
+              `Verwende 'effectActive { item.${target.property} = "${allowed[0]}" }'.`);
+          }
+          return;
+        }
         if (!ITEM_WRITABLE[target.property]) {
           this.err(target.propertySpan.from, target.propertySpan.to,
             `Unbekannte Gegenstands-Eigenschaft '${target.property}' ` +
-            `(erlaubt: ${Object.keys(ITEM_WRITABLE).join(', ')})`);
+            `(erlaubt: ${Object.keys(ITEM_PROPERTY_INFO).join(', ')})`);
           return;
         }
         if (this.lifecycleDepth === 0) {
@@ -308,10 +330,10 @@ class Checker {
         return;
       }
       if (obj.name === 'item') {
-        if (!ITEM_WRITABLE[expr.property]) {
+        if (!ITEM_PROPERTY_INFO[expr.property]) {
           this.err(expr.propertySpan.from, expr.propertySpan.to,
             `Unbekannte Gegenstands-Eigenschaft '${expr.property}' ` +
-            `(erlaubt: ${Object.keys(ITEM_WRITABLE).join(', ')})`);
+            `(erlaubt: ${Object.keys(ITEM_PROPERTY_INFO).join(', ')})`);
         }
         return;
       }

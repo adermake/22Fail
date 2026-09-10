@@ -116,6 +116,9 @@
             @if (showDetails && armorDebuff) {
               <span class="tag tag-debuff">-{{ armorDebuff }} SPD</span>
             }
+            @if (showDetails && item.itemType === 'weapon' && rangeLabel) {
+              <span class="tag tag-range" title="Reichweite"><span class="app-icon i-range"></span> {{ rangeLabel }}</span>
+            }
             @if (showDetails && !canUseItem && !item.broken && !item.lost) {
               <span class="tag tag-unusable">Unbrauchbar</span>
             }

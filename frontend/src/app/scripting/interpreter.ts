@@ -10,7 +10,9 @@ import {
 } from './ast';
 import { compileScript } from './checker';
 import { rollDice, seededRng } from './dice';
-import { ACTION_TYPE_MAP, RESOURCE_NAMES, SYMBOL_MAP } from './symbols';
+import {
+  ACTION_TYPE_MAP, ITEM_CHOICE_WRITABLE, RESOURCE_NAMES, SYMBOL_MAP,
+} from './symbols';
 
 export type ScriptValue = number | string | boolean;
 
@@ -29,8 +31,17 @@ export type ModifierOp = 'add' | 'sub' | 'mul' | 'div' | 'set';
 /** A stat modifier produced by an `effectActive` block. Priority/source added by the collector. */
 export interface ScriptModifier { target: StatusModifierTarget; op: ModifierOp; amount: number; }
 
-/** Properties of the item a script belongs to that `item.<prop> = …` may change. */
-export type ItemModifierTarget = 'effectivity' | 'stability' | 'armorDebuff' | 'weight';
+/**
+ * Properties of the item a script belongs to that `item.<prop> = …` may change.
+ *
+ * All numeric, because the modifier pipeline is arithmetic (`add`/`mul`/`set` over a number).
+ * The categorical weapon-type fields — `reloadAction`, `handed`, `weaponCategory`, `damageTypes` —
+ * deliberately are NOT here: setting one is a choice, not a sum, and would need its own kind of
+ * modifier rather than being squeezed into this one.
+ */
+export type ItemModifierTarget =
+  | 'effectivity' | 'stability' | 'armorDebuff' | 'weight'
+  | 'meleeRange' | 'rangedRange' | 'maxDurability';
 
 /**
  * A modifier on the ITEM carrying the script, from `item.<prop> …` inside `effectActive`.
@@ -41,6 +52,18 @@ export type ItemModifierTarget = 'effectivity' | 'stability' | 'armorDebuff' | '
  * total like any equipped item, the second modifies the character's total directly.
  */
 export interface ScriptItemModifier { target: ItemModifierTarget; op: ModifierOp; amount: number; }
+
+/** Categorical item properties set by `item.<prop> = "…"`. */
+export type ItemChoiceTarget = 'reloadAction' | 'handed' | 'weaponCategory' | 'damageType';
+
+/**
+ * A categorical change from `item.reloadAction = "FREE"`.
+ *
+ * No operator: a choice replaces rather than accumulates. When two Merkmale set the same
+ * property the last one applied wins — deliberately simple, on the assumption that nobody forges
+ * two contradictory Merkmale onto one weapon and expects a defined outcome.
+ */
+export interface ScriptItemChoice { target: ItemChoiceTarget; value: string; }
 
 export interface ScriptGrantedSkill {
   name: string;
@@ -78,6 +101,8 @@ export interface ScriptResult {
   modifiers: ScriptModifier[];
   /** Modifiers on the item this script belongs to. Populated in "collect" runs, like `modifiers`. */
   itemModifiers: ScriptItemModifier[];
+  /** Categorical item changes (`item.reloadAction = "FREE"`), in the order they were set. */
+  itemChoices: ScriptItemChoice[];
   grantedSkills: ScriptGrantedSkill[];
   /** Dice bonuses declared inside `effectActive` — collected, never "executed". */
   diceBonuses: ScriptDiceBonus[];
@@ -131,7 +156,8 @@ class ScriptError extends Error {}
 export function runScript(src: string, ctx: CharacterContext, opts: RunOptions = {}): ScriptResult {
   const result: ScriptResult = {
     ok: false, displays: [], rolls: [], resourceChanges: [], diceBonuses: [],
-    modifiers: [], itemModifiers: [], grantedSkills: [], statusOps: [], givenStatuses: [], errors: [],
+    modifiers: [], itemModifiers: [], itemChoices: [], grantedSkills: [], statusOps: [],
+    givenStatuses: [], errors: [],
   };
   const compiled = compileScript(src);
   if (!compiled.ok) {
@@ -331,9 +357,16 @@ class Interpreter {
     const rhs = this.evalExpr(stmt.value, frame);
     const target = stmt.target;
 
-    // `item.<prop> …` — a modifier on the item carrying this script.
+    // `item.<prop> …` — a change to the item carrying this script.
     if (target.kind === 'Member') {
       if (target.object.kind === 'Identifier' && target.object.name === 'item' && this.inEffectActive) {
+        if (ITEM_CHOICE_WRITABLE[target.property]) {
+          this.result.itemChoices.push({
+            target: target.property as ItemChoiceTarget,
+            value: String(rhs),
+          });
+          return;
+        }
         this.result.itemModifiers.push({
           target: target.property as ItemModifierTarget,
           op: opFromAssign(stmt.op),

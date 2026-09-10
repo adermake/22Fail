@@ -6,8 +6,8 @@ import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model
 import { FormulaType } from '../model/formula-type.enum';
 import { createPlayerContext } from '../scripting/character-context';
 import {
-  ItemModifierTarget, ModifierOp, runScript, ScriptDiceBonus, ScriptGrantedSkill,
-  ScriptItemModifier,
+  ItemChoiceTarget, ItemModifierTarget, ModifierOp, runScript, ScriptDiceBonus,
+  ScriptGrantedSkill, ScriptItemChoice, ScriptItemModifier,
 } from '../scripting/interpreter';
 import { hashSeed } from '../scripting/dice';
 import { ItemBlock } from '../model/item-block.model';
@@ -36,6 +36,8 @@ export interface DerivedDiceBonus extends ScriptDiceBonus { source: string; }
  * player to guess which of four Merkmale moved the number.
  */
 export interface DerivedItemModifier extends ScriptItemModifier { source: string; }
+/** A categorical item change plus the Merkmal that set it. */
+export interface DerivedItemChoice extends ScriptItemChoice { source: string; }
 
 interface DerivedEntry {
   fp: string;
@@ -44,9 +46,11 @@ interface DerivedEntry {
   diceBonuses: DerivedDiceBonus[];
   /** `item.<prop>` modifiers, keyed by the id of the item they belong to. */
   itemMods: Map<string, DerivedItemModifier[]>;
+  /** Categorical `item.<prop> = "…"` changes, keyed the same way. */
+  itemChoices: Map<string, DerivedItemChoice[]>;
 }
 const EMPTY_DERIVED: DerivedEntry = {
-  fp: '', mods: [], skills: [], diceBonuses: [], itemMods: new Map(),
+  fp: '', mods: [], skills: [], diceBonuses: [], itemMods: new Map(), itemChoices: new Map(),
 };
 
 /** Flat Leben every character gains per level, on top of Konstitution ×5. */
@@ -220,8 +224,8 @@ export class TrueStatsService {
     const fp = this.effectFingerprint(sheet);
     const cached = this.derivedCache.get(sheet);
     if (cached && cached.fp === fp) return cached;
-    const { mods, skills, diceBonuses, itemMods } = this.collectEffectActive(sheet);
-    const entry: DerivedEntry = { fp, mods, skills, diceBonuses, itemMods };
+    const { mods, skills, diceBonuses, itemMods, itemChoices } = this.collectEffectActive(sheet);
+    const entry: DerivedEntry = { fp, mods, skills, diceBonuses, itemMods, itemChoices };
     this.derivedCache.set(sheet, entry);
     return entry;
   }
@@ -274,11 +278,13 @@ export class TrueStatsService {
   private collectEffectActive(sheet: CharacterSheet): {
     mods: DerivedModifier[]; skills: DerivedGrantedSkill[]; diceBonuses: DerivedDiceBonus[];
     itemMods: Map<string, DerivedItemModifier[]>;
+    itemChoices: Map<string, DerivedItemChoice[]>;
   } {
     const mods: DerivedModifier[] = [];
     const skills: DerivedGrantedSkill[] = [];
     const diceBonuses: DerivedDiceBonus[] = [];
     const itemMods = new Map<string, DerivedItemModifier[]>();
+    const itemChoices = new Map<string, DerivedItemChoice[]>();
     this.collectingEffectActive = true;
     try {
       for (const active of sheet.activeStatusEffects ?? []) {
@@ -389,12 +395,18 @@ export class TrueStatsService {
             for (const m of res.itemModifiers) list.push({ ...m, source: run.label });
             itemMods.set(key, list);
           }
+          if (res.itemChoices.length) {
+            const key = itemKey(item);
+            const list = itemChoices.get(key) ?? [];
+            for (const c of res.itemChoices) list.push({ ...c, source: run.label });
+            itemChoices.set(key, list);
+          }
         }
       }
     } finally {
       this.collectingEffectActive = false;
     }
-    return { mods, skills, diceBonuses, itemMods };
+    return { mods, skills, diceBonuses, itemMods, itemChoices };
   }
 
   /** Apply the derived modifiers for `target` (sorted by priority) on top of `base`. */
@@ -921,16 +933,49 @@ export class TrueStatsService {
   private rawItemStat(item: ItemBlock | null | undefined, prop: ItemModifierTarget): number {
     if (!item) return 0;
     switch (prop) {
-      case 'effectivity': return item.efficiency ?? 0;
-      case 'stability':   return item.stability ?? 0;
-      case 'armorDebuff': return item.armorDebuff ?? 0;
-      case 'weight':      return item.weight ?? 0;
+      case 'effectivity':   return item.efficiency ?? 0;
+      case 'stability':     return item.stability ?? 0;
+      case 'armorDebuff':   return item.armorDebuff ?? 0;
+      case 'weight':        return item.weight ?? 0;
+      case 'meleeRange':    return item.meleeRange ?? 0;
+      case 'rangedRange':   return item.rangedRange ?? 0;
+      case 'maxDurability': return item.maxDurability ?? 0;
     }
   }
 
   /** Convenience for the most-read one: a weapon's effectivity after scripts. */
   resolveEfficiency(sheet: CharacterSheet, item: ItemBlock | null | undefined): number {
     return this.resolveItemStat(sheet, item, 'effectivity');
+  }
+
+  /**
+   * A categorical item property after its scripts have had their say — reload action, handedness,
+   * Waffenart, primary damage type.
+   *
+   * Last writer wins: two Merkmale setting the same property is a crafting conflict, not
+   * something the engine tries to reconcile.
+   */
+  resolveItemChoice<T extends string>(
+    sheet: CharacterSheet,
+    item: ItemBlock | null | undefined,
+    prop: ItemChoiceTarget,
+    fallback: T,
+  ): T {
+    if (!item || this.collectingEffectActive) return fallback;
+    const choices = this.getDerived(sheet).itemChoices.get(itemKey(item));
+    if (!choices?.length) return fallback;
+    let value: string | undefined;
+    for (const c of choices) if (c.target === prop) value = c.value;
+    return (value as T) ?? fallback;
+  }
+
+  /** The categorical changes in force on this item, with the Merkmal that set each. */
+  getItemChoiceBreakdown(
+    sheet: CharacterSheet,
+    item: ItemBlock | null | undefined,
+  ): DerivedItemChoice[] {
+    if (!item || this.collectingEffectActive) return [];
+    return this.getDerived(sheet).itemChoices.get(itemKey(item)) ?? [];
   }
 
   /**
@@ -1244,7 +1289,19 @@ export class TrueStatsService {
         break;
     }
 
-    return base + bonus + effectBonus + statBonus;
+    /*
+     * The effectActive pipeline runs on the finished maximum, so `effectActive { healthMax += 20 }`
+     * works like any other derived stat — and `healthMax *= 2` doubles the whole pool rather than
+     * some subtotal.
+     *
+     * `applyEffectPipeline` rather than `derivedTotal`: the static skill/item/status modifiers for
+     * this target are already in `effectBonus` above, and derivedTotal would add them a second time.
+     */
+    const target: StatusModifierTarget =
+      formulaType === FormulaType.LIFE ? 'life'
+        : formulaType === FormulaType.ENERGY ? 'energy'
+          : 'mana';
+    return this.applyEffectPipeline(sheet, target, base + bonus + effectBonus + statBonus);
   }
 
   private calculateResourceEffectBonus(sheet: CharacterSheet, formulaType: FormulaType): number {

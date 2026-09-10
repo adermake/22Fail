@@ -313,6 +313,28 @@ export class WeaponGeneratorService {
     }
     item.description = lines.join('\n');
 
+    /*
+     * Record what it was forged from. This path used to write none of it, so a generated weapon
+     * looked forged but carried no trait data — and once Merkmale gained scripts, that also meant
+     * a generated weapon's traits did nothing.
+     */
+    const toRecords = (entries: readonly SlotMaterialEntry[]) =>
+      entries.map(e => ({ name: e.material.name, forgeCount: e.forgeCount }));
+    item.forgingData = {
+      createdAt: Date.now(),
+      itemType: 'weapon',
+      primaryMaterials: toRecords(result.primarySlot.entries),
+      secondaryMaterials: toRecords(result.secondarySlot.entries),
+      bonusMaterials: toRecords(result.bonusSlot.entries),
+      appliedTraits: result.appliedTraits.map(t => ({
+        name: t.trait.name,
+        level: t.level,
+        ...(t.trait.script?.trim() ? { script: t.trait.script } : {}),
+      })),
+      totalSP: result.maxSP,
+      spentSP: result.spentSP,
+    };
+
     return item;
   }
 }

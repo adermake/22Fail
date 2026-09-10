@@ -97,12 +97,14 @@ export const SYMBOLS: SymbolInfo[] = [
   { name: 'secondaryClass', category: 'class', type: 'string', description: 'Sekundäre Klasse' },
 
   // Resources (current + max) — read-only; change via loseResource/gainResource
+  // The current pools are spent, not assigned — loseResource()/gainResource() move those. The
+  // maxima are boundary values like any other derived stat, so a buff may raise or lower them.
   { name: 'health', category: 'resource', type: 'number', description: 'Aktuelles Leben' },
-  { name: 'healthMax', category: 'resource', type: 'number', description: 'Maximales Leben' },
+  { name: 'healthMax', category: 'resource', type: 'number', description: 'Maximales Leben', assignable: true, modifierTarget: 'life' },
   { name: 'energy', category: 'resource', type: 'number', description: 'Aktuelle Ausdauer' },
-  { name: 'energyMax', category: 'resource', type: 'number', description: 'Maximale Ausdauer' },
+  { name: 'energyMax', category: 'resource', type: 'number', description: 'Maximale Ausdauer', assignable: true, modifierTarget: 'energy' },
   { name: 'mana', category: 'resource', type: 'number', description: 'Aktuelles Mana' },
-  { name: 'manaMax', category: 'resource', type: 'number', description: 'Maximales Mana' },
+  { name: 'manaMax', category: 'resource', type: 'number', description: 'Maximales Mana', assignable: true, modifierTarget: 'mana' },
   { name: 'fokus', category: 'resource', type: 'number', description: 'Verfügbarer Fokus' },
   { name: 'fokusMax', category: 'resource', type: 'number', description: 'Maximaler Fokus' },
 
@@ -160,6 +162,63 @@ export const ITEM_WRITABLE: Record<string, string> = {
   stability: 'Stabilität dieses Gegenstands (Rüstung)',
   armorDebuff: 'Rüstungsmalus dieses Gegenstands',
   weight: 'Gewicht dieses Gegenstands in kg',
+  meleeRange: 'Nahkampfreichweite in Metern',
+  rangedRange: 'Wurf-/Schussreichweite in Metern',
+  maxDurability: 'Maximale Haltbarkeit',
+};
+
+/**
+ * Categorical item properties: `item.reloadAction = "FREE"`.
+ *
+ * Separate from `ITEM_WRITABLE` because these are choices, not amounts — there is no meaning to
+ * `+=` on a reload action. Only plain `=` with one of the listed literals is accepted, and when
+ * two Merkmale set the same one the last applied wins.
+ */
+export interface ItemChoiceInfo {
+  description: string;
+  values: { value: string; label: string }[];
+}
+
+export const ITEM_CHOICE_WRITABLE: Record<string, ItemChoiceInfo> = {
+  reloadAction: {
+    description: 'Was Nachladen/Bereitmachen im Kampf kostet',
+    values: [
+      { value: 'FREE',   label: 'Umsonst' },
+      { value: 'BONUS',  label: 'Bonusaktion' },
+      { value: 'ACTION', label: 'Aktion' },
+    ],
+  },
+  handed: {
+    description: 'Ein- oder zweihändig geführt',
+    values: [
+      { value: 'ONE', label: 'Einhändig' },
+      { value: 'TWO', label: 'Zweihändig' },
+    ],
+  },
+  weaponCategory: {
+    description: 'Waffenart — wie damit gekämpft wird',
+    values: [
+      { value: 'LEICHT',    label: 'Leicht' },
+      { value: 'SCHWER',    label: 'Schwer' },
+      { value: 'FERNKAMPF', label: 'Fernkampf' },
+    ],
+  },
+  damageType: {
+    description: 'Primärer Schadenstyp der Waffe',
+    values: [
+      { value: 'Schnitt', label: 'Schnitt' },
+      { value: 'Stich',   label: 'Stich' },
+      { value: 'Wucht',   label: 'Wucht' },
+    ],
+  },
+};
+
+/** Every property `item.<x>` accepts, numeric or categorical — for completion and hover. */
+export const ITEM_PROPERTY_INFO: Record<string, string> = {
+  ...ITEM_WRITABLE,
+  ...Object.fromEntries(
+    Object.entries(ITEM_CHOICE_WRITABLE).map(([k, v]) => [k, v.description]),
+  ),
 };
 
 export const SYMBOL_MAP = new Map(SYMBOLS.map(s => [s.name, s]));

@@ -1,95 +1,103 @@
 <div class="trait-editor">
-  <!-- Name -->
-  <div class="form-row">
-    <label>Name</label>
-    <input type="text" [(ngModel)]="edit.name" placeholder="z.B. Werfen" />
-  </div>
+  <div class="editor-cols">
 
-  <!-- Description -->
-  <div class="form-row">
-    <label>Beschreibung</label>
-    <textarea [(ngModel)]="edit.description" rows="2" placeholder="Optionale Beschreibung..."></textarea>
-  </div>
+    <!-- Left: the Merkmal itself -->
+    <div class="col-fields">
 
-  <!-- SP cost -->
-  <div class="form-row">
-    <label>Schmiedepunkte-Kosten</label>
-    <input type="number" [(ngModel)]="edit.schmiedepunktKosten" min="1" />
-  </div>
-
-  <!-- Knowledge tier -->
-  <div class="toggle-row">
-    <label class="kt-field">
-      <span class="kt-label">Wissensstufe</span>
-      <select class="kt-select" [ngModel]="tier" (ngModelChange)="setTier($event)">
-        @for (t of knowledgeTiers; track t.value) {
-          <option [value]="t.value">{{ t.label }}</option>
-        }
-      </select>
-      <span class="kt-hint">{{ tierHint }}</span>
-    </label>
-  </div>
-
-  <!-- Applies to -->
-  <div class="form-row">
-    <label>Anwendbar auf</label>
-    <select [(ngModel)]="edit.appliesTo">
-      <option value="all">Alle (Waffen & Rüstungen)</option>
-      <option value="weapon">Nur Waffen</option>
-      <option value="armor">Nur Rüstungen</option>
-    </select>
-  </div>
-
-  <!-- Scalable toggle -->
-  <div class="toggle-row">
-    <label class="toggle-label">
-      <input type="checkbox" [(ngModel)]="edit.scalable" (ngModelChange)="onScalableChange()" />
-      Skalierbar (mehrfach hinzufügbar)
-    </label>
-    @if (edit.scalable) {
-      <div class="inline-field">
-        <label>Max. Stufe</label>
-        <input type="number" [(ngModel)]="edit.maxLevel" min="2" max="99" class="small-input" />
+      <!-- Name -->
+      <div class="form-row">
+        <label>Name</label>
+        <input class="w-narrow" type="text" [(ngModel)]="edit.name" placeholder="z.B. Werfen" />
       </div>
-    }
-  </div>
 
-  <!-- Effect -->
-  <div class="form-row">
-    <label>
-      Effekttext
-      @if (edit.scalable) {
-        <span class="hint"> — Nutze <code>[L]</code> als Platzhalter für die Stufe</span>
+      <!-- Description -->
+      <div class="form-row">
+        <label>Beschreibung</label>
+        <textarea [(ngModel)]="edit.description" rows="2" placeholder="Optionale Beschreibung..."></textarea>
+      </div>
+
+      <!-- SP cost -->
+      <div class="form-row">
+        <label>Schmiedepunkte-Kosten</label>
+        <input class="w-tiny" type="number" [(ngModel)]="edit.schmiedepunktKosten" min="1" />
+      </div>
+
+      <!-- Knowledge tier -->
+      <div class="toggle-row">
+        <label class="kt-field">
+          <span class="kt-label">Wissensstufe</span>
+          <select class="kt-select" [ngModel]="tier" (ngModelChange)="setTier($event)">
+            @for (t of knowledgeTiers; track t.value) {
+              <option [value]="t.value">{{ t.label }}</option>
+            }
+          </select>
+          <span class="kt-hint">{{ tierHint }}</span>
+        </label>
+      </div>
+
+      <!-- Applies to -->
+      <div class="form-row">
+        <label>Anwendbar auf</label>
+        <select class="w-medium" [(ngModel)]="edit.appliesTo">
+          <option value="all">Alle (Waffen & Rüstungen)</option>
+          <option value="weapon">Nur Waffen</option>
+          <option value="armor">Nur Rüstungen</option>
+        </select>
+      </div>
+
+      <!-- Scalable toggle -->
+      <div class="toggle-row">
+        <label class="toggle-label">
+          <input type="checkbox" [(ngModel)]="edit.scalable" (ngModelChange)="onScalableChange()" />
+          Skalierbar (mehrfach hinzufügbar)
+        </label>
+        @if (edit.scalable) {
+          <div class="inline-field">
+            <label>Max. Stufe</label>
+            <input type="number" [(ngModel)]="edit.maxLevel" min="2" max="99" class="small-input" />
+          </div>
+        }
+      </div>
+
+      <!-- Effect -->
+      <div class="form-row">
+        <label>
+          Effekttext
+          @if (edit.scalable) {
+            <span class="hint"> — Nutze <code>[L]</code> als Platzhalter für die Stufe</span>
+          }
+        </label>
+        <input type="text" [(ngModel)]="edit.effect" [placeholder]="edit.scalable ? 'z.B. Werfen + [L]' : 'z.B. Werfen + 1'" />
+      </div>
+
+      <!-- Live preview -->
+      @if (edit.scalable && edit.effect) {
+        <div class="preview-box">
+          <span class="preview-label">Vorschau (Stufe 1):</span>
+          <span class="preview-text">{{ previewEffect }}</span>
+        </div>
       }
-    </label>
-    <input type="text" [(ngModel)]="edit.effect" [placeholder]="edit.scalable ? 'z.B. Werfen + [L]' : 'z.B. Werfen + 1'" />
-  </div>
-
-  <!-- Live preview -->
-  @if (edit.scalable && edit.effect) {
-    <div class="preview-box">
-      <span class="preview-label">Vorschau (Stufe 1):</span>
-      <span class="preview-text">{{ previewEffect }}</span>
     </div>
-  }
 
-  <!-- Wirkung (optional) -->
-  <div class="form-row">
-    <label>
-      Wirkung <span class="hint">— optional. Ohne Skript bleibt das Merkmal reiner Text.</span>
-    </label>
-    <p class="script-hint">
-      L&auml;uft, solange der geschmiedete Gegenstand ausger&uuml;stet ist.
-      <code>item.effectivity</code> &auml;ndert den <b>Gegenstand</b>, ein blo&szlig;es
-      <code>speed</code> den <b>Tr&auml;ger</b>. <code>merkmalLevel</code> ist die Stufe dieses
-      Merkmals &mdash; dasselbe wie <code>[L]</code> im Text oben.
-    </p>
-    <div class="script-host">
-      <app-script-editor
-        [value]="edit.script || ''"
-        (valueChange)="edit.script = $event">
-      </app-script-editor>
+    <!-- Right: what it actually does -->
+    <div class="col-script">
+      <label class="script-label">
+        Wirkung <span class="hint">— optional. Ohne Skript bleibt das Merkmal reiner Text.</span>
+      </label>
+      <p class="script-hint">
+        L&auml;uft, solange der geschmiedete Gegenstand ausger&uuml;stet ist.
+        <code>item.effectivity</code> &auml;ndert den <b>Gegenstand</b>, ein blo&szlig;es
+        <code>speed</code> den <b>Tr&auml;ger</b>. <code>merkmalLevel</code> ist die Stufe dieses
+        Merkmals &mdash; dasselbe wie <code>[L]</code> im Text links.
+      </p>
+      <div class="script-host">
+        <app-script-editor
+          [value]="edit.script || ''"
+          (valueChange)="edit.script = $event">
+        </app-script-editor>
+      </div>
     </div>
+
   </div>
 
   <!-- Actions -->

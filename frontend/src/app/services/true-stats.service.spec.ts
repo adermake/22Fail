@@ -596,6 +596,59 @@ describe('TrueStatsService', () => {
       expect(svc.resolveEfficiency(sheet, weapon)).toBe(10);
     });
 
+    it('extends a weapon\'s reach', () => {
+      const sheet = makeSheet();
+      const weapon = forged({ meleeRange: 1, rangedRange: 0 }, [{
+        name: 'Langschaft', level: 2,
+        script: 'effectActive { item.meleeRange += 0.5 * merkmalLevel }',
+      }]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveItemStat(sheet, weapon, 'meleeRange')).toBe(2); // 1 + 0.5*2
+    });
+
+    it('lets a script raise a resource maximum', () => {
+      // healthMax is a boundary, not a pool: loseResource() moves the current value, this moves
+      // the cap. Before, no script could reach it at all.
+      const plain = svc.calculateResourceMax(makeSheet(), FormulaType.LIFE);
+      const buffed = withEffect(makeSheet(), 'effectActive { healthMax += 20 }');
+      expect(svc.calculateResourceMax(buffed, FormulaType.LIFE)).toBe(plain + 20);
+    });
+
+    it('runs the pipeline on the finished maximum, not a subtotal', () => {
+      const plain = svc.calculateResourceMax(makeSheet(), FormulaType.MANA);
+      const doubled = withEffect(makeSheet(), 'effectActive { manaMax *= 2 }');
+      expect(svc.calculateResourceMax(doubled, FormulaType.MANA)).toBe(plain * 2);
+    });
+
+    it('changes a categorical property', () => {
+      const sheet = makeSheet();
+      const weapon = forged({ reloadAction: 'ACTION' }, [{
+        name: 'Schnellspanner', level: 1,
+        script: 'effectActive { item.reloadAction = "FREE" }',
+      }]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveItemChoice(sheet, weapon, 'reloadAction', 'ACTION')).toBe('FREE');
+    });
+
+    it('lets the last Merkmal win a conflicting choice', () => {
+      const sheet = makeSheet();
+      const weapon = forged({ handed: 'ONE' }, [
+        { name: 'Wuchtgriff', level: 1, script: 'effectActive { item.handed = "TWO" }' },
+        { name: 'Balance',    level: 1, script: 'effectActive { item.handed = "ONE" }' },
+      ]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveItemChoice(sheet, weapon, 'handed', 'ONE')).toBe('ONE');
+    });
+
+    it('falls back to the forged value when nothing sets it', () => {
+      const sheet = makeSheet();
+      const weapon = forged({ reloadAction: 'BONUS' }, [
+        { name: 'Schärfe', level: 1, script: 'effectActive { item.effectivity += 1 }' },
+      ]);
+      sheet.equipment = [weapon];
+      expect(svc.resolveItemChoice(sheet, weapon, 'reloadAction', 'BONUS')).toBe('BONUS');
+    });
+
     it('attributes each modifier to the Merkmal that produced it', () => {
       const sheet = makeSheet();
       const weapon = forged({}, [

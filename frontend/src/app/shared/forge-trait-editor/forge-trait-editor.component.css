@@ -4,6 +4,59 @@
   gap: 1rem;
   padding: 0.25rem 0;
   font-family: sans-serif;
+  /* The host modal is full-screen; without a cap the two columns would sprawl across a wide
+     monitor and the eye would have to travel between them. */
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/*
+ * Two columns: what the Merkmal IS on the left, what it DOES on the right.
+ *
+ * The script needs height, and stacking it under the fields meant scrolling past everything to
+ * reach it while the horizontal space sat empty. `minmax(0, …)` on both tracks so the CodeMirror
+ * surface can shrink instead of forcing the grid wider than its container.
+ */
+.editor-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.col-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.col-script {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.script-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.script-label .hint {
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+/* One column on narrow screens — the script goes back underneath. */
+@media (max-width: 900px) {
+  .editor-cols { grid-template-columns: 1fr; }
 }
 
 .form-row {
@@ -11,6 +64,15 @@
   flex-direction: column;
   gap: 0.3rem;
 }
+
+/*
+ * Inputs sized to their content rather than stretched across the column: a name is a few words,
+ * and a text field ten times longer than anything typed into it just looks broken. Free text
+ * (Beschreibung, Effekttext) keeps the full width, because that is where length actually happens.
+ */
+.w-narrow { max-width: 320px; }
+.w-medium { max-width: 260px; }
+.w-tiny   { max-width: 110px; }
 
 .form-row label {
   font-size: 0.8rem;
@@ -48,11 +110,14 @@
   border: 1px solid var(--border, #374151);
   border-radius: 6px;
   overflow: hidden;
-  min-height: 150px;
+  /* Matches the item editor's script surface, so the two feel like the same tool. */
+  height: 340px;
+  min-height: 260px;
 }
 
 .form-row input,
-.form-row textarea {
+.form-row textarea,
+.form-row select {
   padding: 0.5rem 0.75rem;
   background: var(--card, #2d3748);
   border: 1px solid var(--border, #4a5568);
@@ -63,7 +128,8 @@
 }
 
 .form-row input:focus,
-.form-row textarea:focus {
+.form-row textarea:focus,
+.form-row select:focus {
   outline: none;
   border-color: var(--accent, #8b5cf6);
   box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);

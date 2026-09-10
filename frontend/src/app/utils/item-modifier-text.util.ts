@@ -1,4 +1,5 @@
-import { ItemModifierTarget, ModifierOp } from '../scripting/interpreter';
+import { ItemChoiceTarget, ItemModifierTarget, ModifierOp } from '../scripting/interpreter';
+import { ITEM_CHOICE_WRITABLE } from '../scripting/symbols';
 import { roundTo } from './round.util';
 
 /**
@@ -15,6 +16,9 @@ const TARGET_LABEL: Record<ItemModifierTarget, string> = {
   stability: 'Stabilität',
   armorDebuff: 'Rüstungsmalus',
   weight: 'Gewicht',
+  meleeRange: 'Nahkampfreichweite',
+  rangedRange: 'Reichweite',
+  maxDurability: 'Max. Haltbarkeit',
 };
 
 /** `+5`, `−3`, `×2`, `÷2`, `= 7` — the operation as it reads to a player. */
@@ -36,6 +40,26 @@ export interface ItemModifierLike {
   source?: string;
 }
 
+export interface ItemChoiceLike {
+  target: ItemChoiceTarget;
+  value: string;
+  source?: string;
+}
+
+const CHOICE_LABEL: Record<ItemChoiceTarget, string> = {
+  reloadAction: 'Nachladen',
+  handed: 'Führung',
+  weaponCategory: 'Waffenart',
+  damageType: 'Schadenstyp',
+};
+
+/** One categorical change as text: `Nachladen → Umsonst`. */
+export function formatItemChoice(choice: ItemChoiceLike): string {
+  const info = ITEM_CHOICE_WRITABLE[choice.target];
+  const label = info?.values.find(v => v.value === choice.value)?.label ?? choice.value;
+  return `${CHOICE_LABEL[choice.target]} → ${label}`;
+}
+
 /** One modifier as text: `Effektivität +5`. */
 export function formatItemModifier(mod: ItemModifierLike): string {
   return `${TARGET_LABEL[mod.target]} ${formatOp(mod.op, mod.amount)}`;
@@ -48,14 +72,24 @@ export function formatItemModifier(mod: ItemModifierLike): string {
  * Grouped rather than one line each, because a single Merkmal usually moves two or three numbers
  * and reading its name once is enough.
  */
-export function describeItemModifiers(mods: readonly ItemModifierLike[]): string[] {
+export function describeItemModifiers(
+  mods: readonly ItemModifierLike[],
+  choices: readonly ItemChoiceLike[] = [],
+): string[] {
   const bySource = new Map<string, string[]>();
-  for (const m of mods) {
-    const key = m.source ?? '';
+  const add = (source: string | undefined, text: string) => {
+    const key = source ?? '';
     const list = bySource.get(key) ?? [];
-    list.push(formatItemModifier(m));
+    list.push(text);
     bySource.set(key, list);
-  }
+  };
+  for (const m of mods) add(m.source, formatItemModifier(m));
+  // Only the choice that actually took effect is worth showing: with last-writer-wins, an
+  // overridden one is not in force and listing it would just be confusing.
+  const winners = new Map<ItemChoiceTarget, ItemChoiceLike>();
+  for (const c of choices) winners.set(c.target, c);
+  for (const c of winners.values()) add(c.source, formatItemChoice(c));
+
   return [...bySource].map(([source, parts]) =>
     source ? `${source}: ${parts.join(', ')}` : parts.join(', '));
 }

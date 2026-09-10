@@ -249,6 +249,45 @@ describe('FailScript item targets', () => {
   });
 });
 
+describe('FailScript item choices', () => {
+  it('accepts a valid literal with plain assignment', () => {
+    expect(compileScript('effectActive { item.reloadAction = "FREE" }').ok).toBe(true);
+  });
+
+  it('rejects arithmetic on a choice', () => {
+    const e = errs('effectActive { item.reloadAction += "FREE" }');
+    expect(e.some(m => m.includes('ist eine Auswahl'))).toBe(true);
+  });
+
+  it('rejects a value outside the allowed set', () => {
+    const e = errs('effectActive { item.reloadAction = "SOFORT" }');
+    expect(e.some(m => m.includes('erwartet einen dieser Werte'))).toBe(true);
+  });
+
+  it('rejects a non-literal value', () => {
+    // The checker validates the literal, so a computed value cannot be verified.
+    expect(errs('effectActive { item.handed = someVar }').length).toBeGreaterThan(0);
+  });
+
+  it('rejects a choice outside effectActive', () => {
+    expect(errs('item.reloadAction = "FREE"').some(m => m.includes('Stat-Leak'))).toBe(true);
+  });
+
+  it('collects choices apart from numeric modifiers', () => {
+    const r = runScript(
+      'effectActive { item.reloadAction = "BONUS" item.effectivity += 2 }',
+      dummyCtx, { collect: true });
+    expect(r.itemChoices).toEqual([{ target: 'reloadAction', value: 'BONUS' }]);
+    expect(r.itemModifiers).toEqual([{ target: 'effectivity', op: 'add', amount: 2 }]);
+  });
+
+  it('keeps every choice in order so the last can win', () => {
+    const r = runScript(
+      'effectActive { item.handed = "TWO" item.handed = "ONE" }', dummyCtx, { collect: true });
+    expect(r.itemChoices.map(c => c.value)).toEqual(['TWO', 'ONE']);
+  });
+});
+
 describe('FailScript merkmalLevel', () => {
   const src = 'effectActive { item.effectivity += 2 * merkmalLevel }';
 
