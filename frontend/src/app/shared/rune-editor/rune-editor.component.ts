@@ -305,24 +305,25 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ─── Tags ─────────────────────────────────────────────────────────────────
 
+  /** Tags of the rune being edited; stored runes often have none at all. */
+  private get tags(): string[] { return this.editRune.tags ?? []; }
+
   addTag() {
     const t = this.newTag.trim();
-    if (t && !this.editRune.tags.includes(t)) {
-      this.editRune.tags = [...this.editRune.tags, t];
+    if (t && !this.tags.includes(t)) {
+      this.editRune.tags = [...this.tags, t];
     }
     this.newTag = '';
   }
 
   toggleTag(tag: string) {
-    if (this.editRune.tags.includes(tag)) {
-      this.editRune.tags = this.editRune.tags.filter(t => t !== tag);
-    } else {
-      this.editRune.tags = [...this.editRune.tags, tag];
-    }
+    this.editRune.tags = this.tags.includes(tag)
+      ? this.tags.filter(t => t !== tag)
+      : [...this.tags, tag];
   }
 
   removeTag(i: number) {
-    this.editRune.tags = this.editRune.tags.filter((_, idx) => idx !== i);
+    this.editRune.tags = this.tags.filter((_, idx) => idx !== i);
   }
 
   isTagActive(tag: string) { return (this.editRune.tags ?? []).includes(tag); }

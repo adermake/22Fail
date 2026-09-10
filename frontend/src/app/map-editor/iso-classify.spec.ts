@@ -70,9 +70,22 @@ describe('Einsortieren der Packs', () => {
     }
   });
 
-  it('legt Unbekanntes in die Requisiten, nicht zwischen die Berge', () => {
-    // A stray crate in the drawer nobody opens beats a washing line among the mountains.
-    expect(cls('völlig_unbekanntes_ding_1')).toBe('props');
+  it('legt Unbekanntes zu den Symbolen, nicht in die Requisiten', () => {
+    /*
+     * The fall-through is the common case, not a rare one: no hand-written vocabulary covers
+     * 1200 names from a dozen packs. It once defaulted to `props` and swallowed
+     * `Arcane_Floating_Sanctuary` — a building filed where nobody would look for it. A
+     * misplaced crate among the symbols is visible and harmless; a hidden asset is not.
+     */
+    expect(cls('völlig_unbekanntes_ding_1')).toBe('misc');
+    expect(cls('Arcane_Floating_Sanctuary_iso31')).toBe('misc');
+    expect(cls('Arcane_Mysterious_Pyramid_iso31')).toBe('misc');
+  });
+
+  it('nimmt nur bei klarem Treffer Requisiten an', () => {
+    // Only a positive match reaches the drawer, so the list stays short and deliberate.
+    expect(cls('Marketsquare_stall_1')).toBe('props');
+    expect(cls('Dwarven_Underground_Baracks1')).toBe('misc');
   });
 
   it('unterscheidet Straße von Baum', () => {

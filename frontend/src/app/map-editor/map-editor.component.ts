@@ -439,6 +439,23 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.matchingSprites().slice(0, MapEditorComponent.PICKER_LIMIT),
   );
 
+  /**
+   * Picker cells as data rather than template method calls.
+   *
+   * `spriteThumb(id)` and `spriteName(id)` were called from the template, so Angular re-ran
+   * both for every visible cell on every change-detection pass — hundreds of style objects
+   * rebuilt for a pass that changed nothing about the picker. As a computed they are rebuilt
+   * only when the sprite list or the tint actually changes.
+   */
+  readonly pickerCells = computed(() => {
+    const tint = this.symbolTint();
+    return this.visibleSprites().map(id => ({
+      id,
+      name: this.spriteName(id),
+      style: this.assets.thumbStyle(id, 44, tint),
+    }));
+  });
+
   /** How many matches the cap is hiding, so the count is not silently wrong. */
   readonly hiddenSpriteCount = computed(() =>
     Math.max(0, this.matchingSprites().length - MapEditorComponent.PICKER_LIMIT),
@@ -809,8 +826,22 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     });
   });
 
-  /** Bumped on every camera change, so screen-space overlays follow pan and zoom. */
+  /**
+   * Bumped when the camera moves *and* something screen-space is riding on it.
+   *
+   * Writing this is not free: it is a signal the template reads, so every write costs a
+   * change-detection pass over the whole component. It is worth that only when there is an
+   * overlay to move.
+   */
   private readonly viewEpoch = signal(0);
+
+  /** Whether any screen-space overlay needs repositioning as the camera moves. */
+  private overlaysNeedFrames(): boolean {
+    return (
+      this.pingCtl.activePings.length > 0 ||
+      (this.inGame() && (this.tokens().length > 0 || this.measureLines.length > 0))
+    );
+  }
 
   private measureLines: MeasureLine[] = [];
   /** This client's ruler, while it is being dragged. */
@@ -1311,15 +1342,40 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * them on every pan would cost more than the map underneath. Groups are cheap to test
    * because their members' boxes come straight from the views that already drew them.
    */
+  /** What the audit frames were last built for, so a pan does not rebuild them. */
+  private overviewKey = '';
+  /** Bumped by object edits alone — the only thing the audit frames depend on. */
+  private objectRevision = 0;
+
   private drawOverview(): void {
     this.drawSecretSelection();
-    if (!this.secretOverview?.auditVisible) return;
+    if (!this.secretOverview?.auditVisible) {
+      this.overviewKey = '';
+      return;
+    }
 
     const data = this.store.data();
     if (!data) return;
 
+    /*
+     * Rebuilt only when it would come out different.
+     *
+     * This walks every label, symbol and region in the document. It was called from the
+     * streaming pass, so a GM in game mode — where the audit is on by default — rescanned
+     * the whole map on every frame of every pan. On a full map that is tens of thousands of
+     * iterations a frame for marks that had not changed.
+     *
+     * The view is quantised so small movements reuse the frames. The counter is bumped on
+     * *object* ops only, not the store's global revision: that also ticks for every chunk
+     * and every fog dab, which would have put the full rescan back on each stroke of the
+     * fog brush without changing a single frame.
+     */
     const view = this.renderer.camera.visibleBounds();
     const active = this.activeSecretId();
+    const q = (v: number) => Math.round(v / 512);
+    const key = `${q(view.minX)},${q(view.minY)},${q(view.maxX)},${q(view.maxY)}:${active}:${this.objectRevision}`;
+    if (key === this.overviewKey) return;
+    this.overviewKey = key;
 
     // One pass over each collection, bucketed by group — a scan per group would be
     // quadratic, which at 300 groups on a full map is exactly the wrong shape.
@@ -2385,6 +2441,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.sketchView.rebuild(data.sketch ?? []);
     this.sketchCount.set(this.sketchView.count);
     this.tokens.set(data.tokens ?? []);
+    // A replaced document invalidates the audit frames as surely as an edit does.
+    this.objectRevision++;
+    this.overviewKey = '';
 
     this.subs.push(
       // The controller dedupes our own echo by id and plays the sound once.
@@ -2426,6 +2485,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           return;
         }
         if (op.t !== 'add' && op.t !== 'upd' && op.t !== 'del') return;
+        this.objectRevision++;
         const data = this.store.data();
 
         if (op.c === 'symbols') {
@@ -2557,8 +2617,18 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.fogView?.update(view, this.revealedSet, this.isGM(), this.fogRevision);
       this.sketchView?.render(view);
       this.playAids?.render(zoom, this.allMeasureLines());
-      // Screen-space overlays (pings, the wheel) follow the camera through this.
-      this.viewEpoch.update(n => n + 1);
+
+      /*
+       * Only bump the epoch when a screen-space overlay is actually on screen.
+       *
+       * This used to run unconditionally, every frame. `viewEpoch` is read by the ping,
+       * token and scale computeds, and one of those feeds a binding that is always
+       * rendered — so every pan invalidated it, and Angular ran change detection over this
+       * whole template *per frame*. That includes the symbol picker, whose cells call
+       * `spriteThumb()` and `spriteName()` from the template: up to 240 style objects
+       * rebuilt on every frame of every drag, for overlays that were usually empty.
+       */
+      if (this.overlaysNeedFrames()) this.viewEpoch.update(n => n + 1);
     });
   }
 
@@ -3836,6 +3906,17 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     return this.fogRadius();
   }
 
+  /**
+   * Pointer travel → brush units, at the rates the old world map used.
+   *
+   * Deliberately different per brush because the units are: the fog radius counts *hex
+   * rings*, where a whole map's worth is 0–20, and the pen counts pixels over a range of
+   * hundreds. One shared rate made whichever brush it was not tuned for unusable.
+   */
+  private gameResizeDelta(dx: number): number {
+    return this.gameTool() === 'fog' ? dx / 40 : dx * 0.3;
+  }
+
   private setActiveGameBrushSize(value: number): void {
     if (this.gameTool() === 'draw') {
       if (this.eraserMode()) this.eraserSize.set(Math.round(Math.min(60, Math.max(2, value))));
@@ -3908,6 +3989,21 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     if (this.brushResize) {
       const dx = e.clientX - this.brushResize.x;
+      /*
+       * The game brushes are handled here, in the one resize branch that actually runs.
+       *
+       * They were handled further down, inside the game-mode pointer path — which this block
+       * returns before ever reaching. Shift-dragging the fog brush therefore fell through to
+       * the `else` below and silently resized the *terrain* brush instead: the size ring
+       * appeared, and the fog radius never moved.
+       */
+      if (this.brushResize.scaling === 'game') {
+        // The ring follows the pointer rather than staying where the drag began, which is
+        // how the old map behaved and what makes the size readable against the map under it.
+        this.brushResize.screen = p;
+        this.setActiveGameBrushSize(this.brushResize.initial + this.gameResizeDelta(dx));
+        return;
+      }
       if (this.brushResize.scaling === 'symbol') {
         // Multiplicative: a scale of 0.2 and one of 4 both need to feel controllable.
         const next = this.brushResize.initial * Math.pow(1.01, dx);
@@ -4039,12 +4135,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private gamePointerMove(world: Point, screen: Point, e: PointerEvent): void {
     if (this.pingCtl.wheelOpen) {
       this.pingCtl.updateWheel(screen.x, screen.y);
-      return;
-    }
-
-    if (this.brushResize?.scaling === 'game') {
-      const delta = (e.clientX - this.brushResize.x) / 6;
-      this.setActiveGameBrushSize(this.brushResize.initial + delta);
       return;
     }
 

@@ -218,8 +218,14 @@
       }
 
       <!-- Dieselbe Ping-Ebene wie Lobby und alte Weltkarte — gleiche Animation, gleiche
-           Geräusche. G halten und ziehen öffnet das Rad. -->
-      <app-ping-layer [pings]="renderedPings()" />
+           Geräusche. G halten und ziehen öffnet das Rad.
+
+           Nur gerendert, solange wirklich ein Ping läuft: die Bindung liest `viewEpoch`, und
+           eine dauerhaft gerenderte Bindung darauf zog bei jedem Kameraschritt eine
+           Change-Detection über diese ganze Vorlage. -->
+      @if (pingCtl.activePings.length) {
+        <app-ping-layer [pings]="renderedPings()" />
+      }
       @if (pingCtl.wheelOpen) {
         <app-ping-wheel
           [x]="pingCtl.wheelScreen.x"
@@ -746,15 +752,15 @@
             }
 
             <div class="sprite-grid">
-              @for (s of visibleSprites(); track s) {
+              @for (c of pickerCells(); track c.id) {
                 <button
                   type="button"
                   class="sprite-cell"
-                  [class.active]="currentSprite() === s"
-                  [title]="spriteName(s)"
-                  (click)="selectSprite(s)"
+                  [class.active]="currentSprite() === c.id"
+                  [title]="c.name"
+                  (click)="selectSprite(c.id)"
                 >
-                  <span class="sprite-thumb" [ngStyle]="spriteThumb(s)"></span>
+                  <span class="sprite-thumb" [ngStyle]="c.style"></span>
                 </button>
               }
             </div>

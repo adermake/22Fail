@@ -391,10 +391,16 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   availableMaterials = signal<AssetFile[]>([]);
   availableForgeTraits = signal<AssetFile[]>([]);
 
-  /** Computed RuneBlock array for the spell-node-editor */
-  get availableRunesAsBlocks(): import('../model/rune-block.model').RuneBlock[] {
-    return this.availableRunes().map(f => f.data as import('../model/rune-block.model').RuneBlock);
-  }
+  /**
+   * RuneBlock array for the spell-node-editor.
+   *
+   * A `computed`, not a getter: bound in a template, a getter handed the child a brand-new array
+   * on every change-detection pass, so the editor saw its rune list "change" constantly and
+   * rebuilt against it. This recomputes only when the underlying files actually change.
+   */
+  readonly availableRunesAsBlocks = computed<RuneBlock[]>(
+    () => this.availableRunes().map(f => f.data as RuneBlock),
+  );
 
   /**
    * Feed the script editor's applyStatus/removeStatus autocomplete. In here the effects are asset

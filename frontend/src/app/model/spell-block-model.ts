@@ -99,6 +99,15 @@ export class SpellBlock {
   graph?: SpellGraph;
   costMana?: number;
   costFokus?: number;
+  /**
+   * Zauberstärke — the summed Effektivität of the runes in the spell.
+   *
+   * One number covers the overwhelming majority of spells. When it cannot (`effektivitaetKomplex`),
+   * the field is left out and the description carries the rules instead.
+   */
+  effektivitaet?: number;
+  /** Marked complex: the spell's strength is not expressible as a single number. */
+  effektivitaetKomplex?: boolean;
   perTurnMana?: number;                 // Mana cost per active turn
   perTurnFokus?: number;                // Fokus cost per active turn
   durationTurns?: number;               // How many turns the spell lasts

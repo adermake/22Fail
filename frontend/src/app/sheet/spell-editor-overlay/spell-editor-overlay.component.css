@@ -995,3 +995,24 @@
 
 /* FailScript editor host */
 .spell-script-host { height: 300px; }
+
+/* Zauberstärke: one number for the simple case, a flag for the rest. */
+.komplex-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  /* Lines up with the number input beside it rather than with its label. */
+  margin-top: 1.55rem;
+}
+.komplex-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent, #8b5cf6);
+  cursor: pointer;
+}
+.komplex-hint {
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+}

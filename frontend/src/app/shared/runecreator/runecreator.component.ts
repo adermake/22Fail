@@ -373,16 +373,14 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   toggleTag(tag: string) {
-    const index = this.newRune.tags.indexOf(tag);
-    if (index > -1) {
-      this.newRune.tags = this.newRune.tags.filter(t => t !== tag);
-    } else {
-      this.newRune.tags = [...this.newRune.tags, tag];
-    }
+    const tags = this.newRune.tags ?? [];
+    this.newRune.tags = tags.includes(tag)
+      ? tags.filter(t => t !== tag)
+      : [...tags, tag];
   }
 
   hasTag(tag: string): boolean {
-    return this.newRune.tags.includes(tag);
+    return (this.newRune.tags ?? []).includes(tag);
   }
 
   async createRune() {

@@ -44,6 +44,9 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   spellTags: string[] = [];
   spellCostMana = 0;
   spellCostFokus = 0;
+  /** Zauberstärke as a single number. Ignored while `spellKomplex` is set. */
+  spellEffektivitaet = 0;
+  spellKomplex = false;
   perTurnMana = 0;
   perTurnFokus = 0;
   durationTurns = 0;
@@ -80,6 +83,8 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       tags: [...this.spellTags].sort(),
       costMana: this.spellCostMana,
       costFokus: this.spellCostFokus,
+      effektivitaet: this.spellEffektivitaet,
+      komplex: this.spellKomplex,
       perTurnMana: this.perTurnMana,
       perTurnFokus: this.perTurnFokus,
       durationTurns: this.durationTurns,
@@ -124,6 +129,8 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       this.spellTags             = [...(this.spell.tags || [])];
       this.spellCostMana         = this.spell.costMana ?? 0;
       this.spellCostFokus        = this.spell.costFokus ?? 0;
+      this.spellEffektivitaet    = this.spell.effektivitaet ?? 0;
+      this.spellKomplex          = this.spell.effektivitaetKomplex ?? false;
       this.perTurnMana           = this.spell.perTurnMana ?? 0;
       this.perTurnFokus          = this.spell.perTurnFokus ?? 0;
       this.durationTurns         = this.spell.durationTurns ?? 0;
@@ -164,6 +171,10 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       graph:           this.graph,
       costMana:        this.spellCostMana || undefined,
       costFokus:       this.spellCostFokus || undefined,
+      // A complex spell carries no number at all, so nothing downstream mistakes a stale
+      // value for its strength.
+      effektivitaet:   this.spellKomplex ? undefined : (this.spellEffektivitaet || undefined),
+      effektivitaetKomplex: this.spellKomplex || undefined,
       perTurnMana:     this.perTurnMana || undefined,
       perTurnFokus:    this.perTurnFokus || undefined,
       durationTurns:   this.durationTurns || undefined,
@@ -301,6 +312,8 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       graph:            this.graph ? JSON.parse(JSON.stringify(this.graph)) : undefined,
       costMana:         this.spellCostMana || undefined,
       costFokus:        this.spellCostFokus || undefined,
+      effektivitaet:    this.spellKomplex ? undefined : (this.spellEffektivitaet || undefined),
+      effektivitaetKomplex: this.spellKomplex || undefined,
       statRequirements: this.hasAnyStatReq() ? { ...this.spellStatRequirements } : undefined,
     };
   }
@@ -347,10 +360,20 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   }
 
   /** Copy the current estimate values into the spell cost fields */
+  /** Take the estimated Zauberstärke alone, without touching the cost fields. */
+  applyEffektivitaetEstimate(): void {
+    if (!this.lastSimpleEstimate) return;
+    this.spellEffektivitaet = this.lastSimpleEstimate.effektivitaet;
+    this.spellKomplex = false;
+    this.cdr.markForCheck();
+  }
+
   applyEstimate(): void {
     if (!this.lastSimpleEstimate) return;
     this.spellCostMana  = this.lastSimpleEstimate.mana;
     this.spellCostFokus = this.lastSimpleEstimate.fokus;
+    // Only when the spell claims a single number for its strength.
+    if (!this.spellKomplex) this.spellEffektivitaet = this.lastSimpleEstimate.effektivitaet;
     if (this.lastSimpleEstimate.statRequirements && Object.keys(this.lastSimpleEstimate.statRequirements).length > 0) {
       this.spellStatRequirements = { ...this.lastSimpleEstimate.statRequirements } as any;
     }

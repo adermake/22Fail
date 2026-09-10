@@ -154,7 +154,57 @@ export class AssetBrowserService {
 
   // ==================== METADATA OPERATIONS ====================
 
+  /**
+   * Parsed `.meta.json` per library, kept in memory.
+   *
+   * `loadMeta` used to re-read and re-parse the file on EVERY call, and `getFile` calls it once
+   * per file — so `searchFiles`, which reads every file in a library, re-read the index N times
+   * and (via the auto-discovery below) walked the whole library directory N times as well. One
+   * search over a 500-asset library meant a quarter of a million synchronous filesystem calls,
+   * which froze the entire server, homepage included, for as long as it took.
+   *
+   * Every mutation goes through `saveMeta`, so that is the single place the cache is refreshed.
+   */
+  private metaCache = new Map<string, LibraryMeta>();
+
+  /**
+   * Cache key.
+   *
+   * The on-disk meta path, not the argument: callers reach this with a library id, a display name
+   * or an already-resolved name, and keying on the raw string would give one library several
+   * entries — a write through one of them leaving the others stale.
+   */
+  private metaKey(libraryName: string): string {
+    return this.getMetaPath(libraryName);
+  }
+
   private loadMeta(libraryName: string): LibraryMeta {
+    const cached = this.metaCache.get(this.metaKey(libraryName));
+    if (cached) return cached;
+
+    const meta = this.readMetaFromDisk(libraryName);
+
+    /*
+     * Auto-discovery is a repair pass for files that appeared on disk without going through the
+     * API. It belongs to loading a library, not to reading a file — running it per `getFile` is
+     * what made the cost quadratic. On a cache miss it still runs exactly once per library per
+     * server lifetime, so untracked files are picked up as before.
+     */
+    const registered = this.autoDiscoverAssets(libraryName, meta);
+    if (registered > 0) {
+      console.log(
+        `[ASSET-BROWSER] Auto-registered ${registered} untracked files in "${libraryName}"`,
+      );
+      this.metaCache.set(this.metaKey(libraryName), meta);
+      this.saveMeta(libraryName, meta);
+      return meta;
+    }
+
+    this.metaCache.set(this.metaKey(libraryName), meta);
+    return meta;
+  }
+
+  private readMetaFromDisk(libraryName: string): LibraryMeta {
     const metaPath = this.getMetaPath(libraryName);
     let meta: LibraryMeta;
 
@@ -189,15 +239,6 @@ export class AssetBrowserService {
           ]),
         ),
       };
-    }
-
-    // Auto-discover unregistered AssetFile JSON files and register them
-    const registered = this.autoDiscoverAssets(libraryName, meta);
-    if (registered > 0) {
-      console.log(
-        `[ASSET-BROWSER] Auto-registered ${registered} untracked files in "${libraryName}"`,
-      );
-      this.saveMeta(libraryName, meta);
     }
 
     return meta;
@@ -291,6 +332,20 @@ export class AssetBrowserService {
       JSON.stringify(content, null, 2),
       'utf-8',
     );
+    // The written object IS the live one every caller mutated, so the cache tracks it rather
+    // than being dropped — a drop would send the next read back through auto-discovery.
+    this.metaCache.set(this.metaKey(libraryName), meta);
+  }
+
+  /**
+   * Forget a library's cached index.
+   *
+   * For the cases the cache cannot see: a library deleted or renamed on disk, or files dropped
+   * into it from outside the API. The next read re-reads and re-runs auto-discovery.
+   */
+  private invalidateMeta(libraryName?: string): void {
+    if (libraryName) this.metaCache.delete(this.metaKey(libraryName));
+    else this.metaCache.clear();
   }
 
   // ==================== LIBRARY OPERATIONS ====================
@@ -412,6 +467,8 @@ export class AssetBrowserService {
       throw new NotFoundException(`Library "${libraryName}" not found`);
     }
     fs.rmSync(libraryDir, { recursive: true, force: true });
+    // The index is gone from disk; a cached copy would outlive it and resurrect a dead library.
+    this.invalidateMeta(libraryName);
   }
 
   // ==================== FOLDER OPERATIONS ====================

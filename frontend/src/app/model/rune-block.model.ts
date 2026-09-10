@@ -65,7 +65,12 @@ export class RuneBlock {
   name!: string;
   description!: string;
   drawing!: string;           // Image ID (from image service) or empty string
-  tags!: string[];
+  /**
+   * Optional in practice: runes saved before tags existed, and several creation paths, leave it
+   * undefined. Declaring it required made the compiler vouch for an array that is often not
+   * there — `rune.tags.length` in the spell node editor threw and took the whole editor down.
+   */
+  tags?: string[];
   glowColor?: string;         // Glow color for drawing strokes (default: #8b5cf6)
   fokus?: number;             // Base Fokus cost
   mana?: number;              // Base Mana cost

@@ -438,7 +438,7 @@
             @case ('spell') {
               <app-spell-editor-overlay
                 [spell]="editingFile()!.data"
-                [availableRunes]="availableRunesAsBlocks"
+                [availableRunes]="availableRunesAsBlocks()"
                 (save)="saveEditor($event, false)"
                 (cancel)="closeEditor()"
                 (deleteSpell)="closeEditor()">
@@ -513,7 +513,7 @@
                 [availableSpells]="availableSpells()"
                 [availableItems]="availableItems()"
                 [availableSkills]="availableSkills()"
-                [availableRunes]="availableRunesAsBlocks"
+                [availableRunes]="availableRunesAsBlocks()"
                 [availableMaterials]="availableMaterials()"
                 [availableForgeTraits]="availableForgeTraits()"
                 (save)="saveEditor($event)"
