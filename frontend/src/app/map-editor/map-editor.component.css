@@ -449,6 +449,11 @@
   margin-bottom: 6px;
 }
 
+/* The group filter sits directly above the search box; same width, same rhythm. */
+.panel-section > .paper-select {
+  margin-bottom: 6px;
+}
+
 .preset-current {
   text-transform: none;
   letter-spacing: 0;

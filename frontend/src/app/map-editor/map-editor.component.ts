@@ -401,6 +401,36 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    */
   private static readonly PICKER_LIMIT = 240;
 
+  /**
+   * Group the picker is narrowed to, or `''` for the whole category.
+   *
+   * The category used to be shown whole, on the reasoning that hunting for one mountain
+   * through a list of group names was guesswork. That held at 965 sprites; the bought packs
+   * took `misc` alone to 1089, where a flat list is not browsable at any cap — the new
+   * buildings sat past the cut and the tab looked unchanged. Filtering by group is how you
+   * find them; the search box stays for when you know the word.
+   */
+  readonly groupFilter = signal<string>('');
+
+  /** Groups in the active category, with how many sprites each holds. */
+  readonly pickerGroups = computed(() => {
+    const tool = this.symbolTool();
+    if (tool === 'select') return [];
+    return this.assets
+      .groupsIn(tool)
+      .filter(g => g.sprites.length > 0)
+      .map(g => ({ id: g.id, name: g.name, count: g.sprites.length }));
+  });
+
+  selectGroupFilter(id: string): void {
+    this.groupFilter.set(id);
+    const tool = this.symbolTool();
+    if (tool === 'select') return;
+    this.categorySprites.set(
+      id ? (this.assets.spritesInGroup(id) ?? []) : this.assets.spritesInCategory(tool),
+    );
+  }
+
   private readonly matchingSprites = computed(() =>
     this.assets.search(this.categorySprites(), this.symbolQuery()),
   );
@@ -2590,6 +2620,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.previewSprite.visible = false;
     } else {
       // Whole category at once; groups still exist but are not navigated.
+      this.groupFilter.set('');
+      this.symbolQuery.set('');
       const sprites = this.assets.spritesInCategory(tool);
       this.categorySprites.set(sprites);
       if (sprites.length) this.selectSprite(sprites[0]);

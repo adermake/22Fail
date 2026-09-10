@@ -273,6 +273,11 @@ export class MapAssets {
     return out;
   }
 
+  /** Sprites of one group, for the picker's group filter. */
+  spritesInGroup(groupId: string): string[] {
+    return this.manifest?.groups[groupId]?.sprites ?? [];
+  }
+
   /** The group a sprite belongs to, so selecting one also selects its variation set. */
   groupOf(spriteId: string): string {
     const slash = spriteId.lastIndexOf('/');

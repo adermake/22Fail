@@ -719,9 +719,21 @@
         }
 
         @if (isPlacingSymbols()) {
-          <!-- The whole category at once: browsing group names to find one mountain was
-               guesswork through a list of words. -->
+          <!-- Gruppe zuerst, dann Suche. Die ganze Kategorie auf einmal ging, solange es
+               knapp 1000 Symbole waren; mit den gekauften Packs liegen allein unter
+               "Symbole" über 1000, und eine flache Liste ist da nicht mehr durchsuchbar. -->
           <div class="panel-section">
+            <select
+              class="paper-select"
+              [value]="groupFilter()"
+              (change)="selectGroupFilter($any($event.target).value)"
+            >
+              <option value="">Alle Gruppen</option>
+              @for (g of pickerGroups(); track g.id) {
+                <option [value]="g.id">{{ g.name }} ({{ g.count }})</option>
+              }
+            </select>
+
             <input
               type="search"
               class="text-input search-input"
@@ -748,7 +760,7 @@
             </div>
             @if (hiddenSpriteCount()) {
               <p class="hint">
-                {{ hiddenSpriteCount() }} weitere Treffer — über die Suche eingrenzen.
+                {{ hiddenSpriteCount() }} weitere — über Gruppe oder Suche eingrenzen.
               </p>
             }
             <p class="hint">Shift + Mausrad wechselt zum nächsten Symbol.</p>

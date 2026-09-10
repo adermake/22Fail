@@ -620,16 +620,6 @@ async function main() {
       sprites: g.sprites,
     };
   }
-  // '~' groups sort last, matching Wonderdraft's own ordering.
-  for (const list of Object.values(manifest.categories)) {
-    list.sort((a, b) => {
-      const ga = manifest.groups[a];
-      const gb = manifest.groups[b];
-      if (ga.deprioritised !== gb.deprioritised) return ga.deprioritised ? 1 : -1;
-      return ga.name.localeCompare(gb.name);
-    });
-  }
-
   for (const s of sprites) {
     if (s.page === undefined) continue; // skipped during packing
     manifest.sprites[s.id] = {
@@ -692,6 +682,24 @@ async function main() {
   for (const [id, g] of propGroups) {
     manifest.groups[id] = g;
     (manifest.categories[g.category] ??= []).push(id);
+  }
+
+  /*
+   * Sorted last, after *both* libraries are in.
+   *
+   * This used to run before the pack groups were appended, so every one of them landed at the
+   * end of its category — and with the picker showing the first N sprites, the entire bought
+   * library sat past the cut. The tab looked unchanged.
+   *
+   * '~' groups sort last within that, matching Wonderdraft's own ordering.
+   */
+  for (const list of Object.values(manifest.categories)) {
+    list.sort((a, b) => {
+      const ga = manifest.groups[a];
+      const gb = manifest.groups[b];
+      if (ga.deprioritised !== gb.deprioritised) return ga.deprioritised ? 1 : -1;
+      return ga.name.localeCompare(gb.name);
+    });
   }
 
   await writeFile(join(OUT, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
