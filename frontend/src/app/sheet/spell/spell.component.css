@@ -105,6 +105,8 @@
 .scv-cost--mana  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.35); color: #60a5fa; }
 .scv-cost--fokus { background: rgba(109,40,217,0.12); border: 1px solid rgba(109,40,217,0.4); color: #a78bfa; }
 .scv-cost--free  { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #4b5563; font-style: italic; }
+/* Zauberstärke — the effectivity token, so it reads the same as everywhere else. */
+.scv-cost--eff   { background: color-mix(in srgb, var(--eff-color) 14%, transparent); border: 1px solid var(--eff-color); color: color-mix(in srgb, var(--eff-color) 55%, #fff); }
 .scv-cost--plan  { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25); color: #a78bfa; }
 .scv-req {
   padding: 1px 6px;

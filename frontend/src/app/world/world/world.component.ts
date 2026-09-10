@@ -1306,10 +1306,20 @@ export class WorldComponent implements OnInit, OnDestroy {
         'material': [], 'forge-trait': [], 'ingredient': [], 'extractor': [], 'brew-trait': [],
       };
 
+      /*
+       * One request per library, asking for every kind at once, then sorted here.
+       *
+       * A search reads each of the library's files to look at its type, so asking five times
+       * meant five passes over the whole library — and the catalog load below added five more.
+       * The endpoint has always taken a list of types; nothing was using it.
+       */
       for (const lib of libraries) {
-        for (const kind of this.knowledgeKinds) {
-          const files = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', [kind]));
-          byKind[kind].push(...files.map(f => this.toBrowseEntry(f, lib.id, lib.name)));
+        const files = await firstValueFrom(
+          this.assetBrowserApi.searchFiles(lib.id, '', [...this.knowledgeKinds]),
+        );
+        for (const f of files) {
+          const kind = f.type as KnowledgeKind;
+          if (byKind[kind]) byKind[kind].push(this.toBrowseEntry(f, lib.id, lib.name));
         }
       }
 
@@ -1342,10 +1352,13 @@ export class WorldComponent implements OnInit, OnDestroy {
     const byKind: Record<string, BrowseEntry[]> = {};
     for (const kind of this.catalogKinds) byKind[kind] = [];
 
+    // One request per library for all five kinds — see the note in `loadKnowledgeData`.
     for (const lib of libraries) {
-      for (const kind of this.catalogKinds) {
-        const files = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', [kind]));
-        byKind[kind]!.push(...files.map(f => this.toBrowseEntry(f, lib.id, lib.name)));
+      const files = await firstValueFrom(
+        this.assetBrowserApi.searchFiles(lib.id, '', [...this.catalogKinds]),
+      );
+      for (const f of files) {
+        if (byKind[f.type]) byKind[f.type]!.push(this.toBrowseEntry(f, lib.id, lib.name));
       }
     }
 

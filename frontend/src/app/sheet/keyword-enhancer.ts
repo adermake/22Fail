@@ -56,11 +56,15 @@ export class KeywordEnhancer {
   ];
 
   /**
-   * Enhance text with keyword highlighting
-   * @param text The original text
-   * @returns HTML string with highlighted keywords
+   * Values the owning spell/item can lend to its own description.
+   *
+   * `E:X` means "my Effektivität" — written once, it follows the value instead of going stale the
+   * way a typed `E:5` does the moment the spell is rebalanced.
    */
-  static enhance(text: string): string {
+  static enhance(
+    text: string,
+    ctx?: { effectivity?: number; stability?: number; range?: number },
+  ): string {
     if (!text) return '';
 
     let result = text;
@@ -98,8 +102,19 @@ export class KeywordEnhancer {
       result = result.substring(0, start) + replacement + result.substring(end);
     }
 
-    // Final pass: inline shorthand syntax E:number → ⚔ number, S:number → 🛡 number
+    /*
+     * Inline shorthand. `E:5` is a literal; `E:X` resolves to the owner's own value, so a
+     * description written once keeps up with the number rather than repeating a stale copy of it.
+     * With no value to resolve — a complex spell, or an item with none — the placeholder renders
+     * as `?` rather than silently reading as zero.
+     */
+    const resolved = (v: number | undefined): string =>
+      v === undefined || v === null ? '?' : String(v);
+
     result = result
+      .replace(/\bE:X\b/gi, `<span class="inline-eff">⚔ ${resolved(ctx?.effectivity)}</span>`)
+      .replace(/\bS:X\b/gi, `<span class="inline-stab">🛡 ${resolved(ctx?.stability)}</span>`)
+      .replace(/\bR:X\b/gi, `<span class="inline-range">↔ ${resolved(ctx?.range)}m</span>`)
       .replace(/\bE:(\d+(?:\.\d+)?)\b/g, '<span class="inline-eff">⚔ $1</span>')
       .replace(/\bS:(\d+(?:\.\d+)?)\b/g, '<span class="inline-stab">🛡 $1</span>')
       .replace(/\bR:(\d+(?:\.\d+)?)\b/g, '<span class="inline-range">↔ $1m</span>');

@@ -354,6 +354,7 @@
 .scw-cost-chip--mana  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.35); color: #60a5fa; }
 .scw-cost-chip--fokus { background: rgba(109,40,217,0.12); border: 1px solid rgba(109,40,217,0.4);  color: #a78bfa; }
 .scw-cost-chip--free  { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #4b5563; font-style: italic; }
+.scw-cost-chip--eff   { background: color-mix(in srgb, var(--eff-color) 14%, transparent); border: 1px solid var(--eff-color); color: color-mix(in srgb, var(--eff-color) 55%, #fff); }
 .scw-card-meta {
   display: flex;
   gap: 3px;

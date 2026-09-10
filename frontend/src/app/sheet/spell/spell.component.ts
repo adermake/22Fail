@@ -174,7 +174,9 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
 
   get enhancedDescription(): SafeHtml {
     const original = this.spell.description || 'Keine Beschreibung';
-    const enhanced = KeywordEnhancer.enhance(original);
+    const enhanced = KeywordEnhancer.enhance(original, {
+      effectivity: this.spell.effektivitaetKomplex ? undefined : this.spell.effektivitaet,
+    });
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
   }
 

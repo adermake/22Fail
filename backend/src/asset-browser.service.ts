@@ -165,7 +165,16 @@ export class AssetBrowserService {
    *
    * Every mutation goes through `saveMeta`, so that is the single place the cache is refreshed.
    */
-  private metaCache = new Map<string, LibraryMeta>();
+  private metaCache = new Map<string, { meta: LibraryMeta; mtimeMs: number }>();
+
+  /** Modification time of a library's index, or -1 when it does not exist yet. */
+  private metaMtime(libraryName: string): number {
+    try {
+      return fs.statSync(this.getMetaPath(libraryName)).mtimeMs;
+    } catch {
+      return -1;
+    }
+  }
 
   /**
    * Cache key.
@@ -179,28 +188,37 @@ export class AssetBrowserService {
   }
 
   private loadMeta(libraryName: string): LibraryMeta {
-    const cached = this.metaCache.get(this.metaKey(libraryName));
-    if (cached) return cached;
+    /*
+     * The cached copy is trusted only while the file it came from is untouched.
+     *
+     * A `stat` costs a fraction of what the old path did (a full parse plus a recursive walk of
+     * the library), and it keeps the cache honest about writes this process did not make — a
+     * generator script dropping files into data/, a restore, or a second process. Our own writes
+     * refresh the entry in `saveMeta`, so this only ever fires for outside changes.
+     */
+    const key = this.metaKey(libraryName);
+    const mtimeMs = this.metaMtime(libraryName);
+    const cached = this.metaCache.get(key);
+    if (cached && cached.mtimeMs === mtimeMs) return cached.meta;
 
     const meta = this.readMetaFromDisk(libraryName);
 
     /*
      * Auto-discovery is a repair pass for files that appeared on disk without going through the
      * API. It belongs to loading a library, not to reading a file — running it per `getFile` is
-     * what made the cost quadratic. On a cache miss it still runs exactly once per library per
-     * server lifetime, so untracked files are picked up as before.
+     * what made the cost quadratic. It now runs whenever the index is (re-)read, which the mtime
+     * check above triggers on any outside change, so untracked files are still picked up.
      */
     const registered = this.autoDiscoverAssets(libraryName, meta);
     if (registered > 0) {
       console.log(
         `[ASSET-BROWSER] Auto-registered ${registered} untracked files in "${libraryName}"`,
       );
-      this.metaCache.set(this.metaKey(libraryName), meta);
-      this.saveMeta(libraryName, meta);
+      this.saveMeta(libraryName, meta); // re-caches with the new mtime
       return meta;
     }
 
-    this.metaCache.set(this.metaKey(libraryName), meta);
+    this.metaCache.set(key, { meta, mtimeMs });
     return meta;
   }
 
@@ -333,8 +351,12 @@ export class AssetBrowserService {
       'utf-8',
     );
     // The written object IS the live one every caller mutated, so the cache tracks it rather
-    // than being dropped — a drop would send the next read back through auto-discovery.
-    this.metaCache.set(this.metaKey(libraryName), meta);
+    // than being dropped — a drop would send the next read back through auto-discovery. The
+    // mtime is re-read from disk so the freshness check above matches what was just written.
+    this.metaCache.set(this.metaKey(libraryName), {
+      meta,
+      mtimeMs: this.metaMtime(libraryName),
+    });
   }
 
   /**
@@ -808,7 +830,27 @@ export class AssetBrowserService {
 
     const diskPath = path.join(this.getLibraryDir(libraryName), relativePath);
     if (!fs.existsSync(diskPath)) {
-      throw new NotFoundException(`File "${fileId}" not found on disk`);
+      /*
+       * The index points at a file that is not there. Callers mutate the cached index and save it
+       * afterwards, so an operation that failed in between can leave an entry behind that disk
+       * never received. Drop the cache and read the index again rather than serving the phantom
+       * for the rest of the process's life; if it survives that, the file really is gone.
+       */
+      this.invalidateMeta(libraryName);
+      const fresh = this.loadMeta(libraryName).idToPath.get(fileId);
+      const freshPath =
+        fresh && path.join(this.getLibraryDir(libraryName), fresh);
+      if (!freshPath || !fs.existsSync(freshPath)) {
+        throw new NotFoundException(`File "${fileId}" not found on disk`);
+      }
+      const recovered = JSON.parse(
+        fs.readFileSync(freshPath, 'utf-8'),
+      ) as AssetFile;
+      return this.withCurrentLocation(
+        this.loadMeta(libraryName),
+        recovered,
+        fresh!,
+      );
     }
 
     const file = JSON.parse(fs.readFileSync(diskPath, 'utf-8')) as AssetFile;

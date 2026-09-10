@@ -451,7 +451,9 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   enhancedSpellDesc(spell: SpellBlock): SafeHtml {
-    const enhanced = KeywordEnhancer.enhance(spell.description || '');
+    const enhanced = KeywordEnhancer.enhance(spell.description || '', {
+      effectivity: spell.effektivitaetKomplex ? undefined : spell.effektivitaet,
+    });
     return this._sanitizer.bypassSecurityTrustHtml(enhanced);
   }
 

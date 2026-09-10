@@ -24,6 +24,54 @@ async function bootstrap() {
    */
   app.use(compression());
 
+  /*
+   * Slow-request log.
+   *
+   * The backend does almost all of its filesystem work synchronously, so one slow handler does
+   * not just make itself slow — it holds the single event loop and every other request waits
+   * behind it, the homepage included. That makes "the site is occasionally unreachable" almost
+   * impossible to attribute by reading code: the request that suffers is rarely the one at fault.
+   *
+   * This prints the ones that actually blocked, with how long they took. Tune or silence with
+   * SLOW_REQUEST_MS; 0 logs everything, a negative value turns it off.
+   */
+  const slowMs = Number(process.env.SLOW_REQUEST_MS ?? 300);
+  if (slowMs >= 0) {
+    app.use((req: any, res: any, next: () => void) => {
+      const started = process.hrtime.bigint();
+      res.on('finish', () => {
+        const ms = Number(process.hrtime.bigint() - started) / 1e6;
+        if (ms >= slowMs) {
+          console.warn(
+            `[SLOW ${ms.toFixed(0)}ms] ${req.method} ${req.originalUrl ?? req.url}`,
+          );
+        }
+      });
+      next();
+    });
+  }
+
+  /*
+   * Event-loop stall detector.
+   *
+   * The request log above only sees HTTP. A lobby patch arrives over a WebSocket and does its
+   * synchronous read-modify-write outside any request, so it can freeze the server without a
+   * single slow request being logged — as can a long GC pause. This timer should fire every
+   * 500ms; whatever it is late by is time nothing else could run.
+   */
+  const stallMs = Number(process.env.STALL_WARN_MS ?? 250);
+  if (stallMs >= 0) {
+    let last = Date.now();
+    const tick = setInterval(() => {
+      const drift = Date.now() - last - 500;
+      if (drift >= stallMs) {
+        console.warn(`[EVENT LOOP BLOCKED ${drift.toFixed(0)}ms]`);
+      }
+      last = Date.now();
+    }, 500);
+    tick.unref();
+  }
+
   // Base64 JSON payloads are ~33% larger than the raw file; allow large lobby map images.
   const bodyLimit = process.env.BODY_SIZE_LIMIT ?? '200mb';
   app.useBodyParser('json', { limit: bodyLimit });

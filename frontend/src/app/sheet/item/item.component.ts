@@ -110,7 +110,14 @@ export class ItemComponent implements OnChanges {
 
   get enhancedDescription(): SafeHtml {
     const original = this.item.description || 'No description';
-    const enhanced = KeywordEnhancer.enhance(original);
+    // Resolved values, not the raw fields: a Merkmal that changes effectivity or reach should
+    // move the number in the description too.
+    const enhanced = KeywordEnhancer.enhance(original, {
+      effectivity: this.item.itemType === 'weapon' ? this.effectivity : undefined,
+      stability: this.item.itemType === 'armor' ? this.stability : undefined,
+      range: this.trueStats.resolveItemStat(this.sheet, this.item, 'meleeRange')
+        || this.trueStats.resolveItemStat(this.sheet, this.item, 'rangedRange') || undefined,
+    });
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
   }
 

@@ -126,6 +126,15 @@
                     @if (!spell.costMana && !spell.costFokus) {
                       <span class="scw-cost-chip scw-cost-chip--free">Kostenlos</span>
                     }
+                    @if (spell.effektivitaetKomplex) {
+                      <span class="scw-cost-chip scw-cost-chip--eff" title="Zauberstärke lässt sich nicht vollständig durch eine Zahl ausdrücken">
+                        <span class="app-icon i-effektivity"></span>&nbsp;komplex
+                      </span>
+                    } @else if (spell.effektivitaet) {
+                      <span class="scw-cost-chip scw-cost-chip--eff" title="Zauberstärke">
+                        <span class="app-icon i-effektivity"></span>&nbsp;{{ spell.effektivitaet }}
+                      </span>
+                    }
                   </div>
                   <div class="scw-card-meta">
                     @if (spell.perTurnMana || spell.perTurnFokus) {

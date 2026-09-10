@@ -57,6 +57,15 @@
           @if (!spell.costMana && !spell.costFokus) {
             <span class="scv-cost scv-cost--free">Kostenlos</span>
           }
+          @if (spell.effektivitaetKomplex) {
+            <span class="scv-cost scv-cost--eff" title="Zauberstärke lässt sich nicht vollständig durch eine Zahl ausdrücken">
+              <span class="app-icon i-effektivity"></span>&nbsp;komplex
+            </span>
+          } @else if (spell.effektivitaet) {
+            <span class="scv-cost scv-cost--eff" title="Zauberstärke">
+              <span class="app-icon i-effektivity"></span>&nbsp;{{ spell.effektivitaet }}
+            </span>
+          }
         </div>
         <!-- Per-turn + duration -->
         @if (spell.perTurnMana || spell.perTurnFokus || spell.durationTurns) {
