@@ -245,8 +245,12 @@
               <code>merkmalLevel</code> ist die Stufe rechts daneben.
             </p>
             @for (t of forgedTraits; track $index; let i = $index) {
-              <div class="ie-trait">
+              <div class="ie-trait" [class.ie-trait-open]="isTraitOpen(i)">
                 <div class="ie-trait-head">
+                  <button class="ie-trait-toggle" (click)="toggleTrait(i)"
+                          [title]="isTraitOpen(i) ? 'Code einklappen' : 'Code bearbeiten'">
+                    {{ isTraitOpen(i) ? '▾' : '▸' }}
+                  </button>
                   <input class="ie-trait-name-input" type="text"
                          [ngModel]="t.name" (ngModelChange)="setTraitName(i, $event)"
                          placeholder="Merkmalname" />
@@ -260,12 +264,17 @@
                     <span class="app-icon i-restore-trash"></span>
                   </button>
                 </div>
-                <div class="ie-trait-script-host">
-                  <app-script-editor
-                    [value]="t.script || ''"
-                    (valueChange)="setTraitScript(i, $event)">
-                  </app-script-editor>
-                </div>
+                @if (isTraitOpen(i)) {
+                  <div class="ie-trait-script-host">
+                    <app-script-editor
+                      [value]="t.script || ''"
+                      (valueChange)="setTraitScript(i, $event)">
+                    </app-script-editor>
+                  </div>
+                } @else {
+                  <button class="ie-trait-summary" (click)="toggleTrait(i)"
+                          title="Code bearbeiten">{{ traitSummary(t) }}</button>
+                }
               </div>
             }
             <button class="add-btn" (click)="addTrait()">+ Merkmal hinzuf&uuml;gen</button>

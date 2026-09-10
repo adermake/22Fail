@@ -109,6 +109,29 @@ export class ItemEditorComponent implements OnInit {
     return this.editItem?.forgingData?.appliedTraits ?? [];
   }
 
+  /**
+   * Which Merkmale have their code open.
+   *
+   * The script surface has a 260px minimum of its own, so several open at once turns the column
+   * into a long scroll. Collapsed by default, name and level always visible.
+   */
+  private openTraits = new Set<number>();
+
+  isTraitOpen(index: number): boolean { return this.openTraits.has(index); }
+
+  toggleTrait(index: number): void {
+    if (!this.openTraits.delete(index)) this.openTraits.add(index);
+  }
+
+  /** First meaningful line of a Merkmal's code, for the collapsed row. */
+  traitSummary(trait: ForgedTraitRecord): string {
+    const line = (trait.script ?? '')
+      .split('\n')
+      .map(l => l.trim())
+      .find(l => l && l !== 'effectActive {' && l !== '}');
+    return line || 'Kein Skript';
+  }
+
   private traitAt(index: number): ForgedTraitRecord | undefined {
     return this.editItem?.forgingData?.appliedTraits?.[index];
   }
@@ -131,7 +154,15 @@ export class ItemEditorComponent implements OnInit {
 
   removeTrait(index: number): void {
     const traits = this.editItem?.forgingData?.appliedTraits;
-    if (traits) traits.splice(index, 1);
+    if (!traits) return;
+    traits.splice(index, 1);
+    // Open flags are positional, so everything after the removed row shifts down one.
+    const next = new Set<number>();
+    for (const i of this.openTraits) {
+      if (i < index) next.add(i);
+      else if (i > index) next.add(i - 1);
+    }
+    this.openTraits = next;
   }
 
   /** The Merkmal section is offered for gear, and for anything that already carries one. */
@@ -162,6 +193,8 @@ export class ItemEditorComponent implements OnInit {
       level: 1,
       script: 'effectActive {\n  item.effectivity += merkmalLevel\n}',
     });
+    // Open the one just added — it is the only reason to press the button.
+    this.openTraits.add(this.editItem.forgingData.appliedTraits.length - 1);
   }
 
   ngOnInit() {

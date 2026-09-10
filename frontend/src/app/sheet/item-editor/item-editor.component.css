@@ -858,5 +858,40 @@
 }
 .ie-trait-remove:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
 
-/* Shorter than the Aktionscode surface: a Merkmal is usually two or three lines. */
-.ie-trait-script-host { height: 170px; min-height: 140px; }
+.ie-trait-toggle {
+  flex-shrink: 0;
+  width: 22px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.ie-trait-toggle:hover { color: var(--text, #e5e7eb); }
+
+/* Collapsed: the first meaningful line of code, clickable to open. */
+.ie-trait-summary {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  background: var(--bg, #1e293b);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #86efac;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ie-trait-summary:hover { border-color: var(--accent, #8b5cf6); }
+
+/*
+ * The script surface declares `min-height: 260px` of its own, so a shorter box does not clip it —
+ * it overflows and lands on top of the next Merkmal. Give it room instead.
+ */
+.ie-trait-script-host { height: 300px; min-height: 260px; }
+.ie-trait-open { border-color: var(--accent, #8b5cf6); }
