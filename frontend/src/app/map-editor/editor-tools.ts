@@ -17,7 +17,15 @@
 import { BrushTexture, TerrainTool } from './brush-engine';
 import { SymbolCategory } from './map-assets';
 
-export type EditorTab = 'water' | 'land' | 'symbols' | 'regions' | 'labels' | 'secrets' | 'map';
+export type EditorTab =
+  | 'water'
+  | 'land'
+  | 'symbols'
+  | 'regions'
+  | 'labels'
+  | 'passages'
+  | 'secrets'
+  | 'map';
 export type SymbolTool = SymbolCategory | 'select';
 export type RegionTool = 'draw' | 'select';
 export type LabelTool = 'place' | 'select';
@@ -98,6 +106,9 @@ export const TAB_DEFS: TabDef[] = [
   { id: 'symbols', label: 'Symbole' },
   { id: 'regions', label: 'Regionen' },
   { id: 'labels', label: 'Beschriftung' },
+  // One gesture, no tools of its own: a click on an edge puts a passage there or takes it
+  // away again. A rail of one button would only be something to notice and ignore.
+  { id: 'passages', label: 'Durchgänge' },
   { id: 'secrets', label: 'Geheimnisse' },
   { id: 'map', label: 'Karte' },
 ];

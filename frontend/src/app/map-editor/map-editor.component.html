@@ -1146,6 +1146,23 @@
           </div>
         }
 
+        @if (tab() === 'passages') {
+          <!-- Ein Klick auf eine Hexkante setzt einen Durchgang, ein zweiter nimmt ihn
+               wieder weg. Kein Auswahlwerkzeug: an einem Durchgang gibt es nichts zu
+               ändern außer ihn zu entfernen, und nochmal draufklicken sagt das kürzer. -->
+          <div class="panel-section">
+            <div class="panel-title">Durchgänge</div>
+            <p class="hint">
+              Auf eine Hexkante klicken setzt einen Durchgang — Pass, Furt, Tor. Nochmal
+              draufklicken entfernt ihn wieder.
+            </p>
+            <p class="hint">
+              {{ passageCount() }} Durchgang/Durchgänge auf der Karte. Spieler sehen sie,
+              soweit der Nebel den Bereich freigibt.
+            </p>
+          </div>
+        }
+
         @if (tab() === 'secrets') {
           <!-- Ein Geheimnis am Tisch besteht selten aus einem Objekt: "Das Räuberlager" ist
                eine Beschriftung, ein paar Zelte und ein Umriss. Deshalb greift die Auswahl

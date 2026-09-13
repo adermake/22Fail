@@ -25,7 +25,20 @@ import {
   soulPointsRemaining,
   distributeByRatio,
   normalizeNpcSoul,
+  normalizeNpcVariation,
+  defaultRollEntry,
+  NpcRollList,
+  NpcRollListKey,
+  NpcGearTemplate,
 } from '../../model/npc-statblock.model';
+import { ARMOR_TYPES, WEAPON_STAT_KEYS } from '../../model/forging.model';
+import { applyDerivedNpcStats } from '../../utils/npc-roll.util';
+import { canMerge, mergeStacks } from '../../utils/item-stack.util';
+import { applyJsonPatchTo } from '../../utils/json-patch.util';
+import { defaultBudgetForLevel } from '../../utils/gear-generator.util';
+import { WeaponTypeService } from '../../services/weapon-type.service';
+import { NpcRollBarComponent } from './npc-roll-bar/npc-roll-bar.component';
+import { NpcRollChanceComponent } from './npc-roll-bar/npc-roll-chance.component';
 import { AssetFile } from '../../model/asset-browser.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
@@ -55,7 +68,7 @@ interface LibFolder { path: string; label: string; files: AssetFile[]; }
 @Component({
   selector: 'app-npc-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent, ForgingComponent, GearGeneratorComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent, ForgingComponent, GearGeneratorComponent, NpcRollBarComponent, NpcRollChanceComponent],
   templateUrl: './npc-editor.component.html',
   styleUrl: './npc-editor.component.css',
 })
@@ -77,6 +90,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   private npcGen = inject(NpcGeneratorService);
   private cdr = inject(ChangeDetectorRef);
   private imageService = inject(ImageService);
+  readonly weaponTypeService = inject(WeaponTypeService);
 
   draft!: NpcStatblock;
 
@@ -222,6 +236,10 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
       if (sk) this.draft.customSkills.push(sk);
     }
     this.draft.learnedSkillIds = [];
+
+    // Roll config parallel to the lists — repaired after the skills above were materialised.
+    normalizeNpcVariation(this.draft);
+    void this.weaponTypeService.load();
 
     // Group the library lists by their folder (like the class-tree dropdowns).
     this.itemFolders = this.groupByFolder(this.availableItems);
@@ -384,21 +402,8 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   /** Write the effective stats + all derived values into the flat gameplay fields consumers read. */
   recalc(): void {
-    const e = this.effective;
-    const L = this.soul.level;
-    this.draft.level = L;
-    this.draft.strength = e.strength;
-    this.draft.dexterity = e.dexterity;
-    this.draft.speed = e.speed;
-    this.draft.intelligence = e.intelligence;
-    this.draft.constitution = e.constitution;
-    this.draft.wille = e.wille;
-    this.draft.maxHealth = e.constitution * 5;
-    this.draft.maxEnergy = e.dexterity * 5;
-    this.draft.maxMana = e.intelligence * 5;
-    this.draft.reaktionswert = this.npcGen.calcReaktionswert(e.wille, L);
-    this.draft.grundbonus = this.npcGen.calcGrundbonus(L, e.wille);
-    this.recalcFokus();
+    // Same routine the spawn roller uses, so an edited and a rolled NSC can't disagree.
+    applyDerivedNpcStats(this.draft, this.npcGen);
   }
 
   /** Fokus depends on Intelligenz + any fokus-granting learned skills (kept via their skillId). */
@@ -437,7 +442,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   addSelectedTreeSkill(): void {
     const sk = this.selectedTreeSkill;
     if (!sk) return;
-    this.draft.customSkills.push(sk);
+    this.listPush('customSkills', sk);
     this.recalcFokus();
     this.selectedTreeSkillId = null;
   }
@@ -455,7 +460,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   // ─── Skills: library + custom ─────────────────────────────────────────────
   addSkillFromLibrary(file: AssetFile): void {
     const skill = JSON.parse(JSON.stringify(file.data)) as SkillBlock;
-    this.draft.customSkills.push(skill);
+    this.listPush('customSkills', skill);
     this.aktuellTab = 'skills';
     this.flashAdded(file.id);
   }
@@ -467,7 +472,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   }
 
   onSkillSave(skill: SkillBlock): void {
-    if (this.editingSkillIndex === null) this.draft.customSkills.push(skill);
+    if (this.editingSkillIndex === null) this.listPush('customSkills', skill);
     else this.draft.customSkills[this.editingSkillIndex] = skill;
     this.closeSkillEditor();
   }
@@ -478,7 +483,105 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.editingSkillIndex = null;
   }
 
-  removeCustomSkill(index: number): void { this.draft.customSkills.splice(index, 1); this.recalcFokus(); }
+  removeCustomSkill(index: number): void { this.listRemove('customSkills', index); this.recalcFokus(); }
+
+  // ─── Variation: Fest / Zufällig ───────────────────────────────────────────
+  // Every push/splice on the four lists goes through these two, so `variation.lists[key].entries`
+  // stays index-aligned with the list it describes.
+
+  rollList(key: NpcRollListKey): NpcRollList {
+    return normalizeNpcVariation(this.draft).lists![key]!;
+  }
+
+  isRandom(key: NpcRollListKey): boolean {
+    return this.draft.variation?.lists?.[key]?.mode === 'random';
+  }
+
+  private listPush(key: NpcRollListKey, value: unknown): void {
+    (this.draft[key] as unknown[]).push(value);
+    this.rollList(key).entries.push(defaultRollEntry());
+  }
+
+  private listRemove(key: NpcRollListKey, index: number): void {
+    (this.draft[key] as unknown[]).splice(index, 1);
+    this.rollList(key).entries.splice(index, 1);
+  }
+
+  /** Stats: roll a level in a range and shuffle a few points at every spawn. */
+  setStatVariation(on: boolean): void {
+    const variation = normalizeNpcVariation(this.draft);
+    variation.stats = {
+      levelMin: this.soul.level, levelMax: this.soul.level, shuffle: 0,
+      ...variation.stats,
+      enabled: on,
+    };
+  }
+
+  setVariationLevel(bound: 'levelMin' | 'levelMax', value: number): void {
+    const stats = this.draft.variation?.stats;
+    if (!stats) return;
+    stats[bound] = Math.max(1, Math.floor(value) || 1);
+    if (stats.levelMin > stats.levelMax) {
+      if (bound === 'levelMin') stats.levelMax = stats.levelMin;
+      else stats.levelMin = stats.levelMax;
+    }
+  }
+
+  setVariationShuffle(value: number): void {
+    const stats = this.draft.variation?.stats;
+    if (stats) stats.shuffle = Math.max(0, Math.floor(value) || 0);
+  }
+
+  // Generated equipment slots — forged fresh at every spawn while equipment is „Zufällig".
+  readonly armorTypes = ARMOR_TYPES;
+  readonly weaponStatKeys = WEAPON_STAT_KEYS;
+  gearTemplateOpen = false;
+
+  private ensureGear(): NpcGearTemplate {
+    return (normalizeNpcVariation(this.draft).gear ??= {
+      settings: { budget: defaultBudgetForLevel(this.soul.level), variation: 25, mutation: 25, poolIds: [] },
+      slots: [],
+    });
+  }
+
+  private gearSlotKey(): string {
+    return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  addArmorSlot(armorSlot: ItemBlock['armorType']): void {
+    this.ensureGear().slots.push({ key: this.gearSlotKey(), chance: 0.5, armorSlot });
+  }
+
+  addWeaponSlot(): void {
+    this.ensureGear().slots.push({
+      key: this.gearSlotKey(), chance: 1,
+      weaponTypeName: this.weaponTypeService.types()[0]?.name ?? '', statRequirementKey: 'STR',
+    });
+  }
+
+  removeGearSlot(index: number): void {
+    this.draft.variation?.gear?.slots.splice(index, 1);
+  }
+
+  armorSlotLabel(slot: ItemBlock['armorType']): string {
+    return ARMOR_TYPES.find(a => a.itemBlockType === slot)?.name ?? 'Rüstung';
+  }
+
+  get gearSummary(): string {
+    const s = this.draft.variation?.gear?.settings;
+    if (!s) return 'Standard-Einstellungen';
+    const pool = s.poolIds.length ? `${s.poolIds.length} Material(ien)` : 'alle Materialien';
+    return `${s.budget} SP je Teil · Streuung ${s.variation} % · Mutation ${s.mutation} % · ${pool}`;
+  }
+
+  openGearTemplate(): void {
+    this.ensureGear();
+    this.gearTemplateOpen = true;
+  }
+
+  onGearTemplate(settings: NpcGearTemplate['settings']): void {
+    this.ensureGear().settings = settings;
+  }
 
   // ─── Items: library + custom ──────────────────────────────────────────────
 
@@ -497,9 +600,23 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
    */
   addItemFromLibrary(file: AssetFile): void {
     const target = this.aktuellTab === 'inventory' ? 'inventory' : 'equipment';
-    this.itemList(target).push(JSON.parse(JSON.stringify(file.data)) as ItemBlock);
+    this.addItemTo(target, JSON.parse(JSON.stringify(file.data)) as ItemBlock);
     this.aktuellTab = target;
     this.flashAdded(file.id);
+  }
+
+  /** Stackable items join an equal pile instead of opening a second one (same rule as the sheet). */
+  private addItemTo(target: 'equipment' | 'inventory', item: ItemBlock): void {
+    const list = this.itemList(target);
+    const at = list.findIndex(existing => canMerge(existing, item));
+    if (at >= 0) list[at] = mergeStacks(list[at]!, item).merged;
+    else this.listPush(target, item);
+  }
+
+  /** app-item edits itself through patches (e.g. the Anzahl +/−); apply them to the draft item. */
+  onItemPatch(target: 'equipment' | 'inventory', index: number, patch: JsonPatch): void {
+    const item = this.itemList(target)[index];
+    if (item) applyJsonPatchTo(item, patch);
   }
 
   openItemEditor(index: number | null): void {
@@ -517,9 +634,8 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   }
 
   onItemSave(item: ItemBlock): void {
-    const list = this.itemList(this.itemTarget);
-    if (this.editingItemIndex === null) list.push(item);
-    else list[this.editingItemIndex] = item;
+    if (this.editingItemIndex === null) this.addItemTo(this.itemTarget, item);
+    else this.itemList(this.itemTarget)[this.editingItemIndex] = item;
     this.closeItemEditor();
   }
 
@@ -530,8 +646,8 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.itemTarget = 'equipment';
   }
 
-  removeEquipment(index: number): void { this.draft.equipment.splice(index, 1); }
-  removeInventoryItem(index: number): void { this.draft.inventory.splice(index, 1); }
+  removeEquipment(index: number): void { this.listRemove('equipment', index); }
+  removeInventoryItem(index: number): void { this.listRemove('inventory', index); }
 
   // ─── Forge (all materials unlocked) ───────────────────────────────────────
   openForge(): void { this.forgeOpen = true; }
@@ -540,21 +656,21 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   /** Take everything the generator rolled straight into the NSC's gear. */
   onGeneratedGear(items: ItemBlock[]): void {
-    this.draft.equipment.push(...items);
+    for (const item of items) this.addItemTo('equipment', item);
   }
   closeForge(): void { this.forgeOpen = false; }
 
   /** The forge emits the finished item via a patch to /inventory/-; add it to NPC equipment. */
   onForgePatch(p: JsonPatch): void {
     if (p.path === '/inventory/-' && p.value) {
-      this.draft.equipment.push(p.value as ItemBlock);
+      this.addItemTo('equipment', p.value as ItemBlock);
     }
     // Other patches (e.g. resource consumption) are irrelevant for an NPC — ignored.
   }
 
   // ─── Spells: library + custom ─────────────────────────────────────────────
   addSpellFromLibrary(file: AssetFile): void {
-    this.draft.spells.push(JSON.parse(JSON.stringify(file.data)) as SpellBlock);
+    this.listPush('spells', JSON.parse(JSON.stringify(file.data)) as SpellBlock);
     this.aktuellTab = 'spells';
     this.flashAdded(file.id);
   }
@@ -566,7 +682,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   }
 
   onSpellSave(spell: SpellBlock): void {
-    if (this.editingSpellIndex === null) this.draft.spells.push(spell);
+    if (this.editingSpellIndex === null) this.listPush('spells', spell);
     else this.draft.spells[this.editingSpellIndex] = spell;
     this.closeSpellEditor();
   }
@@ -577,7 +693,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.editingSpellIndex = null;
   }
 
-  removeSpell(index: number): void { this.draft.spells.splice(index, 1); }
+  removeSpell(index: number): void { this.listRemove('spells', index); }
   getSpellName(spell: SpellBlock): string { return (spell as any).name ?? 'Zauber'; }
 
   // ─── Skill preview helpers (show how a skill will read in play) ────────────
@@ -625,7 +741,9 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   // ─── Save / cancel ────────────────────────────────────────────────────────
   onSave(): void {
     if (!this.draft.name?.trim()) this.draft.name = 'NSC';
-    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
+    // Was calcFokus(int, learnedSkillIds) — always [] after init, so saving dropped skill Fokus bonuses.
+    this.recalc();
+    normalizeNpcVariation(this.draft);
     this.save.emit(this.draft);
   }
 

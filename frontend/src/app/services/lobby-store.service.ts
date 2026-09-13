@@ -37,6 +37,7 @@ import {
   createEmptyMap,
 } from '../model/lobby.model';
 import { JsonPatch } from '../model/json-patch.model';
+import { applyJsonPatchTo } from '../utils/json-patch.util';
 
 @Injectable({ providedIn: 'root' })
 export class LobbyStoreService {
@@ -885,8 +886,16 @@ export class LobbyStoreService {
       id: generateId(),
     };
 
-    const strokes = [...this.strokes, newStroke];
-    this.applyPatch({ path: 'strokes', value: strokes });
+    /*
+     * Appended, not written as a whole new array.
+     *
+     * Replacing `strokes` wholesale made every stroke a last-writer-wins race: two people drawing
+     * at the same moment each sent the entire array, and whichever patch landed second silently
+     * dropped the other's line — "the drawings sometimes disappear". An append carries only the
+     * new stroke, so two of them cannot overwrite one another, and the payload stops growing with
+     * everything already on the map.
+     */
+    this.applyPatch({ path: 'strokes/-', value: newStroke });
   }
 
   addDrawBitmap(bitmap: Omit<DrawBitmap, 'id'>): void {
@@ -925,9 +934,6 @@ export class LobbyStoreService {
       lobby.updatedAt = Date.now();
       this.lobbySubject.next({ ...lobby });
 
-      this.api.saveLobby(this.worldName, lobby).catch(err => {
-        console.error('[LobbyStore] Failed to save:', err);
-      });
       this.scheduleAutoSave();
     }
 
@@ -935,8 +941,15 @@ export class LobbyStoreService {
       for (const patch of patches) {
         this.socket.sendPatch(this.worldName, this.currentMapId, patch);
       }
-    }).catch(err => {
-      console.error('[LobbyStore] ❌ Socket not ready, draw patches not broadcast:', err);
+    }).catch(() => {
+      // Same fallback as `applyPatch`: only when the socket cannot carry the change.
+      console.warn('[LobbyStore] Socket unavailable — falling back to a full save (draw changes)');
+      const lobby = this.lobby;
+      if (lobby) {
+        this.api.saveLobby(this.worldName, lobby).catch(err => {
+          console.error('[LobbyStore] Failed to save:', err);
+        });
+      }
     });
   }
 
@@ -1665,21 +1678,32 @@ export class LobbyStoreService {
       lobby.updatedAt = Date.now();
       this.lobbySubject.next({ ...lobby });
 
-      // Save to server
-      this.api.saveLobby(this.worldName, lobby).catch(err => {
-        console.error('[LobbyStore] Failed to save:', err);
-      });
-      
       // Schedule filesystem auto-save (debounced)
       this.scheduleAutoSave();
     }
 
-    // Ensure socket is connected before broadcasting (async, don't block)
+    /*
+     * The patch itself is what persists: the gateway applies it to the map file server-side.
+     *
+     * This used to ALSO POST the entire lobby on every patch, and the server writes every map in
+     * that payload back to disk — so each client continuously overwrote the shared map with its
+     * own view. Two people drawing meant whoever saved last erased the other's stroke, which is
+     * where disappearing drawings came from. It also uploaded every stroke and bitmap on the map
+     * for each new line drawn.
+     *
+     * Kept only as the fallback for when the socket is unavailable, where a whole-document save
+     * is the only way the work survives at all.
+     */
     this.socket.ensureConnected().then(() => {
-      console.log('[LobbyStore] ✅ Socket ready, sending patch:', patch.path, 'to map:', this.currentMapId);
       this.socket.sendPatch(this.worldName, this.currentMapId, patch);
-    }).catch(err => {
-      console.error('[LobbyStore] ❌ Socket not ready, patch not broadcast:', patch.path);
+    }).catch(() => {
+      console.warn('[LobbyStore] Socket unavailable — falling back to a full save:', patch.path);
+      const lobby = this.lobby;
+      if (lobby) {
+        this.api.saveLobby(this.worldName, lobby).catch(err => {
+          console.error('[LobbyStore] Failed to save:', err);
+        });
+      }
     });
   }
 
@@ -1710,48 +1734,12 @@ export class LobbyStoreService {
   /**
    * Apply a JSON patch to a target object.
    */
+  /**
+   * Delegated to the shared implementation so this store cannot drift from the others — that
+   * drift is what swallowed appended strokes.
+   */
   private applyJsonPatch(target: any, patch: JsonPatch): void {
-    // Normalize path: remove leading slash, replace slashes with dots
-    let normalizedPath = patch.path.trim();
-    if (normalizedPath.startsWith('/')) {
-      normalizedPath = normalizedPath.substring(1);
-    }
-    normalizedPath = normalizedPath.replace(/\//g, '.');
-    
-    const keys = normalizedPath.split('.');
-    
-    if (keys.length === 1) {
-      target[keys[0]] = patch.value;
-      return;
-    }
-
-    let current = target;
-    for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i];
-      const index = parseInt(key, 10);
-
-      if (!isNaN(index) && Array.isArray(current)) {
-        current = current[index];
-      } else {
-        current = current[key] ??= {};
-      }
-    }
-
-    const finalKey = keys[keys.length - 1];
-    
-    // Handle array append operation: '-' means append to array
-    if (finalKey === '-' && Array.isArray(current)) {
-      current.push(patch.value);
-      return;
-    }
-    
-    const finalIndex = parseInt(finalKey, 10);
-
-    if (!isNaN(finalIndex) && Array.isArray(current)) {
-      current[finalIndex] = patch.value;
-    } else {
-      current[finalKey] = patch.value;
-    }
+    applyJsonPatchTo(target, patch);
   }
 
   // ============================================

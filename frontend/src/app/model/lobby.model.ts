@@ -146,6 +146,13 @@ export interface Token {
    */
   inventory?: import('./item-block.model').ItemBlock[];
 
+  /**
+   * Das beim Ablegen gewürfelte NSC (Werte, Fertigkeiten, Zauber, Ausrüstung) — nur gesetzt, wenn der
+   * Statblock Variation hat. Wie `inventory` gehört es diesem Token allein; spätere Änderungen am
+   * Statblock erreichen es nicht. Ohne Variation bleibt das Token live mit `statblockId` verknüpft.
+   */
+  npcInstance?: import('./npc-statblock.model').NpcStatblock;
+
   // ---- Per-token status effects (used for NPC tokens) ----
   activeStatusEffects?: TokenStatusEffect[];
 

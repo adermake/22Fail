@@ -118,19 +118,17 @@ export class BattleMapGateway
     data: { worldName: string; battleMapId: string; patch: JsonPatch },
     @ConnectedSocket() client: Socket,
   ) {
-    console.log('[BATTLEMAP GATEWAY] Received patchBattleMap message:', data);
+    /*
+     * Deliberately NOT logging `data`.
+     *
+     * A lobby patch carries whole arrays — every stroke on the map, and `drawBitmaps` holding
+     * base64 PNGs. Printing it serialised megabytes into the pm2 log on every stroke, which is
+     * a synchronous write on the same thread that serves every other request, and buried any
+     * log line worth reading. The path is hot; keep it silent.
+     */
     const { worldName, battleMapId, patch } = data;
 
-    // Apply patch to the map in the lobby
-    const result = this.dataService.applyPatchToMap(
-      worldName,
-      battleMapId,
-      patch,
-    );
-    console.log(
-      '[BATTLEMAP GATEWAY] Patch applied, result:',
-      result ? 'success' : 'failed',
-    );
+    this.dataService.applyPatchToMap(worldName, battleMapId, patch);
 
     // Broadcast patch to all clients in the same map room
     const mapRoom = `map-${battleMapId}`;
@@ -139,12 +137,6 @@ export class BattleMapGateway
     // Also broadcast to legacy battlemap room for backward compatibility
     const battleMapRoom = `battlemap-${battleMapId}`;
     this.server.to(battleMapRoom).emit('battleMapPatched', patch);
-
-    console.log(
-      '[BATTLEMAP GATEWAY] Broadcasted patch to rooms:',
-      mapRoom,
-      battleMapRoom,
-    );
   }
 
   // Broadcast a patch to all clients in a battle map room

@@ -617,6 +617,24 @@ lobby-container
 ### Würfelformel (invertiert)
 - diceBonus = (5 - stat / 2) | 0 → hoher Stat = niedriger Bonus (besser im System, weil niedrig gut ist)
 
+## NSC-Statblock & Variation (`shared/npc-editor/`, `utils/npc-roll.util.ts`)
+
+- Jeder Reiter (Fertigkeiten, Zauber, Ausrüstung, Inventar) hat einen Modus **Fest** / **Zufällig** (`app-npc-roll-bar`).
+  Zufällig: Chance je Eintrag (0–1, UI in %), Liste Min/Max; Inventar zusätzlich Anzahl von–bis.
+- Konfiguration liegt **neben** den Listen: `statblock.variation.lists[key].entries[i]` gehört zu `statblock[key][i]`.
+  SkillBlock/SpellBlock/ItemBlock bleiben unberührt. `normalizeNpcVariation` repariert die Ausrichtung (Editor-Load, Speichern, vor jedem Wurf);
+  im Editor laufen alle push/splice über `listPush`/`listRemove`.
+- Werte: `variation.stats` = Level von–bis (neues Level → Budget per `distributeByRatio` neu verteilen) + Streuung (Punkte wandern, Summe bleibt).
+- Ausrüstung Zufällig: handverlesene Items + **generierte Plätze** (`variation.gear.slots`, je Chance), beim Ablegen frisch geschmiedet
+  mit den Einstellungen aus `app-gear-generator mode="template"`. Pro Rüstungsslot bleibt nur ein Teil, Waffen dürfen mehrfach.
+- Wurf: `rollSubset` (einzeln würfeln → über Max die unwahrscheinlichsten raus → unter Min die wahrscheinlichsten rein; Chance 0 = nie).
+- Ablegen (`lobby.component.onNpcStatblockDrop`): mit Variation → `rollNpcInstance` → `Token.npcInstance` (Schnappschuss, spätere
+  Statblock-Änderungen erreichen das Token nicht). Ohne Variation bleibt das Token live über `statblockId` verknüpft.
+  Auflösung immer über `statblockForToken(token)`.
+- Abgeleitete Werte (Leben/Mana/Ausdauer, Reaktion, Grundbonus, Fokus): `applyDerivedNpcStats` — gemeinsam für Editor und Wurf.
+- Materialien/Merkmale: `ForgeLibraryService` (gecacht, von Generator und Lobby genutzt).
+- Editor-Items stapeln beim Hinzufügen (`canMerge`/`mergeStacks`), Anzahl ±  über `(patch)` → `applyJsonPatchTo`.
+
 ## Homepage (`home/`) & Nutzer-Zugang
 
 Landing-Page unter `/`. Zwei Ebenen: oben die Spieler-Sicht (große Charakter-Kacheln mit

@@ -88,6 +88,29 @@
               {{ remaining > 0 ? remaining + ' Punkt(e) übrig' : 'Budget um ' + (-remaining) + ' überschritten' }}
             </p>
           }
+
+          @if (!soulLocked) {
+            <div class="npc-var">
+              <label class="npc-check" title="Beim Ablegen Level würfeln und Punkte umverteilen">
+                <input type="checkbox" [ngModel]="!!draft.variation?.stats?.enabled" (ngModelChange)="setStatVariation($event)">
+                <span>Variation beim Ablegen</span>
+              </label>
+              @if (draft.variation?.stats; as vs) {
+                @if (vs.enabled) {
+                  <div class="npc-var-row">
+                    <label title="Gewürfeltes Level, von–bis">Level
+                      <input type="number" min="1" [ngModel]="vs.levelMin" (ngModelChange)="setVariationLevel('levelMin', $event)">
+                    </label>
+                    <span>&ndash;</span>
+                    <input type="number" min="1" [ngModel]="vs.levelMax" (ngModelChange)="setVariationLevel('levelMax', $event)">
+                    <label title="So viele Punkte wandern zufällig von einem Wert zu einem anderen — die Summe bleibt gleich">Streuung
+                      <input type="number" min="0" [ngModel]="vs.shuffle" (ngModelChange)="setVariationShuffle($event)">
+                    </label>
+                  </div>
+                }
+              }
+            </div>
+          }
         </section>
 
         <!-- KÖRPER: Stabilität / Effizienz + per-stat Modifikatoren -->
@@ -189,6 +212,7 @@
               <span class="npc-hint">{{ draft.customSkills.length }} Fertigkeit(en)</span>
               <button class="npc-btn-add" (click)="openSkillEditor(null)">＋ Erstellen</button>
             </div>
+            <app-npc-roll-bar [list]="rollList('customSkills')" />
             @if (!draft.customSkills.length) {
               <p class="npc-empty">Noch keine — im Browser rechts auswählen oder erstellen.</p>
             }
@@ -199,6 +223,9 @@
                     <button (click)="openSkillEditor($index)" title="Bearbeiten">✎</button>
                     <button (click)="removeCustomSkill($index)" title="Entfernen">×</button>
                   </div>
+                  @if (isRandom('customSkills')) {
+                    <app-npc-roll-chance class="npc-roll-strip" [entry]="rollList('customSkills').entries[$index]!" />
+                  }
                   <app-skill [skill]="sk" [sheet]="previewSheet" [index]="$index" [readOnly]="true"></app-skill>
                   @if (sk.counters?.length) {
                     <div class="npc-bars npc-embed-bars">
@@ -222,17 +249,19 @@
               <span class="npc-hint">{{ draft.spells.length }} Zauber</span>
               <button class="npc-btn-add" (click)="openSpellEditor(null)">＋ Erstellen</button>
             </div>
+            <app-npc-roll-bar [list]="rollList('spells')" />
             @if (!draft.spells.length) {
               <p class="npc-empty">Noch keine — im Browser rechts auswählen oder erstellen.</p>
             }
             <div class="npc-embed-list">
               @for (sp of draft.spells; track $index) {
+                <!-- app-spell brings its own edit/delete buttons; a second set here doubled them. -->
                 <div class="npc-embed-card">
-                  <div class="npc-embed-actions">
-                    <button (click)="openSpellEditor($index)" title="Bearbeiten">✎</button>
-                    <button (click)="removeSpell($index)" title="Entfernen">×</button>
-                  </div>
-                  <app-spell [spell]="sp" [sheet]="previewSheet" [index]="$index"></app-spell>
+                  @if (isRandom('spells')) {
+                    <app-npc-roll-chance class="npc-roll-strip npc-roll-strip-full" [entry]="rollList('spells').entries[$index]!" />
+                  }
+                  <app-spell [spell]="sp" [sheet]="previewSheet" [index]="$index"
+                             (openEditor)="openSpellEditor($index)" (delete)="removeSpell($index)"></app-spell>
                 </div>
               }
             </div>
@@ -249,6 +278,42 @@
                 <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
               </span>
             </div>
+            <app-npc-roll-bar [list]="rollList('equipment')" />
+
+            @if (isRandom('equipment')) {
+              <div class="npc-gen-card">
+                <div class="npc-gen-head">
+                  <span class="npc-section-label">Generierte Plätze</span>
+                  <button class="npc-btn-add npc-btn-forge" (click)="openGearTemplate()"
+                          title="Materialpool, Schmiedepunkte, Streuung und Mutation">Material-Pool &amp; Budget&hellip;</button>
+                </div>
+                <p class="npc-hint">{{ gearSummary }} &mdash; wird bei jedem Ablegen neu geschmiedet.</p>
+                @for (slot of draft.variation?.gear?.slots ?? []; track slot.key) {
+                  <div class="npc-gen-slot">
+                    @if (slot.armorSlot) {
+                      <span class="npc-gen-name">{{ armorSlotLabel(slot.armorSlot) }}</span>
+                    } @else {
+                      <select [(ngModel)]="slot.weaponTypeName" title="Waffentyp">
+                        @for (wt of weaponTypeService.types(); track wt.name) {
+                          <option [value]="wt.name">{{ wt.name }}</option>
+                        }
+                      </select>
+                      <select [(ngModel)]="slot.statRequirementKey" title="Statvoraussetzung">
+                        @for (k of weaponStatKeys; track k) { <option [value]="k">{{ k }}</option> }
+                      </select>
+                    }
+                    <app-npc-roll-chance [entry]="slot" />
+                    <button class="npc-row-del" (click)="removeGearSlot($index)" title="Entfernen">&times;</button>
+                  </div>
+                }
+                <div class="npc-gen-add">
+                  @for (a of armorTypes; track a.itemBlockType) {
+                    <button class="npc-gen-chip" (click)="addArmorSlot(a.itemBlockType)">+ {{ a.name }}</button>
+                  }
+                  <button class="npc-gen-chip" (click)="addWeaponSlot()">+ Waffe</button>
+                </div>
+              </div>
+            }
             @if (!draft.equipment.length) {
               <p class="npc-empty">Noch keine — im Browser rechts auswählen oder erstellen.</p>
             }
@@ -259,8 +324,12 @@
                     <button (click)="openItemEditor($index)" title="Bearbeiten">✎</button>
                     <button (click)="removeEquipment($index)" title="Entfernen">×</button>
                   </div>
+                  @if (isRandom('equipment')) {
+                    <app-npc-roll-chance class="npc-roll-strip" [entry]="rollList('equipment').entries[$index]!" />
+                  }
                   <app-item [item]="it" [sheet]="previewSheet" [index]="$index"
-                            [startUnfolded]="true" [hideFoldControls]="true"></app-item>
+                            [startUnfolded]="true" [hideFoldControls]="true"
+                            (patch)="onItemPatch('equipment', $index, $event)"></app-item>
                 </div>
               }
             </div>
@@ -274,6 +343,7 @@
                 <button class="npc-btn-add" (click)="openInventoryEditor(null)">＋ Erstellen</button>
               </span>
             </div>
+            <app-npc-roll-bar [list]="rollList('inventory')" />
             @if (!draft.inventory.length) {
               <p class="npc-empty">Noch keine Beute — im Browser rechts auswählen oder erstellen.</p>
             }
@@ -284,8 +354,12 @@
                     <button (click)="openInventoryEditor($index)" title="Bearbeiten">✎</button>
                     <button (click)="removeInventoryItem($index)" title="Entfernen">×</button>
                   </div>
+                  @if (isRandom('inventory')) {
+                    <app-npc-roll-chance class="npc-roll-strip" [amount]="true" [entry]="rollList('inventory').entries[$index]!" />
+                  }
                   <app-item [item]="it" [sheet]="previewSheet" [index]="$index"
-                            [startUnfolded]="true" [hideFoldControls]="true"></app-item>
+                            [startUnfolded]="true" [hideFoldControls]="true"
+                            (patch)="onItemPatch('inventory', $index, $event)"></app-item>
                 </div>
               }
             </div>
@@ -452,6 +526,18 @@
       [targetName]="draft.name"
       (equip)="onGeneratedGear($event)"
       (close)="closeGearGen()">
+    </app-gear-generator>
+  </div>
+}
+@if (gearTemplateOpen) {
+  <div class="npc-forge-overlay">
+    <app-gear-generator
+      mode="template"
+      [template]="draft.variation?.gear"
+      [level]="soul.level"
+      [targetName]="draft.name"
+      (saveTemplate)="onGearTemplate($event)"
+      (close)="gearTemplateOpen = false">
     </app-gear-generator>
   </div>
 }

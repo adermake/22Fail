@@ -226,14 +226,26 @@ export function generateArmorSet(ctx: GearGenContext): GeneratedPiece[] {
     .filter((a): a is ForgingArmorType => !!a);
 
   return order
-    .map(type => generatePiece(ctx, {
-      key: 'armor:' + type.itemBlockType,
-      label: type.name,
-      isWeapon: false,
-      weightMultiplier: ARMOR_WEIGHT_MULT[type.weight],
-      armorSlot: type.itemBlockType,
-    }))
+    .map(type => generateArmorPiece(ctx, type.itemBlockType))
     .filter((p): p is GeneratedPiece => !!p);
+}
+
+/**
+ * One armour piece for one slot. `key` defaults to the slot, which is what the set uses; pass a
+ * distinct key to forge a second, different piece for the same slot from the same seed.
+ */
+export function generateArmorPiece(
+  ctx: GearGenContext, slot: ItemBlock['armorType'], key?: string,
+): GeneratedPiece | null {
+  const type = ARMOR_TYPES.find(a => a.itemBlockType === slot);
+  if (!type) return null;
+  return generatePiece(ctx, {
+    key: key ?? 'armor:' + type.itemBlockType,
+    label: type.name,
+    isWeapon: false,
+    weightMultiplier: ARMOR_WEIGHT_MULT[type.weight],
+    armorSlot: type.itemBlockType,
+  });
 }
 
 const WEAPON_SIZE_MULT = { LIGHT: 0.8, MEDIUM: 1.0, HEAVY: 1.2 } as const;

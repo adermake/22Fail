@@ -54,6 +54,7 @@ import {
   MapEditorData,
   MapOp,
   MapSecret,
+  MapPassage,
   MapSymbol,
   MapToken,
   SketchStroke,
@@ -80,6 +81,7 @@ import {
   ungroupOps,
 } from './map-secrets';
 import { FogView } from './fog-view';
+import { PassageView } from './passage-view';
 import { ERASER_COLOR, SketchView } from './sketch-view';
 import { MeasureLine, PlayAidsView } from './play-aids';
 
@@ -137,13 +139,16 @@ import { LabelView, defaultLabelStyle } from './label-view';
 import { LabelPreset, LabelStyle, MapLabel, MapRegion, Point } from './map-editor.model';
 import { MIN_ZOOM, MAX_ZOOM } from './map-camera';
 import {
+  HEX_RADIUS,
   HEX_X_SPACING,
   KM_PER_HEX,
+  edgeMidpoint,
   hexCorners,
   hexKey,
   hexRangeForBounds,
   hexToWorld,
   hexesInRadius,
+  nearestEdge,
   worldToHex,
   worldToKm,
 } from './map-hex';
@@ -174,6 +179,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private symbols?: SymbolView;
   private secretOverview?: SecretOverview;
   private fogView?: FogView;
+  private passageView?: PassageView;
   private sketchView?: SketchView;
   private playAids?: PlayAidsView;
   private regionView = new RegionView();
@@ -1185,6 +1191,64 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.selectedTokenId.set(token.id);
     this.contextMenu.set({ x: p.x, y: p.y, tokenId: token.id });
     this.cdr.markForCheck();
+  }
+
+  // ── passages ──
+
+  readonly passageCount = signal(0);
+
+  /**
+   * How close a click has to land to count as hitting an edge.
+   *
+   * A share of the hex rather than a pixel count, so it behaves identically at every zoom.
+   * Generous on purpose: `nearestEdge` already decides *which* edge was meant, so this only
+   * has to reject a click aimed at the middle of a hex, where no edge was intended at all.
+   */
+  private static readonly EDGE_CLICK_TOLERANCE = HEX_RADIUS * 0.75;
+
+  /**
+   * Put a passage on the edge under the pointer, or take away the one already there.
+   *
+   * One click does both, because that is how it gets used: you run along a mountain range
+   * dropping passes, and correcting a misplaced one should not mean reaching for a second
+   * tool. It is also why passages have no selection — there is nothing to do with one except
+   * remove it, and clicking it again is a shorter way to say that.
+   */
+  private togglePassageAt(world: Point): void {
+    if (!this.isGM()) return;
+
+    const { key, distance } = nearestEdge(world.x, world.y);
+    if (distance > MapEditorComponent.EDGE_CLICK_TOLERANCE) return;
+
+    const existing = this.passageView?.atEdge(key);
+    if (existing) {
+      this.passageView?.remove(existing.id);
+      this.store.deleteObject('passages', existing.id);
+      this.passageCount.set(this.passageView?.count ?? 0);
+      this.scheduleStream();
+      return;
+    }
+
+    const mid = edgeMidpoint(key);
+    if (!mid) return;
+
+    const passage: MapPassage = {
+      id: generateId(),
+      x: mid.x,
+      y: mid.y,
+      /*
+       * Never secret. The point of drawing a passage is that the party can see there is a
+       * way through; a hidden one would be a trap rather than a feature. The fog still
+       * decides *where* they can see, which is the control that belongs here.
+       */
+      vis: 'public',
+      edge: key,
+    };
+
+    this.passageView?.add(passage);
+    this.store.addObject('passages', passage);
+    this.passageCount.set(this.passageView?.count ?? 0);
+    this.scheduleStream();
   }
 
   // ── secrets ──
@@ -2416,6 +2480,18 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Added last so labels draw above symbols regardless of asset availability.
     this.renderer.objectLayer.addChild(this.labelView.container);
 
+    /*
+     * Passages live on the *object* layer, not the overlay.
+     *
+     * They are map content, so the fog has to be able to hide them: a pass through country
+     * the party has never seen must not show up on their screens. The overlay sits above the
+     * fog and would have drawn every one of them straight through it.
+     */
+    this.passageView = new PassageView();
+    this.renderer.objectLayer.addChild(this.passageView.container);
+    this.passageView.rebuild(data.passages ?? []);
+    this.passageCount.set(this.passageView.count);
+
     // Above the objects it frames, below the grid and cursor — the marks are annotations on
     // the map, not part of it.
     this.secretOverview = new SecretOverview();
@@ -2514,6 +2590,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           // one cannot end up disagreeing about where a figure stands.
           this.tokens.set([...(data?.tokens ?? [])]);
           this.cdr.markForCheck();
+        } else if (op.c === 'passages') {
+          if (op.t === 'add') this.passageView?.add(op.v as MapPassage);
+          else if (op.t === 'del') this.passageView?.remove(op.id);
+          else this.passageView?.rebuild(data?.passages ?? []);
+          this.passageCount.set(this.passageView?.count ?? 0);
         } else if (op.c === 'sketch') {
           if (op.t === 'add') this.sketchView?.add(op.v as SketchStroke);
           else if (op.t === 'del') this.sketchView?.remove(op.id);
@@ -2614,6 +2695,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       // any earlier would frame where things were on the previous frame.
       this.drawOverview();
 
+      this.passageView?.render(view, zoom);
       this.fogView?.update(view, this.revealedSet, this.isGM(), this.fogRevision);
       this.sketchView?.render(view);
       this.playAids?.render(zoom, this.allMeasureLines());
@@ -3759,6 +3841,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
         this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
       }
+      return;
+    }
+
+    if (this.tab() === 'passages') {
+      this.togglePassageAt(world);
       return;
     }
 

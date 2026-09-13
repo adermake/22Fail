@@ -44,7 +44,8 @@ export type ObjectCollection =
   | 'regions'
   | 'markers'
   | 'tokens'
-  | 'sketch';
+  | 'sketch'
+  | 'passages';
 const OBJECT_COLLECTIONS: ObjectCollection[] = [
   'symbols',
   'labels',
@@ -52,6 +53,7 @@ const OBJECT_COLLECTIONS: ObjectCollection[] = [
   'markers',
   'tokens',
   'sketch',
+  'passages',
 ];
 
 export type MapOp =
@@ -150,6 +152,7 @@ export class MapEditorService implements OnModuleDestroy {
       markers: [],
       tokens: [],
       sketch: [],
+      passages: [],
       labelPresets: [],
       // Secret groups. Membership lives on the objects (`secret`), not in here.
       secrets: [],

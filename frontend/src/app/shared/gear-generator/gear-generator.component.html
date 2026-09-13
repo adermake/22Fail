@@ -3,14 +3,24 @@
   <!-- ── Header ── -->
   <div class="gg-topbar">
     <div class="gg-topbar-left">
-      <span class="gg-title"><span class="app-icon i-effektivity"></span> Ausr&uuml;stung generieren</span>
+      <span class="gg-title">
+        <span class="app-icon i-effektivity"></span>
+        {{ mode === 'template' ? 'Generierte Ausrüstung — Einstellungen' : 'Ausrüstung generieren' }}
+      </span>
       @if (targetName) { <span class="gg-target">f&uuml;r {{ targetName }}</span> }
+      @if (mode === 'template') {
+        <span class="gg-target">Vorschau &mdash; beim Ablegen wird mit neuem Seed geschmiedet</span>
+      }
     </div>
     <div class="gg-topbar-right">
       <button class="gg-btn" (click)="onClose()">Abbrechen</button>
-      <button class="gg-btn gg-btn-primary" [disabled]="!allPieces.length" (click)="applyAll()">
-        Alles &uuml;bernehmen ({{ allPieces.length }})
-      </button>
+      @if (mode === 'template') {
+        <button class="gg-btn gg-btn-primary" (click)="applyTemplate()">Einstellungen &uuml;bernehmen</button>
+      } @else {
+        <button class="gg-btn gg-btn-primary" [disabled]="!allPieces.length" (click)="applyAll()">
+          Alles &uuml;bernehmen ({{ allPieces.length }})
+        </button>
+      }
     </div>
   </div>
 
@@ -139,7 +149,7 @@
               </div>
             }
           </div>
-          @if (armorPieces.length) {
+          @if (armorPieces.length && mode !== 'template') {
             <button class="gg-btn gg-btn-ghost" (click)="applyArmorOnly()">Nur R&uuml;stung &uuml;bernehmen</button>
           }
         }

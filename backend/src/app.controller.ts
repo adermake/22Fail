@@ -357,7 +357,9 @@ export class AppController {
 
   @Patch('characters/:id')
   applyPatch(@Param('id') id: string, @Body() patch: JsonPatch): any {
-    console.log('PATCH', id, patch);
+    // The patch body is logged by path only: an inventory patch carries the whole array, and a
+    // spell or item patch can carry a base64 drawing with it.
+    console.log('PATCH', id, patch?.path);
 
     const updatedSheet = this.dataService.applyPatchToCharacter(id, patch);
 
@@ -659,7 +661,7 @@ export class AppController {
 
   @Patch('worlds/:name')
   applyWorldPatch(@Param('name') name: string, @Body() patch: JsonPatch): any {
-    console.log('PATCH WORLD', name, patch);
+    console.log('PATCH WORLD', name, patch?.path);
 
     const updatedWorld = this.dataService.applyPatchToWorld(name, patch);
 

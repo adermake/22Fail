@@ -28,8 +28,12 @@ import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils
 import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import {
-  NpcStatblock, NpcStatKey, distributeByRatio, soulPointBudget,
+  NpcStatblock, NpcStatKey, distributeByRatio, hasNpcVariation, soulPointBudget,
 } from '../model/npc-statblock.model';
+import { rollNpcInstance } from '../utils/npc-roll.util';
+import { NpcGeneratorService } from '../services/npc-generator.service';
+import { ForgeLibraryService } from '../services/forge-library.service';
+import { WeaponTypeService } from '../services/weapon-type.service';
 import { soulFromNpc } from '../model/soul-block.model';
 import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
@@ -80,6 +84,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private trueStats = inject(TrueStatsService);
   private assetBrowserApi = inject(AssetBrowserApiService);
   private libraryStore = inject(LibraryStoreService);
+  private npcGen = inject(NpcGeneratorService);
+  private forgeLibrary = inject(ForgeLibraryService);
+  private weaponTypes = inject(WeaponTypeService);
   private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -253,7 +260,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // NPC tokens can summon too (recursion) — they have no Begleiter list, only legacy spell summons.
     for (const t of this.currentMap()?.tokens ?? []) {
       if (!t.statblockId) continue;
-      const npc = this.npcStatblocks().find(n => n.id === t.statblockId)?.statblock;
+      const npc = t.npcInstance ?? this.npcStatblocks().find(n => n.id === t.statblockId)?.statblock;
       if (npc) collectLegacy(t.id, npc.spells ?? [], (t as any).castingSpells ?? []);
     }
     return out;
@@ -266,6 +273,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
       ?? null;
   }
 
+  /** The NSC a token actually is: its own rolled snapshot if it has one, else the linked statblock. */
+  private statblockForToken(token: Token): NpcStatblock | null {
+    if (token.npcInstance) return token.npcInstance;
+    return token.statblockId ? this.resolveStatblock(token.statblockId) : null;
+  }
+
   // Computed: selected token quick view data
   selectedTokenInfo = computed(() => {
     const tokenId = this.selectedTokenId();
@@ -274,7 +287,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!token) return null;
 
     if (token.statblockId) {
-      const npc = this.resolveStatblock(token.statblockId);
+      const npc = this.statblockForToken(token);
       return { token, type: 'npc' as const, npc, character: null };
     }
 
@@ -1050,7 +1063,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // (they aren't added via setAvailableCharacters which only covers player characters)
     if (token.isQuickToken && token.statblockId) {
       // resolveStatblock also covers Begleiter tokens, whose ids aren't in the NPC library.
-      const speed = this.resolveStatblock(token.statblockId)?.speed ?? 10;
+      const speed = this.statblockForToken(token)?.speed ?? 10;
       this.battleEngine.registerCharacter(token.characterId, {
         // Mit Kennzeichnung, damit fünf Kultisten im Tracker unterscheidbar bleiben.
         name: tokenLabel(token),
@@ -1173,11 +1186,25 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onNpcStatblockDrop(data: { statblockId: string; name: string; portrait: string; position: HexCoord }): void {
+  async onNpcStatblockDrop(data: { statblockId: string; name: string; portrait: string; position: HexCoord }): Promise<void> {
     const characterId = 'npc-' + data.statblockId + '-' + Date.now();
+    this.currentTool.set('cursor');
     // Die Startbeute wird KOPIERT, nicht verlinkt: der Statblock ist ein geteiltes Asset, und
     // drei Goblins vom selben Statblock sollen nicht denselben Beutel haben.
     const statblock = this.npcStatblocks().find(s => s.id === data.statblockId)?.statblock;
+
+    // Mit Variation würfelt jedes Ablegen ein eigenes NSC; das Token trägt diesen Schnappschuss.
+    let npcInstance: NpcStatblock | undefined;
+    if (statblock && hasNpcVariation(statblock)) {
+      const needsForge = statblock.variation?.lists?.equipment?.mode === 'random'
+        && !!statblock.variation.gear?.slots?.length;
+      const [forge, weaponTypes] = needsForge
+        ? await Promise.all([this.forgeLibrary.load(), this.weaponTypes.load()])
+        : [{ materials: [], traits: [] }, undefined];
+      const seed = Math.floor(Math.random() * 2 ** 31);
+      npcInstance = rollNpcInstance(statblock, { ...forge, weaponTypes }, seed, this.npcGen);
+    }
+
     this.store.addToken({
       characterId,
       name: data.name,
@@ -1186,9 +1213,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
       team: 'red',
       isQuickToken: true,
       statblockId: data.statblockId,
-      inventory: structuredClone(statblock?.inventory ?? []),
+      inventory: structuredClone((npcInstance ?? statblock)?.inventory ?? []),
+      ...(npcInstance ? { npcInstance } : {}),
     });
-    this.currentTool.set('cursor');
   }
 
   // ─── Soul extraction (GM captures an NPC's soul for a player) ───────────────
@@ -1196,7 +1223,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!this.isGM()) return;
     const token = this.currentMap()?.tokens.find(t => t.id === tokenId);
     const sb = token?.statblockId
-      ? this.npcStatblocks().find(n => n.id === token.statblockId)?.statblock
+      ? token.npcInstance ?? this.npcStatblocks().find(n => n.id === token.statblockId)?.statblock
       : null;
     if (!sb) return;
     this.soulExtractStatblock.set(sb);

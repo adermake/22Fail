@@ -3,12 +3,11 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
 
 import { WeaponTypeService } from '../../services/weapon-type.service';
 import { WeaponTypeBlock } from '../../model/weapon-type-block.model';
-import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
-import { AssetFile } from '../../model/asset-browser.model';
+import { ForgeLibraryService } from '../../services/forge-library.service';
+import { NpcGearTemplate } from '../../model/npc-statblock.model';
 import {
   ForgeTrait, MaterialBlock, WEAPON_CATEGORY_LABELS, WeaponCategory,
   WEAPON_STAT_KEYS, WeaponStatKey,
@@ -48,10 +47,19 @@ export class GearGeneratorComponent implements OnInit {
   /** Shown in the header so the GM knows who they are forging for. */
   @Input() targetName = '';
 
+  /**
+   * `equip`: roll gear and hand the items over. `template`: only pick pool/budget/sliders for an
+   * NSC whose slots are forged fresh at every spawn — the rolls shown are a preview.
+   */
+  @Input() mode: 'equip' | 'template' = 'equip';
+  /** Template mode: the settings to start from. */
+  @Input() template?: NpcGearTemplate;
+
   @Output() equip = new EventEmitter<ItemBlock[]>();
+  @Output() saveTemplate = new EventEmitter<NpcGearTemplate['settings']>();
   @Output() close = new EventEmitter<void>();
 
-  private api = inject(AssetBrowserApiService);
+  private forgeLibrary = inject(ForgeLibraryService);
   private cdr = inject(ChangeDetectorRef);
   private weaponTypeService = inject(WeaponTypeService);
 
@@ -96,9 +104,10 @@ export class GearGeneratorComponent implements OnInit {
     });
     this.settings = {
       ...DEFAULT_GEAR_SETTINGS,
-      seed: Math.floor(Math.random() * 1_000_000),
       budget: defaultBudgetForLevel(this.level),
-      poolIds: [],
+      ...(this.template?.settings ?? {}),
+      poolIds: [...(this.template?.settings.poolIds ?? [])],
+      seed: Math.floor(Math.random() * 1_000_000),
     };
     this.savedPools = this.readPools();
     await this.loadLibrary();
@@ -109,28 +118,12 @@ export class GearGeneratorComponent implements OnInit {
 
   private async loadLibrary(): Promise<void> {
     this.isLoading.set(true);
-    try {
-      const libraries = await firstValueFrom(this.api.getAllLibraries());
-      const materialFiles: AssetFile[] = [];
-      const traitFiles: AssetFile[] = [];
-      for (const lib of libraries) {
-        const [mats, traits] = await Promise.all([
-          firstValueFrom(this.api.searchFiles(lib.id, '', ['material'])),
-          firstValueFrom(this.api.searchFiles(lib.id, '', ['forge-trait'])),
-        ]);
-        materialFiles.push(...mats);
-        traitFiles.push(...traits);
-      }
-      this.allMaterials = materialFiles
-        .map(f => ({ ...(f.data as MaterialBlock), id: (f.data as MaterialBlock).id || f.id }));
-      this.allTraits = traitFiles
-        .map(f => ({ ...(f.data as ForgeTrait), id: (f.data as ForgeTrait).id || f.id }));
-    } catch (e) {
-      console.error('Ausrüstungsgenerator: Bibliothek konnte nicht geladen werden', e);
-    } finally {
-      this.isLoading.set(false);
-      this.cdr.markForCheck();
-    }
+    // Fresh on every open: a material edited a moment ago in the library should show up here.
+    const { materials, traits } = await this.forgeLibrary.load({ fresh: true });
+    this.allMaterials = materials;
+    this.allTraits = traits;
+    this.isLoading.set(false);
+    this.cdr.markForCheck();
   }
 
   // ── Material pool ──────────────────────────────────────────────────────────
@@ -272,6 +265,13 @@ export class GearGeneratorComponent implements OnInit {
   applyArmorOnly(): void {
     if (!this.armorPieces.length) return;
     this.equip.emit(this.armorPieces.map(p => p.item));
+    this.close.emit();
+  }
+
+  /** Template mode: keep the pool and sliders, not the rolled items or the seed. */
+  applyTemplate(): void {
+    const { budget, variation, mutation, poolIds } = this.settings;
+    this.saveTemplate.emit({ budget, variation, mutation, poolIds: [...poolIds] });
     this.close.emit();
   }
 

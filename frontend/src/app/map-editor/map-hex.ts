@@ -127,6 +127,117 @@ export function hexCorners(cx: number, cy: number, r = HEX_RADIUS): Point[] {
   return pts;
 }
 
+/**
+ * Neighbour directions in **axial** coords, in the same order as `hexCorners`.
+ *
+ * Edge `k` runs between corner `k` and corner `k + 1`, so its outward bearing is
+ * `60k + 30` degrees — and that is exactly where the neighbour across it sits. Listing the
+ * directions in corner order is what lets one index name both the edge and the hex beyond it,
+ * with no lookup table to keep in step.
+ */
+const AXIAL_DIRS: readonly HexCoord[] = [
+  { q: 1, r: 0 }, // 30°  — right, down
+  { q: 0, r: 1 }, // 90°  — down
+  { q: -1, r: 1 }, // 150° — left, down
+  { q: -1, r: 0 }, // 210° — left, up
+  { q: 0, r: -1 }, // 270° — up
+  { q: 1, r: -1 }, // 330° — right, up
+];
+
+/** Odd-q offset form of an axial hex — the inverse of `toAxial`. */
+function fromAxial(h: HexCoord): HexCoord {
+  return { q: h.q, r: h.r + (h.q - (h.q & 1)) / 2 };
+}
+
+/** The hex across edge `dir` (0–5, in `hexCorners` order). */
+export function hexNeighbor(hex: HexCoord, dir: number): HexCoord {
+  const a = toAxial(hex);
+  const d = AXIAL_DIRS[((dir % 6) + 6) % 6];
+  return fromAxial({ q: a.q + d.q, r: a.r + d.r });
+}
+
+/** The six neighbours, in edge order. */
+export function hexNeighbors(hex: HexCoord): HexCoord[] {
+  return AXIAL_DIRS.map((_, i) => hexNeighbor(hex, i));
+}
+
+/**
+ * Canonical name for the edge between two adjacent hexes.
+ *
+ * An edge belongs to *both* hexes, so the two of them have to agree on one name or clicking
+ * the same line from either side would produce two different passages sitting on top of each
+ * other. Sorting the pair fixes that: the key is the same whichever hex you came from.
+ */
+export function edgeKey(a: HexCoord, b: HexCoord): string {
+  const first = a.q < b.q || (a.q === b.q && a.r <= b.r) ? a : b;
+  const second = first === a ? b : a;
+  return `${first.q},${first.r}|${second.q},${second.r}`;
+}
+
+export function parseEdgeKey(key: string): { a: HexCoord; b: HexCoord } | null {
+  const [left, right] = key.split('|');
+  const a = parseHexKey(left ?? '');
+  const b = parseHexKey(right ?? '');
+  return a && b ? { a, b } : null;
+}
+
+/**
+ * The two world-space corners an edge runs between.
+ *
+ * Derived from the *first* hex of the canonical pair rather than whichever one was clicked,
+ * so every client draws the identical segment. Taking them from the clicked hex would give
+ * the same line geometrically but built from a different pair of floats, and the circles at
+ * the ends would not quite line up between two screens.
+ */
+export function edgeEndpoints(key: string): [Point, Point] | null {
+  const pair = parseEdgeKey(key);
+  if (!pair) return null;
+
+  const dir = hexNeighbors(pair.a).findIndex(n => n.q === pair.b.q && n.r === pair.b.r);
+  if (dir < 0) return null; // not actually adjacent
+
+  const centre = hexToWorld(pair.a);
+  const corners = hexCorners(centre.x, centre.y);
+  return [corners[dir], corners[(dir + 1) % 6]];
+}
+
+/** Midpoint of an edge, used as the passage's position for culling and hit-testing. */
+export function edgeMidpoint(key: string): Point | null {
+  const ends = edgeEndpoints(key);
+  if (!ends) return null;
+  return { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
+}
+
+/**
+ * The hex edge nearest a world point, with how far away it is.
+ *
+ * Measured against the *midpoints* of the containing hex's six edges. Distance to the
+ * segment itself would be the obvious choice and is wrong for this job: near a corner two
+ * edges are both zero away, so a click there would pick between them arbitrarily. Midpoints
+ * give every edge one unambiguous target, which is what makes clicking along a boundary
+ * land where it looks like it should.
+ */
+export function nearestEdge(x: number, y: number): { key: string; distance: number } {
+  const hex = worldToHex(x, y);
+  const centre = hexToWorld(hex);
+  const corners = hexCorners(centre.x, centre.y);
+
+  let best = 0;
+  let bestDist = Infinity;
+  for (let k = 0; k < 6; k++) {
+    const next = corners[(k + 1) % 6];
+    const mx = (corners[k].x + next.x) / 2;
+    const my = (corners[k].y + next.y) / 2;
+    const d = Math.hypot(mx - x, my - y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = k;
+    }
+  }
+
+  return { key: edgeKey(hex, hexNeighbor(hex, best)), distance: bestDist };
+}
+
 export function hexKey(q: number, r: number): string {
   return `${q},${r}`;
 }

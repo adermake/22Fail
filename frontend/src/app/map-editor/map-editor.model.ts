@@ -213,7 +213,8 @@ export type ObjectCollection =
   | 'regions'
   | 'markers'
   | 'tokens'
-  | 'sketch';
+  | 'sketch'
+  | 'passages';
 
 export const OBJECT_COLLECTIONS: readonly ObjectCollection[] = [
   'symbols',
@@ -222,6 +223,7 @@ export const OBJECT_COLLECTIONS: readonly ObjectCollection[] = [
   'markers',
   'tokens',
   'sketch',
+  'passages',
 ];
 
 export interface MapObjectBase {
@@ -365,7 +367,29 @@ export interface SketchStroke extends MapObjectBase {
   author: string;
 }
 
-export type AnyMapObject = MapSymbol | MapLabel | MapRegion | MapMarker | MapToken | SketchStroke;
+/**
+ * A way through a hex edge — a pass, a ford, a gate.
+ *
+ * Drawn as a line along the boundary with a circle at each end, and it belongs to the edge
+ * rather than to either hex. The edge key is the identity: clicking the same boundary from
+ * either side must toggle the same passage, which a position alone could not guarantee — two
+ * clicks either side of a line are different points.
+ *
+ * `x`/`y` are the edge midpoint, carried for culling and hit-testing like every other object.
+ */
+export interface MapPassage extends MapObjectBase {
+  /** Canonical `q,r|q,r` key from `edgeKey`. */
+  edge: string;
+}
+
+export type AnyMapObject =
+  | MapSymbol
+  | MapLabel
+  | MapRegion
+  | MapMarker
+  | MapToken
+  | SketchStroke
+  | MapPassage;
 
 // ============================================
 // Settings & document
@@ -434,6 +458,7 @@ export interface MapEditorData {
   markers: MapMarker[];
   tokens: MapToken[];
   sketch: SketchStroke[];
+  passages: MapPassage[];
 
   labelPresets: LabelPreset[];
   /** Secret groups. Membership lives on the objects (`secret`), not here. */
@@ -472,6 +497,7 @@ export function createEmptyMapEditorData(worldName: string): MapEditorData {
     markers: [],
     tokens: [],
     sketch: [],
+    passages: [],
     labelPresets: [],
     secrets: [],
     landPalette: ['#7a8f5a', '#8fa06b', '#a8b581', '#c2c79a', '#6b7d4e'],

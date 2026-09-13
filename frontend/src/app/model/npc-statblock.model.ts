@@ -1,6 +1,8 @@
-import { ItemBlock } from './item-block.model';
+import { ArmorType, ItemBlock } from './item-block.model';
 import { SkillBlock } from './skill-block.model';
 import { SpellBlock } from './spell-block-model';
+import { WeaponStatKey } from './forging.model';
+import type { GearGenSettings } from '../utils/gear-generator.util';
 
 // ─── Archetyp ────────────────────────────────────────────────────────────────
 
@@ -251,6 +253,98 @@ export function effectiveNpcStats(soul: NpcSoul, body: NpcBody | undefined): Rec
   return out;
 }
 
+// ─── Variation (Fest / Zufällig) ─────────────────────────────────────────────
+// The roll config sits BESIDE the lists instead of on each entry, so SkillBlock/SpellBlock/ItemBlock
+// stay untouched and a chance field can never leak into a sheet or change a loot stack's identity.
+// `entries[i]` belongs to `statblock[list][i]`; `normalizeNpcVariation` keeps the two aligned.
+
+/** The four statblock lists that can be rolled. The keys are the statblock's own field names. */
+export type NpcRollListKey = 'customSkills' | 'spells' | 'equipment' | 'inventory';
+export const NPC_ROLL_LIST_KEYS: NpcRollListKey[] = ['customSkills', 'spells', 'equipment', 'inventory'];
+
+export interface NpcRollEntry {
+  /** 0–1: chance this entry is part of a spawned token. */
+  chance: number;
+  /** Inventory only: rolled amount range. Unset = the item's own amount. */
+  min?: number;
+  max?: number;
+}
+
+export interface NpcRollList {
+  mode: 'fixed' | 'random';
+  /** Random mode: at least this many entries… */
+  min: number;
+  /** …and at most this many. Unset = no upper limit. */
+  max?: number;
+  entries: NpcRollEntry[];
+}
+
+export interface NpcStatVariation {
+  enabled: boolean;
+  levelMin: number;
+  levelMax: number;
+  /** Soul points moved at random from one stat to another; the total stays the same. */
+  shuffle: number;
+}
+
+/** One auto-forged equipment slot, rolled against `chance` and forged fresh at every spawn. */
+export interface NpcGearSlotRoll {
+  /** Stable id — also folded into the forge seed, so two helmet slots forge different helmets. */
+  key: string;
+  chance: number;
+  armorSlot?: ArmorType;
+  weaponTypeName?: string;
+  statRequirementKey?: WeaponStatKey;
+}
+
+export interface NpcGearTemplate {
+  settings: Omit<GearGenSettings, 'seed'>;
+  slots: NpcGearSlotRoll[];
+}
+
+export interface NpcVariation {
+  stats?: NpcStatVariation;
+  lists?: Partial<Record<NpcRollListKey, NpcRollList>>;
+  /** Only rolled while the equipment list is in random mode. */
+  gear?: NpcGearTemplate;
+}
+
+export function defaultRollEntry(): NpcRollEntry {
+  return { chance: 1 };
+}
+
+/**
+ * Repair pass: creates the variation block and pads/truncates every `entries` array to its list's
+ * length. Runs on editor load and before every roll, so a statblock edited by an older build (or
+ * by hand) can never roll entry 3's chance against item 4.
+ */
+export function normalizeNpcVariation(sb: NpcStatblock): NpcVariation {
+  const variation = (sb.variation ??= {});
+  const lists = (variation.lists ??= {});
+  for (const key of NPC_ROLL_LIST_KEYS) {
+    const length = (sb[key] ?? []).length;
+    const list = (lists[key] ??= { mode: 'fixed', min: 0, entries: [] });
+    if (!Array.isArray(list.entries)) list.entries = [];
+    while (list.entries.length < length) list.entries.push(defaultRollEntry());
+    list.entries.length = length;
+    list.min = Math.max(0, Math.floor(list.min || 0));
+    if (list.max === null || list.max === undefined || !Number.isFinite(list.max)) {
+      delete list.max;
+    } else {
+      list.max = Math.max(0, Math.floor(list.max));
+    }
+  }
+  return variation;
+}
+
+/** True when spawning this statblock rolls anything, i.e. its tokens need their own snapshot. */
+export function hasNpcVariation(sb: NpcStatblock): boolean {
+  const v = sb.variation;
+  if (!v) return false;
+  if (v.stats?.enabled) return true;
+  return NPC_ROLL_LIST_KEYS.some(k => v.lists?.[k]?.mode === 'random');
+}
+
 // ─── Statblock ────────────────────────────────────────────────────────────────
 
 export interface NpcStatblock {
@@ -312,6 +406,13 @@ export interface NpcStatblock {
   // fields stay populated so existing consumers (lobby tokens, scripting, tracker) keep working.
   soul?: NpcSoul;
   body?: NpcBody;
+
+  /**
+   * Variation beim Ablegen: welche Listen gewürfelt werden, mit welcher Chance, und wie die Werte
+   * streuen. Fehlt es (oder steht alles auf „Fest"), sind alle Token dieses Statblocks gleich und
+   * bleiben live mit ihm verknüpft. Siehe `utils/npc-roll.util.ts`.
+   */
+  variation?: NpcVariation;
 
   // Token-Bild / Portrait
   defaultPortrait?: string; // Image ID used as token head when dragging onto map
