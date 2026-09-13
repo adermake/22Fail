@@ -7,6 +7,7 @@ import {
 import { makeRng } from './gear-generator.util';
 import {
   NpcDerivedCalc, rollEquipment, rollInventory, rollNpcInstance, rollSoul, rollSubset,
+  scaleChanceForLevel,
 } from './npc-roll.util';
 
 const calc: NpcDerivedCalc = {
@@ -192,5 +193,41 @@ describe('rollNpcInstance', () => {
     expect(rolled.level).toBe(5);
     expect(rolled.maxHealth).toBe(rolled.soul!.stats.constitution * 5);
     expect(rolled.fokus).toBe(rolled.intelligence);
+  });
+});
+
+describe('Level-Skalierung', () => {
+  it('leaves 0, 1 and the authored level alone', () => {
+    expect(scaleChanceForLevel(0, 10)).toBe(0);
+    expect(scaleChanceForLevel(1, -10)).toBe(1);
+    expect(scaleChanceForLevel(0.4, 0)).toBe(0.4);
+  });
+
+  it('grows chances with level, shrinks them below, never past 100 %', () => {
+    expect(scaleChanceForLevel(0.1, 10)).toBeCloseTo(0.19, 5);
+    expect(scaleChanceForLevel(0.4, 10)).toBeCloseTo(0.64, 5);
+    expect(scaleChanceForLevel(0.4, -5)).toBeLessThan(0.4);
+    let last = 0;
+    for (let delta = -20; delta <= 60; delta++) {
+      const c = scaleChanceForLevel(0.3, delta);
+      expect(c).toBeGreaterThanOrEqual(last);
+      expect(c).toBeLessThanOrEqual(1);
+      last = c;
+    }
+  });
+
+  it('forces the level, re-deals its budget and rolls with stronger chances', () => {
+    const sb = createEmptyNpcStatblock();
+    sb.soul = { level: 1, stats: { strength: 10, dexterity: 5, speed: 5, intelligence: 4, constitution: 4, wille: 2 } };
+    sb.spells = [{ name: 'Feuerball' }] as NpcStatblock['spells'];
+    normalizeNpcVariation(sb).lists!.spells = { mode: 'random', min: 0, entries: entries(0.05) };
+
+    const rolled = rollNpcInstance(sb, ctx, 1, calc, { level: 20 });
+    expect(rolled.level).toBe(20);
+    expect(NPC_STAT_KEYS.reduce((sum, k) => sum + rolled.soul!.stats[k], 0)).toBe(soulPointBudget(20));
+
+    const hits = (level: number) => Array.from({ length: 400 }, (_, n) =>
+      rollNpcInstance(sb, ctx, n + 1, calc, { level }).spells.length).reduce((a, b) => a + b, 0);
+    expect(hits(40)).toBeGreaterThan(hits(1));
   });
 });

@@ -14,7 +14,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDrag, CdkDragDrop, CdkDragPreview, CdkDropList } from '@angular/cdk/drag-drop';
 
-import { ItemBlock } from '../../model/item-block.model';
+import { ItemBlock, isResourceItemType } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
@@ -296,8 +296,11 @@ export class GmDeskComponent implements OnDestroy {
       return this.tabs().find(t => t.tabId === tab.key)?.entries ?? [];
     }
     const token = this.npcs().find(t => 'npc:' + t.id === tab.key);
-    return (token?.inventory ?? []).map((item, i) =>
-      ({ ...createDeskEntry('item', item, { name: item.name }), entryId: `${tab.key}:${i}` }));
+    // Rohstoffe als 'resource', sonst landet erbeutetes Material im Inventar statt bei den Rohstoffen.
+    return (token?.inventory ?? []).map((item, i) => ({
+      ...createDeskEntry(isResourceItemType(item.itemType) ? 'resource' : 'item', item, { name: item.name }),
+      entryId: `${tab.key}:${i}`,
+    }));
   });
 
   selectTab(key: string): void {
@@ -598,9 +601,9 @@ export class GmDeskComponent implements OnDestroy {
       return;
     }
 
-    // NSC-Reiter: nur Gegenstände, alles andere hat im Token-Inventar keinen Platz.
+    // NSC-Reiter: nur Gegenstände und Rohstoffe, alles andere hat im Token-Inventar keinen Platz.
     const token = this.npcs().find(t => 'npc:' + t.id === tab.key);
-    if (!token || entry.type !== 'item') return;
+    if (!token || (entry.type !== 'item' && entry.type !== 'resource')) return;
     this.npcInventoryChanged.emit({
       tokenId: token.id,
       inventory: [...(token.inventory ?? []), entry.data as ItemBlock],

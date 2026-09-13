@@ -390,6 +390,8 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   availableStatusEffects = signal<AssetFile[]>([]);
   availableMaterials = signal<AssetFile[]>([]);
   availableForgeTraits = signal<AssetFile[]>([]);
+  availableIngredients = signal<AssetFile[]>([]);
+  availableExtractors = signal<AssetFile[]>([]);
 
   /**
    * RuneBlock array for the spell-node-editor.
@@ -427,7 +429,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
       const libraryIds = [lib.id, ...(lib.dependencies || [])];
       console.log('Loading items from library IDs:', libraryIds);
 
-      const [items, runes, spells, skills, statusEffects, materials, forgeTraits] = await Promise.all([
+      const [items, runes, spells, skills, statusEffects, materials, forgeTraits, ingredients, extractors] = await Promise.all([
         this.loadItemsByType(libraryIds, 'item'),
         this.loadItemsByType(libraryIds, 'rune'),
         this.loadItemsByType(libraryIds, 'spell'),
@@ -435,7 +437,11 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         this.loadItemsByType(libraryIds, 'status-effect'),
         this.loadItemsByType(libraryIds, 'material'),
         this.loadItemsByType(libraryIds, 'forge-trait'),
+        this.loadItemsByType(libraryIds, 'ingredient'),
+        this.loadItemsByType(libraryIds, 'extractor'),
       ]);
+      this.availableIngredients.set(ingredients);
+      this.availableExtractors.set(extractors);
 
       this.availableItems.set(items);
       this.availableRunes.set(runes);

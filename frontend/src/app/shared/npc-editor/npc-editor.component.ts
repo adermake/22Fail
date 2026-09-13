@@ -33,7 +33,7 @@ import {
   NpcEquipmentGroups,
 } from '../../model/npc-statblock.model';
 import { ARMOR_TYPES, WEAPON_STAT_KEYS } from '../../model/forging.model';
-import { applyDerivedNpcStats, equipmentKind } from '../../utils/npc-roll.util';
+import { DEFAULT_LEVEL_CHANCE, applyDerivedNpcStats, equipmentKind } from '../../utils/npc-roll.util';
 import { canMerge, mergeStacks } from '../../utils/item-stack.util';
 import { applyJsonPatchTo } from '../../utils/json-patch.util';
 import { defaultBudgetForLevel } from '../../utils/gear-generator.util';
@@ -44,7 +44,9 @@ import { NpcRollBoundsComponent } from './npc-roll-bar/npc-roll-bounds.component
 import { AssetFile } from '../../model/asset-browser.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
-import { ItemBlock } from '../../model/item-block.model';
+import { ItemBlock, ResourceItemType } from '../../model/item-block.model';
+import { createResourceItem } from '../../model/brewing.model';
+import { assetEntryId } from '../../model/gm-desk.model';
 import {
   CLASS_DEFINITIONS,
   SKILL_DEFINITIONS,
@@ -82,8 +84,11 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   @Input() availableRunes: RuneBlock[] = [];
   /** Summon mode: the soul's stats + level are fixed (read-only); only body/skills are editable. */
   @Input() soulLocked = false;
-  // Kept for backward-compatible parent bindings (weapon-gen removed from the UI).
+  /** Schmiedematerialien, Brau-Wirkstoffe und Extraktoren — als Beute (Rohstoff) wählbar. */
   @Input() availableMaterials: AssetFile[] = [];
+  @Input() availableIngredients: AssetFile[] = [];
+  @Input() availableExtractors: AssetFile[] = [];
+  // Kept for backward-compatible parent bindings (weapon-gen removed from the UI).
   @Input() availableForgeTraits: AssetFile[] = [];
 
   @Output() save = new EventEmitter<NpcStatblock>();
@@ -166,7 +171,15 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   filePreview(file: AssetFile): string {
     return previewText(file.name, file.data);
   }
-  browseCategory: 'skills' | 'items' | 'spells' = 'skills';
+  browseCategory: 'skills' | 'items' | 'spells' | 'resources' = 'skills';
+  /** Ressourcen-Browser: welche Rohstoffart gerade gelistet wird. */
+  resourceTab: ResourceItemType = 'raw-material';
+  readonly resourceTabs: { kind: ResourceItemType; label: string }[] = [
+    { kind: 'raw-material', label: 'Materialien' },
+    { kind: 'ingredient', label: 'Wirkstoffe' },
+    { kind: 'extractor', label: 'Extraktoren' },
+  ];
+  resourceFolders: Record<ResourceItemType, LibFolder[]> = { 'raw-material': [], ingredient: [], extractor: [] };
   skillTab: 'tree' | 'library' = 'tree';
   expandedClass: string | null = null;
   treeQuery = '';
@@ -247,6 +260,11 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.itemFolders = this.groupByFolder(this.availableItems);
     this.spellFolders = this.groupByFolder(this.availableSpells);
     this.skillFolders = this.groupByFolder(this.availableSkills);
+    this.resourceFolders = {
+      'raw-material': this.groupByFolder(this.availableMaterials),
+      ingredient: this.groupByFolder(this.availableIngredients),
+      extractor: this.groupByFolder(this.availableExtractors),
+    };
 
     // Sync the flat gameplay fields with the soul/body up front.
     this.recalc();
@@ -534,6 +552,15 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     if (stats) stats.shuffle = Math.max(0, Math.floor(value) || 0);
   }
 
+  /** Percent per level every chance grows by — also applies when the GM changes the level in the lobby. */
+  get levelChance(): number {
+    return this.draft.variation?.levelChance ?? DEFAULT_LEVEL_CHANCE;
+  }
+
+  setLevelChance(value: number): void {
+    normalizeNpcVariation(this.draft).levelChance = Math.max(0, Math.round(Number(value) || 0));
+  }
+
   // Generated equipment slots — forged fresh at every spawn while equipment is „Zufällig".
   readonly armorTypes = ARMOR_TYPES;
   readonly weaponStatKeys = WEAPON_STAT_KEYS;
@@ -629,6 +656,20 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     const at = list.findIndex(existing => canMerge(existing, item));
     if (at >= 0) list[at] = mergeStacks(list[at]!, item).merged;
     else this.listPush(target, item);
+  }
+
+  /**
+   * Materialien, Wirkstoffe und Extraktoren sind eigene Assets, keine Items. Als Beute werden sie zu
+   * dem stapelbaren Rohstoff-Item, das auch der Bogen führt: `libraryAssetId` verknüpft es mit dem
+   * Rezept, und der GM-Schreibtisch vergibt es an die Rohstoffe statt ins Inventar.
+   */
+  addResourceFromLibrary(kind: ResourceItemType, file: AssetFile): void {
+    const data = file.data as { name?: string; description?: string } | undefined;
+    const item = createResourceItem(kind, data?.name || file.name, assetEntryId(file), 1,
+      data?.description ? { description: data.description } : undefined);
+    this.addItemTo('inventory', item);
+    this.aktuellTab = 'inventory';
+    this.flashAdded(file.id);
   }
 
   /** app-item edits itself through patches (e.g. the Anzahl +/−); apply them to the draft item. */

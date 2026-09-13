@@ -635,6 +635,12 @@ lobby-container
   Auflösung immer über `statblockForToken(token)`.
 - Abgeleitete Werte (Leben/Mana/Ausdauer, Reaktion, Grundbonus, Fokus): `applyDerivedNpcStats` — gemeinsam für Editor und Wurf.
 - Materialien/Merkmale: `ForgeLibraryService` (gecacht, von Generator und Lobby genutzt).
+- Level-Skalierung: jede Chance wird `1 − (1 − c)^(1 + s·Δlevel)` (`scaleChanceForLevel`, s = `variation.levelChance`, Standard 10 %),
+  Δlevel gegen das Seelen-Level des Statblocks; Schmiedebudget generierter Plätze +2 je Level. 0 %/100 % bleiben.
+- Lobby-Panel (GM, NSC aus der Bibliothek): Level-Feld + Neu-würfeln im Kopf → `onNpcRoll` → `rollNpcInstance(…, { level })`.
+  Setzt `npcInstance`, `npcLevel` (bleibt beim Neu-Würfeln), neue Beute, Ressourcen voll.
+- Beute-Rohstoffe: NSC-Editor-Browser *Ressourcen* (Material/Wirkstoff/Extraktor) → `createResourceItem` im Inventar.
+  GM-Schreibtisch führt sie im NSC-Reiter als `resource`, damit `GrantService` sie in `sheet.resources` ablegt.
 - Editor-Items stapeln beim Hinzufügen (`canMerge`/`mergeStacks`), Anzahl ±  über `(patch)` → `applyJsonPatchTo`.
 
 ## Homepage (`home/`) & Nutzer-Zugang

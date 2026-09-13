@@ -152,6 +152,8 @@ export interface Token {
    * Statblock erreichen es nicht. Ohne Variation bleibt das Token live mit `statblockId` verknüpft.
    */
   npcInstance?: import('./npc-statblock.model').NpcStatblock;
+  /** Vom Spielleiter in der Lobby gesetztes Level. Neu würfeln behält es; ohne es würfelt der Statblock selbst. */
+  npcLevel?: number;
 
   // ---- Per-token status effects (used for NPC tokens) ----
   activeStatusEffects?: TokenStatusEffect[];

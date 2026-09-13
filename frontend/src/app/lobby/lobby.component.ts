@@ -299,6 +299,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   selectedPanelToken = computed(() => this.selectedTokenInfo()?.token ?? null);
   selectedPanelCharacter = computed(() => this.selectedTokenInfo()?.character ?? null);
   selectedPanelNpc = computed(() => this.selectedTokenInfo()?.npc ?? null);
+  /** Level/Neu würfeln im Panel: nur für den GM und nur für NSCs aus der Bibliothek (keine Begleiter). */
+  selectedNpcRollable = computed(() => {
+    const token = this.selectedPanelToken();
+    return this.isGM() && !!token?.statblockId && this.npcStatblocks().some(s => s.id === token.statblockId);
+  });
 
   ngOnInit(): void {
     const storedPanels = localStorage.getItem(LobbyComponent.PANELS_VISIBLE_STORAGE_KEY);
@@ -1194,16 +1199,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const statblock = this.npcStatblocks().find(s => s.id === data.statblockId)?.statblock;
 
     // Mit Variation würfelt jedes Ablegen ein eigenes NSC; das Token trägt diesen Schnappschuss.
-    let npcInstance: NpcStatblock | undefined;
-    if (statblock && hasNpcVariation(statblock)) {
-      const needsForge = statblock.variation?.lists?.equipment?.mode === 'random'
-        && !!statblock.variation.gear?.slots?.length;
-      const [forge, weaponTypes] = needsForge
-        ? await Promise.all([this.forgeLibrary.load(), this.weaponTypes.load()])
-        : [{ materials: [], traits: [] }, undefined];
-      const seed = Math.floor(Math.random() * 2 ** 31);
-      npcInstance = rollNpcInstance(statblock, { ...forge, weaponTypes }, seed, this.npcGen);
-    }
+    const npcInstance = statblock && hasNpcVariation(statblock) ? await this.rollNpc(statblock) : undefined;
 
     this.store.addToken({
       characterId,
@@ -1216,6 +1212,41 @@ export class LobbyComponent implements OnInit, OnDestroy {
       inventory: structuredClone((npcInstance ?? statblock)?.inventory ?? []),
       ...(npcInstance ? { npcInstance } : {}),
     });
+  }
+
+  /** One NSC rolled from a library statblock — shared by the drop and the panel's level/reroll. */
+  private async rollNpc(statblock: NpcStatblock, level?: number): Promise<NpcStatblock> {
+    const needsForge = statblock.variation?.lists?.equipment?.mode === 'random'
+      && !!statblock.variation.gear?.slots?.length;
+    const [forge, weaponTypes] = needsForge
+      ? await Promise.all([this.forgeLibrary.load(), this.weaponTypes.load()])
+      : [{ materials: [], traits: [] }, undefined];
+    const seed = Math.floor(Math.random() * 2 ** 31);
+    return rollNpcInstance(statblock, { ...forge, weaponTypes }, seed, this.npcGen, { level });
+  }
+
+  /**
+   * Level geändert oder „Neu würfeln" im Panel: das Token bekommt ein frisch gewürfeltes NSC aus
+   * seinem Statblock — neue Werte, Ausrüstung und Beute, volle Ressourcen. Ein von Hand gesetztes
+   * Level bleibt beim Neu-Würfeln erhalten.
+   */
+  async onNpcRoll(event: { level?: number }): Promise<void> {
+    const token = this.selectedPanelToken();
+    if (!this.isGM() || !token?.statblockId) return;
+    const statblock = this.npcStatblocks().find(s => s.id === token.statblockId)?.statblock;
+    if (!statblock) return;
+
+    const npcLevel = event.level !== undefined ? Math.max(1, Math.floor(event.level) || 1) : token.npcLevel;
+    const npcInstance = await this.rollNpc(statblock, npcLevel);
+    this.store.updateToken(token.id, {
+      npcInstance,
+      npcLevel,
+      inventory: structuredClone(npcInstance.inventory ?? []),
+      currentHealth: undefined,
+      currentMana: undefined,
+      currentEnergy: undefined,
+    });
+    this.cdr.markForCheck();
   }
 
   // ─── Soul extraction (GM captures an NPC's soul for a player) ───────────────

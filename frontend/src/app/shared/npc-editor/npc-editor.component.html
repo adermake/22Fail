@@ -95,6 +95,13 @@
                 <input type="checkbox" [ngModel]="!!draft.variation?.stats?.enabled" (ngModelChange)="setStatVariation($event)">
                 <span>Variation beim Ablegen</span>
               </label>
+              <div class="npc-var-row">
+                <label title="Jedes Level über dem Seelen-Level erhöht alle Chancen (Fertigkeiten, Zauber, Ausrüstung, Beute), jedes darunter senkt sie. Gilt auch, wenn in der Lobby das Level geändert wird.">
+                  Chance je Level +
+                  <input type="number" min="0" [ngModel]="levelChance" (ngModelChange)="setLevelChance($event)">
+                  %
+                </label>
+              </div>
               @if (draft.variation?.stats; as vs) {
                 @if (vs.enabled) {
                   <div class="npc-var-row">
@@ -390,6 +397,8 @@
             <button [class.active]="browseCategory === 'skills'" (click)="browseCategory = 'skills'">Fertigkeiten</button>
             <button [class.active]="browseCategory === 'items'" (click)="browseCategory = 'items'">Ausrüstung</button>
             <button [class.active]="browseCategory === 'spells'" (click)="browseCategory = 'spells'">Zauber</button>
+            <button [class.active]="browseCategory === 'resources'" (click)="browseCategory = 'resources'"
+                    title="Schmiedematerialien, Wirkstoffe und Extraktoren als Beute">Ressourcen</button>
           </div>
 
           <!-- SKILLS -->
@@ -491,6 +500,37 @@
           }
 
           <!-- SPELLS -->
+          @if (browseCategory === 'resources') {
+            <div class="npc-subtabs">
+              @for (t of resourceTabs; track t.kind) {
+                <button [class.active]="resourceTab === t.kind" (click)="resourceTab = t.kind">{{ t.label }}</button>
+              }
+            </div>
+            <p class="npc-hint">Landet als stapelbarer Rohstoff in der Beute (Inventar).</p>
+            @if (resourceFolders[resourceTab].length) {
+              <div class="npc-scroll">
+                @for (fol of resourceFolders[resourceTab]; track fol.path) {
+                  <div class="npc-tree-class">
+                    <button class="npc-tree-head npc-folder-head" (click)="toggleFolder(resourceTab, fol.path)">
+                      <span>{{ isFolderOpen(resourceTab, fol.path) ? '▾' : '▸' }} <i class="ico ico-folder"></i> {{ fol.label }}</span>
+                      <small>{{ fol.files.length }}</small>
+                    </button>
+                    @if (isFolderOpen(resourceTab, fol.path)) {
+                      <div class="npc-tree-skills">
+                        @for (f of fol.files; track f.id) {
+                          <button class="npc-tree-skill" [class.just-added]="justAddedId === f.id"
+                                  [title]="filePreview(f)" (click)="addResourceFromLibrary(resourceTab, f)">
+                            <span>＋ {{ f.name }}</span>
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            } @else { <p class="npc-empty">Keine Eintr&auml;ge dieser Art in der Bibliothek.</p> }
+          }
+
           @if (browseCategory === 'spells') {
             @if (spellFolders.length) {
               <div class="npc-scroll">

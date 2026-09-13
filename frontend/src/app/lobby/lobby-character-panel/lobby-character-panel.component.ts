@@ -109,6 +109,17 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
         <div class="token-portrait-placeholder">{{ (token.name || '?').charAt(0).toUpperCase() }}</div>
       }
       <span class="token-name">{{ tokenLabel(token) }}</span>
+      @if (npcRollable && npc) {
+        <label class="npc-level" title="Level — eine Änderung würfelt das NSC auf diesem Level neu">
+          <span>Lv</span>
+          <input class="npc-level-input" type="number" min="1" [value]="npc.level"
+                 (change)="onNpcLevelInput($event)" (keydown.enter)="$any($event.target).blur()" />
+        </label>
+        <button class="npc-reroll-btn" (click)="npcRoll.emit({})"
+                title="NSC neu würfeln — Werte, Ausrüstung und Beute">
+          <span class="app-icon i-sync"></span>
+        </button>
+      }
       <button class="deselect-btn" (click)="deselect.emit()" title="Auswahl aufheben">✕</button>
     </div>
 
@@ -870,6 +881,20 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       transition: background 0.15s, color 0.15s;
     }
     .deselect-btn:hover { background: #374151; color: #ef4444; }
+    .npc-level { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: #94a3b8; }
+    .npc-level-input {
+      width: 42px; padding: 2px 4px; text-align: center;
+      background: #0f172a; border: 1px solid #374151; border-radius: 4px;
+      color: #f1f5f9; font-size: 12px; font-weight: 700;
+    }
+    .npc-level-input:focus { outline: none; border-color: var(--accent, #8b5cf6); }
+    .npc-reroll-btn {
+      background: none; border: 1px solid #374151; color: #94a3b8; border-radius: 4px;
+      width: 24px; height: 24px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .npc-reroll-btn:hover { background: #374151; color: var(--accent, #8b5cf6); }
 
     /* ---- Resources ---- */
     .resources {
@@ -1580,7 +1605,11 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   @Input() isGM: boolean = false;
   @Input() canViewStats = true;
   @Input() allTokens: Token[] = [];
+  /** Show Level + Neu würfeln in the header (GM, library NSC). */
+  @Input() npcRollable = false;
 
+  /** Reroll the NSC; `level` set = the GM changed the level field. */
+  @Output() npcRoll = new EventEmitter<{ level?: number }>();
   @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
   @Output() deselect = new EventEmitter<void>();
   @Output() requestTokenDraw = new EventEmitter<string>(); // Emits tokenId
@@ -1827,6 +1856,14 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   /** Name samt Kennzeichnung ("Kultist 2") — sonst sehen alle gleichnamigen Token gleich aus. */
   tokenLabel = tokenLabel;
+
+  /** Level field in the header: a real change rerolls the NSC at that level. */
+  onNpcLevelInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const level = Math.max(1, Math.floor(Number(input.value)) || 1);
+    input.value = String(level);
+    if (level !== this.npc?.level) this.npcRoll.emit({ level });
+  }
 
   /** Die Beute des Tokens. Liegt am Token, nicht am geteilten Statblock — siehe `Token.inventory`. */
   get inventory(): ItemBlock[] {

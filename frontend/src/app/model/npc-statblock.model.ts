@@ -322,6 +322,11 @@ export interface NpcVariation {
   gear?: NpcGearTemplate;
   /** Min/max per equipment group — only read while the equipment list is in random mode. */
   equipmentGroups?: NpcEquipmentGroups;
+  /**
+   * Percent per level that every chance grows by above the soul's authored level (and shrinks by
+   * below it) — see `scaleChanceForLevel`. Unset = `DEFAULT_LEVEL_CHANCE`.
+   */
+  levelChance?: number;
 }
 
 function normalizeBounds(bounds: NpcRollBounds): void {

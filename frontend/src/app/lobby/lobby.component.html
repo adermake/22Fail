@@ -235,6 +235,8 @@
           [isGM]="isGM()"
           [canViewStats]="selectedPanelToken() ? canViewTokenStats(selectedPanelToken()!.characterId) : true"
           [allTokens]="enrichedTokens()"
+          [npcRollable]="selectedNpcRollable()"
+          (npcRoll)="onNpcRoll($event)"
           (tokenUpdate)="onTokenResourceChange($event)"
           (deselect)="selectedTokenId.set(null)"
           (requestTokenDraw)="onRequestTokenDraw($event)"

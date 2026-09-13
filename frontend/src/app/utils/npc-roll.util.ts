@@ -1,7 +1,7 @@
 import { ItemBlock } from '../model/item-block.model';
 import {
   NPC_STAT_KEYS, NpcEquipmentGroups, NpcGearSlotRoll, NpcGearTemplate, NpcRollBounds, NpcRollEntry,
-  NpcRollList, NpcSoul, NpcStatblock, NpcStatVariation,
+  NpcRollList, NpcSoul, NpcStatblock, NpcStatVariation, NpcVariation,
   distributeByRatio, effectiveNpcStats, normalizeNpcVariation, soulPointBudget,
 } from '../model/npc-statblock.model';
 import { getEquipSlot } from './equip-slot.utils';
@@ -38,6 +38,41 @@ export function rollInt(rng: Rng, a: number, b: number): number {
   const lo = Math.floor(Math.min(a, b));
   const hi = Math.floor(Math.max(a, b));
   return lo + Math.floor(rng() * (hi - lo + 1));
+}
+
+/** Default `variation.levelChance`: percent per level every chance grows by. */
+export const DEFAULT_LEVEL_CHANCE = 10;
+
+/**
+ * A chance at another level: `1 − (1 − c)^(1 + s·Δ)`, i.e. as if the entry were rolled `1 + s·Δ`
+ * times. At s = 10 %, ten levels up rolls everything "twice" (10 % → 19 %, 40 % → 64 %). 0 and 1
+ * never move, nothing passes 100 %, and lower levels shrink chances the same way — the exponent
+ * bottoms out at 0.1 so a very low level still keeps a sliver of every chance.
+ */
+export function scaleChanceForLevel(
+  chance: number, levelDelta: number, percentPerLevel = DEFAULT_LEVEL_CHANCE,
+): number {
+  const c = clamp01(chance);
+  if (c === 0 || c === 1 || !levelDelta) return c;
+  const exponent = Math.max(0.1, 1 + (Math.max(0, percentPerLevel) / 100) * levelDelta);
+  return 1 - Math.pow(1 - c, exponent);
+}
+
+/** Every chance (lists and generated slots) moved by `levelDelta`; the forge budget follows level × 2. */
+function scaleVariationForLevel(variation: NpcVariation, levelDelta: number): void {
+  if (!levelDelta) return;
+  const perLevel = variation.levelChance ?? DEFAULT_LEVEL_CHANCE;
+  for (const list of Object.values(variation.lists ?? {})) {
+    for (const entry of list?.entries ?? []) {
+      entry.chance = scaleChanceForLevel(entry.chance, levelDelta, perLevel);
+    }
+  }
+  for (const slot of variation.gear?.slots ?? []) {
+    slot.chance = scaleChanceForLevel(slot.chance, levelDelta, perLevel);
+  }
+  if (variation.gear) {
+    variation.gear.settings.budget = Math.max(1, variation.gear.settings.budget + 2 * levelDelta);
+  }
 }
 
 /** Index into `candidates`, weighted; all-zero weights fall back to uniform. */
@@ -95,17 +130,24 @@ function pickList<T>(items: readonly T[], list: NpcRollList | undefined, rng: Rn
  * level keeps the authored stats. Then `shuffle` single points hop between stats — the total never
  * changes and no stat drops below 1.
  */
-export function rollSoul(soul: NpcSoul, variation: NpcStatVariation | undefined, rng: Rng): NpcSoul {
+export function rollSoul(
+  soul: NpcSoul, variation: NpcStatVariation | undefined, rng: Rng, forcedLevel?: number,
+): NpcSoul {
   const out: NpcSoul = JSON.parse(JSON.stringify(soul));
-  if (!variation?.enabled) return out;
+  const enabled = !!variation?.enabled;
+  if (!enabled && forcedLevel === undefined) return out;
 
-  const level = Math.max(1, rollInt(rng, Math.max(1, variation.levelMin || 1), Math.max(1, variation.levelMax || 1)));
+  // A level the GM set in the lobby wins over the range.
+  const level = forcedLevel !== undefined
+    ? Math.max(1, Math.floor(forcedLevel) || 1)
+    : Math.max(1, rollInt(rng, Math.max(1, variation!.levelMin || 1), Math.max(1, variation!.levelMax || 1)));
   if (level !== soul.level) {
     out.level = level;
     out.stats = distributeByRatio(soulPointBudget(level), soul.locked ? soul.ratio : soul.stats);
   }
 
-  for (let n = 0; n < Math.max(0, Math.floor(variation.shuffle || 0)); n++) {
+  const shuffle = enabled ? Math.max(0, Math.floor(variation!.shuffle || 0)) : 0;
+  for (let n = 0; n < shuffle; n++) {
     const donors = NPC_STAT_KEYS.filter(k => out.stats[k] > 1);
     if (!donors.length) break;
     const from = donors[Math.floor(rng() * donors.length)]!;
@@ -300,16 +342,27 @@ export function applyDerivedNpcStats(sb: NpcStatblock, calc: NpcDerivedCalc): vo
  * One concrete NSC from a statblock. The result carries no `variation` — it is a snapshot, not a
  * template — and its flat stats are recomputed from the rolled soul.
  */
+export interface NpcRollOptions {
+  /** Level set by the GM in the lobby — wins over the stat variation's range. */
+  level?: number;
+}
+
 export function rollNpcInstance(
   statblock: NpcStatblock, ctx: NpcRollContext, seed: number, calc: NpcDerivedCalc,
+  options: NpcRollOptions = {},
 ): NpcStatblock {
   const out: NpcStatblock = JSON.parse(JSON.stringify(statblock));
   const variation = normalizeNpcVariation(out);
   const lists = variation.lists ?? {};
+  const authoredLevel = statblock.soul?.level ?? statblock.level ?? 1;
 
-  if (out.soul && variation.stats?.enabled) {
-    out.soul = rollSoul(out.soul, variation.stats, makeRng(seedFor(seed, 'stats')));
+  if (out.soul && (variation.stats?.enabled || options.level !== undefined)) {
+    out.soul = rollSoul(out.soul, variation.stats, makeRng(seedFor(seed, 'stats')), options.level);
+  } else if (!out.soul && options.level !== undefined) {
+    out.level = Math.max(1, Math.floor(options.level) || 1);
   }
+  // Level first, then the lists: a stronger NSC rolls with stronger chances.
+  scaleVariationForLevel(variation, (out.soul?.level ?? out.level ?? authoredLevel) - authoredLevel);
   out.customSkills = pickList(out.customSkills ?? [], lists.customSkills, makeRng(seedFor(seed, 'skills'))).map(p => p.item);
   out.spells = pickList(out.spells ?? [], lists.spells, makeRng(seedFor(seed, 'spells'))).map(p => p.item);
   out.equipment = rollEquipment(
