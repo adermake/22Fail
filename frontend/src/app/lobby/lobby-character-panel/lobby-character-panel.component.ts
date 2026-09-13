@@ -38,6 +38,9 @@ import { applyStability } from '../../utils/stability.util';
 import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { tokenLabel } from '../../utils/entry-preview.util';
+import { committedFokus } from '../../utils/spell-costs.util';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { LobbyTokenActionsService } from '../lobby-token-actions.service';
 import { formatCurrencyAsUnits, isEmptyCurrency } from '../../model/current-events.model';
 
 interface StatDisplay {
@@ -214,6 +217,18 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
           <span class="res-max">/ {{ maxEnergy }}</span>
         </div>
         <div class="res-bar-wrap"><div class="res-bar energy" [style.width.%]="energyPct()"></div></div>
+      }
+
+      @if (fokusMax > 0) {
+        <div class="res-row" title="Freier Fokus / Maximum — laufende Zauber binden Fokus">
+          <span class="res-icon"><span class="app-icon i-focus"></span></span>
+          <span class="res-label">Fokus</span>
+          <div class="res-controls">
+            <span class="res-fokus-val">{{ fokusAvailable }}</span>
+          </div>
+          <span class="res-max">/ {{ fokusMax }}</span>
+        </div>
+        <div class="res-bar-wrap"><div class="res-bar fokus" [style.width.%]="fokusPct()"></div></div>
       }
     </div>
 
@@ -644,9 +659,10 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
       <app-spellcast-window
         [sheet]="diceSheet"
         [defaultTab]="currentAbilityTab"
+        [initialSpellId]="pendingCastSpellId"
         (patch)="handleAbilitiesPatch($event)"
         (tabChange)="onAbilityTabChange($event)"
-        (close)="showAbilitiesOverlay.set(false)">
+        (close)="showAbilitiesOverlay.set(false); pendingCastSpellId = null">
       </app-spellcast-window>
     }
 
@@ -964,6 +980,10 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
     .psec-head:hover { color: #e2e8f0; border-color: #334155; }
     .psec-head.open { color: #c7d2fe; }
     .psec-caret { margin-left: auto; font-size: 10px; }
+
+    /* Fokus row: read-only (derived), so a value instead of the ± input */
+    .res-fokus-val { min-width: 40px; text-align: center; font-size: 13px; font-weight: 700; color: #e2e8f0; }
+    .res-bar.fokus { background: #a78bfa; }
 
     /* ---- Section headers ---- */
     .section-header {
@@ -1561,6 +1581,15 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   showDiceRoller = signal(false);
   showDamageRoller = signal(false);
   showAbilitiesOverlay = signal(false);
+  /** Spell picked in the abilities dock; the cast window opens straight on it. */
+  pendingCastSpellId: string | null = null;
+  private tokenActions = inject(LobbyTokenActionsService, { optional: true });
+  private castRequestSub = this.tokenActions?.castRequest.pipe(takeUntilDestroyed()).subscribe(spellId => {
+    this.currentAbilityTab = 'spells';
+    this.pendingCastSpellId = spellId;
+    this.showAbilitiesOverlay.set(true);
+    this.cdr.markForCheck();
+  });
   showLibraryPicker = signal(false);
   libraryPickerSearch = '';
   private libraryLoaded = false;
@@ -1628,6 +1657,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
         this._cachedNpcSheet.castingSpells = this.token?.castingSpells ?? [];
         this._cachedNpcSheet.skills = this.allSkills;
         this._cachedNpcSheet.spells = this.npc.spells ?? [];
+        this._cachedNpcSheet.statuses = this.npcStatuses();
       }
     }
   }
@@ -1879,6 +1909,18 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return this._cachedNpcSheet;
   }
 
+  /**
+   * The NPC token's Leben/Mana/Ausdauer as sheet statuses. Without them the cast window saw 0 Mana
+   * and refused every NPC spell; its Mana spend comes back through `handleAbilitiesPatch`.
+   */
+  private npcStatuses(): CharacterSheet['statuses'] {
+    return [
+      { formulaType: FormulaType.LIFE, statusBase: this.maxHealth, statusCurrent: this.currentHealth, statusBonus: 0, statusEffectBonus: 0, statusName: 'Leben', statusColor: 'red' },
+      { formulaType: FormulaType.MANA, statusBase: this.maxMana, statusCurrent: this.currentMana, statusBonus: 0, statusEffectBonus: 0, statusName: 'Mana', statusColor: 'blue' },
+      { formulaType: FormulaType.ENERGY, statusBase: this.maxEnergy, statusCurrent: this.currentEnergy, statusBonus: 0, statusEffectBonus: 0, statusName: 'Ausdauer', statusColor: 'green' },
+    ] as CharacterSheet['statuses'];
+  }
+
   private _buildNpcSheet(): CharacterSheet {
     const npc = this.npc!;
     const sheet = createEmptySheet();
@@ -1906,6 +1948,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     sheet.castingSpells = this.token?.castingSpells ?? [];
     sheet.fokusBonus = 0;
     sheet.fokusMultiplier = 1;
+    sheet.statuses = this.npcStatuses();
     return sheet;
   }
 
@@ -1957,6 +2000,22 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   healthPct(): number  { const m = this.maxHealth;  return m > 0 ? Math.max(0, Math.min(100, (this.currentHealth  / m) * 100)) : 0; }
   manaPct():   number  { const m = this.maxMana;    return m > 0 ? Math.max(0, Math.min(100, (this.currentMana    / m) * 100)) : 0; }
   energyPct(): number  { const m = this.maxEnergy;  return m > 0 ? Math.max(0, Math.min(100, (this.currentEnergy  / m) * 100)) : 0; }
+
+  // ---- Fokus (not a pool: running spells bind part of the maximum) ----
+
+  get fokusMax(): number {
+    const sheet = this.diceSheet;
+    return sheet ? this.trueStats.calculateFokusMax(sheet) : 0;
+  }
+
+  get fokusAvailable(): number {
+    const sheet = this.diceSheet;
+    if (!sheet) return 0;
+    const runes = (sheet.runes ?? []).filter((r): r is NonNullable<typeof r> => !!r);
+    return Math.max(0, this.fokusMax - committedFokus(sheet.spells ?? [], this.characterCastingSpells, runes));
+  }
+
+  fokusPct(): number { const m = this.fokusMax; return m > 0 ? Math.max(0, Math.min(100, (this.fokusAvailable / m) * 100)) : 0; }
 
   // ---- Resource editing ----
 
@@ -2064,6 +2123,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   openAbilitiesOverlay(): void {
+    this.pendingCastSpellId = null;
     const key = this.token?.id ?? 'no-token';
     this.currentAbilityTab = this.abilityTabMemory.get(key) ?? 'spells';
     this.showAbilitiesOverlay.set(true);
@@ -2102,6 +2162,12 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
         this.tokenUpdate.emit({ activeSkillNames: names, activeSkillEntries: updated });
       } else if (patch.path === 'castingSpells') {
         this.tokenUpdate.emit({ castingSpells: patch.value });
+      } else if (patch.path.startsWith('statuses.')) {
+        // The cast window spends Mana as `statuses.<i>.statusCurrent`; for an NPC that is a token field.
+        const status = this._cachedNpcSheet?.statuses?.[Number(patch.path.split('.')[1])];
+        if (status?.formulaType === FormulaType.MANA) this.tokenUpdate.emit({ currentMana: patch.value });
+        else if (status?.formulaType === FormulaType.ENERGY) this.tokenUpdate.emit({ currentEnergy: patch.value });
+        else if (status?.formulaType === FormulaType.LIFE) this.tokenUpdate.emit({ currentHealth: patch.value });
       }
       this.cdr.markForCheck();
     }

@@ -133,15 +133,6 @@
     </div>
   }
 
-  <!-- Status-Leiste: Status-Effekte des ausgewählten Tokens -->
-  @if (showLobbyPanels() && selectedPanelToken() && selectedPanelCanView()) {
-    <app-lobby-status-strip
-      class="lobby-status-strip"
-      [blinking]="statusBarBlinking()"
-      (dismissReminder)="statusBarBlinking.set(false)"
-    />
-  }
-
   <!-- Main content area -->
   <div class="lobby-main">
     <!-- Sidebar: GM-only (characters/images/textures/layers are all GM tooling). The dice
@@ -234,6 +225,15 @@
         (extractSoul)="onExtractSoul($event)"
         (linkedTokenDrop)="onLinkedTokenDrop($event)"
         />
+
+        <!-- Status-Leiste schwebt über der Karte: sie verschiebt weder Karte noch Seitenpanels. -->
+        @if (showLobbyPanels() && selectedPanelToken() && selectedPanelCanView()) {
+          <app-lobby-status-strip
+            class="lobby-status-strip"
+            [blinking]="statusBarBlinking()"
+            (dismissReminder)="statusBarBlinking.set(false)"
+          />
+        }
       </div>
 
       @if (showLobbyPanels()) {

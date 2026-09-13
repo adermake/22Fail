@@ -80,6 +80,19 @@
 .lad-card--skill[data-action="Keine Aktion"] { background: rgba(156,163,175,0.05); border-color: rgba(156,163,175,0.26); }
 .lad-card--skill:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
 .lad-card.active { box-shadow: 0 0 0 2px rgba(34,197,94,0.55); }
+.lad-card:disabled {
+  opacity: 0.38;
+  filter: grayscale(0.8);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.lad-res {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  font-size: 0.72rem; font-weight: 600; color: var(--text-muted, #9ca3af);
+}
+.lad-res .app-icon { margin-left: 6px; }
 
 .lad-card-top { display: flex; align-items: center; gap: 5px; }
 .lad-badge {

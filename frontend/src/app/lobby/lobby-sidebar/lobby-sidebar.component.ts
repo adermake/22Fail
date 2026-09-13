@@ -18,6 +18,15 @@ import { LobbyLayerPanelComponent } from '../lobby-layer-panel/lobby-layer-panel
 
 type SidebarTab = 'characters' | 'images' | 'textures' | 'layers';
 
+/** A library NPC statblock; `path` is its file path in the library (folders come from it). */
+type NpcEntry = { id: string; name: string; path?: string; statblock: NpcStatblock };
+
+/** Folder of a library file path, like the NPC editor's browser ("/" = root). */
+function folderOf(path: string | undefined): string {
+  const i = (path || '').lastIndexOf('/');
+  return i <= 0 ? '/' : path!.slice(0, i);
+}
+
 @Component({
   selector: 'app-lobby-sidebar',
   standalone: true,
@@ -34,7 +43,7 @@ export class LobbySidebarComponent {
   @Input() textures: LibraryTexture[] = [];
   @Input() isGM = false;
   @Input() selectedTextureId: string | null = null;
-  @Input() npcStatblocks: { id: string; name: string; statblock: NpcStatblock }[] = [];
+  @Input() npcStatblocks: NpcEntry[] = [];
   @Input() layers: Layer[] = [];
   @Input() activeLayerId: string | null = null;
   @Input() rolls: DiceRollEvent[] = [];
@@ -128,13 +137,45 @@ export class LobbySidebarComponent {
     );
   }
 
-  get filteredNpcs() {
+  get filteredNpcs(): NpcEntry[] {
     const query = this.searchQuery().toLowerCase();
     if (!query) return this.npcStatblocks;
     return this.npcStatblocks.filter(n =>
       n.name.toLowerCase().includes(query) ||
-      (n.statblock.raceName ?? '').toLowerCase().includes(query)
+      (n.statblock.raceName ?? '').toLowerCase().includes(query) ||
+      (n.path ?? '').toLowerCase().includes(query)
     );
+  }
+
+  /** Opened NPC folders (collapsed by default — with 100+ NPCs a flat list is unusable). */
+  openNpcFolders = signal<Set<string>>(new Set());
+
+  /** NPCs grouped by library folder, sorted like the NPC editor's browser. */
+  get npcFolders(): { path: string; label: string; npcs: NpcEntry[] }[] {
+    const groups = new Map<string, NpcEntry[]>();
+    for (const npc of this.filteredNpcs) {
+      const dir = folderOf(npc.path);
+      (groups.get(dir) ?? groups.set(dir, []).get(dir)!).push(npc);
+    }
+    return [...groups.entries()]
+      .map(([path, npcs]) => ({
+        path,
+        label: path === '/' ? 'Wurzel' : path.replace(/^\//, ''),
+        npcs: npcs.sort((a, b) => a.name.localeCompare(b.name, 'de')),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  }
+
+  /** While searching every folder with hits is open; a single folder is always open. */
+  isNpcFolderOpen(path: string, folderCount: number): boolean {
+    return !!this.searchQuery() || folderCount === 1 || this.openNpcFolders().has(path);
+  }
+
+  toggleNpcFolder(path: string): void {
+    const next = new Set(this.openNpcFolders());
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    this.openNpcFolders.set(next);
   }
 
   // Image methods

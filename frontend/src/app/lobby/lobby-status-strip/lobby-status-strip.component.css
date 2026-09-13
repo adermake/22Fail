@@ -1,4 +1,6 @@
-:host { display: block; }
+/* The host floats over the map with pointer-events off (so the map stays usable beside the
+   strip); everything the strip actually renders takes clicks again. */
+:host > * { pointer-events: auto; }
 
 /* ── Strip ─────────────────────────────────────────────────────────────── */
 .lss {
@@ -6,9 +8,12 @@
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  padding: 4px 12px;
-  background: #0f172a;
-  border-bottom: 1px solid var(--border, #2d3748);
+  max-width: 100%;
+  padding: 2px 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .lss.lss-blink { animation: lss-blink 0.8s ease-in-out infinite; cursor: pointer; }
 @keyframes lss-blink {

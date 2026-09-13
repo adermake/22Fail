@@ -566,6 +566,13 @@ lobby-container
   +-- lobby-abilities-dock       (unten, einklappbar, max 34vh) – aktivierbare Fähigkeiten & Zauber als Karten
 `
 - Token model: `activeSkillEntries`, `castingSpells` (NSC; Charaktere nutzen den Bogen)
+- Status-Leiste liegt absolut über der Karte (in `lobby-grid-wrapper`), Aktiv-Spalte = 280px wie die Sidebar → kein Springen.
+- Dock: Fähigkeit aktivieren zieht die Kosten ab; Zauber öffnet das Zauberwirken-Fenster auf dem Zauber
+  (`castRequest` → Panel → `spellcast-window [initialSpellId]`). Nicht bezahlbares ist ausgegraut
+  (`canAffordSkill`/`canAffordSpell`). Zauberkosten + gebundener Fokus: `utils/spell-costs.util.ts` (auch vom Zauberfenster genutzt).
+- Panel zeigt Fokus unter Energie: frei = `calculateFokusMax` − gebundener Fokus laufender Zauber.
+- NSC-Cast-Sheet trägt Leben/Mana/Ausdauer als statuses; Mana-Abzug des Zauberfensters → `token.currentMana`.
+- Sidebar-NSCs: nach Bibliotheksordner gruppiert (Pfad aus `searchFiles`), Suche öffnet Ordner mit Treffern.
 
 ### Kein Flash-Problem
 - lobby-character-panel ist IMMER 300px breit, egal ob Token ausgew�hlt.

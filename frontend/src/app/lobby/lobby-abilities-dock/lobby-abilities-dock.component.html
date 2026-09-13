@@ -15,6 +15,11 @@
         </button>
       </div>
       <input class="lad-search" type="text" placeholder="Suchen…" [(ngModel)]="query" (click)="$event.stopPropagation()">
+      <span class="lad-res" title="Verfügbar: Mana · Ausdauer · freier Fokus">
+        <span class="app-icon i-mana"></span> {{ svc.currentResource('mana') }}
+        <span class="app-icon i-energy"></span> {{ svc.currentResource('energy') }}
+        <span class="app-icon i-focus"></span> {{ svc.fokusAvailable }}
+      </span>
     }
 
     @if (svc.token; as tok) {
@@ -31,13 +36,16 @@
       } @else if (!skills.length && !spells.length) {
         <div class="lad-empty">{{ query ? 'Nichts gefunden.' : 'Keine aktivierbaren Fähigkeiten oder Zauber.' }}</div>
       } @else {
+        @let fokusFree = svc.fokusAvailable;
         <div class="lad-grid">
           @for (skill of skills; track $index) {
             @let action = svc.effectiveActionType(skill);
+            @let affordable = svc.canAffordSkill(skill);
             <button type="button" class="lad-card lad-card--skill"
                     [class.active]="svc.isSkillActive(skill)"
                     [attr.data-action]="action || 'Aktion'"
-                    [title]="skill.description || skill.name"
+                    [disabled]="!affordable"
+                    [title]="affordable ? (skill.description || skill.name) : 'Nicht genug ' + (svc.skillCostLabel(skill) || 'Ressourcen')"
                     (click)="svc.activateSkill(skill)">
               <span class="lad-card-top">
                 <span class="lad-badge">{{ action || 'Fähigkeit' }}</span>
@@ -49,11 +57,13 @@
             </button>
           }
           @for (spell of spells; track $index) {
+            @let affordable = svc.canAffordSpell(spell, fokusFree);
             <button type="button" class="lad-card lad-card--spell"
                     [class.active]="svc.isSpellActive(spell)"
                     [style.--sc]="svc.spellColor(spell)"
-                    [title]="spell.description || spell.name"
-                    (click)="svc.activateSpell(spell)">
+                    [disabled]="!affordable"
+                    [title]="affordable ? (spell.description || spell.name) : 'Nicht genug Mana oder Fokus'"
+                    (click)="svc.requestCast(spell)">
               <span class="lad-card-top">
                 <span class="lad-badge">Zauber</span>
                 @if (spell.icon) { <span class="lad-icon">{{ spell.icon }}</span> }
@@ -61,7 +71,7 @@
               </span>
               <span class="lad-name">{{ spell.name }}</span>
               @if (spell.description) { <span class="lad-desc">{{ spell.description }}</span> }
-              @if (svc.spellCostLabel(spell); as cost) { <span class="lad-cost">{{ cost }}</span> }
+              @if (svc.spellCostSummary(spell); as cost) { <span class="lad-cost">{{ cost }}</span> }
             </button>
           }
         </div>

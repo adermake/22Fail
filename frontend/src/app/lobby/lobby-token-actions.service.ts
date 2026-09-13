@@ -24,6 +24,9 @@ import { isItemEquipped } from '../utils/equip-slot.utils';
 import { ItemBlock } from '../model/item-block.model';
 import { applyStacking } from '../utils/status-stacking.utils';
 import { lockBodyScroll, unlockBodyScroll } from '../utils/scroll-lock.util';
+import { StatBlock } from '../model/stat-block.model';
+import { RuneBlock } from '../model/rune-block.model';
+import { committedFokus, spellFokusCost, spellManaCost } from '../utils/spell-costs.util';
 
 /** Stack cap for statuses created by giveStatus(...) — effectively "always stackable". */
 const GIVEN_STATUS_MAX_STACKS = 99;
@@ -61,6 +64,8 @@ export class LobbyTokenActionsService implements OnDestroy {
   readonly tick = signal(0);
   readonly tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
   readonly sheetPatched = new EventEmitter<{ characterId: string; patch: any }>();
+  /** A spell was picked to cast (id, or name when it has none) — the character panel opens the cast window. */
+  readonly castRequest = new EventEmitter<string>();
 
   // ── Status effect state ───────────────────────────────────────────────────
   resolvedEffects = new Map<string, StatusEffect>();
@@ -1290,7 +1295,10 @@ export class LobbyTokenActionsService implements OnDestroy {
     return this.castingSpells.some(e => e.spellId === spell.id);
   }
 
+  /** Activating pays the skill's cost once; a per-round skill pays later rounds via „Zahlen". */
   activateSkill(skill: SkillBlock): void {
+    if (!this.canAffordSkill(skill)) return;
+    const cost = this.effectiveCost(skill);
     const entryId = `skill-${skill.skillId ?? skill.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const entry: ActiveSkillEntry = {
       entryId,
@@ -1300,38 +1308,104 @@ export class LobbyTokenActionsService implements OnDestroy {
       counters: (skill.counters ?? []).map(c => ({ ...c })),
     };
     this._patchSkillEntries([...this.activeSkillEntries, entry]);
+    if (cost?.amount) this.payCost(cost.type, cost.amount);
     this.charSocket.notifyLocalUpdate();
   }
 
-  /** Same as the Schnellzauber in the old panel: the cast is instant and Mana is paid up front. */
-  activateSpell(spell: SpellBlock): void {
-    const entryId = `${spell.id ?? 'spell'}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const entry: CastingSpellEntry = {
-      spellId: spell.id ?? entryId,
-      spellName: spell.name,
-      castLevel: 0,
-      entryId,
-      remainingCast: 0,
-      roundsActive: 0,
-    };
-    const updated = [...this.castingSpells, entry];
+  /**
+   * Spells go through the cast window (cast level, Skalierung, Mana and Fokus are decided there), so
+   * the dock only asks for it to open on this spell.
+   */
+  requestCast(spell: SpellBlock): void {
+    if (!this.canAffordSpell(spell)) return;
+    this.castRequest.emit(spell.id || spell.name);
+  }
 
+  // ── Resources & costs ─────────────────────────────────────────────────────
+
+  private get learnedRunes(): RuneBlock[] {
+    return (this.character?.runes ?? []).filter((r): r is RuneBlock => !!r);
+  }
+
+  /** Current Mana / Ausdauer / Leben; an NPC token without an override is at its maximum. */
+  currentResource(kind: string): number {
     if (this.character) {
-      const manaCost = spell.costMana ?? 0;
-      if (manaCost > 0) {
-        const statuses = [...(this.character.statuses || [])];
-        const manaIdx = statuses.findIndex(s => s.formulaType === FormulaType.MANA);
-        if (manaIdx >= 0) {
-          const newVal = Math.max(0, (statuses[manaIdx].statusCurrent || 0) - manaCost);
-          statuses[manaIdx] = { ...statuses[manaIdx], statusCurrent: newVal };
-          this.character.statuses = statuses;
-          const charId = this.characterId;
-          if (charId) this.charSocket.sendPatch(charId, { path: 'statuses', value: statuses });
-        }
-      }
+      const ft = kind === 'mana' ? FormulaType.MANA : kind === 'energy' ? FormulaType.ENERGY : FormulaType.LIFE;
+      return this.character.statuses?.find(s => s.formulaType === ft)?.statusCurrent ?? 0;
     }
-    this._patchCasting(updated);
-    this.charSocket.notifyLocalUpdate();
+    if (kind === 'mana') return this.token?.currentMana ?? this.npc?.maxMana ?? 0;
+    if (kind === 'energy') return this.token?.currentEnergy ?? this.npc?.maxEnergy ?? 0;
+    return this.token?.currentHealth ?? this.npc?.maxHealth ?? 0;
+  }
+
+  get fokusMax(): number {
+    if (this.character) return this.trueStats.calculateFokusMax(this.character);
+    if (!this.npc) return 0;
+    // Same rule as players, from the NPC's Intelligenz (the panel builds its cast sheet the same way).
+    const sheet = createEmptySheet();
+    const intelligence = new StatBlock('Intelligenz', this.npc.intelligence);
+    intelligence.current = this.npc.intelligence;
+    sheet.intelligence = intelligence;
+    sheet.fokusBonus = 0;
+    sheet.fokusMultiplier = 1;
+    return this.trueStats.calculateFokusMax(sheet);
+  }
+
+  /** Fokus not bound by running spells. */
+  get fokusAvailable(): number {
+    return Math.max(0, this.fokusMax - committedFokus(this.availableSpells, this.castingSpells, this.learnedRunes));
+  }
+
+  canAffordSkill(skill: SkillBlock): boolean {
+    const cost = this.effectiveCost(skill);
+    if (!cost?.amount || !['mana', 'energy', 'life'].includes(cost.type)) return true;
+    return this.currentResource(cost.type) >= cost.amount;
+  }
+
+  /** Castable right now at the lowest cast level? Pass `fokusFree` when checking many spells at once. */
+  canAffordSpell(spell: SpellBlock, fokusFree = this.fokusAvailable): boolean {
+    return this.currentResource('mana') >= spellManaCost(spell, this.learnedRunes)
+      && fokusFree >= spellFokusCost(spell, this.learnedRunes);
+  }
+
+  spellCostSummary(spell: SpellBlock): string {
+    const mana = spellManaCost(spell, this.learnedRunes);
+    const fokus = spellFokusCost(spell, this.learnedRunes);
+    const parts: string[] = [];
+    if (mana > 0) parts.push(`${mana} MP`);
+    if (fokus > 0) parts.push(`${fokus} Fokus`);
+    return parts.join(' · ');
+  }
+
+  /** Spend Mana / Ausdauer / Leben from the character or the NPC token. */
+  private payCost(type: string, amount: number): void {
+    if (!amount) return;
+    if (this.character) {
+      const formulaMap: Record<string, FormulaType> = {
+        mana: FormulaType.MANA, energy: FormulaType.ENERGY, life: FormulaType.LIFE,
+      };
+      const targetType = formulaMap[type];
+      if (!targetType) return;
+      const statuses = [...(this.character.statuses || [])];
+      const idx = statuses.findIndex(s => s.formulaType === targetType);
+      if (idx < 0) return;
+      const newVal = Math.max(0, (statuses[idx].statusCurrent || 0) - amount);
+      statuses[idx] = { ...statuses[idx], statusCurrent: newVal };
+      this.character.statuses = statuses;
+      const charId = this.characterId;
+      if (charId) {
+        const patch = { path: 'statuses', value: statuses };
+        this.sheetPatched.emit({ characterId: charId, patch });
+        this.charSocket.sendPatch(charId, patch);
+      }
+    } else if (type === 'mana') {
+      this.tokenUpdate.emit({ currentMana: Math.max(0, this.currentResource('mana') - amount) });
+    } else if (type === 'energy') {
+      this.tokenUpdate.emit({ currentEnergy: Math.max(0, this.currentResource('energy') - amount) });
+    } else if (type === 'life') {
+      this.tokenUpdate.emit({ currentHealth: this.currentResource('life') - amount });
+    }
+    this.bump();
   }
 
   // ── Skill actions ─────────────────────────────────────────────────────────
@@ -1355,34 +1429,7 @@ export class LobbyTokenActionsService implements OnDestroy {
   paySkillRoundCost(skill: SkillBlock): void {
     const cost = this.effectiveCost(skill);
     if (!cost?.perRound || !cost.amount) return;
-
-    if (this.character) {
-      const formulaMap: Record<string, FormulaType> = {
-        mana: FormulaType.MANA, energy: FormulaType.ENERGY, life: FormulaType.LIFE,
-      };
-      const targetType = formulaMap[cost.type];
-      if (!targetType) return;
-      const statuses = [...(this.character.statuses || [])];
-      const idx = statuses.findIndex(s => s.formulaType === targetType);
-      if (idx < 0) return;
-      const newVal = Math.max(0, (statuses[idx].statusCurrent || 0) - cost.amount);
-      statuses[idx] = { ...statuses[idx], statusCurrent: newVal };
-      this.character.statuses = statuses;
-      const charId = this.characterId;
-      if (charId) this.charSocket.sendPatch(charId, { path: 'statuses', value: statuses });
-    } else {
-      if (cost.type === 'mana') {
-        const cur = this.token?.currentMana ?? this.npc?.maxMana ?? 0;
-        this.tokenUpdate.emit({ currentMana: Math.max(0, cur - cost.amount) });
-      } else if (cost.type === 'energy') {
-        const cur = this.token?.currentEnergy ?? this.npc?.maxEnergy ?? 0;
-        this.tokenUpdate.emit({ currentEnergy: Math.max(0, cur - cost.amount) });
-      } else {
-        const cur = this.token?.currentHealth ?? this.npc?.maxHealth ?? 0;
-        this.tokenUpdate.emit({ currentHealth: cur - cost.amount });
-      }
-    }
-    this.bump();
+    this.payCost(cost.type, cost.amount);
   }
 
   private _patchSkillEntries(updated: ActiveSkillEntry[]): void {

@@ -111,29 +111,42 @@
       } @else {
       <!-- NSC Statblocks -->
       <div class="character-list">
-        @for (npc of filteredNpcs; track npc.id) {
-          <div
-            class="character-item npc-item"
-            draggable="true"
-            (dragstart)="onNpcDragStart($event, npc)"
-          >
-            <div class="char-portrait">
-              @if (npc.statblock.defaultPortrait) {
-                <img [src]="npc.statblock.defaultPortrait | imageUrl" alt="" />
-              } @else {
-                <div class="char-placeholder npc-icon">👾</div>
+        @let folders = npcFolders;
+        @for (folder of folders; track folder.path) {
+          <button type="button" class="npc-folder-head" (click)="toggleNpcFolder(folder.path)">
+            <span class="npc-folder-caret">{{ isNpcFolderOpen(folder.path, folders.length) ? '▾' : '▸' }}</span>
+            <span class="app-icon i-folder"></span>
+            <span class="npc-folder-label">{{ folder.label }}</span>
+            <span class="npc-folder-count">{{ folder.npcs.length }}</span>
+          </button>
+          @if (isNpcFolderOpen(folder.path, folders.length)) {
+            <div class="npc-folder-items">
+              @for (npc of folder.npcs; track npc.id) {
+                <div
+                  class="character-item npc-item"
+                  draggable="true"
+                  (dragstart)="onNpcDragStart($event, npc)"
+                >
+                  <div class="char-portrait">
+                    @if (npc.statblock.defaultPortrait) {
+                      <img [src]="npc.statblock.defaultPortrait | imageUrl" alt="" />
+                    } @else {
+                      <div class="char-placeholder npc-icon"><span class="app-icon i-character"></span></div>
+                    }
+                  </div>
+                  <div class="char-info">
+                    <div class="char-name">{{ npc.name }}</div>
+                    <div class="char-meta">
+                      <span>Lv.{{ npc.statblock.level }}</span>
+                      @if (npc.statblock.raceName) {
+                        <span>· {{ npc.statblock.raceName }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
               }
             </div>
-            <div class="char-info">
-              <div class="char-name">{{ npc.name }}</div>
-              <div class="char-meta">
-                <span>Lv.{{ npc.statblock.level }}</span>
-                @if (npc.statblock.raceName) {
-                  <span>· {{ npc.statblock.raceName }}</span>
-                }
-              </div>
-            </div>
-          </div>
+          }
         }
 
         @if (filteredNpcs.length === 0) {

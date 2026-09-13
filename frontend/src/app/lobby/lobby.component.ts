@@ -147,7 +147,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // World state
   worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
-  npcStatblocks = signal<{ id: string; name: string; statblock: NpcStatblock }[]>([]);
+  npcStatblocks = signal<{ id: string; name: string; path?: string; statblock: NpcStatblock }[]>([]);
 
   // Soul extraction (GM): target NPC statblock + chosen player + the level it is captured at
   // (the level IS the quality — a good roll buys a higher one, and with it a bigger point budget)
@@ -773,13 +773,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const linkedLibraries = this.worldStore.worldValue?.linkedLibraries ?? [];
     if (linkedLibraries.length === 0) return;
 
-    const statblocks: { id: string; name: string; statblock: NpcStatblock }[] = [];
+    const statblocks: { id: string; name: string; path?: string; statblock: NpcStatblock }[] = [];
     for (const libraryId of linkedLibraries) {
       try {
         const files = await this.assetBrowserApi.searchFiles(libraryId, '', ['statblock']).toPromise();
         if (files) {
           for (const file of files) {
-            statblocks.push({ id: file.id, name: file.name, statblock: file.data as NpcStatblock });
+            statblocks.push({ id: file.id, name: file.name, path: file.path, statblock: file.data as NpcStatblock });
           }
         }
       } catch (e) {

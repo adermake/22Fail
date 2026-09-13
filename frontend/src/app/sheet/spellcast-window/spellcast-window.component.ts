@@ -14,7 +14,7 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
-import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-calculator';
+import { spellBaseCosts } from '../../utils/spell-costs.util';
 import {
   castFactorPercent,
   castLevelForStatRequirement,
@@ -100,6 +100,8 @@ const RUNE_SYMBOLS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ
 export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input() defaultTab: 'spells' | 'skills' = 'spells';
+  /** Open straight into the cast dialog of this spell (id or name) — e.g. picked in the lobby dock. */
+  @Input() initialSpellId: string | null = null;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() tabChange = new EventEmitter<'spells' | 'skills'>();
   @Output() close = new EventEmitter<void>();
@@ -321,21 +323,8 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   /** Resolve stored or graph-derived base values for a spell */
   private spellBaseValues(spell: SpellBlock): { mana: number; fokus: number; effektivitaet: number; haltbarkeit: number } {
-    let mana = spell.costMana ?? 0;
-    let fokus = spell.perTurnFokus ?? spell.costFokus ?? 0;
-    let effektivitaet = 0;
-    if (spell.graph) {
-      const est = calculateSpellCost(spell.graph, this.learnedRunes());
-      if (mana <= 0) mana = est.mana;
-      if (fokus <= 0) fokus = est.fokus;
-      effektivitaet = est.effektivitaet;
-    }
-    return {
-      mana,
-      fokus,
-      effektivitaet,
-      haltbarkeit: spell.durationTurns ?? 0,
-    };
+    // Shared with the lobby dock and Fokus readout (utils/spell-costs.util) so they cannot disagree.
+    return { ...spellBaseCosts(spell, this.learnedRunes()), haltbarkeit: spell.durationTurns ?? 0 };
   }
 
   /** Mana: base × 100/(Cast+100) × skalierung */
@@ -816,6 +805,16 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     document.documentElement.style.overflow = 'hidden';
     this.leftTab = this.defaultTab;
     this._generateAmbientRunes();
+    this.openInitialSpell();
+  }
+
+  /** Jump into the cast dialog of `initialSpellId`, if it names one of this sheet's spells. */
+  private openInitialSpell(): void {
+    if (!this.initialSpellId) return;
+    const spell = this.availableSpells.find(s => s.id === this.initialSpellId || s.name === this.initialSpellId);
+    if (!spell) return;
+    this.leftTab = 'spells';
+    this.requestCast(spell);
   }
 
   ngOnDestroy(): void {
@@ -823,7 +822,12 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     document.documentElement.style.overflow = '';
   }
 
-  ngOnChanges(_: SimpleChanges): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Another spell picked outside (lobby dock) while the window is already open.
+    const pick = changes['initialSpellId'];
+    if (pick && !pick.firstChange && this.initialSpellId) {
+      this.openInitialSpell();
+    }
     if (this.pendingCastSpell) {
       this.recalcCastPreview();
     }
