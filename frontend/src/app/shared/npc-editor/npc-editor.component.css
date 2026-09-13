@@ -239,6 +239,7 @@
 /* Chance strip on top of a card; leaves room for the absolutely positioned edit/delete buttons. */
 .npc-roll-strip { display: block; padding-right: 60px; margin-bottom: 4px; border-bottom: 1px dashed var(--border, #4a5568); }
 .npc-roll-strip-full { padding-right: 0; }
+.npc-group-bounds { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--border, #4a5568); border-radius: 8px; background: var(--bg, #1e293b); }
 .npc-var { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--border, #4a5568); padding-top: 8px; }
 .npc-var-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.76rem; color: var(--text-muted, #9ca3af); }
 .npc-var-row label { display: inline-flex; align-items: center; gap: 5px; }

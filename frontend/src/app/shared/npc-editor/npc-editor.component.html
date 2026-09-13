@@ -278,7 +278,18 @@
                 <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
               </span>
             </div>
-            <app-npc-roll-bar [list]="rollList('equipment')" />
+            <app-npc-roll-bar [list]="rollList('equipment')" [showBounds]="false" />
+
+            @if (isRandom('equipment')) {
+              <div class="npc-group-bounds">
+                <app-npc-roll-bounds label="Rüstung" [bounds]="equipmentGroups.armor" [expected]="groupExpected('armor')" />
+                <app-npc-roll-bounds label="Waffen" [bounds]="equipmentGroups.weapons" [expected]="groupExpected('weapon')" />
+                <p class="npc-hint">
+                  Z&auml;hlt handverlesene und generierte Teile zusammen, pro R&uuml;stungsslot h&ouml;chstens eins.
+                  Sonstige Gegenst&auml;nde nur nach Chance.
+                </p>
+              </div>
+            }
 
             @if (isRandom('equipment')) {
               <div class="npc-gen-card">

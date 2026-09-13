@@ -1,6 +1,7 @@
 import { ItemBlock } from '../model/item-block.model';
 import {
-  NPC_STAT_KEYS, NpcGearTemplate, NpcRollEntry, NpcRollList, NpcSoul, NpcStatblock, NpcStatVariation,
+  NPC_STAT_KEYS, NpcEquipmentGroups, NpcGearSlotRoll, NpcGearTemplate, NpcRollBounds, NpcRollEntry,
+  NpcRollList, NpcSoul, NpcStatblock, NpcStatVariation,
   distributeByRatio, effectiveNpcStats, normalizeNpcVariation, soulPointBudget,
 } from '../model/npc-statblock.model';
 import { getEquipSlot } from './equip-slot.utils';
@@ -13,9 +14,9 @@ import { canMerge, mergeStacks } from './item-stack.util';
  * NSC-Variation: turns a statblock into one concrete token.
  *
  * A statblock is a template: every list can be „Fest" (taken as is) or „Zufällig" (each entry rolled
- * against its chance, then clamped to the list's min/max). Stats can roll a level and shuffle a few
- * points. Everything here is pure and seeded — the lobby picks a random seed per spawn, the specs
- * pick fixed ones.
+ * against its chance, then clamped to min/max). Stats can roll a level and shuffle a few points.
+ * Everything here is pure and seeded — the lobby picks a random seed per spawn, the specs pick
+ * fixed ones.
  */
 
 export type Rng = () => number;
@@ -52,21 +53,24 @@ function weightedIndex(rng: Rng, candidates: readonly number[], weight: (i: numb
   return candidates.length - 1;
 }
 
+function boundsOf(bounds: NpcRollBounds | undefined): { min: number; max: number } {
+  const max = bounds?.max === undefined ? Infinity : Math.max(0, bounds.max);
+  return { min: Math.min(Math.max(0, bounds?.min || 0), max), max };
+}
+
 /**
  * Which entries make it. Each rolls independently against its chance; too many and the least
  * likely are dropped first, too few and the most likely of the rest are added. A chance of 0 means
  * never — a min cannot force it in.
  */
 export function rollSubset(
-  entries: readonly NpcRollEntry[], bounds: { min: number; max?: number }, rng: Rng,
+  entries: readonly NpcRollEntry[], bounds: NpcRollBounds, rng: Rng,
 ): number[] {
   const picked: number[] = [];
   const rest: number[] = [];
   entries.forEach((e, i) => (rng() < clamp01(e.chance) ? picked : rest).push(i));
 
-  const max = bounds.max === undefined ? Infinity : Math.max(0, bounds.max);
-  const min = Math.min(Math.max(0, bounds.min || 0), max);
-
+  const { min, max } = boundsOf(bounds);
   while (picked.length > max) {
     picked.splice(weightedIndex(rng, picked, i => 1 - clamp01(entries[i]!.chance)), 1);
   }
@@ -113,50 +117,128 @@ export function rollSoul(soul: NpcSoul, variation: NpcStatVariation | undefined,
   return out;
 }
 
+// ─── Equipment ──────────────────────────────────────────────────────────────
+
 const ARMOR_SLOTS = new Set<string>(['helmet', 'chestplate', 'armschienen', 'leggings', 'boots']);
 
-/**
- * Hand-picked items rolled like any list, plus auto-forged slots rolled against their own chance.
- * One body wears one helmet: when several pieces land in the same armour slot, one is kept at random.
- * Weapons may stack.
- */
-export function rollEquipment(
-  items: readonly ItemBlock[], list: NpcRollList | undefined, gear: NpcGearTemplate | undefined,
-  ctx: NpcRollContext, seed: number,
-): ItemBlock[] {
-  const rng = makeRng(seedFor(seed, 'equipment'));
-  const out = pickList(items, list, rng).map(p => p.item);
-  if (list?.mode !== 'random') return out;
+export type EquipmentKind = 'armor' | 'weapon' | 'other';
 
-  if (gear?.slots?.length) {
-    const forgeCtx: GearGenContext = { ...ctx, settings: { ...gear.settings, seed: seedFor(seed, 'forge') } };
-    for (const slot of gear.slots) {
-      if (!(rng() < clamp01(slot.chance))) continue;
-      const piece = slot.armorSlot
-        ? generateArmorPiece(forgeCtx, slot.armorSlot, 'armor:' + slot.key)
-        : slot.weaponTypeName
-          ? generateWeapons(forgeCtx, [{
-              id: slot.key, weaponTypeName: slot.weaponTypeName, statRequirementKey: slot.statRequirementKey,
-            }])[0] ?? null
-          : null;
-      if (piece) out.push(piece.item);
-    }
-  }
+/** Which min/max group an equipment item counts toward. */
+export function equipmentKind(item: ItemBlock): EquipmentKind {
+  if (item.itemType === 'weapon') return 'weapon';
+  return ARMOR_SLOTS.has(getEquipSlot(item)) ? 'armor' : 'other';
+}
 
+/** One thing that may end up worn: a hand-picked item, or a slot still to be forged. */
+interface EquipCandidate {
+  chance: number;
+  kind: EquipmentKind;
+  /** Armour slot — two candidates with the same slot are never both kept. */
+  slot?: string;
+  item?: ItemBlock;
+  gearSlot?: NpcGearSlotRoll;
+}
+
+/** One body wears one helmet: among picked candidates sharing a slot, keep one at random. */
+function dropSlotConflicts(candidates: readonly EquipCandidate[], picked: Set<number>, rng: Rng): void {
   const bySlot = new Map<string, number[]>();
-  out.forEach((item, i) => {
-    const slot = getEquipSlot(item);
-    if (!ARMOR_SLOTS.has(slot)) return;
+  for (const i of [...picked].sort((a, b) => a - b)) {
+    const slot = candidates[i]!.slot;
+    if (!slot) continue;
     (bySlot.get(slot) ?? bySlot.set(slot, []).get(slot)!).push(i);
-  });
-  const dropped = new Set<number>();
+  }
   for (const indices of bySlot.values()) {
     if (indices.length < 2) continue;
     const keep = indices[Math.floor(rng() * indices.length)];
-    for (const i of indices) if (i !== keep) dropped.add(i);
+    for (const i of indices) if (i !== keep) picked.delete(i);
   }
-  return out.filter((_, i) => !dropped.has(i));
 }
+
+/** `rollSubset`'s clamp, restricted to one group — and a min fill never doubles up an armour slot. */
+function clampGroup(
+  candidates: readonly EquipCandidate[], picked: Set<number>, kind: EquipmentKind,
+  bounds: NpcRollBounds | undefined, rng: Rng,
+): void {
+  const { min, max } = boundsOf(bounds);
+  const current = [...picked].filter(i => candidates[i]!.kind === kind).sort((a, b) => a - b);
+
+  while (current.length > max) {
+    const [dropped] = current.splice(weightedIndex(rng, current, i => 1 - clamp01(candidates[i]!.chance)), 1);
+    picked.delete(dropped!);
+  }
+  while (current.length < min) {
+    const occupied = new Set(current.map(i => candidates[i]!.slot).filter(Boolean));
+    const fill = candidates
+      .map((_, i) => i)
+      .filter(i => {
+        const c = candidates[i]!;
+        return c.kind === kind && !picked.has(i) && clamp01(c.chance) > 0 && !(c.slot && occupied.has(c.slot));
+      });
+    if (!fill.length) break;
+    const i = fill[weightedIndex(rng, fill, j => clamp01(candidates[j]!.chance))]!;
+    picked.add(i);
+    current.push(i);
+  }
+}
+
+/**
+ * Hand-picked items and auto-forged slots rolled as one pool: every candidate against its chance,
+ * one piece per armour slot, then Rüstung and Waffen each clamped to their own min/max. Only the
+ * slots that survive are forged. Other items (rings, tools) roll on their chance alone.
+ */
+export function rollEquipment(
+  items: readonly ItemBlock[], list: NpcRollList | undefined, gear: NpcGearTemplate | undefined,
+  groups: NpcEquipmentGroups | undefined, ctx: NpcRollContext, seed: number,
+): ItemBlock[] {
+  if (list?.mode !== 'random') return [...items];
+  const rng = makeRng(seedFor(seed, 'equipment'));
+
+  const candidates: EquipCandidate[] = [
+    ...items.map((item, index): EquipCandidate => {
+      const kind = equipmentKind(item);
+      return {
+        chance: list.entries[index]?.chance ?? 1,
+        kind,
+        slot: kind === 'armor' ? getEquipSlot(item) : undefined,
+        item,
+      };
+    }),
+    ...(gear?.slots ?? []).map((gearSlot): EquipCandidate => ({
+      chance: gearSlot.chance,
+      kind: gearSlot.armorSlot ? 'armor' : 'weapon',
+      slot: gearSlot.armorSlot,
+      gearSlot,
+    })),
+  ];
+
+  const picked = new Set<number>();
+  candidates.forEach((c, index) => { if (rng() < clamp01(c.chance)) picked.add(index); });
+  dropSlotConflicts(candidates, picked, rng);
+  clampGroup(candidates, picked, 'armor', groups?.armor, rng);
+  clampGroup(candidates, picked, 'weapon', groups?.weapons, rng);
+
+  const forgeCtx: GearGenContext | null = gear
+    ? { ...ctx, settings: { ...gear.settings, seed: seedFor(seed, 'forge') } }
+    : null;
+  const out: ItemBlock[] = [];
+  for (const index of [...picked].sort((a, b) => a - b)) {
+    const c = candidates[index]!;
+    if (c.item) {
+      out.push(c.item);
+    } else if (c.gearSlot && forgeCtx) {
+      const slot = c.gearSlot;
+      const piece = slot.armorSlot
+        ? generateArmorPiece(forgeCtx, slot.armorSlot, 'armor:' + slot.key)
+        : generateWeapons(forgeCtx, [{
+            id: slot.key, weaponTypeName: slot.weaponTypeName ?? '', statRequirementKey: slot.statRequirementKey,
+          }])[0] ?? null;
+      if (piece) out.push(piece.item);
+    }
+  }
+  return out;
+}
+
+// ─── Inventory ──────────────────────────────────────────────────────────────
 
 /** Loot: rolled like any list, each pick with its own amount range, equal piles merged. */
 export function rollInventory(items: readonly ItemBlock[], list: NpcRollList | undefined, seed: number): ItemBlock[] {
@@ -187,6 +269,8 @@ export function rollInventory(items: readonly ItemBlock[], list: NpcRollList | u
   }
   return merged;
 }
+
+// ─── Whole NSC ──────────────────────────────────────────────────────────────
 
 /**
  * Writes the effective stats and every derived value into the flat fields the lobby, tracker and
@@ -228,7 +312,9 @@ export function rollNpcInstance(
   }
   out.customSkills = pickList(out.customSkills ?? [], lists.customSkills, makeRng(seedFor(seed, 'skills'))).map(p => p.item);
   out.spells = pickList(out.spells ?? [], lists.spells, makeRng(seedFor(seed, 'spells'))).map(p => p.item);
-  out.equipment = rollEquipment(out.equipment ?? [], lists.equipment, variation.gear, ctx, seed);
+  out.equipment = rollEquipment(
+    out.equipment ?? [], lists.equipment, variation.gear, variation.equipmentGroups, ctx, seed,
+  );
   out.inventory = rollInventory(out.inventory ?? [], lists.inventory, seed);
 
   delete out.variation;

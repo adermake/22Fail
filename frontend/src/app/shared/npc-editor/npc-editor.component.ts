@@ -30,15 +30,17 @@ import {
   NpcRollList,
   NpcRollListKey,
   NpcGearTemplate,
+  NpcEquipmentGroups,
 } from '../../model/npc-statblock.model';
 import { ARMOR_TYPES, WEAPON_STAT_KEYS } from '../../model/forging.model';
-import { applyDerivedNpcStats } from '../../utils/npc-roll.util';
+import { applyDerivedNpcStats, equipmentKind } from '../../utils/npc-roll.util';
 import { canMerge, mergeStacks } from '../../utils/item-stack.util';
 import { applyJsonPatchTo } from '../../utils/json-patch.util';
 import { defaultBudgetForLevel } from '../../utils/gear-generator.util';
 import { WeaponTypeService } from '../../services/weapon-type.service';
 import { NpcRollBarComponent } from './npc-roll-bar/npc-roll-bar.component';
 import { NpcRollChanceComponent } from './npc-roll-bar/npc-roll-chance.component';
+import { NpcRollBoundsComponent } from './npc-roll-bar/npc-roll-bounds.component';
 import { AssetFile } from '../../model/asset-browser.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
@@ -68,7 +70,7 @@ interface LibFolder { path: string; label: string; files: AssetFile[]; }
 @Component({
   selector: 'app-npc-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent, ForgingComponent, GearGeneratorComponent, NpcRollBarComponent, NpcRollChanceComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent, ForgingComponent, GearGeneratorComponent, NpcRollBarComponent, NpcRollChanceComponent, NpcRollBoundsComponent],
   templateUrl: './npc-editor.component.html',
   styleUrl: './npc-editor.component.css',
 })
@@ -581,6 +583,22 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   onGearTemplate(settings: NpcGearTemplate['settings']): void {
     this.ensureGear().settings = settings;
+  }
+
+  /** Rüstung / Waffen limits for random equipment. */
+  get equipmentGroups(): NpcEquipmentGroups {
+    return normalizeNpcVariation(this.draft).equipmentGroups!;
+  }
+
+  /** Expected pieces in a group: chances of hand-picked items of that kind plus its generated slots. */
+  groupExpected(kind: 'armor' | 'weapon'): number {
+    const entries = this.rollList('equipment').entries;
+    const picked = this.draft.equipment.reduce(
+      (sum, item, i) => sum + (equipmentKind(item) === kind ? (entries[i]?.chance ?? 0) : 0), 0);
+    const generated = (this.draft.variation?.gear?.slots ?? [])
+      .filter(slot => (kind === 'armor') === !!slot.armorSlot)
+      .reduce((sum, slot) => sum + (slot.chance || 0), 0);
+    return picked + generated;
   }
 
   // ─── Items: library + custom ──────────────────────────────────────────────

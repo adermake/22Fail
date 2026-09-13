@@ -78,7 +78,7 @@ describe('rollEquipment', () => {
     ];
     const list = { mode: 'random' as const, min: 0, entries: entries(1, 1, 1, 1) };
     for (let seed = 1; seed < 50; seed++) {
-      const rolled = rollEquipment(helmets, list, undefined, ctx, seed);
+      const rolled = rollEquipment(helmets, list, undefined, undefined, ctx, seed);
       expect(rolled.filter(i => i.armorType === 'helmet')).toHaveLength(1);
       expect(rolled.filter(i => i.itemType === 'weapon')).toHaveLength(2);
     }
@@ -86,7 +86,49 @@ describe('rollEquipment', () => {
 
   it('takes everything in fixed mode', () => {
     const items = [item({ armorType: 'helmet' }), item({ armorType: 'helmet' })];
-    expect(rollEquipment(items, { mode: 'fixed', min: 0, entries: entries(0, 0) }, undefined, ctx, 1)).toHaveLength(2);
+    expect(rollEquipment(items, { mode: 'fixed', min: 0, entries: entries(0, 0) }, undefined, undefined, ctx, 1)).toHaveLength(2);
+  });
+
+  const armory = [
+    item({ name: 'Helm A', itemType: 'armor', armorType: 'helmet' }),
+    item({ name: 'Helm B', itemType: 'armor', armorType: 'helmet' }),
+    item({ name: 'Stiefel', itemType: 'armor', armorType: 'boots' }),
+    item({ name: 'Hose', itemType: 'armor', armorType: 'leggings' }),
+    item({ name: 'Schwert', itemType: 'weapon' }),
+    item({ name: 'Dolch', itemType: 'weapon' }),
+    item({ name: 'Bogen', itemType: 'weapon' }),
+    item({ name: 'Ring', itemType: 'other' }),
+  ];
+  const kinds = (rolled: ItemBlock[]) => ({
+    armor: rolled.filter(i => i.itemType === 'armor').length,
+    weapons: rolled.filter(i => i.itemType === 'weapon').length,
+  });
+
+  it('caps Rüstung and Waffen separately', () => {
+    const list = { mode: 'random' as const, min: 0, entries: entries(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5) };
+    const groups = { armor: { min: 1, max: 2 }, weapons: { min: 1, max: 1 } };
+    for (let seed = 1; seed < 300; seed++) {
+      const { armor, weapons } = kinds(rollEquipment(armory, list, undefined, groups, ctx, seed));
+      expect(armor).toBeGreaterThanOrEqual(1);
+      expect(armor).toBeLessThanOrEqual(2);
+      expect(weapons).toBe(1);
+    }
+  });
+
+  it('never fills an armour min with a second piece for the same slot', () => {
+    const list = { mode: 'random' as const, min: 0, entries: entries(0.3, 0.3, 0.3, 0.3, 0, 0, 0, 0) };
+    const groups = { armor: { min: 4 }, weapons: { min: 0 } };
+    for (let seed = 1; seed < 100; seed++) {
+      const rolled = rollEquipment(armory, list, undefined, groups, ctx, seed);
+      expect(rolled.filter(i => i.armorType === 'helmet')).toHaveLength(1);
+      expect(kinds(rolled).armor).toBe(3);
+    }
+  });
+
+  it('rolls other items on chance alone, outside both groups', () => {
+    const list = { mode: 'random' as const, min: 0, entries: entries(1, 1, 1, 1, 1, 1, 1, 1) };
+    const groups = { armor: { min: 0, max: 0 }, weapons: { min: 0, max: 0 } };
+    expect(rollEquipment(armory, list, undefined, groups, ctx, 5).map(i => i.name)).toEqual(['Ring']);
   });
 });
 

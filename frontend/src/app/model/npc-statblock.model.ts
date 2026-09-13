@@ -270,13 +270,26 @@ export interface NpcRollEntry {
   max?: number;
 }
 
-export interface NpcRollList {
-  mode: 'fixed' | 'random';
-  /** Random mode: at least this many entries… */
+/** At least `min`, at most `max` entries. Unset `max` = no upper limit. */
+export interface NpcRollBounds {
   min: number;
-  /** …and at most this many. Unset = no upper limit. */
   max?: number;
+}
+
+export interface NpcRollList extends NpcRollBounds {
+  mode: 'fixed' | 'random';
   entries: NpcRollEntry[];
+}
+
+/**
+ * Equipment in random mode is capped per group instead of as one list: a goblin should get one
+ * weapon and 0–3 armour pieces, not "two things, maybe both helmets". Hand-picked and generated
+ * pieces count together; anything else (rings, tools) rolls on its chance alone. The list's own
+ * min/max is not used for equipment.
+ */
+export interface NpcEquipmentGroups {
+  armor: NpcRollBounds;
+  weapons: NpcRollBounds;
 }
 
 export interface NpcStatVariation {
@@ -307,6 +320,17 @@ export interface NpcVariation {
   lists?: Partial<Record<NpcRollListKey, NpcRollList>>;
   /** Only rolled while the equipment list is in random mode. */
   gear?: NpcGearTemplate;
+  /** Min/max per equipment group — only read while the equipment list is in random mode. */
+  equipmentGroups?: NpcEquipmentGroups;
+}
+
+function normalizeBounds(bounds: NpcRollBounds): void {
+  bounds.min = Math.max(0, Math.floor(bounds.min || 0));
+  if (bounds.max === null || bounds.max === undefined || !Number.isFinite(bounds.max)) {
+    delete bounds.max;
+  } else {
+    bounds.max = Math.max(0, Math.floor(bounds.max));
+  }
 }
 
 export function defaultRollEntry(): NpcRollEntry {
@@ -327,13 +351,11 @@ export function normalizeNpcVariation(sb: NpcStatblock): NpcVariation {
     if (!Array.isArray(list.entries)) list.entries = [];
     while (list.entries.length < length) list.entries.push(defaultRollEntry());
     list.entries.length = length;
-    list.min = Math.max(0, Math.floor(list.min || 0));
-    if (list.max === null || list.max === undefined || !Number.isFinite(list.max)) {
-      delete list.max;
-    } else {
-      list.max = Math.max(0, Math.floor(list.max));
-    }
+    normalizeBounds(list);
   }
+  const groups = (variation.equipmentGroups ??= { armor: { min: 0 }, weapons: { min: 0 } });
+  normalizeBounds((groups.armor ??= { min: 0 }));
+  normalizeBounds((groups.weapons ??= { min: 0 }));
   return variation;
 }
 

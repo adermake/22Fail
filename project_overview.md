@@ -627,6 +627,8 @@ lobby-container
 - Werte: `variation.stats` = Level von–bis (neues Level → Budget per `distributeByRatio` neu verteilen) + Streuung (Punkte wandern, Summe bleibt).
 - Ausrüstung Zufällig: handverlesene Items + **generierte Plätze** (`variation.gear.slots`, je Chance), beim Ablegen frisch geschmiedet
   mit den Einstellungen aus `app-gear-generator mode="template"`. Pro Rüstungsslot bleibt nur ein Teil, Waffen dürfen mehrfach.
+  Min/Max getrennt für **Rüstung** und **Waffen** (`variation.equipmentGroups`, handverlesen + generiert zusammen; Min-Auffüllen
+  überspringt belegte Slots); Sonstiges nur nach Chance. Das Listen-Min/Max gilt für Ausrüstung nicht.
 - Wurf: `rollSubset` (einzeln würfeln → über Max die unwahrscheinlichsten raus → unter Min die wahrscheinlichsten rein; Chance 0 = nie).
 - Ablegen (`lobby.component.onNpcStatblockDrop`): mit Variation → `rollNpcInstance` → `Token.npcInstance` (Schnappschuss, spätere
   Statblock-Änderungen erreichen das Token nicht). Ohne Variation bleibt das Token live über `statblockId` verknüpft.
