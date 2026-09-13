@@ -1,73 +1,71 @@
-import {
-  ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, EventEmitter,
-  inject, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { EventEmitter, Injectable, OnDestroy, Signal, inject, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { Token, TokenStatusEffect } from '../../model/lobby.model';
-import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
-import { NpcStatblock } from '../../model/npc-statblock.model';
-import { SUMMON_RUNE_ID } from '../../shared/spell-node-editor/spell-node.model';
-import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
-import { SkillBlock } from '../../model/skill-block.model';
-import { FormulaType } from '../../model/formula-type.enum';
-import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
-import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
-import { SkillDefinition } from '../../model/skill-definition.model';
-import { CharacterSocketService } from '../../services/character-socket.service';
-import { TrueStatsService } from '../../services/true-stats.service';
-import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
-import { ActionMacro } from '../../model/action-macro.model';
-import { LibraryStoreService } from '../../services/library-store.service';
-import { UnifiedMacroExecutorService, UnifiedMacroResult, ScriptExecution } from '../../services/unified-macro-executor.service';
-import { hasBaseAction, listTriggers } from '../../scripting/interpreter';
-import { cleanseFromList } from '../../utils/status-cleanse.util';
-import { isItemEquipped } from '../../utils/equip-slot.utils';
-import { ItemBlock } from '../../model/item-block.model';
-import { applyStacking } from '../../utils/status-stacking.utils';
-import { lockBodyScroll, unlockBodyScroll } from '../../utils/scroll-lock.util';
-import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
+import { Token, TokenStatusEffect } from '../model/lobby.model';
+import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
+import { NpcStatblock } from '../model/npc-statblock.model';
+import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
+import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../model/spell-block-model';
+import { SkillBlock } from '../model/skill-block.model';
+import { FormulaType } from '../model/formula-type.enum';
+import { SKILL_DEFINITIONS } from '../data/skill-definitions';
+import { TALENT_DEFINITIONS } from '../data/talent-definitions';
+import { SkillDefinition } from '../model/skill-definition.model';
+import { CharacterSocketService } from '../services/character-socket.service';
+import { TrueStatsService } from '../services/true-stats.service';
+import { ActiveStatusEffect, StatusEffect } from '../model/status-effect.model';
+import { ActionMacro } from '../model/action-macro.model';
+import { LibraryStoreService } from '../services/library-store.service';
+import {
+  UnifiedMacroExecutorService, UnifiedMacroResult, ScriptExecution,
+} from '../services/unified-macro-executor.service';
+import { hasBaseAction, listTriggers } from '../scripting/interpreter';
+import { cleanseFromList } from '../utils/status-cleanse.util';
+import { isItemEquipped } from '../utils/equip-slot.utils';
+import { ItemBlock } from '../model/item-block.model';
+import { applyStacking } from '../utils/status-stacking.utils';
+import { lockBodyScroll, unlockBodyScroll } from '../utils/scroll-lock.util';
 
 /** Stack cap for statuses created by giveStatus(...) — effectively "always stackable". */
 const GIVEN_STATUS_MAX_STACKS = 99;
 
-@Component({
-  selector: 'app-lobby-bottom-panel',
-  standalone: true,
-  imports: [CommonModule, FormsModule, StatusEffectEditorComponent],
-  templateUrl: './lobby-bottom-panel.component.html',
-  styleUrl: './lobby-bottom-panel.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-})
-export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
-  @Input() token: Token | null = null;
-  @Input() character: CharacterSheet | null = null;
-  @Input() npc: NpcStatblock | null = null;
-  @Input() isGM = false;
-  @Input() canViewStats = true;
-  @Input() statusBarBlinking = false;
-  @Output() dismissStatusReminder = new EventEmitter<void>();
-  @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
-  @Output() sheetPatched = new EventEmitter<{ characterId: string; patch: any }>();
+/** Where the service reads the selected token from — the lobby's own signals. */
+export interface TokenActionSources {
+  token: Signal<Token | null>;
+  character: Signal<CharacterSheet | null>;
+  npc: Signal<NpcStatblock | null>;
+  isGM: Signal<boolean>;
+}
 
-  private cdr = inject(ChangeDetectorRef);
+/**
+ * Everything you can DO with the selected token in the lobby: its status effects (and running
+ * them), its active spells/skills/gear with their triggers, and activating new ones.
+ *
+ * This used to live inside one tabbed bottom panel. The lobby now spreads it over the screen —
+ * status strip on top, active column on the left, abilities dock at the bottom — and those three
+ * views share this one instance (provided by `LobbyComponent`), so a run started in the strip and
+ * a trigger fired in the column keep one consistent state.
+ *
+ * Views are OnPush: they read `tick()` so a change to the plain fields here re-renders them.
+ */
+@Injectable()
+export class LobbyTokenActionsService implements OnDestroy {
   private charSocket = inject(CharacterSocketService);
   private trueStats = inject(TrueStatsService);
-  private destroyRef = inject(DestroyRef);
   private libraryStore = inject(LibraryStoreService);
   private macroExecutor = inject(UnifiedMacroExecutorService);
 
-  activeTab: 'status' | 'aktiv' | 'tokens' = 'aktiv';
-  collapsed = false;
+  private sources: TokenActionSources | null = null;
+  private subs: Subscription[] = [];
+
+  /** Bumped on every local state change; views read it to refresh. */
+  readonly tick = signal(0);
+  readonly tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
+  readonly sheetPatched = new EventEmitter<{ characterId: string; patch: any }>();
 
   // ── Status effect state ───────────────────────────────────────────────────
-  private libSub?: Subscription;
-  private popupTimeout?: ReturnType<typeof setTimeout>;
   resolvedEffects = new Map<string, StatusEffect>();
 
-  expandedFx: TokenStatusEffect | null = null;
+  private expandedFxId: string | null = null;
   editingFx: TokenStatusEffect | null = null;
   editedStatusEffect: StatusEffect | null = null;
   showPicker = false;
@@ -83,33 +81,28 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   chainResult: UnifiedMacroResult | null = null;
   chainStepDone = false;
 
-  /** Running per-resource totals for the whole "Alle Ausführen" run. */
+  /** Running per-resource totals for the whole "Alle ausführen" run. */
   chainResourceTotals: { resource: string; displayName: string; total: number }[] = [];
   /** Full itemised log so a summed total can be expanded into its breakdown. */
   private chainResourceLog: { resource: string; displayName: string; amount: number; source: string }[] = [];
   /** Breakdown popup shown when a summarised number is clicked. */
   breakdownPopup: { title: string; color: string; rows: { label: string; value: string; positive: boolean }[] } | null = null;
   /**
-   * Anchors the floating results popup above the effect card that triggered it.
-   * `cardX` is the card centre (connector target); `panelX` is clamped to keep the popup
-   * on screen (so the leftmost effect's popup isn't cut off).
+   * Anchors the floating results popup BELOW the status chip that triggered it (the strip sits at
+   * the top). `cardX` is the chip centre (connector target); `panelX` is clamped to stay on screen.
    */
-  resultAnchor: { cardX: number; panelX: number; bottom: number; color: string } | null = null;
+  resultAnchor: { cardX: number; panelX: number; top: number; color: string } | null = null;
   triggeringEffects = new Set<string>();
   expiringEffects = new Set<string>();
   lastRollResults = new Map<string, UnifiedMacroResult>();
 
-  ngOnInit(): void {
+  constructor() {
     // Re-render immediately when the character panel mutates data locally (before server echo)
-    this.charSocket.localUpdate$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-      this.cdr.markForCheck();
-    });
-    // Subscribe to library changes and resolve effect definitions when data arrives
-    this.libSub = this.libraryStore.allLibraries$.subscribe(() => {
+    this.subs.push(this.charSocket.localUpdate$.subscribe(() => this.bump()));
+    this.subs.push(this.libraryStore.allLibraries$.subscribe(() => {
       this.resolveEffects();
-      this.cdr.markForCheck();
-    });
-    // Eagerly load library if not yet loaded
+      this.bump();
+    }));
     if (this.libraryStore.allLibraries.length === 0) {
       this.libraryStore.loadAllLibraries();
     } else {
@@ -117,26 +110,45 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  ngOnChanges(_: SimpleChanges): void {
-    // Sync expandedFx reference when token/character updates from server
-    if (this.expandedFx) {
-      const synced = this.statusEffects.find(e => e.id === this.expandedFx!.id);
-      this.expandedFx = synced ?? null;
-    }
-    this.cdr.markForCheck();
+  ngOnDestroy(): void {
+    for (const sub of this.subs) sub.unsubscribe();
   }
 
-  ngOnDestroy(): void {
-    this.libSub?.unsubscribe();
-    if (this.popupTimeout) clearTimeout(this.popupTimeout);
+  bind(sources: TokenActionSources): void {
+    this.sources = sources;
+  }
+
+  get token(): Token | null { return this.sources?.token() ?? null; }
+  get character(): CharacterSheet | null { return this.sources?.character() ?? null; }
+  get npc(): NpcStatblock | null { return this.sources?.npc() ?? null; }
+  get isGM(): boolean { return this.sources?.isGM() ?? false; }
+
+  private bump(): void {
+    this.tick.update(n => n + 1);
+  }
+
+  /** A different token was selected: close everything that belonged to the previous one. */
+  resetForToken(): void {
+    this.expandedFxId = null;
+    this.showPicker = false;
+    this.showContextMenu = false;
+    this.contextMenuFx = null;
+    this.breakdownPopup = null;
+    this.resultAnchor = null;
+    this.chainEffects = [];
+    this.chainIndex = 0;
+    this.chainResult = null;
+    this.chainStepDone = false;
+    this.executeAllInProgress = false;
+    this.chainResourceTotals = [];
+    this.chainResourceLog = [];
+    this.triggeringEffects.clear();
+    this.expiringEffects.clear();
+    this.bump();
   }
 
   get hasSelection(): boolean {
-    return !!(this.token);
-  }
-
-  get tokenName(): string {
-    return this.token?.name ?? '';
+    return !!this.token;
   }
 
   private get characterId(): string | null {
@@ -172,11 +184,6 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   // ── Active state ──────────────────────────────────────────────────────────
-
-  get activeSkillNames(): string[] {
-    if (this.character) return this.character.activeSkillNames ?? [];
-    return this.token?.activeSkillNames ?? [];
-  }
 
   get castingSpells(): CastingSpellEntry[] {
     if (this.character) return this.character.castingSpells ?? [];
@@ -253,8 +260,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   skillCostLabel(skill: SkillBlock): string {
     const cost = this.effectiveCost(skill);
     if (!cost) return '';
-    const icon = cost.type === 'mana' ? '◆' : cost.type === 'energy' ? '⚡' : '❤';
-    return `${cost.amount}${icon}${cost.perRound ? '/Rd' : ''}`;
+    const unit = cost.type === 'mana' ? 'MP' : cost.type === 'energy' ? 'EP' : 'LP';
+    return `${cost.amount} ${unit}${cost.perRound ? '/Rd' : ''}`;
   }
 
   // ── Spell helpers ─────────────────────────────────────────────────────────
@@ -304,6 +311,12 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return this.token?.activeStatusEffects ?? [];
   }
 
+  /** The effect whose detail panel is open — looked up fresh, so server echoes never orphan it. */
+  get expandedFx(): TokenStatusEffect | null {
+    if (!this.expandedFxId) return null;
+    return this.statusEffects.find(e => e.id === this.expandedFxId) ?? null;
+  }
+
   private saveStatusEffects(effects: TokenStatusEffect[]): void {
     const charId = this.characterId;
     if (this.character && charId) {
@@ -312,13 +325,14 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       const patch = { path: 'activeStatusEffects', value: activeEffects };
       this.sheetPatched.emit({ characterId: charId, patch });
       this.charSocket.sendPatch(charId, patch);
-      this.cdr.markForCheck();
+      this.bump();
     } else {
       // Optimistically update the local token too. Without this the parent's round-trip is the
       // only source of truth, so two applications in quick succession both read the pre-save
       // list and each append a fresh instance instead of stacking into the existing one.
       if (this.token) this.token.activeStatusEffects = effects;
       this.tokenUpdate.emit({ activeStatusEffects: effects });
+      this.bump();
     }
   }
 
@@ -362,7 +376,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   private tokenToActiveEffect(fx: TokenStatusEffect): ActiveStatusEffect {
     // Keep appliedAt stable across saves so the instance id (statusEffectId_appliedAt) does
-    // not churn — otherwise expandedFx loses its reference and the panel closes on each click.
+    // not churn — otherwise the open detail panel loses its effect on each click.
     const active: ActiveStatusEffect = {
       statusEffectId: fx.statusEffectId ?? fx.id,
       sourceLibraryId: '',
@@ -402,8 +416,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return undefined;
   }
 
+  /** The effect's own icon (authored data); empty means "render the generic app icon". */
   getEffectIcon(fx: TokenStatusEffect): string {
-    return fx.icon || this.getEffect(fx)?.icon || (fx.isDebuff ? '💀' : '⭐');
+    return fx.icon || this.getEffect(fx)?.icon || '';
   }
 
   getEffectColor(fx: TokenStatusEffect): string {
@@ -418,7 +433,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   };
 
   getStatModLabel(stat: string): string {
-    return LobbyBottomPanelComponent.STAT_MOD_LABELS[stat] ?? stat.slice(0, 3).toUpperCase();
+    return LobbyTokenActionsService.STAT_MOD_LABELS[stat] ?? stat.slice(0, 3).toUpperCase();
   }
 
   getTalentName(talentId: string): string {
@@ -470,10 +485,6 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return null;
   }
 
-  trackByFx(_: number, fx: TokenStatusEffect): string {
-    return fx.id;
-  }
-
   isFxTriggering(fx: TokenStatusEffect): boolean {
     return this.triggeringEffects.has(fx.id);
   }
@@ -489,13 +500,13 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   onFxClick(fx: TokenStatusEffect, event: MouseEvent): void {
     event.stopPropagation();
     this.closeContextMenu();
-    this.expandedFx = this.expandedFx?.id === fx.id ? null : fx;
-    this.cdr.markForCheck();
+    this.expandedFxId = this.expandedFxId === fx.id ? null : fx.id;
+    this.bump();
   }
 
   closeExpandedView(): void {
-    this.expandedFx = null;
-    this.cdr.markForCheck();
+    this.expandedFxId = null;
+    this.bump();
   }
 
   changeDuration(fx: TokenStatusEffect, delta: number): void {
@@ -512,10 +523,6 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       e.id === fx.id ? { ...e, duration: newDuration } : e
     );
     this.saveStatusEffects(effects);
-    if (this.expandedFx?.id === fx.id) {
-      this.expandedFx = { ...this.expandedFx, duration: newDuration };
-    }
-    this.cdr.markForCheck();
   }
 
   changeStacks(fx: TokenStatusEffect, delta: number): void {
@@ -532,18 +539,13 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       e.id === fx.id ? { ...e, stacks: newStacks } : e
     );
     this.saveStatusEffects(effects);
-    if (this.expandedFx?.id === fx.id) {
-      this.expandedFx = { ...this.expandedFx, stacks: newStacks };
-    }
-    this.cdr.markForCheck();
   }
 
   removeStatusEffect(id: string): void {
     if (!this.token) return;
     const effects = this.statusEffects.filter(e => e.id !== id);
-    if (this.expandedFx?.id === id) this.expandedFx = null;
+    if (this.expandedFxId === id) this.expandedFxId = null;
     this.saveStatusEffects(effects);
-    this.cdr.markForCheck();
   }
 
   // ── Single effect execution ───────────────────────────────────────────────
@@ -559,7 +561,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     const stacks = fx.stacks || 1;
     const allResults: UnifiedMacroResult[] = [];
     this.triggeringEffects.add(fx.id);
-    this.cdr.markForCheck();
+    this.bump();
     for (const result of this.runEffectResults(effect, sheet, stacks, fx.duration ?? 0)) {
       allResults.push(result);
       this.applyMacroResourceChanges(result);
@@ -570,7 +572,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.changeDuration(fx, -1);
     setTimeout(() => {
       this.triggeringEffects.delete(fx.id);
-      this.cdr.markForCheck();
+      this.bump();
     }, 800);
   }
 
@@ -583,11 +585,11 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.chainResult = null;
     this.chainStepDone = false;
     this.executeAllInProgress = true;
-    this.expandedFx = null;
+    this.expandedFxId = null;
     this.chainResourceTotals = [];
     this.chainResourceLog = [];
     this.breakdownPopup = null;
-    this.cdr.markForCheck();
+    this.bump();
     this.executeCurrentChainStep();
   }
 
@@ -602,7 +604,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.chainIndex++;
     this.chainResult = null;
     this.chainStepDone = false;
-    this.cdr.markForCheck();
+    this.bump();
     this.executeCurrentChainStep();
   }
 
@@ -610,7 +612,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     const fx = this.chainEffects[this.chainIndex];
     if (!fx) return;
     this.triggeringEffects.add(fx.id);
-    this.cdr.markForCheck();
+    this.bump();
     if (fx.duration !== undefined && fx.duration !== null && fx.duration > 0) {
       fx.duration -= 1;
     }
@@ -640,7 +642,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     setTimeout(() => {
       this.triggeringEffects.delete(fx.id);
       this.chainStepDone = true;
-      this.cdr.markForCheck();
+      this.bump();
     }, 800);
   }
 
@@ -654,7 +656,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.chainIndex = this.chainEffects.length - 1;
     this.chainResult = null;
     this.executeAllInProgress = true;
-    this.expandedFx = null;
+    this.expandedFxId = null;
     this.chainResourceTotals = [];
     this.chainResourceLog = [];
     this.breakdownPopup = null;
@@ -697,16 +699,19 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       }
     }
     this.triggeringEffects.clear();
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   private finalizeChain(): void {
     this.resultAnchor = null;
     const expiring = this.chainEffects.filter(e => e.duration !== undefined && e.duration !== null && e.duration === 0);
     for (const expired of expiring) this.expiringEffects.add(expired.id);
-    this.cdr.markForCheck();
+    // The save lands 600 ms later; if another token got selected meanwhile, it must not
+    // write this run's durations into that token.
+    const tokenId = this.token?.id;
+    this.bump();
     setTimeout(() => {
-      if (!this.token) return;
+      if (!this.token || this.token.id !== tokenId) return;
       const current = [...this.statusEffects];
       for (const chainFx of this.chainEffects) {
         const match = current.find(e => e.id === chainFx.id);
@@ -724,7 +729,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.executeAllInProgress = false;
       this.breakdownPopup = null;
       // Keep chainResourceTotals until the next run starts so the GM can review the total.
-      this.cdr.markForCheck();
+      this.bump();
     }, 600);
   }
 
@@ -757,18 +762,6 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return [...map.values()];
   }
 
-  /** Per-name roll summary of a single step (e.g. "Blutung ×4 = 6"). */
-  summarizeStepRolls(result: UnifiedMacroResult | null): { name: string; total: number; count: number; color: string }[] {
-    if (!result) return [];
-    const map = new Map<string, { name: string; total: number; count: number; color: string }>();
-    for (const r of result.rolls) {
-      const e = map.get(r.name);
-      if (e) { e.total += r.total; e.count++; }
-      else map.set(r.name, { name: r.name, total: r.total, count: 1, color: r.color });
-    }
-    return [...map.values()];
-  }
-
   /** Open the breakdown popup for one resource, itemised across the whole run. */
   openResourceBreakdown(resource: string, displayName: string, color: string): void {
     const rows = this.chainResourceLog
@@ -779,30 +772,16 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         positive: l.amount > 0,
       }));
     this.breakdownPopup = { title: displayName, color, rows };
-    this.cdr.markForCheck();
+    this.bump();
   }
 
-  /** Open the breakdown popup for a step's rolls, itemised per die. */
-  openRollBreakdown(result: UnifiedMacroResult | null, name: string, color: string): void {
-    if (!result) return;
-    const rows = result.rolls
-      .filter(r => r.name === name)
-      .map(r => ({
-        label: r.rolls.length ? r.rolls.join(' + ') : r.formula,
-        value: `= ${r.total}`,
-        positive: false,
-      }));
-    this.breakdownPopup = { title: name, color, rows };
-    this.cdr.markForCheck();
-  }
-
-  /** Position the floating results panel above the currently-triggering effect card. */
+  /** Position the floating results panel below the currently-triggering status chip. */
   private updateResultAnchor(): void {
     const fx = this.chainEffects[this.chainIndex];
     if (!fx) { this.resultAnchor = null; return; }
     requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(`.lbp-sfx-card[data-fx-id="${fx.id}"]`);
-      if (!el) { this.resultAnchor = null; this.cdr.markForCheck(); return; }
+      const el = document.querySelector<HTMLElement>(`[data-fx-id="${fx.id}"]`);
+      if (!el) { this.resultAnchor = null; this.bump(); return; }
       const r = el.getBoundingClientRect();
       const cardX = Math.round(r.left + r.width / 2);
       const halfW = 170; // half of the 340px popup
@@ -810,10 +789,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.resultAnchor = {
         cardX,
         panelX,
-        bottom: Math.round(window.innerHeight - r.top + 12), // popup sits 12px above the card
+        top: Math.round(r.bottom + 12), // popup sits 12px below the chip
         color: this.getEffectColor(fx),
       };
-      this.cdr.markForCheck();
+      this.bump();
     });
   }
 
@@ -823,7 +802,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       .filter(rc => rc.resource === resource && rc.amount !== 0)
       .map(rc => ({ label: rc.displayName, value: `${rc.amount > 0 ? '+' : ''}${rc.amount}`, positive: rc.amount > 0 }));
     this.breakdownPopup = { title: displayName, color: result.actionColor, rows };
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   /** Open the roll breakdown for a step: every die, per roll (rolls are hidden by default). */
@@ -834,12 +813,12 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       positive: false,
     }));
     this.breakdownPopup = { title: 'Würfel-Details', color: '#f59e0b', rows };
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   closeBreakdown(): void {
     this.breakdownPopup = null;
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   private mergeResults(results: UnifiedMacroResult[], _stacks: number): UnifiedMacroResult {
@@ -918,8 +897,6 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   // ── Manual triggers on active spells and skills ───────────────────────────
-  // Status effects have offered this for a while; an active spell or ability is just as much a
-  // thing that "does something when you say so", and its script can already declare onTrigger.
 
   /** Named onTrigger blocks declared by a script (empty when it has none or does not compile). */
   private triggersOf(script: string | undefined): string[] {
@@ -948,10 +925,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.applyMacroResourceChanges(exec.unified);
     this.lastRollResults.set(key, exec.unified);
     this.triggeringEffects.add(key);
-    this.cdr.markForCheck();
+    this.bump();
     setTimeout(() => {
       this.triggeringEffects.delete(key);
-      this.cdr.markForCheck();
+      this.bump();
     }, 800);
   }
 
@@ -975,8 +952,6 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   // ── Equipped items with effects ───────────────────────────────────────────
-  // Gear that carries an effectActive block or a named trigger is as "active" as a sustained
-  // spell — it belongs on the Aktiv tab next to them, and its triggers must be firable here.
 
   private get equipmentList(): ItemBlock[] {
     return (this.character?.equipment ?? this.npc?.equipment ?? []).filter(Boolean) as ItemBlock[];
@@ -1014,10 +989,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.applyMacroResourceChanges(exec.unified);
     this.lastRollResults.set(key, exec.unified);
     this.triggeringEffects.add(key);
-    this.cdr.markForCheck();
+    this.bump();
     setTimeout(() => {
       this.triggeringEffects.delete(key);
-      this.cdr.markForCheck();
+      this.bump();
     }, 800);
   }
 
@@ -1039,7 +1014,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     const stacks = fx.stacks || 1;
     const allResults: UnifiedMacroResult[] = [];
     this.triggeringEffects.add(fx.id);
-    this.cdr.markForCheck();
+    this.bump();
     for (const result of this.runEffectResults(effect, sheet, stacks, fx.duration ?? 0, trigger)) {
       allResults.push(result);
       this.applyMacroResourceChanges(result);
@@ -1049,21 +1024,19 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
     setTimeout(() => {
       this.triggeringEffects.delete(fx.id);
-      this.cdr.markForCheck();
+      this.bump();
     }, 800);
   }
 
   /**
-   * Apply a script run's non-resource effects: applyStatus/removeStatus, untilNextTurn
-   * temporary modifiers, and granted skills. (Resource changes are applied separately by
-   * applyMacroResourceChanges.)
+   * Apply a script run's non-resource effects: applyStatus/removeStatus and giveStatus.
+   * (Resource changes are applied separately by applyMacroResourceChanges.)
    */
   private applyScriptExtras(exec: ScriptExecution): void {
     const s = exec.script;
     let effects = [...this.statusEffects];
     let changed = false;
 
-    // applyStatus(id) / removeStatus(id)
     for (const op of s.statusOps) {
       if (op.op === 'remove') {
         // removeStatus(id) clears it; removeStatus(id, X) cleanses X stacks (or X turns of
@@ -1085,14 +1058,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       }
     }
 
-    // giveStatus(name, description, stacks, duration, icon, buff|debuff) { …body… } →
-    // create + apply a per-instance status effect carrying its own script (may hold
-    // effectActive). The id is derived from the NAME (not a timestamp) so re-applying the
-    // same status can stack instead of piling up separate identical entries.
+    // giveStatus(...) { …body… } → a per-instance status carrying its own script. The id comes
+    // from the NAME so re-applying the same status stacks instead of piling up entries.
     for (const g of s.givenStatuses) {
       const id = `given_${g.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
-      // Script-created statuses are stackable, so repeat applications with the same duration
-      // add stacks rather than piling up identical tiles.
       const custom: StatusEffect = {
         id, name: g.name, description: g.description, script: g.script,
         icon: g.icon, isDebuff: g.isDebuff, maxStacks: GIVEN_STATUS_MAX_STACKS,
@@ -1107,10 +1076,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       changed = changed || res.changed;
     }
 
-    // NOTE: effectActive stat modifiers and granted skills are NOT applied here. They are
-    // continuous, effect-bound contributions derived on demand by TrueStatsService from the
-    // active effects (never mutating real data, and gone the moment the effect is removed),
-    // so a trigger run leaves result.modifiers / result.grantedSkills empty by design.
+    // effectActive modifiers and granted skills are derived on demand by TrueStatsService.
     if (changed) this.saveStatusEffects(effects);
   }
 
@@ -1120,9 +1086,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     };
 
     if (this.character) {
-      // Rebuild the statuses array (new reference) so OnPush children re-render, and
-      // persist the SAME way as saveStatusEffects (sheetPatched + socket) — the previous
-      // in-place mutation + socket-only patch didn't reach the lobby's character copy.
+      // Rebuild the statuses array (new reference) and persist like saveStatusEffects.
       let statuses = [...(this.character.statuses ?? [])];
       let changed = false;
       for (const change of result.resourceChanges) {
@@ -1143,7 +1107,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
           this.sheetPatched.emit({ characterId: charId, patch });
           this.charSocket.sendPatch(charId, patch);
         }
-        this.cdr.markForCheck();
+        this.bump();
       }
       return;
     }
@@ -1171,12 +1135,12 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         this.libraryStore.loadAllLibraries();
       }
     }
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   closePicker(): void {
     this.showPicker = false;
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   get availableToAdd(): StatusEffect[] {
@@ -1219,11 +1183,11 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.contextMenuY = event.clientY;
     this.contextMenuFx = null;
     this.showContextMenu = true;
-    this.expandedFx = null;
-    this.cdr.markForCheck();
+    this.expandedFxId = null;
+    this.bump();
   }
 
-  /** Right-click on a specific effect card → menu with Bearbeiten + Auslösen. */
+  /** Right-click on a specific effect → menu with Bearbeiten + Auslösen. */
   onRightClickFx(fx: TokenStatusEffect, event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -1231,8 +1195,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.contextMenuY = event.clientY;
     this.contextMenuFx = fx;
     this.showContextMenu = true;
-    this.expandedFx = null;
-    this.cdr.markForCheck();
+    this.expandedFxId = null;
+    this.bump();
   }
 
   editFxFromContextMenu(): void {
@@ -1256,7 +1220,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!this.showContextMenu) return;
     this.showContextMenu = false;
     this.contextMenuFx = null;
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   // ── Effect editor ─────────────────────────────────────────────────────────
@@ -1266,9 +1230,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!effect) return;
     this.editedStatusEffect = JSON.parse(JSON.stringify(effect));
     this.editingFx = fx;
-    this.expandedFx = null;
+    this.expandedFxId = null;
     lockBodyScroll(); // fullscreen editor: no background scrolling
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   /** Save an edit as a LOCAL per-instance override (does not touch the library). */
@@ -1311,16 +1275,66 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (this.editingFx) unlockBodyScroll();
     this.editingFx = null;
     this.editedStatusEffect = null;
-    this.cdr.markForCheck();
+    this.bump();
   }
 
-  // ── Skill actions ─────────────────────────────────────────────────────────
+  // ── Activation (abilities dock) ───────────────────────────────────────────
 
   isSkillActive(skill: SkillBlock): boolean {
     return this.activeSkillEntries.some(e =>
       (e.skillId && skill.skillId && e.skillId === skill.skillId) || e.skillName === skill.name
     );
   }
+
+  isSpellActive(spell: SpellBlock): boolean {
+    return this.castingSpells.some(e => e.spellId === spell.id);
+  }
+
+  activateSkill(skill: SkillBlock): void {
+    const entryId = `skill-${skill.skillId ?? skill.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const entry: ActiveSkillEntry = {
+      entryId,
+      skillId: skill.skillId,
+      skillName: skill.name,
+      roundsActive: 0,
+      counters: (skill.counters ?? []).map(c => ({ ...c })),
+    };
+    this._patchSkillEntries([...this.activeSkillEntries, entry]);
+    this.charSocket.notifyLocalUpdate();
+  }
+
+  /** Same as the Schnellzauber in the old panel: the cast is instant and Mana is paid up front. */
+  activateSpell(spell: SpellBlock): void {
+    const entryId = `${spell.id ?? 'spell'}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const entry: CastingSpellEntry = {
+      spellId: spell.id ?? entryId,
+      spellName: spell.name,
+      castLevel: 0,
+      entryId,
+      remainingCast: 0,
+      roundsActive: 0,
+    };
+    const updated = [...this.castingSpells, entry];
+
+    if (this.character) {
+      const manaCost = spell.costMana ?? 0;
+      if (manaCost > 0) {
+        const statuses = [...(this.character.statuses || [])];
+        const manaIdx = statuses.findIndex(s => s.formulaType === FormulaType.MANA);
+        if (manaIdx >= 0) {
+          const newVal = Math.max(0, (statuses[manaIdx].statusCurrent || 0) - manaCost);
+          statuses[manaIdx] = { ...statuses[manaIdx], statusCurrent: newVal };
+          this.character.statuses = statuses;
+          const charId = this.characterId;
+          if (charId) this.charSocket.sendPatch(charId, { path: 'statuses', value: statuses });
+        }
+      }
+    }
+    this._patchCasting(updated);
+    this.charSocket.notifyLocalUpdate();
+  }
+
+  // ── Skill actions ─────────────────────────────────────────────────────────
 
   stopSkillEntry(entry: ActiveSkillEntry): void {
     const updated = this.activeSkillEntries.filter(e => e.entryId !== entry.entryId);
@@ -1368,7 +1382,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         this.tokenUpdate.emit({ currentHealth: cur - cost.amount });
       }
     }
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   private _patchSkillEntries(updated: ActiveSkillEntry[]): void {
@@ -1377,9 +1391,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       const charId = this.characterId;
       if (charId) this.charSocket.sendPatch(charId, { path: 'activeSkillEntries', value: updated });
     } else {
+      if (this.token) this.token.activeSkillEntries = updated;
       this.tokenUpdate.emit({ activeSkillEntries: updated });
     }
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   adjustSkillRounds(entry: ActiveSkillEntry, delta: number): void {
@@ -1434,7 +1449,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.character.spells = spells;
     const charId = this.characterId;
     if (charId) this.charSocket.sendPatch(charId, { path: 'spells', value: spells });
-    this.cdr.markForCheck();
+    this.bump();
   }
 
   private _patchCasting(updated: CastingSpellEntry[]): void {
@@ -1443,8 +1458,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       const charId = this.characterId;
       if (charId) this.charSocket.sendPatch(charId, { path: 'castingSpells', value: updated });
     } else {
+      if (this.token) this.token.castingSpells = updated;
       this.tokenUpdate.emit({ castingSpells: updated });
     }
-    this.cdr.markForCheck();
+    this.bump();
   }
 }

@@ -28,8 +28,8 @@ type PriceMode = 'highest-units' | 'total-gold';
 
               @if (event.type === 'shop') {
                 <div class="portal-header-controls">
-                  <button class="mode-toggle-btn" (click)="togglePriceMode()" [title]="priceMode === 'highest-units' ? 'Zu Gesamtgold wechseln' : 'Zu Einheiten wechseln'">
-                    @if (priceMode === 'highest-units') { 3S 2K } @else { 0.32g }
+                  <button class="mode-toggle-btn" (click)="togglePriceMode()" [title]="priceMode === 'highest-units' ? 'Zu Gesamtwert in Gold-Cetris wechseln' : 'Zu Münzen wechseln'">
+                    @if (priceMode === 'highest-units') { 3 SC 2 KC } @else { 0,32 GC }
                   </button>
                 </div>
               }
@@ -135,14 +135,14 @@ type PriceMode = 'highest-units' | 'total-gold';
           <!-- Currency overlay – fixed bottom-right of portal -->
           @if (event.type === 'shop') {
             <div class="currency-overlay">
-              <span class="currency-label">Dein Geld</span>
+              <span class="currency-label">Deine Cetris</span>
               @for (coin of getPlayerCoinParts(); track coin.type) {
                 <span class="coin-amount-lg" [style.color]="coin.color">
                   <span class="coin-icon" [style.background-color]="coin.color"></span>
                   {{ coin.amount }}
                 </span>
               }
-              <span class="currency-gold-total">= {{ getPlayerTotalAsGold() }}g</span>
+              <span class="currency-gold-total">= {{ getPlayerTotalAsGold() }} GC</span>
             </div>
           }
         </div>

@@ -3,6 +3,7 @@ import { SkillBlock } from './skill-block.model';
 import { SpellBlock } from './spell-block-model';
 import { WeaponStatKey } from './forging.model';
 import type { GearGenSettings } from '../utils/gear-generator.util';
+import type { Currency } from './current-events.model';
 
 // ─── Archetyp ────────────────────────────────────────────────────────────────
 
@@ -292,6 +293,9 @@ export interface NpcEquipmentGroups {
   weapons: NpcRollBounds;
 }
 
+/** Cetris als Beute: pro Münze ein Bereich. „Fest" nimmt `min`; der Modus folgt dem Inventar-Reiter. */
+export type NpcCetris = Partial<Record<keyof Currency, NpcRollBounds>>;
+
 export interface NpcStatVariation {
   enabled: boolean;
   levelMin: number;
@@ -426,6 +430,11 @@ export interface NpcStatblock {
    * dieselbe Beute teilen (siehe `Token.inventory`).
    */
   inventory: ItemBlock[];
+
+  /** Cetris, die der NSC als Beute trägt (Vorlage: Bereiche pro Münze). */
+  cetris?: NpcCetris;
+  /** Nur im gewürfelten Schnappschuss (`Token.npcInstance`): die tatsächlich gewürfelten Cetris. */
+  purse?: Currency;
 
   // ─── Seele / Körper (authoring model) ──────────────────────────────────────
   // The soul (level + 6-stat distribution) and body (Stabilität/Effizienz + per-stat mods) drive the

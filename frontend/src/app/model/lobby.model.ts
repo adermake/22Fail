@@ -154,6 +154,8 @@ export interface Token {
   npcInstance?: import('./npc-statblock.model').NpcStatblock;
   /** Vom Spielleiter in der Lobby gesetztes Level. Neu würfeln behält es; ohne es würfelt der Statblock selbst. */
   npcLevel?: number;
+  /** Cetris, die dieses NSC bei sich trägt — beim Ablegen aus dem Statblock gewürfelt, danach wie `inventory` pro Token. */
+  currency?: import('./current-events.model').Currency;
 
   // ---- Per-token status effects (used for NPC tokens) ----
   activeStatusEffects?: TokenStatusEffect[];

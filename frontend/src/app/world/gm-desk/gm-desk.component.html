@@ -126,7 +126,7 @@
               <span class="desk-entry-type">
                 {{ kindLabel(entry.data) || typeLabel[entry.type] }}
                 @if (goldValue(entry.data); as gold) {
-                  <span class="desk-entry-gold">· {{ gold }} G</span>
+                  <span class="desk-entry-gold" title="Wert in Gold-Cetris">· {{ gold }} GC</span>
                 }
               </span>
             </div>
@@ -240,7 +240,7 @@
                   <span class="desk-lib-kind">{{ kind }}</span>
                 }
                 @if (goldValue(entry.data); as gold) {
-                  <span class="desk-lib-gold" title="Goldwert">{{ gold }} G</span>
+                  <span class="desk-lib-gold" title="Wert in Gold-Cetris">{{ gold }} GC</span>
                 }
                 @if (entry.libraryName) {
                   <span class="desk-lib-origin" [title]="'Aus: ' + entry.libraryName">{{ entry.libraryName }}</span>

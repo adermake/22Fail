@@ -177,19 +177,19 @@
             </div>
 
             <div class="preview-section">
-              <h4>Wealth</h4>
+              <h4>Cetris</h4>
               <div class="currency-display">
                 @if (generatedCharacter.currency.platinum > 0) {
-                  <span class="currency-item">{{ generatedCharacter.currency.platinum }}pp</span>
+                  <span class="currency-item" title="Platin-Cetris">{{ generatedCharacter.currency.platinum }} PC</span>
                 }
                 @if (generatedCharacter.currency.gold > 0) {
-                  <span class="currency-item">{{ generatedCharacter.currency.gold }}gp</span>
+                  <span class="currency-item" title="Gold-Cetris">{{ generatedCharacter.currency.gold }} GC</span>
                 }
                 @if (generatedCharacter.currency.silver > 0) {
-                  <span class="currency-item">{{ generatedCharacter.currency.silver }}sp</span>
+                  <span class="currency-item" title="Silber-Cetris">{{ generatedCharacter.currency.silver }} SC</span>
                 }
                 @if (generatedCharacter.currency.copper > 0) {
-                  <span class="currency-item">{{ generatedCharacter.currency.copper }}cp</span>
+                  <span class="currency-item" title="Kupfer-Cetris">{{ generatedCharacter.currency.copper }} KC</span>
                 }
               </div>
             </div>

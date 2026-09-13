@@ -1,0 +1,359 @@
+<div class="lss" [attr.data-tick]="svc.tick()"
+     [class.lss-blink]="blinking"
+     (click)="onStripClick()"
+     (contextmenu)="svc.onRightClickStatusArea($event)">
+
+  <span class="lss-label" title="Status-Effekte"><span class="app-icon i-status-effect"></span></span>
+
+  <div class="lss-chips">
+    @if (!svc.statusEffects.length) {
+      <span class="lss-empty">Keine Status-Effekte &mdash; Rechtsklick oder + zum Hinzuf&uuml;gen</span>
+    }
+    @for (fx of svc.statusEffects; track fx.id) {
+      <button type="button" class="lss-chip"
+              [attr.data-fx-id]="fx.id"
+              [class.selected]="svc.expandedFx?.id === fx.id"
+              [class.is-chain-active]="svc.chainEffects.length > 0 && svc.chainEffects[svc.chainIndex]?.id === fx.id"
+              [class.is-triggering]="svc.isFxTriggering(fx)"
+              [class.is-expiring]="svc.isFxExpiring(fx)"
+              [style.--ec]="svc.getEffectColor(fx)"
+              (click)="hideTip(); svc.onFxClick(fx, $event)"
+              (contextmenu)="hideTip(); svc.onRightClickFx(fx, $event)"
+              (mouseenter)="showTip(fx, $event)"
+              (mouseleave)="hideTip()">
+        @if (svc.getEffectIcon(fx); as icon) {
+          <span class="lss-chip-icon">{{ icon }}</span>
+        } @else {
+          <span class="app-icon i-status-effect"></span>
+        }
+        @if (fx.stacks > 1) { <span class="lss-chip-stacks">{{ fx.stacks }}</span> }
+        @if (hasDuration(fx)) { <span class="lss-chip-dur">{{ fx.duration }}</span> }
+      </button>
+    }
+  </div>
+
+  <div class="lss-actions" (click)="$event.stopPropagation()">
+    @if (svc.chainEffects.length > 0) {
+      <span class="lss-progress">{{ svc.chainIndex + 1 }}/{{ svc.chainEffects.length }}</span>
+      <button type="button" class="lss-btn primary" (click)="svc.executeNextInChain()"
+              [title]="svc.chainIndex < svc.chainEffects.length - 1 ? 'Nächsten Effekt ausführen' : 'Durchlauf abschließen'">
+        {{ svc.chainIndex < svc.chainEffects.length - 1 ? 'Nächster' : 'Fertig' }}
+      </button>
+      <button type="button" class="lss-btn rush" (click)="svc.finishChainInstantly()"
+              title="Rest ohne Animation sofort ausführen">Rest sofort</button>
+    } @else {
+      <button type="button" class="lss-btn" (click)="svc.togglePicker()" title="Status-Effekt hinzufügen">+</button>
+      @if (svc.statusEffects.length) {
+        <button type="button" class="lss-btn primary" (click)="svc.startExecuteAllChain()"
+                [disabled]="svc.executeAllInProgress" title="Effekte nacheinander ausführen">
+          <span class="app-icon i-effektivity"></span> Alle ausf&uuml;hren
+        </button>
+        <button type="button" class="lss-btn rush" (click)="svc.executeAllInstantly()"
+                [disabled]="svc.executeAllInProgress" title="Alle sofort ausführen (ohne Animation)">Sofort</button>
+      }
+    }
+  </div>
+</div>
+
+<!-- ── Hover tooltip ── -->
+@if (hovered; as h) {
+  @let def = svc.getEffect(h.fx);
+  <div class="lss-tip" [style.left.px]="h.x" [style.top.px]="h.y" [style.--ec]="svc.getEffectColor(h.fx)">
+    <div class="lss-tip-head">
+      <span class="lss-tip-name">{{ h.fx.name }}</span>
+      @if (h.fx.isDebuff) { <span class="lbp-fx-badge debuff">Debuff</span> }
+    </div>
+    <div class="lss-tip-meta">
+      <span>Stapel &times;{{ h.fx.stacks }}</span>
+      <span>{{ hasDuration(h.fx) ? h.fx.duration + ' Runden' : 'dauerhaft' }}</span>
+    </div>
+    @if (def?.description) { <div class="lss-tip-desc">{{ def!.description }}</div> }
+    @if (def?.statModifiers?.length) {
+      <div class="lbp-fx-mods">
+        @for (mod of def!.statModifiers!; track $index) {
+          <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+            {{ svc.getStatModLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
+          </span>
+        }
+      </div>
+    }
+    <div class="lss-tip-hint">Klick: bearbeiten &middot; Rechtsklick: Men&uuml;</div>
+  </div>
+}
+
+<!-- ── Result popup below the running chip ── -->
+@if (svc.chainEffects.length > 0) {
+  @if (svc.resultAnchor; as anchor) {
+    @let currentFx = svc.chainEffects[svc.chainIndex];
+    <div class="lss-exec-popup" [style.left.px]="anchor.panelX" [style.top.px]="anchor.top" [style.--conn]="anchor.color">
+      @if (currentFx) {
+        <div class="exec-sb-current" [style.--ec]="svc.getEffectColor(currentFx)">
+          <div class="exec-sb-icon">
+            @if (svc.getEffectIcon(currentFx); as icon) { {{ icon }} } @else { <span class="app-icon i-status-effect"></span> }
+          </div>
+          <div class="exec-sb-name">{{ currentFx.name }}</div>
+        </div>
+      }
+      @if (svc.chainResult; as result) {
+        @if (result.displays?.length) {
+          <div class="exec-sb-displays">
+            @for (d of result.displays; track $index) {
+              @switch (d.type) {
+                @case ('banner') { <div class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
+                @case ('stat') { <div class="ds-stat" [ngClass]="'ds-' + d.style"><span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span></div> }
+                @case ('box') { <div class="ds-boxrow"><span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span></div> }
+                @default { <div class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
+              }
+            }
+          </div>
+        }
+        @if (svc.summarizeStepResources(result).length > 0) {
+          <div class="exec-sb-section-label">Ressourcen</div>
+          <div class="exec-sb-summary">
+            @for (res of svc.summarizeStepResources(result); track res.resource) {
+              <button class="exec-sb-chip" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
+                      (click)="svc.openStepResourceBreakdown(result, res.resource, res.displayName)"
+                      title="Aufschlüsselung anzeigen">
+                {{ res.displayName }}
+                <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
+              </button>
+            }
+          </div>
+        }
+        @if (result.rolls.length > 0) {
+          <button class="exec-sb-rolls-btn" (click)="svc.openAllRollsBreakdown(result)">
+            <span class="app-icon i-dice"></span> W&uuml;rfel-Details ({{ result.rolls.length }})
+          </button>
+        }
+        @if (!result.displays?.length && svc.summarizeStepResources(result).length === 0 && result.rolls.length === 0) {
+          <div class="exec-sb-no-roll">Kein Ergebnis</div>
+        }
+      }
+    </div>
+    <div class="exec-connector" [style.left.px]="anchor.cardX" [style.top.px]="anchor.top - 12" [style.--conn]="anchor.color"></div>
+  }
+}
+
+<!-- ── Breakdown popup ── -->
+@if (svc.breakdownPopup; as popup) {
+  <div class="lbp-breakdown-overlay" (click)="svc.closeBreakdown()">
+    <div class="lbp-breakdown" (click)="$event.stopPropagation()" [style.--bc]="popup.color">
+      <div class="lbp-breakdown-head">
+        <span class="lbp-breakdown-title">{{ popup.title }}</span>
+        <button class="lbp-breakdown-close" (click)="svc.closeBreakdown()">&times;</button>
+      </div>
+      @if (popup.rows.length === 0) {
+        <div class="lbp-breakdown-empty">Keine Eintr&auml;ge</div>
+      } @else {
+        <div class="lbp-breakdown-rows">
+          @for (row of popup.rows; track $index) {
+            <div class="lbp-breakdown-row">
+              <span class="lbp-breakdown-label">{{ row.label }}</span>
+              <span class="lbp-breakdown-value" [class.gain]="row.positive" [class.loss]="!row.positive">{{ row.value }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- ── Effect details ── -->
+@if (svc.expandedFx; as fx) {
+  @let def = svc.getEffect(fx);
+  <div class="lbp-fx-panel-overlay" (click)="svc.closeExpandedView()">
+    <div class="lbp-fx-panel" (click)="$event.stopPropagation()" [style.--ec]="svc.getEffectColor(fx)">
+      <div class="lbp-fx-panel-header">
+        <span class="lbp-fx-panel-icon" [style.color]="svc.getEffectColor(fx)">
+          @if (svc.getEffectIcon(fx); as icon) { {{ icon }} } @else { <span class="app-icon i-status-effect"></span> }
+        </span>
+        <div class="lbp-fx-panel-title">
+          <span class="lbp-fx-panel-name">{{ fx.name }}</span>
+          @if (fx.isDebuff) { <span class="lbp-fx-badge debuff">Debuff</span> }
+        </div>
+        <button class="lbp-fx-panel-close" (click)="svc.closeExpandedView()">&times;</button>
+      </div>
+      @if (def?.description) {
+        <div class="lbp-fx-panel-desc">{{ def!.description }}</div>
+      }
+      <div class="lbp-fx-panel-details">
+        <div class="lbp-fx-detail">
+          <span class="lbp-fx-detail-icon"><span class="app-icon i-turnspeed"></span></span>
+          <span class="lbp-fx-detail-label">Dauer</span>
+          <span class="lbp-fx-detail-value">
+            <button class="lbp-fx-btn" (click)="svc.changeDuration(fx, -1)">&minus;</button>
+            <span class="lbp-fx-num">{{ hasDuration(fx) ? fx.duration : '∞' }}</span>
+            <button class="lbp-fx-btn" (click)="svc.changeDuration(fx, 1)">+</button>
+            <span class="lbp-fx-unit">Runden</span>
+          </span>
+        </div>
+        <div class="lbp-fx-detail">
+          <span class="lbp-fx-detail-icon"><span class="app-icon i-layers"></span></span>
+          <span class="lbp-fx-detail-label">Stapel</span>
+          <span class="lbp-fx-detail-value">
+            <button class="lbp-fx-btn" (click)="svc.changeStacks(fx, -1)">&minus;</button>
+            <span class="lbp-fx-num">&times;{{ fx.stacks }}</span>
+            <button class="lbp-fx-btn" (click)="svc.changeStacks(fx, 1)">+</button>
+          </span>
+        </div>
+        @if (def?.strength !== undefined && def?.strength !== null) {
+          <div class="lbp-fx-detail">
+            <span class="lbp-fx-detail-icon"><span class="app-icon i-stability"></span></span>
+            <span class="lbp-fx-detail-label">St&auml;rke</span>
+            <span class="lbp-fx-detail-value"><span class="lbp-fx-num">{{ def?.strength }}</span></span>
+          </div>
+        }
+        @if (def?.talentModifiers?.length) {
+          <div class="lbp-fx-detail">
+            <span class="lbp-fx-detail-icon"><span class="app-icon i-knowledge"></span></span>
+            <span class="lbp-fx-detail-label">Talente</span>
+            <span class="lbp-fx-mods">
+              @for (mod of def!.talentModifiers!; track $index) {
+                <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+                  {{ svc.getTalentName(mod.talentId) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}</span>
+              }
+            </span>
+          </div>
+        }
+        @if (def?.statModifiers?.length) {
+          <div class="lbp-fx-detail">
+            <span class="lbp-fx-detail-icon"><span class="app-icon i-stat"></span></span>
+            <span class="lbp-fx-detail-label">Modifikatoren</span>
+            <span class="lbp-fx-mods">
+              @for (mod of def!.statModifiers!; track $index) {
+                <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+                  {{ svc.getStatModLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
+                </span>
+              }
+            </span>
+          </div>
+        }
+      </div>
+      @if (svc.hasBaseAction(fx) || svc.getEffectTriggers(fx).length) {
+        <div class="lbp-fx-panel-execute-row">
+          @if (svc.hasBaseAction(fx)) {
+            <button class="lbp-fx-execute-btn" (click)="svc.executeSingleEffect(fx, $event)">
+              <span class="app-icon i-effektivity"></span> Basis-Effekt ausl&ouml;sen
+              @if (fx.stacks > 1) { <span>(&times;{{ fx.stacks }})</span> }
+            </button>
+          }
+          @if (svc.getEffectTriggers(fx).length) {
+            <div class="lbp-fx-triggers">
+              <span class="lbp-fx-triggers-label">Ausl&ouml;ser</span>
+              @for (trig of svc.getEffectTriggers(fx); track trig) {
+                <button class="lbp-fx-trigger-btn" (click)="svc.executeTrigger(fx, trig, $event)">
+                  <span class="app-icon i-ability"></span> {{ trig }}
+                </button>
+              }
+            </div>
+          }
+          @if (svc.getLastResult(fx); as lastResult) {
+            <div class="lbp-fx-last-result">
+              @for (d of lastResult.displays ?? []; track $index) {
+                @switch (d.type) {
+                  @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                  @case ('stat') {
+                    <span class="ds-stat" [ngClass]="'ds-' + d.style">
+                      <span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span>
+                    </span>
+                  }
+                  @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                  @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                }
+              }
+              @for (change of lastResult.resourceChanges; track $index) {
+                <span class="lbp-fx-last-change" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
+                  {{ change.displayName }}: {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+                </span>
+              }
+              @if (lastResult.rolls.length) {
+                <button class="lbp-fx-last-rolls" (click)="svc.openAllRollsBreakdown(lastResult)" title="Würfel anzeigen">
+                  <span class="app-icon i-dice"></span> {{ lastResult.rolls.length }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+      <div class="lbp-fx-panel-footer">
+        @if (def) {
+          <button class="lbp-fx-panel-btn edit" (click)="svc.editFx(fx)"><span class="app-icon i-draw"></span> Bearbeiten</button>
+        }
+        <button class="lbp-fx-panel-btn delete" (click)="svc.removeStatusEffect(fx.id)"><span class="app-icon i-restore-trash"></span> Entfernen</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Picker ── -->
+@if (svc.showPicker) {
+  <div class="lbp-picker-overlay" (click)="svc.closePicker()">
+    <div class="lbp-picker" (click)="$event.stopPropagation()">
+      <div class="lbp-picker-head">
+        <span>Status hinzuf&uuml;gen</span>
+        <button class="lbp-picker-close" (click)="svc.closePicker()">&times;</button>
+      </div>
+      <input class="lbp-picker-search" type="text" [(ngModel)]="svc.pickerSearch" placeholder="Suche…">
+      @if (svc.availableToAdd.length === 0) {
+        <p class="lbp-picker-empty">Keine Effekte in der Bibliothek.<br>Effekte zuerst in der Bibliothek erstellen.</p>
+      } @else {
+        <div class="lbp-picker-grid">
+          @for (effect of svc.availableToAdd; track effect.id) {
+            <button class="lbp-picker-card" [class.is-debuff]="effect.isDebuff"
+                    [style.--ec]="effect.color || '#8b5cf6'"
+                    (click)="svc.applyEffect(effect)" [title]="effect.description || effect.name">
+              <span class="lbp-picker-card-icon">
+                @if (effect.icon) { {{ effect.icon }} } @else { <span class="app-icon i-status-effect"></span> }
+              </span>
+              <span class="lbp-picker-card-name">{{ effect.name }}</span>
+              @if (effect.isDebuff) { <span class="lbp-picker-tag debuff">Debuff</span> }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- ── Context menu ── -->
+@if (svc.showContextMenu) {
+  <div class="lbp-ctx-overlay" (click)="svc.closeContextMenu()" (contextmenu)="$event.preventDefault(); svc.closeContextMenu()">
+    <div class="lbp-ctx-menu" [style.left.px]="svc.contextMenuX" [style.top.px]="svc.contextMenuY"
+         (click)="$event.stopPropagation()">
+      @if (svc.contextMenuFx; as ctxFx) {
+        <button class="lbp-ctx-item" (click)="svc.editFxFromContextMenu()">
+          <span class="app-icon i-draw"></span><span>Bearbeiten</span>
+        </button>
+        @if (svc.hasBaseAction(ctxFx)) {
+          <button class="lbp-ctx-item" (click)="svc.executeFxFromContextMenu($event)">
+            <span class="app-icon i-effektivity"></span><span>Ausl&ouml;sen</span>
+          </button>
+        }
+      } @else {
+        <button class="lbp-ctx-item" (click)="svc.openPickerFromContextMenu()">
+          <span class="app-icon i-status-effect"></span><span>Status hinzuf&uuml;gen</span>
+        </button>
+      }
+    </div>
+  </div>
+}
+
+<!-- ── Effect editor ── -->
+@if (svc.editingFx && svc.editedStatusEffect) {
+  <div class="lbp-editor-overlay">
+    <div class="lbp-editor-container">
+      <div class="lbp-editor-header">
+        <h3>Status-Effekt bearbeiten</h3>
+        <p class="lbp-editor-note">&Auml;nderungen l&ouml;sen die Verkn&uuml;pfung zur Bibliothek</p>
+      </div>
+      <app-status-effect-editor
+        [statusEffect]="svc.editedStatusEffect"
+        [allowGlobalSave]="svc.isGM && !!svc.editingFx.statusEffectId"
+        (save)="svc.saveEditedFx($event)"
+        (saveGlobal)="svc.saveEditedFxGlobally($event)"
+        (cancel)="svc.cancelEditFx()"
+        (delete)="svc.removeStatusEffect(svc.editingFx!.id); svc.cancelEditFx()">
+      </app-status-effect-editor>
+    </div>
+  </div>
+}

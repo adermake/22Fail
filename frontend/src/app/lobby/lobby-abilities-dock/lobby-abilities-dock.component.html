@@ -1,0 +1,71 @@
+<div class="lad" [class.collapsed]="collapsed" [attr.data-tick]="svc.tick()">
+  <div class="lad-head" [class.lad-blink]="blinking" (click)="onHeaderClick()">
+    <button type="button" class="lad-collapse" (click)="toggleCollapsed(); $event.stopPropagation()"
+            [title]="collapsed ? 'Ausklappen' : 'Einklappen'">{{ collapsed ? '▲' : '▼' }}</button>
+    <span class="lad-title"><span class="app-icon i-spell"></span> Zauber &amp; F&auml;higkeiten</span>
+
+    @if (!collapsed && svc.hasSelection && canViewStats) {
+      <div class="lad-filter" (click)="$event.stopPropagation()">
+        <button type="button" [class.on]="filter === 'all'" (click)="filter = 'all'">Alle</button>
+        <button type="button" [class.on]="filter === 'skills'" (click)="filter = 'skills'">
+          F&auml;higkeiten ({{ svc.availableSkills.length }})
+        </button>
+        <button type="button" [class.on]="filter === 'spells'" (click)="filter = 'spells'">
+          Zauber ({{ svc.availableSpells.length }})
+        </button>
+      </div>
+      <input class="lad-search" type="text" placeholder="Suchen…" [(ngModel)]="query" (click)="$event.stopPropagation()">
+    }
+
+    @if (svc.token; as tok) {
+      <span class="lad-token">{{ tok.name }}</span>
+    }
+  </div>
+
+  @if (!collapsed) {
+    <div class="lad-body">
+      @if (!svc.hasSelection) {
+        <div class="lad-empty">Kein Token ausgew&auml;hlt</div>
+      } @else if (!canViewStats) {
+        <div class="lad-empty"><span class="app-icon i-lock"></span> Statistiken anderer Spieler sind verborgen.</div>
+      } @else if (!skills.length && !spells.length) {
+        <div class="lad-empty">{{ query ? 'Nichts gefunden.' : 'Keine aktivierbaren Fähigkeiten oder Zauber.' }}</div>
+      } @else {
+        <div class="lad-grid">
+          @for (skill of skills; track $index) {
+            @let action = svc.effectiveActionType(skill);
+            <button type="button" class="lad-card lad-card--skill"
+                    [class.active]="svc.isSkillActive(skill)"
+                    [attr.data-action]="action || 'Aktion'"
+                    [title]="skill.description || skill.name"
+                    (click)="svc.activateSkill(skill)">
+              <span class="lad-card-top">
+                <span class="lad-badge">{{ action || 'Fähigkeit' }}</span>
+                @if (svc.isSkillActive(skill)) { <span class="lad-active">Aktiv</span> }
+              </span>
+              <span class="lad-name">{{ skill.name }}</span>
+              @if (skill.description) { <span class="lad-desc">{{ skill.description }}</span> }
+              @if (svc.skillCostLabel(skill); as cost) { <span class="lad-cost">{{ cost }}</span> }
+            </button>
+          }
+          @for (spell of spells; track $index) {
+            <button type="button" class="lad-card lad-card--spell"
+                    [class.active]="svc.isSpellActive(spell)"
+                    [style.--sc]="svc.spellColor(spell)"
+                    [title]="spell.description || spell.name"
+                    (click)="svc.activateSpell(spell)">
+              <span class="lad-card-top">
+                <span class="lad-badge">Zauber</span>
+                @if (spell.icon) { <span class="lad-icon">{{ spell.icon }}</span> }
+                @if (svc.isSpellActive(spell)) { <span class="lad-active">Aktiv</span> }
+              </span>
+              <span class="lad-name">{{ spell.name }}</span>
+              @if (spell.description) { <span class="lad-desc">{{ spell.description }}</span> }
+              @if (svc.spellCostLabel(spell); as cost) { <span class="lad-cost">{{ cost }}</span> }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

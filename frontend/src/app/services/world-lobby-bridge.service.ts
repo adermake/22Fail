@@ -4,6 +4,7 @@ import { LobbyApiService } from './lobby-api.service';
 import { LobbySocketService } from './lobby-socket.service';
 import { LobbyData, LobbyMap, Token } from '../model/lobby.model';
 import { ItemBlock } from '../model/item-block.model';
+import { Currency } from '../model/current-events.model';
 
 /**
  * Ein Fenster von der GM-Ansicht in die Lobby.
@@ -85,6 +86,17 @@ export class WorldLobbyBridgeService {
 
     const tokens = map.tokens.map(t => (t.id === tokenId ? { ...t, inventory } : t));
     // Optimistisch anwenden, damit der Reiter sofort stimmt; der Echo bestätigt es nur noch.
+    this.writeTokens(tokens);
+    this.socket.sendPatch(this.worldName, data.activeMapId, { path: 'tokens', value: tokens });
+  }
+
+  /** Die Cetris eines NSC-Tokens ersetzen; `undefined` leert den Beutel. */
+  setTokenCurrency(tokenId: string, currency: Currency | undefined): void {
+    const map = this.activeMap();
+    const data = this.lobby();
+    if (!map || !data) return;
+
+    const tokens = map.tokens.map(t => (t.id === tokenId ? { ...t, currency } : t));
     this.writeTokens(tokens);
     this.socket.sendPatch(this.worldName, data.activeMapId, { path: 'tokens', value: tokens });
   }

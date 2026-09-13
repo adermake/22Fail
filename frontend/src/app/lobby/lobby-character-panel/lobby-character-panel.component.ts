@@ -38,6 +38,7 @@ import { applyStability } from '../../utils/stability.util';
 import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { tokenLabel } from '../../utils/entry-preview.util';
+import { formatCurrencyAsUnits, isEmptyCurrency } from '../../model/current-events.model';
 
 interface StatDisplay {
   label: string;
@@ -45,7 +46,9 @@ interface StatDisplay {
   bonus: number;
 }
 
-type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipment';
+type PanelSection = 'actions' | 'rolls' | 'aussehen' | 'linked' | 'equipment';
+const PANEL_SECTIONS_KEY = 'lobby:panel-sections';
+const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
 
 @Component({
   selector: 'app-lobby-character-panel',
@@ -258,19 +261,16 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       </div>
     }
 
-    <!-- Panel Tabs -->
-    <div class="panel-tabs">
-      <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="activeTab.set('actions')" title="Aktionen"><span class="app-icon i-effektivity"></span></button>
-      <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="activeTab.set('rolls')" title="Würfelverlauf"><span class="app-icon i-dice"></span></button>
-      <button class="ptab" [class.active]="activeTab() === 'status'" (click)="activeTab.set('status')" title="Status-Effekte"><span class="app-icon i-status-effect"></span></button>
-      <button class="ptab" [class.active]="activeTab() === 'equipment'" (click)="activeTab.set('equipment')" title="Ausrüstung"><span class="app-icon i-equipment"></span></button>
-      <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="activeTab.set('aussehen')" title="Aussehen & Transform"><span class="app-icon i-appearance"></span></button>
-      <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="activeTab.set('linked')" title="Verknüpfte Token"><span class="app-icon i-tokenlink"></span></button>
-    </div>
+    <!-- Abschnitte statt Tabs: alles untereinander, einzeln einklappbar.
+         Status-Effekte stehen jetzt oben in der Status-Leiste, Zauber & Fähigkeiten unten im Dock. -->
 
     <div class="panel-body">
 
-      @if (activeTab() === 'actions') {
+      <button type="button" class="psec-head" [class.open]="isSectionOpen('actions')" (click)="toggleSection('actions')">
+        <span class="app-icon i-effektivity"></span> Aktionen
+        <span class="psec-caret">{{ isSectionOpen('actions') ? '▾' : '▸' }}</span>
+      </button>
+      @if (isSectionOpen('actions')) {
 
         <!-- Schnellwürfe -->
         <div class="section-header"><span class="app-icon i-effektivity"></span> Schnellwürfe</div>
@@ -302,73 +302,16 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           </div>
         }
 
-        <!-- Fertigkeiten -->
-        @if (allSkills.length > 0) {
-          <div class="section-header"><span class="app-icon i-ability"></span> Fertigkeiten</div>
-          <div class="skill-cards-list">
-            @for (skill of allSkills; track skill.name) {
-              <div class="lsc"
-                [attr.data-type]="skill.type"
-                [class.lsc--clickable]="skill.type === 'active'"
-                [class.lsc--active]="skill.type === 'active' && isSkillActive(skill)"
-                (click)="onSkillCardClick(skill)">
-                <div class="lsc-bar">
-                  <span class="lsc-type-icon app-icon {{ getSkillTypeIcon(skill.type) }}"></span>
-                  <span class="lsc-type-lbl">{{ getSkillTypeLabel(skill.type) }}</span>
-                  <span class="lsc-name">{{ skill.name }}</span>
-                  @if (skill.actionType) {
-                    <span class="lsc-action-tag" [attr.data-action]="skill.actionType">{{ skill.actionType }}</span>
-                  }
-                  @if (skill.enlightened) {
-                    <span class="lsc-enl">✦</span>
-                  }
-                  @if (skill.type === 'active' && isSkillActive(skill)) {
-                    <span class="lsc-active-badge">Aktiv</span>
-                  }
-                </div>
-                @if (skill.description) {
-                  <div class="lsc-desc">{{ skill.description }}</div>
-                }
-                <div class="lsc-footer">
-                  @if (skill.class) {
-                    <span class="lsc-class">{{ skill.class }}</span>
-                  }
-                  @if (skill.cost) {
-                    <span class="lsc-cost" [attr.data-resource]="skill.cost.type">
-                      <span class="app-icon" [class.i-mana]="skill.cost.type === 'mana'" [class.i-energy]="skill.cost.type === 'energy'" [class.i-life]="skill.cost.type !== 'mana' && skill.cost.type !== 'energy'"></span> {{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}
-                    </span>
-                  }
-                </div>
-              </div>
-            }
-          </div>
-        }
-
-        <!-- Zauber -->
-        @if (spells.length > 0) {
-          <div class="section-header"><span class="app-icon i-spell"></span> Zauber</div>
-          <div class="spell-list">
-            @for (spell of spells; track spell.name) {
-              <div class="spell-entry">
-                <div class="spell-meta">
-                  <span class="spell-icon">{{ spell.icon || '✨' }}</span>
-                  <span class="spell-name">{{ spell.name }}</span>
-                  @if (spell.costMana) {
-                    <span class="skill-tag cost-tag">{{ spell.costMana }}<span class="app-icon i-mana"></span></span>
-                  }
-                </div>
-                <button class="action-btn spell-btn" [class.action-btn--active]="isSpellActive(spell)" (click)="activateSpell(spell)">Aktivieren</button>
-              </div>
-            }
-          </div>
-        }
-
-        @if (stats.length === 0 && allSkills.length === 0 && spells.length === 0) {
+        @if (stats.length === 0) {
           <div class="empty-rolls">Keine Daten für diesen Token</div>
         }
       }
 
-      @if (activeTab() === 'rolls') {
+      <button type="button" class="psec-head" [class.open]="isSectionOpen('rolls')" (click)="toggleSection('rolls')">
+        <span class="app-icon i-dice"></span> W&uuml;rfelverlauf
+        <span class="psec-caret">{{ isSectionOpen('rolls') ? '▾' : '▸' }}</span>
+      </button>
+      @if (isSectionOpen('rolls')) {
         <div class="roll-history">
           @if (rolls.length === 0) {
             <div class="empty-rolls">Noch keine Würfe in dieser Sitzung</div>
@@ -402,86 +345,12 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
         </div>
       }
 
-      <!-- ── Status-Effekte Tab ── -->
-      @if (activeTab() === 'status') {
-        <div class="status-tab">
-          <!-- Active effects list -->
-          @if (tokenStatusEffects.length === 0) {
-            <div class="empty-rolls">Keine aktiven Status-Effekte</div>
-          }
-          @for (fx of tokenStatusEffects; track fx.id) {
-            <div class="fx-entry" [class.debuff]="fx.isDebuff">
-              <span class="fx-icon">{{ fx.icon || (fx.isDebuff ? '💀' : '⭐') }}</span>
-              <span class="fx-name">{{ fx.name }}</span>
-              <div class="fx-controls">
-                <span class="fx-stacks-label">Stapel</span>
-                <button class="fx-btn" (click)="adjustFxStacks(fx, -1)">−</button>
-                <span class="fx-val">{{ fx.stacks }}</span>
-                <button class="fx-btn" (click)="adjustFxStacks(fx, 1)">+</button>
-                @if (fx.duration !== undefined) {
-                  <span class="fx-dur-label">Runden</span>
-                  <button class="fx-btn" (click)="adjustFxDuration(fx, -1)">−</button>
-                  <span class="fx-val">{{ fx.duration }}</span>
-                  <button class="fx-btn" (click)="adjustFxDuration(fx, 1)">+</button>
-                }
-                <button class="fx-remove-btn" (click)="removeStatusEffect(fx.id)" title="Entfernen">✕</button>
-              </div>
-            </div>
-          }
-
-          <!-- Library picker -->
-          <button class="add-fx-btn" (click)="openLibraryPicker()">
-            <span class="app-icon i-folder"></span> Aus Bibliothek wählen
-          </button>
-          @if (showLibraryPicker()) {
-            <div class="lib-picker">
-              <input class="fx-input lib-picker-search" placeholder="Status-Effekt suchen..."
-                [(ngModel)]="libraryPickerSearch" />
-              <div class="lib-picker-list">
-                @if (filteredLibraryEffects.length === 0) {
-                  <div class="empty-rolls">Keine Status-Effekte gefunden</div>
-                }
-                @for (effect of filteredLibraryEffects; track effect.id) {
-                  <div class="lib-picker-item" (click)="applyLibraryStatusEffect(effect)">
-                    <span class="lib-picker-icon">{{ effect.icon || (effect.isDebuff ? '💀' : '⭐') }}</span>
-                    <div class="lib-picker-info">
-                      <span class="lib-picker-name">{{ effect.name }}</span>
-                      @if (effect.defaultDuration) {
-                        <span class="lib-picker-dur">{{ effect.defaultDuration }} Runden</span>
-                      }
-                    </div>
-                  </div>
-                }
-              </div>
-            </div>
-          }
-
-          <!-- Add effect form -->
-          @if (showAddEffectForm()) {
-            <div class="add-fx-form">
-              <div class="form-row">
-                <input class="fx-input" placeholder="Icon (Emoji)" [(ngModel)]="newEffectIcon" style="width:54px" maxlength="4" />
-                <input class="fx-input" placeholder="Name" [(ngModel)]="newEffectName" style="flex:1" />
-              </div>
-              <div class="form-row">
-                <label class="fx-check">
-                  <input type="checkbox" [(ngModel)]="newEffectIsDebuff" /> Debuff
-                </label>
-                <input class="fx-input" type="number" placeholder="Dauer (leer=∞)" [(ngModel)]="newEffectDuration" style="width:96px" min="1" />
-              </div>
-              <div class="form-row">
-                <button class="do-roll-btn small-btn" (click)="addStatusEffect()">Hinzufügen</button>
-                <button class="action-btn" (click)="showAddEffectForm.set(false)">Abbrechen</button>
-              </div>
-            </div>
-          } @else {
-            <button class="add-fx-btn" (click)="openAddEffectForm()">+ Status-Effekt hinzufügen</button>
-          }
-        </div>
-      }
-
-      <!-- ── Aussehen Tab ── -->
-      @if (activeTab() === 'aussehen') {
+      <!-- ── Aussehen ── -->
+      <button type="button" class="psec-head" [class.open]="isSectionOpen('aussehen')" (click)="toggleSection('aussehen')">
+        <span class="app-icon i-appearance"></span> Aussehen
+        <span class="psec-caret">{{ isSectionOpen('aussehen') ? '▾' : '▸' }}</span>
+      </button>
+      @if (isSectionOpen('aussehen')) {
         <div class="aussehen-tab">
 
           <!-- Rename -->
@@ -601,7 +470,11 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       }
 
       <!-- ── Verknüpfung Tab ── -->
-      @if (activeTab() === 'linked') {
+      <button type="button" class="psec-head" [class.open]="isSectionOpen('linked')" (click)="toggleSection('linked')">
+        <span class="app-icon i-tokenlink"></span> Verkn&uuml;pfte Token
+        <span class="psec-caret">{{ isSectionOpen('linked') ? '▾' : '▸' }}</span>
+      </button>
+      @if (isSectionOpen('linked')) {
         <div class="linked-tab">
 
           <!-- Parent info -->
@@ -669,7 +542,11 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       }
 
       <!-- ── Ausrüstung Tab ── -->
-      @if (activeTab() === 'equipment') {
+      <button type="button" class="psec-head" [class.open]="isSectionOpen('equipment')" (click)="toggleSection('equipment')">
+        <span class="app-icon i-equipment"></span> Ausr&uuml;stung &amp; Beute
+        <span class="psec-caret">{{ isSectionOpen('equipment') ? '▾' : '▸' }}</span>
+      </button>
+      @if (isSectionOpen('equipment')) {
         <div class="equip-tab">
           @if (equipment.length === 0) {
             <div class="empty-rolls">Keine Ausrüstung vorhanden</div>
@@ -700,6 +577,16 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                 }
               </div>
             }
+          }
+
+          @if (tokenPurse) {
+            <div class="equip-section-label">Cetris</div>
+            <div class="equip-entry">
+              <div class="equip-top">
+                <span class="equip-type-icon"><span class="app-icon i-currency"></span></span>
+                <span class="equip-name">{{ tokenPurse }}</span>
+              </div>
+            </div>
           }
 
           <!-- Inventar: die Beute, die der NSC bei sich hat (pro Token, nicht pro Statblock) -->
@@ -1054,6 +941,29 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
     .panel-body::-webkit-scrollbar { width: 4px; }
     .panel-body::-webkit-scrollbar-track { background: #0f172a; }
     .panel-body::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+    /* ---- Collapsible sections (replace the old icon tabs) ---- */
+    .psec-head {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 6px 0 4px;
+      padding: 6px 8px;
+      background: #0f172a;
+      border: 1px solid #1f2937;
+      border-radius: 6px;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-align: left;
+      cursor: pointer;
+    }
+    .psec-head:hover { color: #e2e8f0; border-color: #334155; }
+    .psec-head.open { color: #c7d2fe; }
+    .psec-caret { margin-left: auto; font-size: 10px; }
 
     /* ---- Section headers ---- */
     .section-header {
@@ -1624,7 +1534,28 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   private libraryStore = inject(LibraryStoreService);
   private cdr = inject(ChangeDetectorRef);
 
-  activeTab = signal<PanelTab>('actions');
+  /** Offene Abschnitte (statt eines aktiven Tabs) — pro Browser gemerkt. */
+  openSections = signal<Set<PanelSection>>(LobbyCharacterPanelComponent.readOpenSections());
+
+  isSectionOpen(section: PanelSection): boolean {
+    return this.openSections().has(section);
+  }
+
+  toggleSection(section: PanelSection): void {
+    const next = new Set(this.openSections());
+    if (next.has(section)) next.delete(section);
+    else next.add(section);
+    this.openSections.set(next);
+    try { localStorage.setItem(PANEL_SECTIONS_KEY, JSON.stringify([...next])); } catch { /* private mode */ }
+  }
+
+  private static readOpenSections(): Set<PanelSection> {
+    try {
+      const raw = localStorage.getItem(PANEL_SECTIONS_KEY);
+      if (raw) return new Set(JSON.parse(raw) as PanelSection[]);
+    } catch { /* unreadable storage — fall back to the defaults */ }
+    return new Set(DEFAULT_OPEN_SECTIONS);
+  }
   selectedDiceType = signal(20);
   customBonus = signal(0);
   showDiceRoller = signal(false);
@@ -1675,7 +1606,6 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   ngOnChanges(changes: SimpleChanges): void {
     // Switch to actions tab and sync local state whenever the selected token changes
     if (changes['token'] && this.token?.id !== changes['token'].previousValue?.id) {
-      this.activeTab.set('actions');
       this.syncCosmeticLocals();
       this.showAddEffectForm.set(false);
       this.showDrawCanvas.set(false);
@@ -1856,6 +1786,12 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   /** Name samt Kennzeichnung ("Kultist 2") — sonst sehen alle gleichnamigen Token gleich aus. */
   tokenLabel = tokenLabel;
+
+  /** Die Cetris am Token als Text, leer wenn keine. */
+  get tokenPurse(): string {
+    const purse = this.token?.currency;
+    return isEmptyCurrency(purse) ? '' : formatCurrencyAsUnits(purse!);
+  }
 
   /** Level field in the header: a real change rerolls the NSC at that level. */
   onNpcLevelInput(event: Event): void {

@@ -1,4 +1,6 @@
 import { ItemBlock } from '../model/item-block.model';
+import { CETRIS_ORDER, Currency } from '../model/current-events.model';
+import type { NpcCetris } from '../model/npc-statblock.model';
 import {
   NPC_STAT_KEYS, NpcEquipmentGroups, NpcGearSlotRoll, NpcGearTemplate, NpcRollBounds, NpcRollEntry,
   NpcRollList, NpcSoul, NpcStatblock, NpcStatVariation, NpcVariation,
@@ -56,6 +58,30 @@ export function scaleChanceForLevel(
   if (c === 0 || c === 1 || !levelDelta) return c;
   const exponent = Math.max(0.1, 1 + (Math.max(0, percentPerLevel) / 100) * levelDelta);
   return 1 - Math.pow(1 - c, exponent);
+}
+
+/**
+ * The purse. Fest: each coin's `min`. Zufällig: an amount in the range, multiplied by the same
+ * `1 + s·Δ` factor the chances use (floored at 0.1), so a stronger NSC also carries more.
+ */
+export function rollCetris(
+  cetris: NpcCetris | undefined, random: boolean, levelDelta: number, percentPerLevel: number, rng: Rng,
+): Currency {
+  const out: Currency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
+  if (!cetris) return out;
+  const factor = Math.max(0.1, 1 + (Math.max(0, percentPerLevel) / 100) * levelDelta);
+  for (const key of CETRIS_ORDER) {
+    const bounds = cetris[key];
+    if (!bounds) continue;
+    const min = Math.max(0, Math.floor(bounds.min || 0));
+    if (!random) {
+      out[key] = min;
+      continue;
+    }
+    const max = Math.max(min, Math.floor(bounds.max ?? min));
+    out[key] = Math.max(0, Math.round(rollInt(rng, min, max) * factor));
+  }
+  return out;
 }
 
 /** Every chance (lists and generated slots) moved by `levelDelta`; the forge budget follows level × 2. */
@@ -362,13 +388,18 @@ export function rollNpcInstance(
     out.level = Math.max(1, Math.floor(options.level) || 1);
   }
   // Level first, then the lists: a stronger NSC rolls with stronger chances.
-  scaleVariationForLevel(variation, (out.soul?.level ?? out.level ?? authoredLevel) - authoredLevel);
+  const levelDelta = (out.soul?.level ?? out.level ?? authoredLevel) - authoredLevel;
+  scaleVariationForLevel(variation, levelDelta);
   out.customSkills = pickList(out.customSkills ?? [], lists.customSkills, makeRng(seedFor(seed, 'skills'))).map(p => p.item);
   out.spells = pickList(out.spells ?? [], lists.spells, makeRng(seedFor(seed, 'spells'))).map(p => p.item);
   out.equipment = rollEquipment(
     out.equipment ?? [], lists.equipment, variation.gear, variation.equipmentGroups, ctx, seed,
   );
   out.inventory = rollInventory(out.inventory ?? [], lists.inventory, seed);
+  out.purse = rollCetris(
+    out.cetris, lists.inventory?.mode === 'random', levelDelta,
+    variation.levelChance ?? DEFAULT_LEVEL_CHANCE, makeRng(seedFor(seed, 'cetris')),
+  );
 
   delete out.variation;
   applyDerivedNpcStats(out, calc);

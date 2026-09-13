@@ -31,7 +31,9 @@ import {
   NpcRollListKey,
   NpcGearTemplate,
   NpcEquipmentGroups,
+  NpcRollBounds,
 } from '../../model/npc-statblock.model';
+import { CETRIS_LABEL, CETRIS_ORDER, CetrisKey } from '../../model/current-events.model';
 import { ARMOR_TYPES, WEAPON_STAT_KEYS } from '../../model/forging.model';
 import { DEFAULT_LEVEL_CHANCE, applyDerivedNpcStats, equipmentKind } from '../../utils/npc-roll.util';
 import { canMerge, mergeStacks } from '../../utils/item-stack.util';
@@ -559,6 +561,25 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   setLevelChance(value: number): void {
     normalizeNpcVariation(this.draft).levelChance = Math.max(0, Math.round(Number(value) || 0));
+  }
+
+  // ─── Cetris als Beute ─────────────────────────────────────────────────────
+  readonly cetrisKeys = CETRIS_ORDER;
+  readonly cetrisLabel = CETRIS_LABEL;
+
+  /** Read-only view for the template; the draft only gets a `cetris` block once something is typed. */
+  cetrisBounds(key: CetrisKey): NpcRollBounds {
+    return this.draft.cetris?.[key] ?? { min: 0 };
+  }
+
+  setCetris(key: CetrisKey, bound: 'min' | 'max', value: number | string | null): void {
+    const cetris = (this.draft.cetris ??= {});
+    const bounds = (cetris[key] ??= { min: 0 });
+    if (bound === 'max' && (value === null || value === '' || !Number.isFinite(+value))) {
+      delete bounds.max;
+      return;
+    }
+    bounds[bound] = Math.max(0, Math.floor(+(value ?? 0)) || 0);
   }
 
   // Generated equipment slots — forged fresh at every spawn while equipment is „Zufällig".

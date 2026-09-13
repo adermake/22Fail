@@ -20,7 +20,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
 import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
-import { CurrentEvent, ShopEvent, getCoinParts, CoinPart } from '../../model/current-events.model';
+import { CurrentEvent, ShopEvent, getCoinParts, CoinPart, Currency } from '../../model/current-events.model';
 import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
@@ -430,6 +430,10 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   onNpcInventoryChanged(event: { tokenId: string; inventory: ItemBlock[] }): void {
     this.lobbyBridge.setTokenInventory(event.tokenId, event.inventory);
+  }
+
+  onNpcCurrencyChanged(event: { tokenId: string; currency: Currency | undefined }): void {
+    this.lobbyBridge.setTokenCurrency(event.tokenId, event.currency);
   }
 
   onNpcTagChanged(event: { tokenId: string; tag: string }): void {

@@ -21,8 +21,9 @@ import { SkillBlock } from '../../model/skill-block.model';
 import { StatusEffect } from '../../model/status-effect.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { Token } from '../../model/lobby.model';
-import { formatCurrency, Currency } from '../../model/current-events.model';
+import { addCurrency, formatCurrency, Currency, isEmptyCurrency } from '../../model/current-events.model';
 import {
+  createCurrencyEntry,
   createDeskEntry,
   createDeskTab,
   DeskEntry,
@@ -121,6 +122,8 @@ export class GmDeskComponent implements OnDestroy {
   @Output() npcInventoryChanged = new EventEmitter<{ tokenId: string; inventory: ItemBlock[] }>();
   /** Die Kennzeichnung eines NSC-Tokens wurde geändert ("Kultist 2" → "Anführer"). */
   @Output() npcTagChanged = new EventEmitter<{ tokenId: string; tag: string }>();
+  /** Die Cetris eines NSC-Tokens haben sich geändert (`undefined` = leer). */
+  @Output() npcCurrencyChanged = new EventEmitter<{ tokenId: string; currency: Currency | undefined }>();
   /** Ein Ding wandert in den gemeinsamen Beutel der Gruppe. */
   @Output() depositToStash = new EventEmitter<ItemBlock>();
   @Output() openLibrarySelector = new EventEmitter<void>();
@@ -296,11 +299,15 @@ export class GmDeskComponent implements OnDestroy {
       return this.tabs().find(t => t.tabId === tab.key)?.entries ?? [];
     }
     const token = this.npcs().find(t => 'npc:' + t.id === tab.key);
+    // Die Cetris des Tokens stehen vorne als ein Währungseintrag.
+    const purse: DeskEntry[] = token && !isEmptyCurrency(token.currency)
+      ? [{ ...createCurrencyEntry(token.currency!), entryId: `${tab.key}:currency` }]
+      : [];
     // Rohstoffe als 'resource', sonst landet erbeutetes Material im Inventar statt bei den Rohstoffen.
-    return (token?.inventory ?? []).map((item, i) => ({
+    return [...purse, ...(token?.inventory ?? []).map((item, i) => ({
       ...createDeskEntry(isResourceItemType(item.itemType) ? 'resource' : 'item', item, { name: item.name }),
       entryId: `${tab.key}:${i}`,
-    }));
+    }))];
   });
 
   selectTab(key: string): void {
@@ -385,6 +392,10 @@ export class GmDeskComponent implements OnDestroy {
 
     const token = this.npcs().find(t => 'npc:' + t.id === tab.key);
     if (!token) return;
+    if (entryId.endsWith(':currency')) {
+      this.npcCurrencyChanged.emit({ tokenId: token.id, currency: undefined });
+      return;
+    }
     const index = Number(entryId.split(':').pop());
     const inventory = [...(token.inventory ?? [])];
     inventory.splice(index, 1);
@@ -601,9 +612,17 @@ export class GmDeskComponent implements OnDestroy {
       return;
     }
 
-    // NSC-Reiter: nur Gegenstände und Rohstoffe, alles andere hat im Token-Inventar keinen Platz.
+    // NSC-Reiter: Gegenstände, Rohstoffe und Cetris — alles andere hat beim Token keinen Platz.
     const token = this.npcs().find(t => 'npc:' + t.id === tab.key);
-    if (!token || (entry.type !== 'item' && entry.type !== 'resource')) return;
+    if (!token) return;
+    if (entry.type === 'currency') {
+      this.npcCurrencyChanged.emit({
+        tokenId: token.id,
+        currency: addCurrency(token.currency, entry.data as Currency),
+      });
+      return;
+    }
+    if (entry.type !== 'item' && entry.type !== 'resource') return;
     this.npcInventoryChanged.emit({
       tokenId: token.id,
       inventory: [...(token.inventory ?? []), entry.data as ItemBlock],

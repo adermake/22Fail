@@ -7,7 +7,7 @@ import {
 import { makeRng } from './gear-generator.util';
 import {
   NpcDerivedCalc, rollEquipment, rollInventory, rollNpcInstance, rollSoul, rollSubset,
-  scaleChanceForLevel,
+  scaleChanceForLevel, rollCetris,
 } from './npc-roll.util';
 
 const calc: NpcDerivedCalc = {
@@ -229,5 +229,34 @@ describe('Level-Skalierung', () => {
     const hits = (level: number) => Array.from({ length: 400 }, (_, n) =>
       rollNpcInstance(sb, ctx, n + 1, calc, { level }).spells.length).reduce((a, b) => a + b, 0);
     expect(hits(40)).toBeGreaterThan(hits(1));
+  });
+});
+
+describe('rollCetris', () => {
+  const cetris = { silver: { min: 5, max: 20 }, gold: { min: 1 } };
+
+  it('takes min in fixed mode, whatever the level', () => {
+    expect(rollCetris(cetris, false, 30, 10, makeRng(1))).toEqual({ copper: 0, silver: 5, gold: 1, platinum: 0 });
+  });
+
+  it('stays inside the range at the authored level', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const purse = rollCetris(cetris, true, 0, 10, makeRng(seed));
+      expect(purse.silver).toBeGreaterThanOrEqual(5);
+      expect(purse.silver).toBeLessThanOrEqual(20);
+      expect(purse.gold).toBe(1);
+    }
+  });
+
+  it('carries more at higher levels on average', () => {
+    const total = (delta: number) => Array.from({ length: 300 }, (_, n) =>
+      rollCetris(cetris, true, delta, 10, makeRng(n + 1)).silver).reduce((a, b) => a + b, 0);
+    expect(total(10)).toBeGreaterThan(total(0));
+  });
+
+  it('puts the rolled purse on the instance', () => {
+    const sb = createEmptyNpcStatblock();
+    sb.cetris = { copper: { min: 7 } };
+    expect(rollNpcInstance(sb, ctx, 1, calc).purse).toEqual({ copper: 7, silver: 0, gold: 0, platinum: 0 });
   });
 });

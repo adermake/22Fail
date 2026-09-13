@@ -147,38 +147,64 @@ export function copperToCurrency(copper: number): Currency {
   return { copper, silver, gold, platinum };
 }
 
-/**
- * Format currency for display as text labels
- */
+// ─── Cetris ──────────────────────────────────────────────────────────────────
+// Die Währung heißt Cetris. Gespeichert wird weiter unter copper/silver/gold/platinum — nur die
+// Anzeige hat sich geändert, deshalb lesen alle Anzeigen diese Konstanten statt eigener Strings.
+
+export type CetrisKey = keyof Currency;
+
+export const CETRIS_LABEL: Record<CetrisKey, string> = {
+  copper: 'Kupfer-Cetris',
+  silver: 'Silber-Cetris',
+  gold: 'Gold-Cetris',
+  platinum: 'Platin-Cetris',
+};
+
+export const CETRIS_SHORT: Record<CetrisKey, string> = {
+  copper: 'KC',
+  silver: 'SC',
+  gold: 'GC',
+  platinum: 'PC',
+};
+
+/** Größte Münze zuerst. */
+export const CETRIS_ORDER: CetrisKey[] = ['platinum', 'gold', 'silver', 'copper'];
+
+/** Münzweise addiert, ohne umzurechnen — ein Beutel mit 12 Silber-Cetris bleibt 12 Silber-Cetris. */
+export function addCurrency(a: Currency | undefined, b: Currency | undefined): Currency {
+  return {
+    copper: (a?.copper ?? 0) + (b?.copper ?? 0),
+    silver: (a?.silver ?? 0) + (b?.silver ?? 0),
+    gold: (a?.gold ?? 0) + (b?.gold ?? 0),
+    platinum: (a?.platinum ?? 0) + (b?.platinum ?? 0),
+  };
+}
+
+export function isEmptyCurrency(c: Currency | undefined | null): boolean {
+  return !c || CETRIS_ORDER.every(k => !(c[k] > 0));
+}
+
+/** Kurzform, z. B. "3 GC 2 SC". */
 export function formatCurrency(currency: Currency): string {
-  const parts: string[] = [];
-  if (currency.platinum > 0) parts.push(`${currency.platinum}p`);
-  if (currency.gold > 0) parts.push(`${currency.gold}g`);
-  if (currency.silver > 0) parts.push(`${currency.silver}s`);
-  if (currency.copper > 0) parts.push(`${currency.copper}c`);
-  return parts.length > 0 ? parts.join(' ') : '0c';
+  const parts = CETRIS_ORDER
+    .filter(k => (currency[k] ?? 0) > 0)
+    .map(k => `${currency[k]} ${CETRIS_SHORT[k]}`);
+  return parts.length > 0 ? parts.join(' ') : `0 ${CETRIS_SHORT.copper}`;
 }
 
-/**
- * Format currency as total gold with decimals e.g. 3.25g
- */
+/** Gesamtwert in Gold-Cetris, z. B. "3,25 GC". */
 export function formatCurrencyAsGold(currency: Currency): string {
-  const totalCopper = convertToCopper(currency);
-  const gold = totalCopper / 100;
-  return gold % 1 === 0 ? `${gold}g` : `${gold.toFixed(2)}g`;
+  const gold = convertToCopper(currency) / 100;
+  const text = gold % 1 === 0 ? String(gold) : gold.toFixed(2).replace('.', ',');
+  return `${text} ${CETRIS_SHORT.gold}`;
 }
 
-/**
- * Format currency using highest denomination units
- * e.g. "3 Silber 2 Kupfer"
- */
+/** Langform, z. B. "3 Silber-Cetris 2 Kupfer-Cetris". */
 export function formatCurrencyAsUnits(currency: Currency): string {
-  const parts: string[] = [];
-  if (currency.platinum > 0) parts.push(`${currency.platinum} Platin`);
-  if (currency.gold > 0) parts.push(`${currency.gold} Gold`);
-  if (currency.silver > 0) parts.push(`${currency.silver} Silber`);
-  if (currency.copper > 0) parts.push(`${currency.copper} Kupfer`);
-  return parts.length > 0 ? parts.join(' ') : '0 Kupfer';
+  const parts = CETRIS_ORDER
+    .filter(k => (currency[k] ?? 0) > 0)
+    .map(k => `${currency[k]} ${CETRIS_LABEL[k]}`);
+  return parts.length > 0 ? parts.join(' ') : `0 ${CETRIS_LABEL.copper}`;
 }
 
 /**

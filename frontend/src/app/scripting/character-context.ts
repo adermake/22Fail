@@ -2,7 +2,7 @@
  * Builds a FailScript CharacterContext from a real CharacterSheet, resolving every symbol
  * through TrueStatsService (the canonical calculator) so scripts always see effective
  * values including skills, equipment and status effects. NPCs in the lobby are already
- * converted to a synthetic sheet (see lobby-bottom-panel `sheetForMacros`), so this single
+ * converted to a synthetic sheet (see LobbyTokenActionsService `sheetForMacros`), so this single
  * sheet-based path covers both players and NPCs.
  */
 

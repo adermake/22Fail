@@ -1,0 +1,279 @@
+<div class="lac" [attr.data-tick]="svc.tick()">
+  <div class="lac-head">
+    <span class="app-icon i-active"></span>
+    <span class="lac-title">Aktiv</span>
+    @if (canViewStats && svc.hasActiveContent) {
+      <span class="lac-count">{{ svc.castingSpells.length + svc.activeSkillEntries.length + svc.activeEquipment.length }}</span>
+    }
+  </div>
+
+  @if (!canViewStats) {
+    <div class="lac-empty"><span class="app-icon i-lock"></span> Statistiken anderer Spieler sind verborgen.</div>
+  } @else {
+    <div class="lac-list">
+      @if (!svc.hasActiveContent) {
+        <div class="lac-empty">Nichts aktiv. Zauber und F&auml;higkeiten unten aktivieren.</div>
+      }
+
+      <!-- ── Active spells ── -->
+      @for (entry of svc.castingSpells; track (entry.entryId ?? entry.spellId)) {
+        @let spell = svc.getSpell(entry.spellId);
+        <div class="lbp-active-card lbp-active-card--spell" [style.--sc]="spell ? svc.spellColor(spell) : '#8b5cf6'">
+          <button class="lbp-ac-stop" (click)="svc.stopCasting(entry)" title="Beenden">&times;</button>
+
+          <div class="lbp-ac-header">
+            <span class="lbp-ac-badge lbp-ac-badge--spell">Zauber</span>
+            @if (spell?.icon) { <span class="lbp-ac-icon">{{ spell!.icon }}</span> }
+            <span class="lbp-ac-name">{{ entry.spellName }}</span>
+          </div>
+
+          @if (spell?.description) { <div class="lbp-ac-desc">{{ spell!.description }}</div> }
+
+          <div class="lbp-ac-meta-row">
+            @if (spell && svc.spellCostLabel(spell)) { <span class="lbp-ac-cost">{{ svc.spellCostLabel(spell) }}</span> }
+            @if (spell && svc.perTurnLabel(spell)) { <span class="lbp-ac-cost-turn">{{ svc.perTurnLabel(spell) }}</span> }
+            @if (entry.skalierung && entry.skalierung > 1) { <span class="lbp-ac-skal">&times;{{ entry.skalierung }}</span> }
+          </div>
+
+          @if (entry.remainingCast > 0) {
+            <div class="lbp-ac-cast-track">
+              <div class="lbp-ac-cast-fill" [style.width.%]="svc.castProgressPercent(entry)"
+                   [style.background]="spell ? svc.spellColor(spell) : '#8b5cf6'"></div>
+            </div>
+            <div class="lbp-ac-cast-label">Zauberung: {{ svc.castProgressPercent(entry) }}%</div>
+          }
+
+          @if (entry.remainingCast === 0 && !svc.isSpellFinished(entry)) {
+            <div class="lbp-ac-rounds">
+              <span class="lbp-ac-rounds-label">Runde</span>
+              <button class="lbp-ac-rd-btn" (click)="svc.decrementRound(entry)">&minus;</button>
+              <input class="lbp-ac-rd-input" type="number" min="0"
+                     [ngModel]="entry.roundsActive ?? 0" (ngModelChange)="svc.setRoundsActive(entry, $event)" />
+              @if (spell?.durationTurns) { <span class="lbp-ac-rd-max">/ {{ spell!.durationTurns }}</span> }
+              <button class="lbp-ac-rd-btn lbp-ac-rd-btn--plus" (click)="svc.advanceRound(entry)">+</button>
+            </div>
+          }
+
+          @if (svc.isSpellFinished(entry)) {
+            <div class="lbp-ac-done">
+              Beendet
+              <button class="lbp-ac-dismiss-btn" (click)="svc.stopCasting(entry)">Entlassen</button>
+            </div>
+          }
+
+          @if (spell?.counters?.length) {
+            @for (counter of spell!.counters!; track counter.id; let ci = $index) {
+              <div class="lbp-ac-counter">
+                <div class="lbp-ac-cnt-header">
+                  <span class="lbp-ac-cnt-name">{{ counter.name }}</span>
+                  <div class="lbp-ac-cnt-row">
+                    <button class="lbp-ac-cnt-btn" [disabled]="!svc.character"
+                            (click)="svc.adjustSpellCounter(entry.spellId, ci, counter.current - 1)">&minus;</button>
+                    <input class="lbp-ac-cnt-input" type="number" [disabled]="!svc.character"
+                           [ngModel]="counter.current" (ngModelChange)="svc.adjustSpellCounter(entry.spellId, ci, $event)" />
+                    <button class="lbp-ac-cnt-btn" [disabled]="!svc.character"
+                            (click)="svc.adjustSpellCounter(entry.spellId, ci, counter.current + 1)">+</button>
+                  </div>
+                </div>
+                <div class="lbp-ac-cnt-track" [style.background]="counter.color + '22'">
+                  <div class="lbp-ac-cnt-fill" [style.width.%]="counterPercent(counter.current, counter.min, counter.max)"
+                       [style.background]="counter.color"></div>
+                </div>
+              </div>
+            }
+          }
+
+          @if (svc.getSpellTriggers(entry).length) {
+            <div class="lbp-ac-triggers">
+              <span class="lbp-ac-triggers-label">Ausl&ouml;ser</span>
+              @for (trig of svc.getSpellTriggers(entry); track trig) {
+                <button class="lbp-ac-trigger-btn" [class.is-triggering]="svc.isCardTriggering(entry.entryId ?? entry.spellId)"
+                        (click)="svc.executeSpellTrigger(entry, trig, $event)">
+                  <span class="app-icon i-ability"></span> {{ trig }}
+                </button>
+              }
+            </div>
+            @if (svc.getLastCardResult(entry.entryId ?? entry.spellId); as res) {
+              <div class="lbp-ac-trigger-result">
+                @for (d of res.displays ?? []; track $index) {
+                  @switch (d.type) {
+                    @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                    @case ('stat') { <span class="ds-stat" [ngClass]="'ds-' + d.style"><span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span></span> }
+                    @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                    @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                  }
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+
+      <!-- ── Active skills ── -->
+      @for (entry of svc.activeSkillEntries; track entry.entryId) {
+        @let skill = svc.getSkillBlock(entry);
+        <div class="lbp-active-card lbp-active-card--skill"
+             [attr.data-action]="skill ? (svc.effectiveActionType(skill) || 'Aktion') : 'Aktion'">
+          <button class="lbp-ac-stop" (click)="svc.stopSkillEntry(entry)" title="Deaktivieren">&times;</button>
+
+          <div class="lbp-ac-header">
+            @if (skill && svc.effectiveActionType(skill); as at) {
+              <span class="lbp-ac-action-badge" [attr.data-action]="at">{{ at }}</span>
+            } @else {
+              <span class="lbp-ac-badge lbp-ac-badge--skill">F&auml;higkeit</span>
+            }
+            <span class="lbp-ac-name">{{ entry.skillName }}</span>
+          </div>
+
+          @if (skill?.description) { <div class="lbp-ac-desc">{{ skill!.description }}</div> }
+
+          @if (skill && svc.effectiveCost(skill)) {
+            <div class="lbp-ac-meta-row">
+              <span class="lbp-ac-cost lbp-ac-cost--skill">{{ svc.skillCostLabel(skill) }}</span>
+              @if (svc.effectiveCost(skill)!.perRound) {
+                <button class="lbp-ac-pay-btn" (click)="svc.paySkillRoundCost(skill)"><span class="app-icon i-energy"></span> Zahlen</button>
+              }
+            </div>
+          }
+
+          @if (skill && svc.effectiveCost(skill)?.perRound) {
+            <div class="lbp-ac-rounds">
+              <span class="lbp-ac-rounds-label">Runde</span>
+              <button class="lbp-ac-rd-btn" (click)="svc.adjustSkillRounds(entry, -1)">&minus;</button>
+              <input class="lbp-ac-rd-input" type="number" min="0"
+                     [ngModel]="entry.roundsActive" (ngModelChange)="svc.setSkillRounds(entry, $event)" />
+              <button class="lbp-ac-rd-btn lbp-ac-rd-btn--plus" (click)="svc.adjustSkillRounds(entry, 1)">+</button>
+            </div>
+          }
+
+          @if (skill?.statModifiers?.length) {
+            <div class="lbp-ac-modifiers">
+              @for (mod of skill!.statModifiers!; track $index) {
+                <span class="lbp-ac-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+                  {{ svc.getStatModLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}
+                </span>
+              }
+            </div>
+          }
+
+          @if (entry.counters?.length) {
+            @for (counter of entry.counters!; track counter.id; let ci = $index) {
+              <div class="lbp-ac-counter">
+                <div class="lbp-ac-cnt-header">
+                  <span class="lbp-ac-cnt-name">{{ counter.name }}</span>
+                  <div class="lbp-ac-cnt-row">
+                    <button class="lbp-ac-cnt-btn" (click)="svc.adjustSkillEntryCounter(entry, ci, counter.current - 1)">&minus;</button>
+                    <input class="lbp-ac-cnt-input" type="number"
+                           [ngModel]="counter.current" (ngModelChange)="svc.adjustSkillEntryCounter(entry, ci, $event)" />
+                    <button class="lbp-ac-cnt-btn" (click)="svc.adjustSkillEntryCounter(entry, ci, counter.current + 1)">+</button>
+                  </div>
+                </div>
+                <div class="lbp-ac-cnt-track" [style.background]="counter.color + '22'">
+                  <div class="lbp-ac-cnt-fill" [style.width.%]="counterPercent(counter.current, counter.min, counter.max)"
+                       [style.background]="counter.color"></div>
+                </div>
+              </div>
+            }
+          }
+
+          @if (svc.getSkillTriggers(entry).length) {
+            <div class="lbp-ac-triggers">
+              <span class="lbp-ac-triggers-label">Ausl&ouml;ser</span>
+              @for (trig of svc.getSkillTriggers(entry); track trig) {
+                <button class="lbp-ac-trigger-btn" [class.is-triggering]="svc.isCardTriggering(entry.entryId)"
+                        (click)="svc.executeSkillTrigger(entry, trig, $event)">
+                  <span class="app-icon i-ability"></span> {{ trig }}
+                </button>
+              }
+            </div>
+            @if (svc.getLastCardResult(entry.entryId); as res) {
+              <div class="lbp-ac-trigger-result">
+                @for (d of res.displays ?? []; track $index) {
+                  @switch (d.type) {
+                    @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                    @case ('stat') { <span class="ds-stat" [ngClass]="'ds-' + d.style"><span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span></span> }
+                    @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                    @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                  }
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+
+      <!-- ── Equipped gear with effects/triggers ── -->
+      @for (item of svc.activeEquipment; track svc.itemKey(item)) {
+        <div class="lbp-active-card lbp-active-card--item">
+          <div class="lbp-ac-header">
+            <span class="lbp-ac-badge lbp-ac-badge--item">Ausr&uuml;stung</span>
+            <span class="lbp-ac-icon lbp-ac-icon--item"><span class="app-icon i-item"></span></span>
+            <span class="lbp-ac-name">{{ item.name }}</span>
+          </div>
+
+          @if (item.primaryEffect) { <div class="lbp-ac-desc">{{ item.primaryEffect }}</div> }
+
+          @if (svc.itemHasContinuousEffect(item)) {
+            <div class="lbp-ac-passive" title="Wirkt, solange der Gegenstand getragen wird">dauerhaft aktiv</div>
+          }
+
+          @if (item.hasDurability) {
+            <div class="lbp-ac-counter">
+              <div class="lbp-ac-cnt-header">
+                <span class="lbp-ac-cnt-name">Haltbarkeit</span>
+                <span class="lbp-ac-cnt-name">{{ item.durability }} / {{ item.maxDurability }}</span>
+              </div>
+              <div class="lbp-ac-cnt-track lbp-ac-cnt-track--durability">
+                <div class="lbp-ac-cnt-fill lbp-ac-cnt-fill--durability"
+                     [style.width.%]="item.maxDurability ? (item.durability ?? 0) / item.maxDurability * 100 : 0"></div>
+              </div>
+            </div>
+          }
+
+          @if (svc.getItemTriggers(item).length) {
+            <div class="lbp-ac-triggers">
+              <span class="lbp-ac-triggers-label">Ausl&ouml;ser</span>
+              @for (trig of svc.getItemTriggers(item); track trig) {
+                <button class="lbp-ac-trigger-btn" [class.is-triggering]="svc.isCardTriggering(svc.itemKey(item))"
+                        (click)="svc.executeItemTrigger(item, trig, $event)">
+                  <span class="app-icon i-ability"></span> {{ trig }}
+                </button>
+              }
+            </div>
+          }
+
+          @if (svc.getLastCardResult(svc.itemKey(item)); as res) {
+            <div class="lbp-ac-trigger-result">
+              @for (d of res.displays ?? []; track $index) {
+                @switch (d.type) {
+                  @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                  @case ('stat') { <span class="ds-stat" [ngClass]="'ds-' + d.style"><span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span></span> }
+                  @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                  @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                }
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ── Begleiter ── -->
+      @if (svc.summonTokens.length) {
+        <div class="lac-section-label"><span class="app-icon i-soul"></span> Begleiter</div>
+        <p class="lac-hint">Auf die Karte ziehen, um zu beschw&ouml;ren.</p>
+        <div class="lac-tokens">
+          @for (s of svc.summonTokens; track s.id) {
+            <div class="lac-token" draggable="true" (dragstart)="svc.onSummonDragStart($event, s)" [title]="s.name">
+              @if (s.portrait) {
+                <img class="lac-token-img" [src]="'/api/images/' + s.portrait" alt="">
+              } @else {
+                <span class="lac-token-img lac-token-icon"><span class="app-icon i-soul"></span></span>
+              }
+              <span class="lac-token-name">{{ s.name }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

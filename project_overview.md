@@ -100,7 +100,7 @@ Loot-Bündel gibt es nicht mehr — vorbereitete Beute ist der GM-Schreibtisch (
   - `StatusStatModifier.stat`: 'strength'|'dexterity'|'speed'|'intelligence'|'constitution'|'chill'|'life'|'energy'|'mana'
   - **Single Source of Truth**: `CharacterSheet.activeStatusEffects` (ActiveStatusEffect[]) ist die einzige kanonische Quelle für Charakter-Tokens. `Token.activeStatusEffects` wird nur für NSC/NPC-Tokens ohne CharacterId verwendet.
   - **Lobby Sync-Architektur**:
-    - `lobby-character-panel` + `lobby-bottom-panel`: lesen aus `character.activeStatusEffects`, schreiben via `charSocket.sendPatch` + `@Output() sheetPatched`
+    - `lobby-character-panel` + `LobbyTokenActionsService` (Status-Leiste/Aktiv-Spalte/Dock): lesen aus `character.activeStatusEffects`, schreiben via `charSocket.sendPatch` + `sheetPatched`
     - `lobby.component.ts` `onPanelSheetPatched()`: aktualisiert `worldCharacters` Signal lokal → beide Panels re-rendern sofort
     - `characterSocket.patches$.subscribe`: empfängt Patches von anderen Tabs/Clients → aktualisiert `worldCharacters`
     - Konvertierung: `activeToTokenEffect(ae: ActiveStatusEffect): TokenStatusEffect` (Display), `tokenToActiveEffect(fx): ActiveStatusEffect` (Persistierung)
@@ -360,9 +360,13 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - **Duration Tick-Down**: Bei Ausführung wird duration-1, bei 0 → Effekt entfernt (mit Fade-Animation)
 - **Chain Execute**: Kette mit manuellem "Nächster ▸" Schritt, Ergebnis-Sidebar rechts, "Fertig ✓" abschließen
 
-## Lobby Bottom Panel (`lobby/lobby-bottom-panel/`)
-- **Tabs**: Status + Aktiv (Zauber/Fähigkeiten)
-- **Status Tab Layout**: Toolbar (28px) + Body (flex row: Karten-Bereich + Exec-Sidebar 200px)
+## Token-Aktionen in der Lobby (`lobby/lobby-token-actions.service.ts`)
+- Früher ein tabbed Bottom-Panel; jetzt ein Service (Provider in `LobbyComponent`) für drei Ansichten:
+  `lobby-status-strip` (oben), `lobby-active-column` (links), `lobby-abilities-dock` (unten).
+  `bind()` liest das ausgewählte Token aus den Lobby-Signalen; Views lesen `tick()` (OnPush); `tokenUpdate`/`sheetPatched`
+  gehen über `onTokenResourceChange`/`onPanelSheetPatched`; Tokenwechsel → `resetForToken()`.
+- **Status-Leiste**: Icon-Chips mit Stapel-/Runden-Zahl, Hover-Tooltip, Klick = Detail-Panel, Rechtsklick = Menü,
+  „Alle ausführen"-Ergebnis erscheint unter dem Chip (`resultAnchor.top`).
 - **`TokenStatusEffect`**: id, statusEffectId?, customEffect?, name, icon, color, stacks, duration, isDebuff
   - `statusEffectId`: Verknüpft mit Library-StatusEffect für Macro-Lookup
   - `customEffect`: Überschreibt Bibliotheks-Definition (nach Bearbeitung)
@@ -548,31 +552,20 @@ interface SkillDefinition {
 
 ## Lobby-Architektur (lobby/)
 
-### Layout (Stand: Mai 2025)
+### Layout (Stand: September 2026)
 `
 lobby-container
   +-- lobby-toolbar              (oben)
-  +-- kampfrunde-bar             (oben, nur wenn kampfrundeMode=true) – Compact Battle-Tracker + "Beenden"-Button
+  +-- kampfrunde-bar             (oben, nur wenn kampfrundeMode=true) – Compact Battle-Tracker
+  +-- lobby-status-strip         (nur mit ausgewähltem, sichtbarem Token) – Status-Effekte als Chips
   +-- lobby-main                 (flex row)
-  ¦   +-- lobby-sidebar          (links, 280px) – Tabs: Charaktere | Bilder | Texturen | Schichten | Würfel
+  ¦   +-- lobby-active-column    (links, 300px, wenn Token ausgewählt) – aktive Zauber/Fähigkeiten/Ausrüstung + Begleiter
+  ¦   +-- lobby-sidebar          (links, 280px, nur GM und nur OHNE Auswahl) – Charaktere | Bilder | Texturen | Schichten
   ¦   +-- lobby-grid             (Mitte, flex:1) – Hex-Karte mit Tokens und Drawing-Layer
   ¦   +-- lobby-character-panel  (rechts, 300px, IMMER präsent, kein Layout-Shift)
-  +-- lobby-bottom-panel         (unten, collapsible, 290px) – Status + Aktiv-Tabs für ausgewähltes Token
+  +-- lobby-abilities-dock       (unten, einklappbar, max 34vh) – aktivierbare Fähigkeiten & Zauber als Karten
 `
-
-### lobby-bottom-panel (lobby/lobby-bottom-panel/)
-- Immer sichtbar (collapsible per ▼/▲ Button), Höhe 290px / 33px collapsed
-- Tab 1 "✨ Status": Liste aktiver TokenStatusEffects (icon, name, stacks×, Dauer Rd)
-- Tab 2 "✦ Aktiv": 2-Spalten-Layout:
-  - LINKS (210px): Browse-Liste aller Fähigkeiten (click=toggle) + Zauber (click=cast-dialog)
-    - Fähigkeiten zeigen effectiveCost(skill) (SKILL_DEFINITIONS lookup)
-    - Cast-Dialog: inline, Wirkstufe + Skalierung, dann Wirken
-  - RECHTS (flex:1, scrollable): Aktive Zauber-Karten + aktive Skill-Karten
-    - Volle spellcast-window-Funktionalität: cast progress, W20 würfeln, Rundentracker, ⚡ Zahlen, Zähler
-- State:
-  - Charaktere: Liest character.castingSpells / character.activeSkillNames, sendet Patches via CharacterSocketService.sendPatch()
-  - NSCs: Liest token.castingSpells / token.activeSkillNames, emittiert via tokenUpdate
-- Token model: jetzt auch activeSkillNames?: string[] und castingSpells?: CastingSpellEntry[]
+- Token model: `activeSkillEntries`, `castingSpells` (NSC; Charaktere nutzen den Bogen)
 
 ### Kein Flash-Problem
 - lobby-character-panel ist IMMER 300px breit, egal ob Token ausgew�hlt.
@@ -581,19 +574,18 @@ lobby-container
 ### Komponenten
 - **lobby-character-panel** (lobby/lobby-character-panel/):
   - Kein Token: zeigt Würfelroller + Roll-History
-  - Token ausgewählt: 5 Icon-Tabs: ⚔️ Aktionen | 🎲 Würfe | ✨ Status | 🎨 Aussehen | 🔗 Verknüpfung
-  - Aktionen-Tab: LP/Mana/Energie-Bars (editierbar), Stats als Würfel-Buttons, Skills, Zauber
-  - Würfe-Tab: Roll-History
-  - Status-Tab: Token-Status-Effekte hinzufügen/entfernen (lokal, per-token)
-  - Aussehen-Tab: Name umbenennen, Skalierung (X/Y unabhängig oder uniform), Rotation (Quick ±90°), Bildmodus (Fill/Stretch), Custom-Portrait löschen, Token zeichnen (aktiviert Draw-Tool)
-  - Verknüpfung-Tab: Zeigt Parent-Info wenn verknüpft; Kinder-Liste; neues verlinktes Token erstellen
+  - Token ausgewählt: Kopf (Name, NSC-Level + Neu würfeln), Ressourcen, Werte; darunter einklappbare Abschnitte
+    (offen/zu in `localStorage` `lobby:panel-sections`): Aktionen | Würfelverlauf | Aussehen | Verknüpfte Token | Ausrüstung & Beute
+  - Aktionen: Schnellwürfe, Freier Wurf, Schaden, „Fertigkeiten & Zauber (Vollansicht)" (spellcast-window). Die Listen selbst stehen im Dock.
+  - Aussehen: Name umbenennen, Skalierung (X/Y unabhängig oder uniform), Rotation (Quick ±90°), Bildmodus (Fill/Stretch), Custom-Portrait löschen, Token zeichnen (aktiviert Draw-Tool)
+  - Verknüpfte Token: Zeigt Parent-Info wenn verknüpft; Kinder-Liste; neues verlinktes Token erstellen
   - @Output() tokenUpdate → Lobby ruft store.updateToken(tokenId, updates)
   - @Output() deselect → selectedTokenId.set(null)
   - @Output() requestTokenDraw → setzt currentTool auf 'draw'
   - @Output() requestLinkedTokenPlacement → pending feature
   - @Output() tokenChildDetach → store.updateToken(childId, { parentTokenId: undefined, ... })
   - @Input() allTokens: Token[] → benötigt für linkedChildren Getter
-- **lobby-sidebar**: Tabs: Charaktere (Spieler/NSC), Bilder, Texturen, Schichten (nur GM), Würfelverlauf
+- **lobby-sidebar**: Tabs: Charaktere (Spieler/NSC), Bilder, Texturen, Schichten — nur GM, nur ohne Token-Auswahl
 - **lobby-side-panel**: NICHT MEHR VERWENDET (Inhalte in sidebar + character-panel migriert)
 
 ### Token-Modell (Token Interface)
@@ -639,6 +631,10 @@ lobby-container
   Δlevel gegen das Seelen-Level des Statblocks; Schmiedebudget generierter Plätze +2 je Level. 0 %/100 % bleiben.
 - Lobby-Panel (GM, NSC aus der Bibliothek): Level-Feld + Neu-würfeln im Kopf → `onNpcRoll` → `rollNpcInstance(…, { level })`.
   Setzt `npcInstance`, `npcLevel` (bleibt beim Neu-Würfeln), neue Beute, Ressourcen voll.
+- Cetris als Beute: `statblock.cetris` (von–bis pro Münze) → `rollCetris` (Fest = min, Zufällig × Level-Faktor) →
+  `npcInstance.purse` → `Token.currency`. GM-Schreibtisch zeigt sie im NSC-Reiter als Währungseintrag (`npc:<id>:currency`).
+- Währung heißt **Cetris** (Kupfer/Silber/Gold/Platin-Cetris, KC/SC/GC/PC). Nur Anzeige: Schlüssel bleiben `copper…platinum`;
+  alle Texte über `CETRIS_LABEL`/`CETRIS_SHORT` in `current-events.model.ts`.
 - Beute-Rohstoffe: NSC-Editor-Browser *Ressourcen* (Material/Wirkstoff/Extraktor) → `createResourceItem` im Inventar.
   GM-Schreibtisch führt sie im NSC-Reiter als `resource`, damit `GrantService` sie in `sheet.resources` ablegt.
 - Editor-Items stapeln beim Hinzufügen (`canMerge`/`mergeStacks`), Anzahl ±  über `(patch)` → `applyJsonPatchTo`.

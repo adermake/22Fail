@@ -133,11 +133,23 @@
     </div>
   }
 
+  <!-- Status-Leiste: Status-Effekte des ausgewählten Tokens -->
+  @if (showLobbyPanels() && selectedPanelToken() && selectedPanelCanView()) {
+    <app-lobby-status-strip
+      class="lobby-status-strip"
+      [blinking]="statusBarBlinking()"
+      (dismissReminder)="statusBarBlinking.set(false)"
+    />
+  }
+
   <!-- Main content area -->
   <div class="lobby-main">
     <!-- Sidebar: GM-only (characters/images/textures/layers are all GM tooling). The dice
          history players need lives in the right-hand character panel. -->
-    @if (showLobbyPanels() && isGM()) {
+    <!-- Links: mit ausgewähltem Token die Aktiv-Spalte, sonst (nur GM) die Werkzeug-Sidebar. -->
+    @if (showLobbyPanels() && selectedPanelToken()) {
+      <app-lobby-active-column class="lobby-active-column" [canViewStats]="selectedPanelCanView()" />
+    } @else if (showLobbyPanels() && isGM()) {
       <app-lobby-sidebar
         class="lobby-sidebar"
         [characters]="worldCharacters()"
@@ -249,17 +261,11 @@
   </div>
 
   @if (showLobbyPanels()) {
-    <app-lobby-bottom-panel
-      class="lobby-bottom-panel"
-      [token]="selectedPanelToken()"
-      [character]="selectedPanelCharacter()"
-      [npc]="selectedPanelNpc()"
-      [isGM]="isGM()"
-      [canViewStats]="selectedPanelToken() ? canViewTokenStats(selectedPanelToken()!.characterId) : true"
-      [statusBarBlinking]="statusBarBlinking()"
-      (dismissStatusReminder)="statusBarBlinking.set(false)"
-      (tokenUpdate)="onTokenResourceChange($event)"
-      (sheetPatched)="onPanelSheetPatched($event)"
+    <app-lobby-abilities-dock
+      class="lobby-abilities-dock"
+      [canViewStats]="selectedPanelCanView()"
+      [blinking]="statusBarBlinking() && !selectedPanelToken()"
+      (dismissReminder)="statusBarBlinking.set(false)"
     />
   }
 </div>

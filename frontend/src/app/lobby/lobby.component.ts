@@ -7,7 +7,7 @@
  * URL: /lobby/:worldName
  */
 
-import { Component, OnInit, OnDestroy, HostListener, ViewChild, inject, signal, computed, effect, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, inject, signal, computed, effect, untracked, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -30,7 +30,8 @@ import { CharacterSheet } from '../model/character-sheet-model';
 import {
   NpcStatblock, NpcStatKey, distributeByRatio, hasNpcVariation, soulPointBudget,
 } from '../model/npc-statblock.model';
-import { rollNpcInstance } from '../utils/npc-roll.util';
+import { rollCetris, rollNpcInstance } from '../utils/npc-roll.util';
+import { Currency, isEmptyCurrency } from '../model/current-events.model';
 import { NpcGeneratorService } from '../services/npc-generator.service';
 import { ForgeLibraryService } from '../services/forge-library.service';
 import { WeaponTypeService } from '../services/weapon-type.service';
@@ -42,7 +43,10 @@ import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
 import { LobbyCharacterPanelComponent } from './lobby-character-panel/lobby-character-panel.component';
-import { LobbyBottomPanelComponent } from './lobby-bottom-panel/lobby-bottom-panel.component';
+import { LobbyStatusStripComponent } from './lobby-status-strip/lobby-status-strip.component';
+import { LobbyActiveColumnComponent } from './lobby-active-column/lobby-active-column.component';
+import { LobbyAbilitiesDockComponent } from './lobby-abilities-dock/lobby-abilities-dock.component';
+import { LobbyTokenActionsService } from './lobby-token-actions.service';
 import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
@@ -63,12 +67,16 @@ const ROLL_HISTORY_LIMIT = 100;
     LobbyToolbarComponent,
     LobbySidebarComponent,
     LobbyCharacterPanelComponent,
-    LobbyBottomPanelComponent,
+    LobbyStatusStripComponent,
+    LobbyActiveColumnComponent,
+    LobbyAbilitiesDockComponent,
     BattleTracker,
   ],
   templateUrl: './lobby.component.html',
   styleUrls: ['./lobby.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // One instance per lobby, shared by the status strip, the active column and the abilities dock.
+  providers: [LobbyTokenActionsService],
 })
 export class LobbyComponent implements OnInit, OnDestroy {
   private static readonly PANELS_VISIBLE_STORAGE_KEY = 'lobby:panels-visible';
@@ -87,6 +95,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private npcGen = inject(NpcGeneratorService);
   private forgeLibrary = inject(ForgeLibraryService);
   private weaponTypes = inject(WeaponTypeService);
+  private tokenActions = inject(LobbyTokenActionsService);
   private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -95,6 +104,23 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // you may see/control are those whose controllerUserIds include you (recomputed as the
     // character list or your identity changes).
     effect(() => this.isGM.set(this.auth.isAdmin()));
+
+    // Status-Leiste, Aktiv-Spalte und Dock lesen das ausgewählte Token über den Service;
+    // was sie ändern, läuft über dieselben Wege wie die Änderungen aus dem rechten Panel.
+    this.tokenActions.bind({
+      token: this.selectedPanelToken,
+      character: this.selectedPanelCharacter,
+      npc: this.selectedPanelNpc,
+      isGM: this.isGM,
+    });
+    this.subscriptions.push(
+      this.tokenActions.tokenUpdate.subscribe(updates => this.onTokenResourceChange(updates)),
+      this.tokenActions.sheetPatched.subscribe(event => this.onPanelSheetPatched(event)),
+    );
+    effect(() => {
+      this.selectedTokenId();
+      untracked(() => this.tokenActions.resetForToken());
+    });
     effect(() => {
       const uid = this.auth.userId();
       const set = new Set<string>();
@@ -299,6 +325,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   selectedPanelToken = computed(() => this.selectedTokenInfo()?.token ?? null);
   selectedPanelCharacter = computed(() => this.selectedTokenInfo()?.character ?? null);
   selectedPanelNpc = computed(() => this.selectedTokenInfo()?.npc ?? null);
+  /** Darf der Betrachter die Werte des ausgewählten Tokens sehen? (ohne Auswahl: ja) */
+  selectedPanelCanView = computed(() => {
+    const token = this.selectedPanelToken();
+    return !token || this.canViewTokenStats(token.characterId);
+  });
   /** Level/Neu würfeln im Panel: nur für den GM und nur für NSCs aus der Bibliothek (keine Begleiter). */
   selectedNpcRollable = computed(() => {
     const token = this.selectedPanelToken();
@@ -1210,8 +1241,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
       isQuickToken: true,
       statblockId: data.statblockId,
       inventory: structuredClone((npcInstance ?? statblock)?.inventory ?? []),
+      currency: this.purseOrNone(npcInstance
+        ? npcInstance.purse
+        : rollCetris(statblock?.cetris, false, 0, 0, Math.random)),
       ...(npcInstance ? { npcInstance } : {}),
     });
+  }
+
+  /** An empty purse is stored as nothing, so tokens without Cetris don't carry a row of zeros. */
+  private purseOrNone(purse: Currency | undefined): Currency | undefined {
+    return isEmptyCurrency(purse) ? undefined : purse;
   }
 
   /** One NSC rolled from a library statblock — shared by the drop and the panel's level/reroll. */
@@ -1242,6 +1281,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
       npcInstance,
       npcLevel,
       inventory: structuredClone(npcInstance.inventory ?? []),
+      currency: this.purseOrNone(npcInstance.purse),
       currentHealth: undefined,
       currentMana: undefined,
       currentEnergy: undefined,

@@ -362,6 +362,25 @@
               </span>
             </div>
             <app-npc-roll-bar [list]="rollList('inventory')" />
+
+            <div class="npc-cetris">
+              <span class="npc-section-label">Cetris</span>
+              @for (k of cetrisKeys; track k) {
+                <label class="npc-cetris-row">
+                  <span class="npc-cetris-name">{{ cetrisLabel[k] }}</span>
+                  <input type="number" min="0" [ngModel]="cetrisBounds(k).min" (ngModelChange)="setCetris(k, 'min', $event)"
+                         [title]="isRandom('inventory') ? 'Mindestens' : 'Betrag'">
+                  @if (isRandom('inventory')) {
+                    <span>&ndash;</span>
+                    <input type="number" min="0" placeholder="–" [ngModel]="cetrisBounds(k).max ?? null"
+                           (ngModelChange)="setCetris(k, 'max', $event)" title="Höchstens — leer = genau das Minimum">
+                  }
+                </label>
+              }
+              @if (isRandom('inventory')) {
+                <p class="npc-hint">Gewürfelt im Bereich; wächst mit dem Level wie die Chancen.</p>
+              }
+            </div>
             @if (!draft.inventory.length) {
               <p class="npc-empty">Noch keine Beute — im Browser rechts auswählen oder erstellen.</p>
             }
@@ -487,7 +506,7 @@
                                   [title]="filePreview(f)" (click)="addItemFromLibrary(f)">
                             <span>＋ {{ f.name }}</span>
                             @if (itemValue(f); as gold) {
-                              <span class="npc-item-value" title="Goldwert">{{ gold }} G</span>
+                              <span class="npc-item-value" title="Wert in Gold-Cetris">{{ gold }} GC</span>
                             }
                           </button>
                         }

@@ -128,10 +128,10 @@ export const SYMBOLS: SymbolInfo[] = [
   { name: 'maxCapacity', category: 'derived', type: 'number', description: 'Maximale Tragkraft' },
 
   // Currency
-  { name: 'copper', category: 'currency', type: 'number', description: 'Kupfer' },
-  { name: 'silver', category: 'currency', type: 'number', description: 'Silber' },
-  { name: 'gold', category: 'currency', type: 'number', description: 'Gold' },
-  { name: 'platinum', category: 'currency', type: 'number', description: 'Platin' },
+  { name: 'copper', category: 'currency', type: 'number', description: 'Kupfer-Cetris' },
+  { name: 'silver', category: 'currency', type: 'number', description: 'Silber-Cetris' },
+  { name: 'gold', category: 'currency', type: 'number', description: 'Gold-Cetris' },
+  { name: 'platinum', category: 'currency', type: 'number', description: 'Platin-Cetris' },
 
   // Runtime context (of the current effect/execution)
   { name: 'stacks', category: 'runtime', type: 'number', description: 'Stapelanzahl des aktuellen Effekts (Code verarbeitet Stapel selbst)' },

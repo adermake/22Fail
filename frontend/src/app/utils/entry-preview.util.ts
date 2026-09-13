@@ -74,7 +74,7 @@ export function previewText(name: string, data: unknown): string {
   num('stability', 'Stabilität');
   num('armorDebuff', 'Rüstungsmalus');
   num('weight', 'Gewicht', ' kg');
-  num('value', 'Wert', ' G');
+  num('value', 'Wert', ' GC');
   num('mana', 'Mana');
   num('fokus', 'Fokus');
   num('cost', 'Kosten');
