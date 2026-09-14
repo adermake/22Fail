@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  LOBBY_INDEX_KEYS, LobbyIndexOp, applyStructuralOp, generateLobbyId, sendCharacterToMap,
+} from './lobby-index';
 type JsonObject = Record<string, any>;
 
 /** One soft-deleted character or world, as listed in data/trash/index.json. */
@@ -934,43 +937,191 @@ export class DataService {
     return updatedWorldJson;
   }
 
-  // Lobby operations for new multi-map system
+  // ─── Lobby: index in lobby.json, one file per map ─────────────────────────
+  // The client loads the INDEX (map names, folders, player locations, background) and then only
+  // the map on screen. Loading every map in one response — as this used to — does not survive a
+  // few hundred maps.
+
   getLobby(worldName: string): any | null {
+    const lobby = this.readLobbyFile(worldName);
+    if (!lobby) return null;
+    delete lobby.maps;
+    if (this.ensureLobbyIndex(worldName, lobby)) this.writeLobbyFile(worldName, lobby);
+    return lobby;
+  }
+
+  private readLobbyFile(worldName: string): any | null {
     const lobbyPath = this.getWorldLobbyFilePath(worldName);
-    if (!fs.existsSync(lobbyPath)) {
-      return null;
-    }
-
+    if (!fs.existsSync(lobbyPath)) return null;
     try {
-      const json = fs.readFileSync(lobbyPath, 'utf-8');
-      const lobby = JSON.parse(json);
-
-      // Load all maps from maps directory
-      const mapsDir = this.getWorldMapsDir(worldName);
-      if (fs.existsSync(mapsDir)) {
-        lobby.maps = {};
-        const mapDirs = fs.readdirSync(mapsDir);
-        for (const mapDir of mapDirs) {
-          const mapDirPath = path.join(mapsDir, mapDir);
-          if (!fs.statSync(mapDirPath).isDirectory()) continue;
-
-          const mapFilePath = path.join(mapDirPath, 'map.json');
-          if (fs.existsSync(mapFilePath)) {
-            try {
-              const mapJson = fs.readFileSync(mapFilePath, 'utf-8');
-              const mapData = JSON.parse(mapJson);
-              lobby.maps[mapData.id] = mapData;
-            } catch (err) {
-              console.error(`Error reading map ${mapDir}:`, err);
-            }
-          }
-        }
-      }
-
-      return lobby;
+      return JSON.parse(fs.readFileSync(lobbyPath, 'utf-8'));
     } catch (error) {
       console.error(`Error reading lobby for ${worldName}:`, error);
       return null;
+    }
+  }
+
+  private writeLobbyFile(worldName: string, lobby: any): void {
+    this.ensureWorldDirectories(worldName);
+    const index = { ...lobby };
+    delete index.maps;
+    fs.writeFileSync(this.getWorldLobbyFilePath(worldName), JSON.stringify(index, null, 2), 'utf-8');
+  }
+
+  /**
+   * Bring lobby.json onto the index model. A lobby from before the index gets one built from the
+   * map folders (once — reading every map file is exactly what the index exists to avoid).
+   */
+  private ensureLobbyIndex(worldName: string, lobby: any): boolean {
+    let changed = false;
+    if (!Array.isArray(lobby.mapIndex)) {
+      lobby.mapIndex = this.scanMapDirectory(worldName);
+      changed = true;
+    }
+    if (!Array.isArray(lobby.mapFolders)) {
+      lobby.mapFolders = [];
+      changed = true;
+    }
+    if (!lobby.playerLocations || typeof lobby.playerLocations !== 'object') {
+      lobby.playerLocations = {};
+      changed = true;
+    }
+    if (lobby.mapIndex.length === 0) {
+      const now = Date.now();
+      const map = {
+        id: 'default', name: 'Hauptkarte', tokens: [], strokes: [], textureStrokes: [],
+        walls: [], measurementLines: [], images: [], createdAt: now, updatedAt: now,
+      };
+      if (!this.getMap(worldName, map.id)) this.saveMap(worldName, map.id, map);
+      lobby.mapIndex.push({ id: map.id, name: map.name, folderId: null, order: 0 });
+      changed = true;
+    }
+    const known = (id: unknown) => lobby.mapIndex.some((e: any) => e.id === id);
+    if (!known(lobby.activeMapId)) {
+      lobby.activeMapId = lobby.mapIndex[0].id;
+      changed = true;
+    }
+    if (lobby.gmMapId && !known(lobby.gmMapId)) {
+      delete lobby.gmMapId;
+      changed = true;
+    }
+    return changed;
+  }
+
+  private scanMapDirectory(worldName: string): any[] {
+    const mapsDir = this.getWorldMapsDir(worldName);
+    if (!fs.existsSync(mapsDir)) return [];
+    const entries: any[] = [];
+    for (const dirName of fs.readdirSync(mapsDir)) {
+      if (dirName.startsWith('.')) continue; // retired (deleted) maps
+      const mapFile = path.join(mapsDir, dirName, 'map.json');
+      if (!fs.existsSync(mapFile)) continue;
+      try {
+        const data = JSON.parse(fs.readFileSync(mapFile, 'utf-8'));
+        entries.push({ id: data.id ?? dirName, name: data.name ?? dirName, folderId: null, order: 0 });
+      } catch (err) {
+        console.error(`Error reading map ${dirName}:`, err);
+      }
+    }
+    entries.sort((a, b) => String(a.name).localeCompare(String(b.name), 'de'));
+    entries.forEach((e, i) => (e.order = i));
+    return entries;
+  }
+
+  /**
+   * Apply one map-management op (folders, order, rename, delete, send players, background).
+   * Returns the new index plus token patches for every map whose tokens moved, or null if nothing
+   * changed.
+   */
+  applyLobbyIndexOp(
+    worldName: string, op: LobbyIndexOp,
+  ): { index: any; mapPatches: { mapId: string; patch: JsonPatch }[] } | null {
+    const lobby = this.readLobbyFile(worldName)
+      ?? { id: worldName, worldName, imageLibrary: [], textureLibrary: [], createdAt: Date.now() };
+    this.ensureLobbyIndex(worldName, lobby);
+    const mapPatches: { mapId: string; patch: JsonPatch }[] = [];
+    let changed = false;
+
+    switch (op?.type) {
+      case 'createMap': {
+        if (!op.map?.id || lobby.mapIndex.some((e: any) => e.id === op.map.id)) return null;
+        this.saveMap(worldName, op.map.id, op.map);
+        changed = applyStructuralOp(lobby, op);
+        break;
+      }
+      case 'renameMap': {
+        changed = applyStructuralOp(lobby, op);
+        const map = changed ? this.getMap(worldName, op.mapId) : null;
+        if (map) {
+          map.name = lobby.mapIndex.find((e: any) => e.id === op.mapId).name;
+          map.updatedAt = Date.now();
+          this.saveMap(worldName, op.mapId, map);
+          mapPatches.push({ mapId: op.mapId, patch: { path: 'name', value: map.name } });
+        }
+        break;
+      }
+      case 'deleteMap': {
+        changed = applyStructuralOp(lobby, op);
+        if (changed) this.retireMapDirectory(worldName, op.mapId);
+        break;
+      }
+      case 'sendPlayers': {
+        if (!lobby.mapIndex.some((e: any) => e.id === op.mapId)) return null;
+        const maps: Record<string, any> = {};
+        const load = (id: string) => (maps[id] ??= this.getMap(worldName, id));
+        if (!load(op.mapId)) return null;
+        const dirty = new Set<string>();
+        for (const characterId of op.characterIds ?? []) {
+          const from = lobby.playerLocations[characterId] ?? lobby.activeMapId;
+          if (from) load(from);
+          const moved = sendCharacterToMap(
+            maps, from, op.mapId, characterId, this.characterName(characterId), generateLobbyId,
+          );
+          moved.forEach(id => dirty.add(id));
+          lobby.playerLocations[characterId] = op.mapId;
+        }
+        if (op.makeDefault) lobby.activeMapId = op.mapId;
+        for (const id of dirty) {
+          maps[id].updatedAt = Date.now();
+          this.saveMap(worldName, id, maps[id]);
+          mapPatches.push({ mapId: id, patch: { path: 'tokens', value: maps[id].tokens } });
+        }
+        changed = true;
+        break;
+      }
+      default:
+        changed = !!op && applyStructuralOp(lobby, op);
+    }
+
+    if (!changed) return null;
+    lobby.updatedAt = Date.now();
+    this.writeLobbyFile(worldName, lobby);
+    const index = { ...lobby };
+    delete index.maps;
+    return { index, mapPatches };
+  }
+
+  private characterName(characterId: string): string {
+    const json = this.getCharacter(characterId);
+    if (!json) return characterId;
+    try {
+      return JSON.parse(json).name || characterId;
+    } catch {
+      return characterId;
+    }
+  }
+
+  /** A deleted map's folder is renamed out of the index's reach, not destroyed. */
+  private retireMapDirectory(worldName: string, mapId: string): void {
+    const dir = this.getWorldMapDir(worldName, mapId);
+    if (!fs.existsSync(dir)) return;
+    const retired = path.join(
+      this.getWorldMapsDir(worldName), `.deleted-${this.sanitizeFileName(mapId)}-${Date.now()}`,
+    );
+    try {
+      fs.renameSync(dir, retired);
+    } catch (error) {
+      console.error(`Could not retire map ${mapId} in ${worldName}:`, error);
     }
   }
 
@@ -978,24 +1129,36 @@ export class DataService {
     try {
       this.ensureWorldDirectories(worldName);
 
-      // Extract maps to save separately
       const maps = lobby.maps || {};
       const lobbyWithoutMaps = { ...lobby };
       delete lobbyWithoutMaps.maps;
 
-      // Save lobby.json (without maps)
-      const lobbyPath = this.getWorldLobbyFilePath(worldName);
-      fs.writeFileSync(
-        lobbyPath,
-        JSON.stringify(lobbyWithoutMaps, null, 2),
-        'utf-8',
-      );
-
-      // Save each map to its own directory
+      // Maps first, so an index built from the folder below already sees new ones.
       for (const mapId in maps) {
-        const mapData = maps[mapId];
-        this.saveMap(worldName, mapId, mapData);
+        this.saveMap(worldName, mapId, maps[mapId]);
       }
+
+      // The index, folders and player locations belong to the server (applyLobbyIndexOp). A
+      // client's full save — the socket-down fallback — carries a stale copy and must not roll
+      // them back.
+      const existing = this.readLobbyFile(worldName);
+      if (existing) {
+        this.ensureLobbyIndex(worldName, existing);
+        for (const key of LOBBY_INDEX_KEYS) {
+          if (existing[key] !== undefined) lobbyWithoutMaps[key] = existing[key];
+          else delete lobbyWithoutMaps[key];
+        }
+      }
+      this.ensureLobbyIndex(worldName, lobbyWithoutMaps);
+      for (const mapId in maps) {
+        if (!lobbyWithoutMaps.mapIndex.some((e: any) => e.id === mapId)) {
+          lobbyWithoutMaps.mapIndex.push({
+            id: mapId, name: maps[mapId]?.name || mapId, folderId: null,
+            order: lobbyWithoutMaps.mapIndex.length,
+          });
+        }
+      }
+      this.writeLobbyFile(worldName, lobbyWithoutMaps);
 
       console.log('SAVED LOBBY for world:', worldName);
       return lobby;

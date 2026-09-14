@@ -121,6 +121,22 @@ export class LobbyComponent implements OnInit, OnDestroy {
       this.selectedTokenId();
       untracked(() => this.tokenActions.resetForToken());
     });
+
+    // Which map this client shows: the GM keeps their own view; a player stands where their
+    // character was sent (or on the default map). Runs on every lobby update — cheap, and it is
+    // what moves a player's screen the moment the GM sends them.
+    effect(() => {
+      const lobby = this.lobby();
+      const index = lobby?.mapIndex ?? [];
+      if (!lobby || !index.length) return;
+      const known = (id: string | undefined): id is string => !!id && index.some(e => e.id === id);
+      const target = this.isGM()
+        ? [lobby.gmMapId, this.store.currentMapId, lobby.activeMapId].find(known)
+        : this.playerMapId(lobby, this.viewingCharacterIds());
+      untracked(() => {
+        if (target && target !== this.store.currentMapId) void this.store.switchMap(target);
+      });
+    });
     effect(() => {
       const uid = this.auth.userId();
       const set = new Set<string>();
@@ -186,8 +202,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // UI state — left sidebar, right character panel, bottom panel (persisted)
   showLobbyPanels = signal(true);
   sidebarTab = signal<'characters' | 'images' | 'textures'>('characters');
-  showMapSettingsModal = signal(false);
-  newMapName = ''; // For creating new maps
+  /** Lobby settings dialog (background texture, this map's colour and spawn point). */
+  showLobbySettings = signal(false);
+  /** Paper textures from the map-editor asset manifest; fetched when the settings open. */
+  paperTextures = signal<{ id: string; name: string; file: string }[]>([]);
 
   // Computed: current map
   currentMap = computed(() => {
@@ -230,11 +248,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
   imageLibrary = this.store.imageLibraryReadonly;
   textureLibrary = this.store.textureLibrary;
 
-  // Computed: map list for management
-  mapList = computed(() => {
-    const l = this.lobby();
-    if (!l) return [];
-    return Object.entries(l.maps).map(([id, map]) => ({ id, name: map.name }));
+  /** Party characters for the map manager (who is where, "send player"). */
+  mapPlayers = computed(() => this.worldCharacters().map(c => ({
+    id: c.id,
+    name: c.sheet.name || c.id,
+    portrait: c.sheet.portrait || undefined,
+  })));
+
+  /** The lobby's paper texture for the grid; null = plain background colour. */
+  backgroundTexture = computed(() => {
+    const bg = this.lobby()?.background;
+    return bg?.texture && bg.file ? { url: '/mapassets/' + bg.file, opacity: bg.opacity ?? 0.35 } : null;
   });
 
   // Battle Engine (same as world component)
@@ -429,9 +453,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.store.lobby$.subscribe((lobby) => {
         this.lobby.set(lobby);
-        if (lobby?.activeMapId) {
-          this.currentMapId.set(lobby.activeMapId);
-        }
+        // The store knows which map this client has open; `activeMapId` is only the players' default.
+        this.currentMapId.set(this.store.currentMapId);
         this.cdr.markForCheck();
       })
     );
@@ -1182,6 +1205,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onHexClick(hex: HexCoord): void {
+    if (this.store.placingSpawn()) {
+      this.store.setSpawn(hex);
+      this.store.placingSpawn.set(false);
+      return;
+    }
     const pending = this.pendingLinkedToken();
     if (pending) {
       const parent = this.currentMap()?.tokens.find(t => t.id === pending.parentId);
@@ -1513,8 +1541,31 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   showMapSettings(): void {
-    console.log('[Lobby] Opening map settings...');
-    this.showMapSettingsModal.set(true);
+    this.showLobbySettings.set(true);
+    void this.loadPaperTextures();
+  }
+
+  /** The map a player sees: where one of their characters stands, else the default map. */
+  private playerMapId(lobby: LobbyData, characterIds: Set<string>): string {
+    const index = lobby.mapIndex ?? [];
+    for (const id of characterIds) {
+      const location = lobby.playerLocations?.[id];
+      if (location && index.some(e => e.id === location)) return location;
+    }
+    return lobby.activeMapId;
+  }
+
+  /** Paper textures come from the map editor's asset manifest (only needed for the settings). */
+  private async loadPaperTextures(): Promise<void> {
+    if (this.paperTextures().length) return;
+    try {
+      const response = await fetch('/mapassets/manifest.json');
+      if (!response.ok) return;
+      const manifest = await response.json();
+      this.paperTextures.set(manifest?.paperTextures ?? []);
+    } catch {
+      /* no atlas built — plain background colours only */
+    }
   }
 
   async cleanupImages(): Promise<void> {
@@ -1528,75 +1579,33 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   // ============================================
-  // Map Management
+  // Lobby settings (maps themselves: lobby-map-manager in the right panel)
   // ============================================
 
-  onCreateMap(): void {
-    if (!this.newMapName.trim()) {
-      console.warn('[Lobby] Map name cannot be empty');
-      return;
-    }
-    
-    const mapId = `map-${Date.now()}`;
-    this.store.createMap(mapId, this.newMapName.trim());
-    this.newMapName = '';
-    this.cdr.markForCheck();
+  onBackgroundTextureChange(textureId: string): void {
+    const paper = this.paperTextures().find(p => p.id === textureId);
+    const opacity = this.lobby()?.background?.opacity ?? 0.35;
+    this.store.setBackground(paper?.id ?? '', paper?.file ?? '', opacity);
   }
 
-  onSwitchMap(mapId: string): void {
-    this.store.setActiveMap(mapId);
-    this.currentMapId.set(mapId);
-    this.cdr.markForCheck();
+  onBackgroundOpacityChange(value: number | string): void {
+    const background = this.lobby()?.background;
+    if (!background?.texture) return;
+    const opacity = Math.max(0, Math.min(1, Number(value) / 100));
+    this.store.setBackground(background.texture, background.file, opacity);
   }
 
-  onBroadcastMapToAll(mapId: string): void {
-    // Switch locally and broadcast to all connected viewers
-    this.store.switchMainViewForAll(mapId);
-    this.currentMapId.set(mapId);
-    this.cdr.markForCheck();
+  onMapBackgroundChange(event: Event): void {
+    this.store.updateMapBackground((event.target as HTMLInputElement).value);
   }
 
-  onDeleteMap(mapId: string): void {
-    if (this.mapList().length <= 1) {
-      console.warn('[Lobby] Cannot delete the last map');
-      return;
-    }
-    
-    if (!confirm('Delete this map? This cannot be undone.')) {
-      return;
-    }
-    
-    // If deleting current map, switch to another one first
-    if (this.currentMapId() === mapId) {
-      const otherMap = this.mapList().find(m => m.id !== mapId);
-      if (otherMap) {
-        this.onSwitchMap(otherMap.id);
-      }
-    }
-    
-    this.store.deleteMap(mapId);
-    this.cdr.markForCheck();
+  startSpawnPlacement(): void {
+    this.showLobbySettings.set(false);
+    this.store.placingSpawn.set(true);
   }
 
-  onMapBackgroundChange(mapId: string, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const color = input.value;
-    this.store.updateMapBackground(mapId, color);
-    this.cdr.markForCheck();
-  }
-
-  onRenameMap(mapId: string, event: FocusEvent): void {
-    const input = event.target as HTMLInputElement;
-    const newName = input.value.trim();
-    if (newName) {
-      this.store.renameMap(mapId, newName);
-      this.cdr.markForCheck();
-    }
-  }
-
-  getMapBackground(mapId: string): string {
-    const lobby = this.lobby();
-    return lobby?.maps[mapId]?.backgroundColor || '#e5e7eb';
+  get currentMapBackground(): string {
+    return this.currentMap()?.backgroundColor || '#e5e7eb';
   }
 
   // ============================================

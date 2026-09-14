@@ -10,16 +10,24 @@ import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { identityAuth } from './identity';
 import { JsonPatch } from '../model/json-patch.model';
-import { MeasurementLine } from '../model/lobby.model';
+import { LobbyData, LobbyIndexOp, MeasurementLine } from '../model/lobby.model';
 import { PingBroadcast } from '../shared/ping/ping.model';
+
+/** A map patch as broadcast by the server; `mapId` says which map it belongs to. */
+export interface LobbyPatchEvent extends JsonPatch {
+  mapId?: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class LobbySocketService {
   private socket?: Socket;
   private isConnected = false;
-  
+
   // Subjects for observables
-  private patchSubject = new Subject<JsonPatch>();
+  private patchSubject = new Subject<LobbyPatchEvent>();
+  private indexChangedSubject = new Subject<Partial<LobbyData>>();
+  /** The map index (folders, player locations, background) changed on the server. */
+  indexChanged$ = this.indexChangedSubject.asObservable();
   private measurementSubject = new Subject<MeasurementLine[]>();
   private pingSubject = new Subject<PingBroadcast>();
   private connectionReadySubject = new Subject<void>();
@@ -121,9 +129,12 @@ export class LobbySocketService {
     });
 
     // Legacy event for backward compatibility (MAIN EVENT FOR NOW)
-    this.socket.on('battleMapPatched', (patch: JsonPatch) => {
-      console.log('[LobbySocket] Received battleMap patch (using as lobby):', patch.path);
+    this.socket.on('battleMapPatched', (patch: LobbyPatchEvent) => {
       this.patchSubject.next(patch);
+    });
+
+    this.socket.on('lobbyIndexChanged', (index: Partial<LobbyData>) => {
+      this.indexChangedSubject.next(index);
     });
 
     // Measurement updates
@@ -255,6 +266,12 @@ export class LobbySocketService {
   sendPing(mapId: string, ping: PingBroadcast): void {
     if (!this.socket?.connected || !mapId) return;
     this.socket.emit('lobbyPing', { mapId, ping });
+  }
+
+  /** Map management op; the server applies it and broadcasts `lobbyIndexChanged`. */
+  async sendIndexOp(worldName: string, op: LobbyIndexOp): Promise<void> {
+    await this.ensureConnected();
+    this.socket?.emit('lobbyIndexOp', { worldName, op });
   }
 
   /**

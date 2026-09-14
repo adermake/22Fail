@@ -32,6 +32,18 @@ export class LobbyApiService {
     }
   }
 
+  /** Load one map's content (the lobby itself only carries the index). */
+  async loadMap(worldName: string, mapId: string): Promise<LobbyMap | null> {
+    try {
+      return await firstValueFrom(
+        this.http.get<LobbyMap | null>(`/api/worlds/${worldName}/lobby/maps/${encodeURIComponent(mapId)}`)
+      );
+    } catch (err) {
+      console.error('[LobbyAPI] Failed to load map:', mapId, err);
+      return null;
+    }
+  }
+
   /**
    * Save entire lobby data.
    */

@@ -41,6 +41,7 @@ import { tokenLabel } from '../../utils/entry-preview.util';
 import { committedFokus } from '../../utils/spell-costs.util';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LobbyTokenActionsService } from '../lobby-token-actions.service';
+import { LobbyMapManagerComponent, MapManagerPlayer } from '../lobby-map-manager/lobby-map-manager.component';
 import { formatCurrencyAsUnits, isEmptyCurrency } from '../../model/current-events.model';
 
 interface StatDisplay {
@@ -56,12 +57,17 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
 @Component({
   selector: 'app-lobby-character-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe, DiceRollerComponent, DamageCalculatorComponent, SpellcastWindowComponent],
+  imports: [CommonModule, FormsModule, ImageUrlPipe, DiceRollerComponent, DamageCalculatorComponent, SpellcastWindowComponent, LobbyMapManagerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
 <div class="char-panel">
 
   @if (!token) {
+    <!-- GM without a selection: map management (folders, send players), dice history below. -->
+    @if (isGM) {
+      <app-lobby-map-manager class="panel-map-manager" [players]="players" [currentMapId]="currentMapId" />
+    }
+
     <!-- No token selected: show dice + roll history -->
     <div class="panel-header">
       <span class="panel-title"><span class="app-icon i-dice"></span> Würfelverlauf</span>
@@ -71,7 +77,7 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
          overlay could never open. The working button lives under "Freier Wurf" once a
          token is selected. -->
 
-    <div class="roll-history">
+    <div class="roll-history" [class.roll-history--compact]="isGM">
       @if (rolls.length === 0) {
         <div class="empty-rolls">Noch keine Würfe in dieser Sitzung</div>
       }
@@ -1167,6 +1173,9 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
       overflow-y: auto;
       padding: 4px 8px;
     }
+    /* GM view without selection: map manager takes most of the height, dice history the rest. */
+    .panel-map-manager { flex: 1 1 60%; min-height: 180px; display: flex; flex-direction: column; border-bottom: 1px solid #334155; }
+    .roll-history.roll-history--compact { flex: 0 1 35%; min-height: 80px; }
     .roll-history::-webkit-scrollbar { width: 4px; }
     .roll-history::-webkit-scrollbar-track { background: #0f172a; }
     .roll-history::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
@@ -1537,6 +1546,10 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   @Input() allTokens: Token[] = [];
   /** Show Level + Neu würfeln in the header (GM, library NSC). */
   @Input() npcRollable = false;
+  /** Party characters for the map manager (who is where, "send player"). */
+  @Input() players: MapManagerPlayer[] = [];
+  /** Map this client has open (highlighted in the map manager). */
+  @Input() currentMapId = '';
 
   /** Reroll the NSC; `level` set = the GM changed the level field. */
   @Output() npcRoll = new EventEmitter<{ level?: number }>();

@@ -35,7 +35,9 @@ import {
   isStrokeBy,
   createEmptyLobby,
   createEmptyMap,
+  LobbyIndexOp,
 } from '../model/lobby.model';
+import { LobbyPatchEvent } from './lobby-socket.service';
 import { JsonPatch } from '../model/json-patch.model';
 import { applyJsonPatchTo } from '../utils/json-patch.util';
 
@@ -63,6 +65,15 @@ export class LobbyStoreService {
   // Current world and map
   worldName = '';
   currentMapId = '';
+
+  /** GM is about to click the map to place this map's spawn point. */
+  readonly placingSpawn = signal(false);
+
+  /** Map being loaded; its patches are buffered until the load lands. */
+  private loadingMapId = '';
+  private bufferedPatches: LobbyPatchEvent[] = [];
+  /** Bumped per switch, so a slow load cannot overwrite a newer one. */
+  private mapLoadSeq = 0;
 
   // Undo history for draw content (strokes + bitmaps)
   private drawUndoHistory: DrawLayerSnapshot[] = [];
@@ -189,6 +200,13 @@ export class LobbyStoreService {
   constructor() {
     // Listen for incoming patches from other clients
     this.socket.patches$.subscribe((patch) => {
+      // Patches for a map that is still loading wait for it; patches for any other map are not ours.
+      if (patch.mapId && patch.mapId === this.loadingMapId) {
+        this.bufferedPatches.push(patch);
+        return;
+      }
+      if (patch.mapId && patch.mapId !== this.currentMapId) return;
+
       // Check if this is an echo of our own patch
       const patchHash = this.hashPatch(patch);
       
@@ -201,11 +219,8 @@ export class LobbyStoreService {
       this.applyRemotePatch(patch);
     });
 
-    // Listen for main view changes (DM broadcasts map switch)
-    this.socket.mainViewChanged$.subscribe(({ mapId }) => {
-      console.log('[LobbyStore] 🔄 Main view changed by DM, switching to:', mapId);
-      this.handleMainViewChange(mapId);
-    });
+    // Map index (folders, player locations, background) changed on the server.
+    this.socket.indexChanged$.subscribe(index => this.applyIndex(index));
   }
 
   /**
@@ -231,7 +246,9 @@ export class LobbyStoreService {
 
     if (!lobby) {
       console.log('[LobbyStore] Creating new lobby');
-      lobby = await this.api.createLobby(worldName);
+      await this.api.createLobby(worldName);
+      // Reload so the server-built index (and default map entry) come back with it.
+      lobby = (await this.api.loadLobby(worldName)) ?? createEmptyLobby(worldName);
     }
 
     // Migrate old data if needed
@@ -271,16 +288,11 @@ export class LobbyStoreService {
     await this.socket.joinLobby(worldName);
     console.log('[LobbyStore] ✅ Joined lobby room');
 
-    // Set active map and join its room
-    const activeMapId = lobby.activeMapId || Object.keys(lobby.maps)[0] || 'default';
-    this.currentMapId = activeMapId;
-    lobby.activeMapId = activeMapId;
-    
-    // Join the map's socket room
-    await this.socket.joinMap(worldName, activeMapId);
-    console.log('[LobbyStore] ✅ Joined map room:', activeMapId);
+    // Open the default map; the lobby component then moves the GM to their map and a player to
+    // wherever their character stands.
+    await this.switchMap(lobby.activeMapId);
 
-    return lobby;
+    return this.lobby ?? lobby;
   }
 
   /**
@@ -334,9 +346,13 @@ export class LobbyStoreService {
    */
   private migrateLobby(lobby: LobbyData): LobbyData {
     // Ensure all required fields exist
+    // `maps` is a cache of loaded maps only; the list of all maps is the server's `mapIndex`.
     if (!lobby.maps) {
-      lobby.maps = { default: createEmptyMap('default', 'Main Map') };
+      lobby.maps = {};
     }
+    if (!lobby.mapIndex) lobby.mapIndex = [];
+    if (!lobby.mapFolders) lobby.mapFolders = [];
+    if (!lobby.playerLocations) lobby.playerLocations = {};
     if (!lobby.imageLibrary) {
       lobby.imageLibrary = [];
     }
@@ -344,7 +360,7 @@ export class LobbyStoreService {
       lobby.textureLibrary = [];
     }
     if (!lobby.activeMapId) {
-      lobby.activeMapId = Object.keys(lobby.maps)[0] || 'default';
+      lobby.activeMapId = lobby.mapIndex[0]?.id || Object.keys(lobby.maps)[0] || 'default';
     }
 
     // Migrate each map
@@ -461,133 +477,141 @@ export class LobbyStoreService {
   // ============================================
 
   /**
-   * Switch to a different map within the lobby.
+   * Open a map on this client. Only the open map lives in memory — its content is fetched on demand,
+   * so a lobby with hundreds of maps costs no more than one with a single map.
+   *
+   * The room is joined BEFORE the fetch and patches for this map are buffered until it lands, so an
+   * edit made by someone else in between is neither lost nor applied to the previous map.
    */
   async switchMap(mapId: string): Promise<void> {
     const lobby = this.lobby;
-    if (!lobby) return;
-
-    if (!lobby.maps[mapId]) {
+    if (!lobby || !mapId) return;
+    if (lobby.mapIndex?.length && !lobby.mapIndex.some(e => e.id === mapId)) {
       console.error('[LobbyStore] Map not found:', mapId);
       return;
     }
+    if (mapId === this.currentMapId && lobby.maps[mapId]) return;
+    if (mapId === this.loadingMapId) return;
 
-    this.currentMapId = mapId;
-    
-    // Update lobby's active map
-    lobby.activeMapId = mapId;
-    lobby.updatedAt = Date.now();
-    this.lobbySubject.next({ ...lobby });
-
-    // Join the map's socket room
+    const seq = ++this.mapLoadSeq;
+    this.loadingMapId = mapId;
+    this.bufferedPatches = [];
     await this.socket.joinMap(this.worldName, mapId);
-  }
+    const map = await this.api.loadMap(this.worldName, mapId);
+    if (seq !== this.mapLoadSeq) return; // a newer switch took over
 
-  /**
-   * Switch the main view for ALL connected viewers (DM action).
-   * This broadcasts the map change to everyone in the lobby.
-   */
-  async switchMainViewForAll(mapId: string): Promise<void> {
-    const lobby = this.lobby;
-    if (!lobby) return;
-
-    if (!lobby.maps[mapId]) {
-      console.error('[LobbyStore] Map not found:', mapId);
+    this.loadingMapId = '';
+    const current = this.lobby;
+    if (!current || !map) {
+      console.error('[LobbyStore] Map could not be loaded:', mapId);
+      this.bufferedPatches = [];
       return;
     }
 
-    // First switch locally
+    current.maps = { [mapId]: map };
+    this.migrateLobby(current);
+    this.currentMapId = mapId;
+    // Undo history belongs to the map it was recorded on.
+    this.drawUndoHistory = [];
+    this.textureTileUndoHistory = [];
+    this.lobbySubject.next({ ...current });
+
+    const buffered = this.bufferedPatches;
+    this.bufferedPatches = [];
+    for (const patch of buffered) this.applyRemotePatch(patch);
+  }
+
+  // ─── Map management (server-owned index, see backend lobby-index.ts) ─────
+  // Every op goes to the server, which applies it to lobby.json and broadcasts the new index to
+  // everyone (including us). No client ever uploads the map list.
+
+  private indexOp(op: LobbyIndexOp): void {
+    if (!this.worldName) return;
+    void this.socket.sendIndexOp(this.worldName, op);
+  }
+
+  /** New empty map in `folderId` (null = top level). Returns its id; the entry arrives by broadcast. */
+  createMap(name: string, folderId: string | null = null): string {
+    const map = createEmptyMap(generateId(), name.trim() || 'Neue Karte');
+    this.indexOp({ type: 'createMap', map, folderId });
+    return map.id;
+  }
+
+  renameMap(mapId: string, name: string): void {
+    if (name.trim()) this.indexOp({ type: 'renameMap', mapId, name: name.trim() });
+  }
+
+  deleteMap(mapId: string): void {
+    this.indexOp({ type: 'deleteMap', mapId });
+  }
+
+  moveMap(mapId: string, folderId: string | null, beforeId: string | null = null): void {
+    this.indexOp({ type: 'moveMap', mapId, folderId, beforeId });
+  }
+
+  createFolder(name: string, parentId: string | null = null): string {
+    const folderId = generateId();
+    this.indexOp({ type: 'createFolder', folderId, name: name.trim() || 'Neuer Ordner', parentId });
+    return folderId;
+  }
+
+  renameFolder(folderId: string, name: string): void {
+    if (name.trim()) this.indexOp({ type: 'renameFolder', folderId, name: name.trim() });
+  }
+
+  moveFolder(folderId: string, parentId: string | null, beforeId: string | null = null): void {
+    this.indexOp({ type: 'moveFolder', folderId, parentId, beforeId });
+  }
+
+  deleteFolder(folderId: string): void {
+    this.indexOp({ type: 'deleteFolder', folderId });
+  }
+
+  /**
+   * Send player characters to a map: tokens move to its spawn point server-side, and each player's
+   * client follows. `makeDefault` also makes it the map for players without a location.
+   */
+  sendPlayers(mapId: string, characterIds: string[], makeDefault = false): void {
+    if (!characterIds.length) return;
+    this.indexOp({ type: 'sendPlayers', mapId, characterIds, makeDefault });
+  }
+
+  setBackground(texture: string, file: string, opacity: number): void {
+    this.indexOp({ type: 'setBackground', texture, file, opacity });
+  }
+
+  /** GM opens a map: this view switches, and the server remembers it (the GM desk follows). */
+  async openMapAsGm(mapId: string): Promise<void> {
+    const lobby = this.lobby;
+    if (lobby) {
+      // Optimistic, so the lobby's map resolver doesn't snap back before the broadcast lands.
+      lobby.gmMapId = mapId;
+      this.lobbySubject.next({ ...lobby });
+    }
+    this.indexOp({ type: 'setGmMap', mapId });
     await this.switchMap(mapId);
-    
-    // Then broadcast to all other clients
-    this.socket.switchMainView(this.worldName, mapId);
   }
 
-  /**
-   * Handle incoming main view change from another client (DM).
-   */
-  private async handleMainViewChange(mapId: string): Promise<void> {
+  /** Background colour of the open map. */
+  updateMapBackground(color: string): void {
+    this.applyPatch({ path: 'backgroundColor', value: color });
+  }
+
+  /** Spawn point of the open map. */
+  setSpawn(position: HexCoord): void {
+    this.applyPatch({ path: 'spawn', value: position });
+  }
+
+  private applyIndex(index: Partial<LobbyData>): void {
     const lobby = this.lobby;
     if (!lobby) return;
-
-    // Only switch if the map exists and we're not already on it
-    if (lobby.maps[mapId] && this.currentMapId !== mapId) {
-      await this.switchMap(mapId);
-    }
-  }
-
-  /**
-   * Create a new map within the lobby.
-   */
-  async createMap(name: string, mapId?: string): Promise<string> {
-    const lobby = this.lobby;
-    if (!lobby) throw new Error('No lobby loaded');
-
-    const id = mapId || generateId();
-    const newMap = createEmptyMap(id, name);
-    lobby.maps[newMap.id] = newMap;
-    lobby.updatedAt = Date.now();
-    
+    const { maps: _ignored, ...rest } = index;
+    void _ignored;
+    Object.assign(lobby, rest);
+    lobby.mapIndex ??= [];
+    lobby.mapFolders ??= [];
+    lobby.playerLocations ??= {};
     this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
-
-    return newMap.id;
-  }
-
-  /**
-   * Delete a map from the lobby.
-   */
-  async deleteMap(mapId: string): Promise<void> {
-    const lobby = this.lobby;
-    if (!lobby) return;
-
-    const mapCount = Object.keys(lobby.maps).length;
-    if (mapCount <= 1) {
-      console.warn('[LobbyStore] Cannot delete the only map');
-      return;
-    }
-
-    delete lobby.maps[mapId];
-
-    // Switch to another map if we deleted the active one
-    if (lobby.activeMapId === mapId) {
-      const newActiveId = Object.keys(lobby.maps)[0];
-      await this.switchMap(newActiveId);
-    }
-
-    lobby.updatedAt = Date.now();
-    this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
-  }
-
-  /**
-   * Rename a map.
-   */
-  async renameMap(mapId: string, name: string): Promise<void> {
-    const lobby = this.lobby;
-    if (!lobby || !lobby.maps[mapId]) return;
-
-    lobby.maps[mapId].name = name;
-    lobby.maps[mapId].updatedAt = Date.now();
-    lobby.updatedAt = Date.now();
-
-    this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
-  }
-
-  /**
-   * Update map background color.
-   */
-  async updateMapBackground(mapId: string, color: string): Promise<void> {
-    const lobby = this.lobby;
-    if (!lobby || !lobby.maps[mapId]) return;
-
-    lobby.maps[mapId].backgroundColor = color;
-    lobby.maps[mapId].updatedAt = Date.now();
-    lobby.updatedAt = Date.now();
-
-    this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
   }
 
   /**

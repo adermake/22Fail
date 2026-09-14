@@ -122,6 +122,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Inputs
   @Input() map: LobbyMap | null = null;
+  /** Paper texture multiplied over the background colour (lobby setting); null = plain colour. */
+  @Input() backgroundTexture: { url: string; opacity: number } | null = null;
+  private bgTexturePattern: CanvasPattern | null = null;
+  private bgTextureUrl = '';
   @Input() tokens: Token[] = [];
   @Input() worldCharacters: { id: string; sheet: CharacterSheet }[] = []; // For resources
   @Input() currentTool: ToolType = 'cursor';
@@ -545,6 +549,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
     
+    if (changes['backgroundTexture']) {
+      this.loadBackgroundTexture();
+    }
     if (changes['map'] || changes['tokens'] || changes['selectedImageId']) {
       this.scheduleRender();
     }
@@ -885,6 +892,45 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     ctx.fillStyle = this.map?.backgroundColor || '#e5e7eb';
     ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    this.paintBackgroundTexture(ctx, canvas.width / dpr, canvas.height / dpr);
+  }
+
+  /** Load the lobby's paper texture once per URL and redraw when it arrives. */
+  private loadBackgroundTexture(): void {
+    const url = this.backgroundTexture?.url ?? '';
+    if (url === this.bgTextureUrl) {
+      this.scheduleRender(); // only the opacity changed
+      return;
+    }
+    this.bgTextureUrl = url;
+    this.bgTexturePattern = null;
+    if (!url) {
+      this.scheduleRender();
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      if (this.bgTextureUrl !== url) return;
+      // A pattern is not tied to the context that made it, so this works before the view exists.
+      const ctx = this.imageCtx ?? document.createElement('canvas').getContext('2d');
+      this.bgTexturePattern = ctx?.createPattern(img, 'repeat') ?? null;
+      this.scheduleRender();
+    };
+    img.src = url;
+  }
+
+  /** Multiply the paper over the background colour; it pans and zooms with the map. */
+  private paintBackgroundTexture(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const pattern = this.bgTexturePattern;
+    const opacity = this.backgroundTexture?.opacity ?? 0;
+    if (!pattern || opacity <= 0) return;
+    pattern.setTransform(new DOMMatrix().translateSelf(this.panX, this.panY).scaleSelf(this.scale));
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, opacity);
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
   }
 
   private renderLayerImages(layerId: string): void {
@@ -1265,6 +1311,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Render background color first
     ctx.fillStyle = this.map?.backgroundColor || '#e5e7eb';
     ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    this.paintBackgroundTexture(ctx, canvas.width / dpr, canvas.height / dpr);
 
     ctx.save();
     ctx.translate(this.panX, this.panY);
@@ -3595,12 +3642,39 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const dpr = window.devicePixelRatio || 1;
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
+    this.renderSpawnPoint(ctx);
     this.renderLinkedTokenLines(ctx);
     this.renderMeasurement(ctx);
     this.renderRemoteMeasurements(ctx);
     this.renderDragPath(ctx);
     this.renderSelectionBox(ctx);
     this.renderBrushSizeCircle(ctx);
+  }
+
+  /** Spawn point (GM only): where players sent to this map appear. */
+  private renderSpawnPoint(ctx: CanvasRenderingContext2D): void {
+    const spawn = this.map?.spawn;
+    if (!spawn || !this.isGM) return;
+    const center = HexMath.hexToPixel(spawn);
+    const p = this.worldToScreen(center.x, center.y);
+    const r = Math.max(8, 20 * this.scale);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(34, 197, 94, 0.95)';
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.18)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(p.x - r * 0.45, p.y);
+    ctx.lineTo(p.x + r * 0.45, p.y);
+    ctx.moveTo(p.x, p.y - r * 0.45);
+    ctx.lineTo(p.x, p.y + r * 0.45);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private renderLinkedTokenLines(ctx: CanvasRenderingContext2D): void {

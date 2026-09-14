@@ -574,6 +574,24 @@ lobby-container
 - NSC-Cast-Sheet trägt Leben/Mana/Ausdauer als statuses; Mana-Abzug des Zauberfensters → `token.currentMana`.
 - Sidebar-NSCs: nach Bibliotheksordner gruppiert (Pfad aus `searchFiles`), Suche öffnet Ordner mit Treffern.
 
+### Karten, Ordner & Spieler-Orte (`backend/src/lobby-index.ts`, `lobby/lobby-map-manager/`)
+- `lobby.json` ist nur noch der **Index**: `mapIndex` (id, name, folderId, order), `mapFolders`, `playerLocations`
+  (characterId → mapId), `activeMapId` (Standardkarte für Spieler ohne Ort), `gmMapId` (Karte des GM), `background`.
+  Karteninhalt: `maps/<id>/map.json`. `GET /lobby` liefert nur den Index (Alt-Lobbys: Index einmalig aus dem Ordner gebaut);
+  Karten lädt der Client einzeln (`GET /lobby/maps/:id`). Hält auch 300+ Karten klein.
+- Änderungen am Index nur serverseitig: Socket `lobbyIndexOp` → `DataService.applyLobbyIndexOp` → Broadcast `lobbyIndexChanged`.
+  Volles `saveLobby` (Socket-Fallback) überschreibt die Index-Felder nie. Gelöschte Karten → Ordner `maps/.deleted-<id>-<ts>`.
+- `sendPlayers`: Token wandert von der alten Karte zum freien Feld nächst dem `spawn` der Zielkarte (Zustand bleibt),
+  steht es dort schon, bleibt es; Server schickt `tokens`-Patches an beide Karten-Räume.
+- Client-Store hält **nur die offene Karte** (`lobby.maps` = Cache). `switchMap`: Raum betreten → Karte laden → gepufferte
+  Patches anwenden; Undo-Historie wird geleert. `joinMap` verlässt serverseitig alle anderen `map-*`-Räume; Patches tragen `mapId`.
+- Welche Karte: GM = `gmMapId` (Doppelklick im Karten-Panel), Spieler = Ort eines eigenen Charakters, sonst `activeMapId`
+  (Effect in `lobby.component`). Spieler wechseln nicht selbst.
+- Karten-Panel (GM, rechts ohne Auswahl): Baum mit Ordnern, Drag&Drop (auf Ordner = hinein, auf Karte = davor), Umbenennen,
+  Kontextmenü (Öffnen, Alle/Spieler hierher schicken, Spawnpunkt, Löschen), Leuchten + Porträts wo Spieler stehen.
+- Lobby-Einstellungen (Toolbar-Zahnrad): Papiertextur aus `mapassets/manifest.json` (multipliziert über die Hintergrundfarbe,
+  wandert mit Pan/Zoom), Deckkraft, Farbe + Spawnpunkt der offenen Karte. World-View-Bridge folgt `gmMapId`.
+
 ### Kein Flash-Problem
 - lobby-character-panel ist IMMER 300px breit, egal ob Token ausgew�hlt.
 - Kein @if-Wrapper um das Panel ? kein Layout-Shift ? kein Canvas-Resize ? kein Zeichnungs-Flash.

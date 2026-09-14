@@ -283,9 +283,50 @@ export interface LobbyMap {
   activeLayerId?: string; // Currently selected layer for new content
   images: MapImage[];
   backgroundColor?: string; // Background color (default: #e5e7eb)
+  /** Where players sent to this map appear when their token is not on it yet. */
+  spawn?: HexCoord;
   createdAt: number;
   updatedAt: number;
 }
+
+// ============================================
+// Map index (folders, player locations)
+// ============================================
+
+export interface LobbyMapIndexEntry {
+  id: string;
+  name: string;
+  folderId: string | null;
+  order: number;
+}
+
+export interface LobbyMapFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  order: number;
+}
+
+/** Paper texture multiplied over every map's background (lobby-wide setting). */
+export interface LobbyBackground {
+  texture: string;
+  file: string;
+  opacity: number;
+}
+
+/** Map management, applied by the server (`lobbyIndexOp`) and broadcast as the new index. */
+export type LobbyIndexOp =
+  | { type: 'createMap'; map: LobbyMap; folderId: string | null }
+  | { type: 'renameMap'; mapId: string; name: string }
+  | { type: 'deleteMap'; mapId: string }
+  | { type: 'moveMap'; mapId: string; folderId: string | null; beforeId?: string | null }
+  | { type: 'createFolder'; folderId: string; name: string; parentId: string | null }
+  | { type: 'renameFolder'; folderId: string; name: string }
+  | { type: 'moveFolder'; folderId: string; parentId: string | null; beforeId?: string | null }
+  | { type: 'deleteFolder'; folderId: string }
+  | { type: 'setGmMap'; mapId: string }
+  | { type: 'setBackground'; texture: string; file: string; opacity: number }
+  | { type: 'sendPlayers'; mapId: string; characterIds: string[]; makeDefault?: boolean };
 
 // ============================================
 // Lobby Data
@@ -295,8 +336,17 @@ export interface LobbyMap {
 export interface LobbyData {
   id: string; // Same as worldName
   worldName: string;
+  /** Only the map(s) this client has loaded — the full list is `mapIndex`. */
   maps: { [mapId: string]: LobbyMap };
+  /** Default map: where players without a location stand. */
   activeMapId: string;
+  /** The map the GM has open. */
+  gmMapId?: string;
+  mapIndex?: LobbyMapIndexEntry[];
+  mapFolders?: LobbyMapFolder[];
+  /** characterId → mapId. */
+  playerLocations?: Record<string, string>;
+  background?: LobbyBackground;
   imageLibrary: LibraryImage[];
   textureLibrary: LibraryTexture[]; // Global texture library
   createdAt: number;

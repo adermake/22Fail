@@ -1,0 +1,129 @@
+<div class="lmm">
+  <div class="lmm-head">
+    <span class="lmm-title"><span class="app-icon i-map"></span> Karten</span>
+    <span class="lmm-count">{{ mapCount() }}</span>
+    <span class="lmm-head-actions">
+      <button type="button" class="lmm-btn" (click)="newMap(null)" title="Neue Karte">+ Karte</button>
+      <button type="button" class="lmm-btn" (click)="newFolder(null)" title="Neuer Ordner">
+        + <span class="app-icon i-folder"></span>
+      </button>
+    </span>
+  </div>
+
+  <input class="lmm-search" type="text" placeholder="Karten suchen…"
+         [ngModel]="query()" (ngModelChange)="query.set($event)">
+
+  @if (placingSpawn()) {
+    <div class="lmm-hint">
+      Klicke auf ein freies Feld der Karte, um den Spawnpunkt zu setzen.
+      <button type="button" class="lmm-btn" (click)="placingSpawn.set(false)">Abbrechen</button>
+    </div>
+  }
+
+  <div class="lmm-tree" [class.drop-root]="dropKey() === 'root'"
+       (dragover)="onDragOver($event, 'root')" (drop)="onDrop($event, null)"
+       (contextmenu)="openMenu($event, 'root', '')">
+    @for (row of rows(); track row.key) {
+      @if (row.kind === 'folder') {
+        <div class="lmm-row lmm-folder" draggable="true"
+             [class.drop-target]="dropKey() === row.key"
+             [style.padding-left.px]="6 + row.depth * 14"
+             (dragstart)="onDragStart($event, row)" (dragend)="onDragEnd()"
+             (dragover)="onDragOver($event, row.key)" (drop)="onDrop($event, row)"
+             (click)="toggleFolder(row.id)" (contextmenu)="openMenu($event, 'folder', row.id)">
+          <span class="lmm-caret">{{ row.open ? '▾' : '▸' }}</span>
+          <span class="app-icon i-folder lmm-folder-icon"></span>
+          @if (renaming() === row.key) {
+            <input class="lmm-rename" lmmAutofocus [value]="row.name"
+                   (click)="$event.stopPropagation()"
+                   (keydown.enter)="$any($event.target).blur()" (keydown.escape)="cancelRename()"
+                   (blur)="commitRename(row, $any($event.target).value)">
+          } @else {
+            <span class="lmm-name">{{ row.name }}</span>
+          }
+          <span class="lmm-folder-count">{{ row.count }}</span>
+        </div>
+      } @else {
+        <div class="lmm-row lmm-map" draggable="true"
+             [class.current]="row.id === currentMap()"
+             [class.has-players]="row.players.length > 0"
+             [class.drop-target]="dropKey() === row.key"
+             [style.padding-left.px]="6 + row.depth * 14"
+             [title]="row.id === currentMap() ? 'Geöffnet' : 'Doppelklick: öffnen · Rechtsklick: Spieler schicken'"
+             (dragstart)="onDragStart($event, row)" (dragend)="onDragEnd()"
+             (dragover)="onDragOver($event, row.key)" (drop)="onDrop($event, row)"
+             (dblclick)="open(row.id)" (contextmenu)="openMenu($event, 'map', row.id)">
+          <span class="app-icon i-map lmm-map-icon"></span>
+          @if (renaming() === row.key) {
+            <input class="lmm-rename" lmmAutofocus [value]="row.name"
+                   (dblclick)="$event.stopPropagation()"
+                   (keydown.enter)="$any($event.target).blur()" (keydown.escape)="cancelRename()"
+                   (blur)="commitRename(row, $any($event.target).value)">
+          } @else {
+            <span class="lmm-name">
+              {{ row.name }}
+              @if (row.folderLabel) { <small class="lmm-path">{{ row.folderLabel }}</small> }
+            </span>
+          }
+          @if (row.isDefault) {
+            <span class="lmm-default" title="Standardkarte: hier stehen Spieler ohne eigenen Ort">Standard</span>
+          }
+          <span class="lmm-players">
+            @for (p of row.players.slice(0, 4); track p.id) {
+              @if (p.portrait) {
+                <img class="lmm-avatar" [src]="p.portrait | imageUrl" [title]="p.name" alt="">
+              } @else {
+                <span class="lmm-avatar lmm-avatar--letter" [title]="p.name">{{ p.name.charAt(0) }}</span>
+              }
+            }
+            @if (row.players.length > 4) {
+              <span class="lmm-more" [title]="row.players.length + ' Spieler'">+{{ row.players.length - 4 }}</span>
+            }
+          </span>
+        </div>
+      }
+    }
+    @if (!rows().length) {
+      <div class="lmm-empty">{{ query() ? 'Keine Karte gefunden.' : 'Noch keine Karten.' }}</div>
+    }
+  </div>
+</div>
+
+@if (menu(); as m) {
+  <div class="lmm-menu-backdrop" (click)="menu.set(null)" (contextmenu)="$event.preventDefault(); menu.set(null)">
+    <div class="lmm-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+      @switch (m.kind) {
+        @case ('map') {
+          <div class="lmm-menu-title">{{ mapName(m.id) }}</div>
+          <button type="button" (click)="open(m.id)"><span class="app-icon i-visibility-on"></span> &Ouml;ffnen</button>
+          <button type="button" (click)="sendAll(m.id)"><span class="app-icon i-character"></span> Alle hierher schicken</button>
+          @for (p of playerList(); track p.id) {
+            <button type="button" class="lmm-menu-player" (click)="sendOne(m.id, p.id)">
+              @if (p.portrait) {
+                <img class="lmm-avatar" [src]="p.portrait | imageUrl" alt="">
+              } @else {
+                <span class="lmm-avatar lmm-avatar--letter">{{ p.name.charAt(0) }}</span>
+              }
+              {{ p.name }} hierher schicken
+            </button>
+          }
+          <hr>
+          <button type="button" (click)="placeSpawn(m.id)"><span class="app-icon i-token-drag"></span> Spawnpunkt setzen</button>
+          <button type="button" (click)="startRename('map:' + m.id)"><span class="app-icon i-draw"></span> Umbenennen</button>
+          <button type="button" class="danger" (click)="remove('map', m.id)"><span class="app-icon i-restore-trash"></span> L&ouml;schen</button>
+        }
+        @case ('folder') {
+          <div class="lmm-menu-title">{{ folderName(m.id) }}</div>
+          <button type="button" (click)="newMap(m.id)"><span class="app-icon i-map"></span> Neue Karte hier</button>
+          <button type="button" (click)="newFolder(m.id)"><span class="app-icon i-folder"></span> Neuer Unterordner</button>
+          <button type="button" (click)="startRename('folder:' + m.id)"><span class="app-icon i-draw"></span> Umbenennen</button>
+          <button type="button" class="danger" (click)="remove('folder', m.id)"><span class="app-icon i-restore-trash"></span> Ordner l&ouml;schen</button>
+        }
+        @default {
+          <button type="button" (click)="newMap(null)"><span class="app-icon i-map"></span> Neue Karte</button>
+          <button type="button" (click)="newFolder(null)"><span class="app-icon i-folder"></span> Neuer Ordner</button>
+        }
+      }
+    </div>
+  </div>
+}

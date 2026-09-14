@@ -11,28 +11,25 @@ import { Currency } from '../model/current-events.model';
  *
  * Die World-View kannte die Lobby bisher überhaupt nicht — sie sah NSCs nur, wenn jemand sie in
  * den Kampf-Tracker aufgenommen hatte, und NSCs, die bloß auf der Karte standen, waren unsichtbar.
- * Der GM-Schreibtisch braucht aber genau die: einen Reiter pro NSC der **aktiven** Karte.
+ * Der GM-Schreibtisch braucht aber genau die: einen Reiter pro NSC der Karte, die der Spielleiter
+ * gerade offen hat.
  *
  * Bewusst schlank gehalten und getrennt vom `LobbyStoreService`: Diese Ansicht liest Token und
- * schreibt deren Inventar, mehr nicht — sie braucht weder Zeichen-Ebenen noch Nebel noch die
- * Bild-Bibliothek.
+ * schreibt deren Inventar, mehr nicht. Sie lädt nur den Karten-Index und die eine Karte.
  */
 @Injectable({ providedIn: 'root' })
 export class WorldLobbyBridgeService {
   private api = inject(LobbyApiService);
   private socket = inject(LobbySocketService);
 
-  private lobby = signal<LobbyData | null>(null);
+  private mapId = signal('');
+  private map = signal<LobbyMap | null>(null);
   private worldName = '';
   private subs: Subscription[] = [];
   private attached = false;
 
-  /** Die gerade in der Lobby angezeigte Karte. */
-  readonly activeMap = computed<LobbyMap | null>(() => {
-    const data = this.lobby();
-    if (!data) return null;
-    return data.maps[data.activeMapId] ?? null;
-  });
+  /** Die Karte, die der Spielleiter in der Lobby offen hat. */
+  readonly activeMap = this.map.asReadonly();
 
   /** Alle Token der aktiven Karte. */
   readonly tokens = computed<Token[]>(() => this.activeMap()?.tokens ?? []);
@@ -55,61 +52,42 @@ export class WorldLobbyBridgeService {
     this.worldName = worldName;
     this.attached = true;
 
-    const data = await this.api.loadLobby(worldName);
-    if (!data) return;
-    this.lobby.set(data);
+    const index = await this.api.loadLobby(worldName);
+    if (!index) return;
 
     this.socket.connect();
     await this.socket.joinLobby(worldName);
-    await this.socket.joinMap(worldName, data.activeMapId);
 
-    this.subs.push(this.socket.patches$.subscribe(patch => this.applyPatch(patch.path, patch.value)));
-    // Der Spielleiter wechselt in der Lobby die Karte — die Reiter müssen mitwandern.
-    this.subs.push(this.socket.mainViewChanged$.subscribe(({ mapId }) => {
-      void this.switchMap(mapId);
+    this.subs.push(this.socket.patches$.subscribe(patch => {
+      if (!patch.mapId || patch.mapId === this.mapId()) this.applyPatch(patch.path, patch.value);
     }));
+    // Der Spielleiter öffnet in der Lobby eine andere Karte — die Reiter wandern mit.
+    this.subs.push(this.socket.indexChanged$.subscribe(changed => void this.follow(changed)));
+    await this.follow(index);
   }
 
   detach(): void {
     for (const sub of this.subs) sub.unsubscribe();
     this.subs = [];
-    this.lobby.set(null);
+    this.map.set(null);
+    this.mapId.set('');
     this.attached = false;
     this.worldName = '';
   }
 
   /** Das Inventar eines Tokens ersetzen. Geht als ganzes `tokens`-Array raus, wie in der Lobby. */
   setTokenInventory(tokenId: string, inventory: ItemBlock[]): void {
-    const map = this.activeMap();
-    const data = this.lobby();
-    if (!map || !data) return;
-
-    const tokens = map.tokens.map(t => (t.id === tokenId ? { ...t, inventory } : t));
-    // Optimistisch anwenden, damit der Reiter sofort stimmt; der Echo bestätigt es nur noch.
-    this.writeTokens(tokens);
-    this.socket.sendPatch(this.worldName, data.activeMapId, { path: 'tokens', value: tokens });
+    this.updateToken(tokenId, t => ({ ...t, inventory }));
   }
 
   /** Die Cetris eines NSC-Tokens ersetzen; `undefined` leert den Beutel. */
   setTokenCurrency(tokenId: string, currency: Currency | undefined): void {
-    const map = this.activeMap();
-    const data = this.lobby();
-    if (!map || !data) return;
-
-    const tokens = map.tokens.map(t => (t.id === tokenId ? { ...t, currency } : t));
-    this.writeTokens(tokens);
-    this.socket.sendPatch(this.worldName, data.activeMapId, { path: 'tokens', value: tokens });
+    this.updateToken(tokenId, t => ({ ...t, currency }));
   }
 
   /** Die Kennzeichnung eines Tokens setzen ("Kultist 2" → "Anführer"). */
   setTokenTag(tokenId: string, tag: string): void {
-    const map = this.activeMap();
-    const data = this.lobby();
-    if (!map || !data) return;
-
-    const tokens = map.tokens.map(t => (t.id === tokenId ? { ...t, tag: tag.trim() || undefined } : t));
-    this.writeTokens(tokens);
-    this.socket.sendPatch(this.worldName, data.activeMapId, { path: 'tokens', value: tokens });
+    this.updateToken(tokenId, t => ({ ...t, tag: tag.trim() || undefined }));
   }
 
   /** Einen Gegenstand an das Inventar eines Tokens anhängen. */
@@ -127,33 +105,37 @@ export class WorldLobbyBridgeService {
     this.setTokenInventory(tokenId, rest);
   }
 
-  private async switchMap(mapId: string): Promise<void> {
-    const data = this.lobby();
-    if (!data || data.activeMapId === mapId) return;
-    this.lobby.set({ ...data, activeMapId: mapId });
-    await this.socket.joinMap(this.worldName, mapId);
+  private updateToken(tokenId: string, change: (token: Token) => Token): void {
+    const map = this.map();
+    if (!map) return;
+    const tokens = map.tokens.map(t => (t.id === tokenId ? change(t) : t));
+    // Optimistisch anwenden, damit der Reiter sofort stimmt; der Echo bestätigt es nur noch.
+    this.writeTokens(tokens);
+    this.socket.sendPatch(this.worldName, this.mapId(), { path: 'tokens', value: tokens });
+  }
+
+  /** Der Karte folgen, die der Spielleiter offen hat (sonst der Standardkarte). */
+  private async follow(index: Partial<LobbyData>): Promise<void> {
+    const target = index.gmMapId || index.activeMapId;
+    if (!target || target === this.mapId()) return;
+    this.mapId.set(target);
+    await this.socket.joinMap(this.worldName, target);
+    const map = await this.api.loadMap(this.worldName, target);
+    if (this.mapId() === target) this.map.set(map);
   }
 
   /**
-   * Nur die zwei Pfade, die diese Ansicht angehen. Ein voller Patch-Walker wäre hier eine vierte
-   * Kopie derselben Logik — und die Lobby schickt Token ohnehin immer als ganzes Array.
+   * Nur der Pfad, der diese Ansicht angeht. Ein voller Patch-Walker wäre hier eine weitere Kopie
+   * derselben Logik — und die Lobby schickt Token ohnehin immer als ganzes Array.
    */
   private applyPatch(rawPath: string, value: unknown): void {
     const path = rawPath.replace(/^\//, '').replace(/\//g, '.');
     if (path === 'tokens' && Array.isArray(value)) {
       this.writeTokens(value as Token[]);
-    } else if (path === 'activeMapId' && typeof value === 'string') {
-      void this.switchMap(value);
     }
   }
 
   private writeTokens(tokens: Token[]): void {
-    const data = this.lobby();
-    const map = this.activeMap();
-    if (!data || !map) return;
-    this.lobby.set({
-      ...data,
-      maps: { ...data.maps, [data.activeMapId]: { ...map, tokens } },
-    });
+    this.map.update(map => (map ? { ...map, tokens } : map));
   }
 }

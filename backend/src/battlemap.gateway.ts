@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { DataService, JsonPatch } from './data.service';
+import { LobbyIndexOp } from './lobby-index';
 
 @WebSocketGateway({
   cors: { origin: '*' }, // for dev, restrict later
@@ -92,10 +93,29 @@ export class BattleMapGateway
     @ConnectedSocket() client: Socket,
   ) {
     const room = `map-${data.mapId}`;
+    // One map at a time. A client used to stay in every map room it ever visited and applied
+    // their patches to whatever map it had open — edits leaked across maps.
+    for (const joined of [...client.rooms]) {
+      if (joined.startsWith('map-') && joined !== room) client.leave(joined);
+    }
     client.join(room);
     console.log(
       `Client ${client.id} joined map ${data.mapId} in world ${data.worldName}`,
     );
+  }
+
+  /** Map management (folders, order, rename, delete, send players, background) — server-owned. */
+  @SubscribeMessage('lobbyIndexOp')
+  handleLobbyIndexOp(
+    @MessageBody() data: { worldName: string; op: LobbyIndexOp },
+  ) {
+    if (!data?.worldName || !data.op) return;
+    const result = this.dataService.applyLobbyIndexOp(data.worldName, data.op);
+    if (!result) return;
+    this.server.to(`lobby-${data.worldName}`).emit('lobbyIndexChanged', result.index);
+    for (const { mapId, patch } of result.mapPatches) {
+      this.server.to(`map-${mapId}`).emit('battleMapPatched', { ...patch, mapId });
+    }
   }
 
   // Join a battle map "room" (legacy support)
@@ -130,9 +150,10 @@ export class BattleMapGateway
 
     this.dataService.applyPatchToMap(worldName, battleMapId, patch);
 
-    // Broadcast patch to all clients in the same map room
+    // Broadcast patch to all clients in the same map room. The map id travels with it so a client
+    // mid-switch can tell a patch for the old map from one for the new.
     const mapRoom = `map-${battleMapId}`;
-    this.server.to(mapRoom).emit('battleMapPatched', patch);
+    this.server.to(mapRoom).emit('battleMapPatched', { ...patch, mapId: battleMapId });
 
     // Also broadcast to legacy battlemap room for backward compatibility
     const battleMapRoom = `battlemap-${battleMapId}`;
