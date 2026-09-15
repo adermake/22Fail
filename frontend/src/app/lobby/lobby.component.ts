@@ -1250,15 +1250,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  async onNpcStatblockDrop(data: { statblockId: string; name: string; portrait: string; position: HexCoord }): Promise<void> {
+  async onNpcStatblockDrop(data: { statblockId: string; name: string; portrait: string; position: HexCoord; level?: number }): Promise<void> {
     const characterId = 'npc-' + data.statblockId + '-' + Date.now();
     this.currentTool.set('cursor');
     // Die Startbeute wird KOPIERT, nicht verlinkt: der Statblock ist ein geteiltes Asset, und
     // drei Goblins vom selben Statblock sollen nicht denselben Beutel haben.
     const statblock = this.npcStatblocks().find(s => s.id === data.statblockId)?.statblock;
 
-    // Mit Variation würfelt jedes Ablegen ein eigenes NSC; das Token trägt diesen Schnappschuss.
-    const npcInstance = statblock && hasNpcVariation(statblock) ? await this.rollNpc(statblock) : undefined;
+    // Mit Variation — oder mit Level-Override aus der Sidebar — würfelt jedes Ablegen ein eigenes
+    // NSC; das Token trägt diesen Schnappschuss.
+    const npcLevel = data.level && data.level > 0 ? Math.floor(data.level) : undefined;
+    const npcInstance = statblock && (hasNpcVariation(statblock) || npcLevel !== undefined)
+      ? await this.rollNpc(statblock, npcLevel)
+      : undefined;
 
     this.store.addToken({
       characterId,
@@ -1268,6 +1272,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
       team: 'red',
       isQuickToken: true,
       statblockId: data.statblockId,
+      // Bleibt am Token, damit „Neu würfeln" das gewählte Level behält.
+      npcLevel,
       inventory: structuredClone((npcInstance ?? statblock)?.inventory ?? []),
       currency: this.purseOrNone(npcInstance
         ? npcInstance.purse

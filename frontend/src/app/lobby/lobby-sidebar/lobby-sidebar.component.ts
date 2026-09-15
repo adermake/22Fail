@@ -27,6 +27,46 @@ function folderOf(path: string | undefined): string {
   return i <= 0 ? '/' : path!.slice(0, i);
 }
 
+/**
+ * The sidebar is torn down whenever a token is selected (the Aktiv column takes its place), so its
+ * state lives in localStorage — otherwise every deselect dropped you back on a collapsed tree.
+ */
+const TAB_KEY = 'lobby:sidebar-tab';
+const SUBTAB_KEY = 'lobby:sidebar-char-subtab';
+const NPC_FOLDERS_KEY = 'lobby:sidebar-npc-folders';
+const LEVEL_OVERRIDE_KEY = 'lobby:npc-level-override';
+
+function readStored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const value = localStorage.getItem(key) as T | null;
+    if (value && allowed.includes(value)) return value;
+  } catch { /* private mode */ }
+  return fallback;
+}
+
+function store(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* private mode */ }
+}
+
+function readOpenFolders(): Set<string> {
+  try {
+    const raw = localStorage.getItem(NPC_FOLDERS_KEY);
+    if (raw) {
+      const paths = JSON.parse(raw) as unknown;
+      if (Array.isArray(paths)) return new Set(paths.filter((p): p is string => typeof p === 'string'));
+    }
+  } catch { /* unreadable or malformed — start collapsed */ }
+  return new Set();
+}
+
+function readLevelOverride(): number | null {
+  try {
+    const level = Math.floor(Number(localStorage.getItem(LEVEL_OVERRIDE_KEY)));
+    if (Number.isFinite(level) && level > 0) return level;
+  } catch { /* private mode */ }
+  return null;
+}
+
 @Component({
   selector: 'app-lobby-sidebar',
   standalone: true,
@@ -64,16 +104,32 @@ export class LobbySidebarComponent {
   @Output() layerReorder = new EventEmitter<Layer[]>();
   @Output() layerAdd = new EventEmitter<LayerType>();
 
-  // Local state
-  activeTab = signal<SidebarTab>('characters');
-  charSubTab = signal<'players' | 'npcs'>('players');
+  // Local state (tab, sub-tab, open folders and the level override survive a token selection)
+  activeTab = signal<SidebarTab>(readStored(TAB_KEY, ['characters', 'images', 'textures', 'layers'] as const, 'characters'));
+  charSubTab = signal<'players' | 'npcs'>(readStored(SUBTAB_KEY, ['players', 'npcs'] as const, 'players'));
   editingImageId = signal<string | null>(null);
   editingName = signal('');
   searchQuery = signal('');
 
+  /** Level an NSC gets when dragged onto the map; null = the statblock's own level. */
+  levelOverride = signal<number | null>(readLevelOverride());
+
   // Methods
   switchTab(tab: SidebarTab): void {
     this.activeTab.set(tab);
+    store(TAB_KEY, tab);
+  }
+
+  switchCharSubTab(tab: 'players' | 'npcs'): void {
+    this.charSubTab.set(tab);
+    store(SUBTAB_KEY, tab);
+  }
+
+  setLevelOverride(value: string): void {
+    const level = Math.floor(Number(value));
+    const next = Number.isFinite(level) && level > 0 ? level : null;
+    this.levelOverride.set(next);
+    store(LEVEL_OVERRIDE_KEY, next === null ? '' : String(next));
   }
 
   getTotalBonus(roll: DiceRollEvent): number {
@@ -119,7 +175,9 @@ export class LobbySidebarComponent {
       type: 'npc-statblock',
       statblockId: npc.id,
       name: npc.name,
-      portrait: npc.statblock.defaultPortrait || ''
+      portrait: npc.statblock.defaultPortrait || '',
+      // Level-Override: das abgelegte NSC wird direkt auf diesem Level gewürfelt.
+      level: this.levelOverride() ?? undefined,
     }));
     this.npcDragStart.emit({ id: npc.id, name: npc.name, portrait: npc.statblock.defaultPortrait });
   }
@@ -148,7 +206,7 @@ export class LobbySidebarComponent {
   }
 
   /** Opened NPC folders (collapsed by default — with 100+ NPCs a flat list is unusable). */
-  openNpcFolders = signal<Set<string>>(new Set());
+  openNpcFolders = signal<Set<string>>(readOpenFolders());
 
   /** NPCs grouped by library folder, sorted like the NPC editor's browser. */
   get npcFolders(): { path: string; label: string; npcs: NpcEntry[] }[] {
@@ -176,6 +234,7 @@ export class LobbySidebarComponent {
     if (next.has(path)) next.delete(path);
     else next.add(path);
     this.openNpcFolders.set(next);
+    store(NPC_FOLDERS_KEY, JSON.stringify([...next]));
   }
 
   // Image methods

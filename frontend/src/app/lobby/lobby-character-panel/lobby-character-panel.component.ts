@@ -50,9 +50,8 @@ interface StatDisplay {
   bonus: number;
 }
 
-type PanelSection = 'actions' | 'rolls' | 'aussehen' | 'linked' | 'equipment';
-const PANEL_SECTIONS_KEY = 'lobby:panel-sections';
-const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
+type PanelTab = 'actions' | 'rolls' | 'aussehen' | 'linked' | 'equipment';
+const PANEL_TAB_KEY = 'lobby:panel-tab';
 
 @Component({
   selector: 'app-lobby-character-panel',
@@ -139,7 +138,10 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
       <div class="privacy-notice">
         <span>🔒 Statistiken anderer Spieler sind verborgen.</span>
       </div>
-    } @else {
+    }
+
+    <!-- Ressourcen und Werte nur im Aktionen-Reiter: die anderen Reiter bekommen die volle Höhe. -->
+    @if (canViewStats && activeTab() === 'actions') {
 
     <!-- Resources: HP / Mana / Energy -->
     <div class="resources">
@@ -281,17 +283,25 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
         </button>
       </div>
     }
+    }<!-- /Aktionen-Kopf -->
 
-    <!-- Abschnitte statt Tabs: alles untereinander, einzeln einklappbar.
-         Status-Effekte stehen jetzt oben in der Status-Leiste, Zauber & Fähigkeiten unten im Dock. -->
+    <!-- Reiter: Status-Effekte stehen oben in der Status-Leiste, Zauber & Fähigkeiten unten im Dock.
+         Aussehen steht auch bei fremden Token offen — Zeichnen und Umbenennen darf jeder. -->
+    <div class="panel-tabs">
+      @if (canViewStats) {
+        <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="setTab('actions')" title="Aktionen"><span class="app-icon i-effektivity"></span></button>
+        <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="setTab('rolls')" title="Würfelverlauf"><span class="app-icon i-dice"></span></button>
+      }
+      <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="setTab('aussehen')" title="Aussehen &amp; Zeichnen"><span class="app-icon i-appearance"></span></button>
+      @if (canViewStats) {
+        <button class="ptab" [class.active]="activeTab() === 'equipment'" (click)="setTab('equipment')" title="Ausrüstung &amp; Beute"><span class="app-icon i-equipment"></span></button>
+        <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="setTab('linked')" title="Verknüpfte Token"><span class="app-icon i-tokenlink"></span></button>
+      }
+    </div>
 
     <div class="panel-body">
 
-      <button type="button" class="psec-head" [class.open]="isSectionOpen('actions')" (click)="toggleSection('actions')">
-        <span class="app-icon i-effektivity"></span> Aktionen
-        <span class="psec-caret">{{ isSectionOpen('actions') ? '▾' : '▸' }}</span>
-      </button>
-      @if (isSectionOpen('actions')) {
+      @if (canViewStats && activeTab() === 'actions') {
 
         <!-- Schnellwürfe -->
         <div class="section-header"><span class="app-icon i-effektivity"></span> Schnellwürfe</div>
@@ -328,11 +338,7 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
         }
       }
 
-      <button type="button" class="psec-head" [class.open]="isSectionOpen('rolls')" (click)="toggleSection('rolls')">
-        <span class="app-icon i-dice"></span> W&uuml;rfelverlauf
-        <span class="psec-caret">{{ isSectionOpen('rolls') ? '▾' : '▸' }}</span>
-      </button>
-      @if (isSectionOpen('rolls')) {
+      @if (canViewStats && activeTab() === 'rolls') {
         <div class="roll-history">
           @if (rolls.length === 0) {
             <div class="empty-rolls">Noch keine Würfe in dieser Sitzung</div>
@@ -366,12 +372,8 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
         </div>
       }
 
-      <!-- ── Aussehen ── -->
-      <button type="button" class="psec-head" [class.open]="isSectionOpen('aussehen')" (click)="toggleSection('aussehen')">
-        <span class="app-icon i-appearance"></span> Aussehen
-        <span class="psec-caret">{{ isSectionOpen('aussehen') ? '▾' : '▸' }}</span>
-      </button>
-      @if (isSectionOpen('aussehen')) {
+      <!-- ── Aussehen (für alle, auch bei fremden Token) ── -->
+      @if (activeTab() === 'aussehen') {
         <div class="aussehen-tab">
 
           <!-- Rename -->
@@ -491,11 +493,7 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
       }
 
       <!-- ── Verknüpfung Tab ── -->
-      <button type="button" class="psec-head" [class.open]="isSectionOpen('linked')" (click)="toggleSection('linked')">
-        <span class="app-icon i-tokenlink"></span> Verkn&uuml;pfte Token
-        <span class="psec-caret">{{ isSectionOpen('linked') ? '▾' : '▸' }}</span>
-      </button>
-      @if (isSectionOpen('linked')) {
+      @if (canViewStats && activeTab() === 'linked') {
         <div class="linked-tab">
 
           <!-- Parent info -->
@@ -563,11 +561,7 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
       }
 
       <!-- ── Ausrüstung Tab ── -->
-      <button type="button" class="psec-head" [class.open]="isSectionOpen('equipment')" (click)="toggleSection('equipment')">
-        <span class="app-icon i-equipment"></span> Ausr&uuml;stung &amp; Beute
-        <span class="psec-caret">{{ isSectionOpen('equipment') ? '▾' : '▸' }}</span>
-      </button>
-      @if (isSectionOpen('equipment')) {
+      @if (canViewStats && activeTab() === 'equipment') {
         <div class="equip-tab">
           @if (equipment.length === 0) {
             <div class="empty-rolls">Keine Ausrüstung vorhanden</div>
@@ -632,7 +626,6 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
       }
 
     </div><!-- /panel-body -->
-    } <!-- /canViewStats -->
 
     <!-- ── Würfelansicht Overlay ── -->
     @if (showDiceRoller() && diceSheet) {
@@ -964,28 +957,6 @@ const DEFAULT_OPEN_SECTIONS: PanelSection[] = ['actions', 'rolls'];
     .panel-body::-webkit-scrollbar-track { background: #0f172a; }
     .panel-body::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
 
-    /* ---- Collapsible sections (replace the old icon tabs) ---- */
-    .psec-head {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin: 6px 0 4px;
-      padding: 6px 8px;
-      background: #0f172a;
-      border: 1px solid #1f2937;
-      border-radius: 6px;
-      color: #94a3b8;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      text-align: left;
-      cursor: pointer;
-    }
-    .psec-head:hover { color: #e2e8f0; border-color: #334155; }
-    .psec-head.open { color: #c7d2fe; }
-    .psec-caret { margin-left: auto; font-size: 10px; }
 
     /* Fokus row: read-only (derived), so a value instead of the ± input */
     .res-fokus-val { min-width: 40px; text-align: center; font-size: 13px; font-weight: 700; color: #e2e8f0; }
@@ -1567,27 +1538,24 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   private libraryStore = inject(LibraryStoreService);
   private cdr = inject(ChangeDetectorRef);
 
-  /** Offene Abschnitte (statt eines aktiven Tabs) — pro Browser gemerkt. */
-  openSections = signal<Set<PanelSection>>(LobbyCharacterPanelComponent.readOpenSections());
+  /**
+   * Der offene Reiter. Nur einer füllt das Panel — untereinander müsste man scrollen, und die
+   * Auswahl bleibt über Token-Wechsel hinweg stehen (pro Browser gemerkt).
+   */
+  activeTab = signal<PanelTab>(LobbyCharacterPanelComponent.readTab());
 
-  isSectionOpen(section: PanelSection): boolean {
-    return this.openSections().has(section);
+  setTab(tab: PanelTab): void {
+    this.activeTab.set(tab);
+    try { localStorage.setItem(PANEL_TAB_KEY, tab); } catch { /* private mode */ }
   }
 
-  toggleSection(section: PanelSection): void {
-    const next = new Set(this.openSections());
-    if (next.has(section)) next.delete(section);
-    else next.add(section);
-    this.openSections.set(next);
-    try { localStorage.setItem(PANEL_SECTIONS_KEY, JSON.stringify([...next])); } catch { /* private mode */ }
-  }
-
-  private static readOpenSections(): Set<PanelSection> {
+  private static readTab(): PanelTab {
     try {
-      const raw = localStorage.getItem(PANEL_SECTIONS_KEY);
-      if (raw) return new Set(JSON.parse(raw) as PanelSection[]);
-    } catch { /* unreadable storage — fall back to the defaults */ }
-    return new Set(DEFAULT_OPEN_SECTIONS);
+      const stored = localStorage.getItem(PANEL_TAB_KEY);
+      if (stored === 'actions' || stored === 'rolls' || stored === 'aussehen'
+        || stored === 'linked' || stored === 'equipment') return stored;
+    } catch { /* unreadable storage */ }
+    return 'actions';
   }
   selectedDiceType = signal(20);
   customBonus = signal(0);
@@ -1656,6 +1624,10 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       this.showAbilitiesOverlay.set(false);
       this.showLibraryPicker.set(false);
       this.cdr.markForCheck();
+    }
+    // Someone else's token: only the cosmetics tab is open to us, so land there.
+    if ((changes['token'] || changes['canViewStats']) && !this.canViewStats && this.activeTab() !== 'aussehen') {
+      this.activeTab.set('aussehen');
     }
     // Rebuild NPC sheet cache whenever token or NPC changes
     if (changes['token'] || changes['npc']) {

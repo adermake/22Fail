@@ -165,7 +165,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() extractSoul = new EventEmitter<string>(); // Emits tokenId (GM: capture an NPC's soul)
   @Output() tokenClick = new EventEmitter<string>(); // Emits tokenId for quick view
   @Output() hexClick = new EventEmitter<HexCoord>(); // Emits hex coord when empty hex clicked in cursor mode
-  @Output() npcStatblockDrop = new EventEmitter<{ statblockId: string; name: string; portrait: string; position: HexCoord }>();
+  @Output() npcStatblockDrop = new EventEmitter<{ statblockId: string; name: string; portrait: string; position: HexCoord; level?: number }>();
   @Output() linkedTokenDrop = new EventEmitter<{ parentId: string; linkedType: LinkedTokenType; name: string; position: HexCoord }>();
   @Output() imageSelect = new EventEmitter<string | null>();
   @Output() imageTransform = new EventEmitter<{ id: string; transform: Partial<MapImage> }>();
@@ -5696,6 +5696,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           name: dropData.name,
           portrait: dropData.portrait || '',
           position: hex,
+          level: dropData.level,
         });
       } else if (dropData.type === 'quickToken') {
         this.quickTokenDrop.emit({
@@ -5748,6 +5749,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
             name: data.name,
             portrait: data.portrait || '',
             position: hex,
+            level: data.level,
           });
           return;
         }

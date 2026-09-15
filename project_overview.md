@@ -599,8 +599,13 @@ lobby-container
 ### Komponenten
 - **lobby-character-panel** (lobby/lobby-character-panel/):
   - Kein Token: zeigt Würfelroller + Roll-History
-  - Token ausgewählt: Kopf (Name, NSC-Level + Neu würfeln), Ressourcen, Werte; darunter einklappbare Abschnitte
-    (offen/zu in `localStorage` `lobby:panel-sections`): Aktionen | Würfelverlauf | Aussehen | Verknüpfte Token | Ausrüstung & Beute
+  - Token ausgewählt: Kopf (Name, NSC-Level + Neu würfeln), darunter Icon-Reiter
+    (gemerkt in `localStorage` `lobby:panel-tab`): Aktionen | Würfelverlauf | Aussehen | Ausrüstung & Beute | Verknüpfte Token.
+    Ressourcen, Werte und Waffenwahl stehen **nur** im Reiter Aktionen — die übrigen Reiter bekommen die volle Höhe,
+    damit im rechten Panel nicht gescrollt werden muss (einklappbare Abschnitte waren der Vorgänger, sie erzwangen Scrollen).
+  - **Aussehen ist für alle offen**, auch bei fremden Token und für Nicht-GMs (`canViewStats` gilt nur für die anderen Reiter);
+    bei verborgenen Statistiken ist Aussehen der einzige und damit automatisch aktive Reiter. Zeichnen war schon frei
+    (`gmOnlyTools` im Grid kennt nur walls/image/texture/fog).
   - Aktionen: Schnellwürfe, Freier Wurf, Schaden, „Fertigkeiten & Zauber (Vollansicht)" (spellcast-window). Die Listen selbst stehen im Dock.
   - Aussehen: Name umbenennen, Skalierung (X/Y unabhängig oder uniform), Rotation (Quick ±90°), Bildmodus (Fill/Stretch), Custom-Portrait löschen, Token zeichnen (aktiviert Draw-Tool)
   - Verknüpfte Token: Zeigt Parent-Info wenn verknüpft; Kinder-Liste; neues verlinktes Token erstellen
@@ -611,6 +616,13 @@ lobby-container
   - @Output() tokenChildDetach → store.updateToken(childId, { parentTokenId: undefined, ... })
   - @Input() allTokens: Token[] → benötigt für linkedChildren Getter
 - **lobby-sidebar**: Tabs: Charaktere (Spieler/NSC), Bilder, Texturen, Schichten — nur GM, nur ohne Token-Auswahl
+  - Die Komponente wird bei jeder Token-Auswahl zerstört (die Aktiv-Spalte nimmt ihren Platz ein), deshalb liegen
+    Reiter, Unterreiter, offene NSC-Ordner und der Level-Override in `localStorage`
+    (`lobby:sidebar-tab`, `lobby:sidebar-char-subtab`, `lobby:sidebar-npc-folders`, `lobby:npc-level-override`).
+  - **Level-Override** (unter der Suche, nur im NSC-Unterreiter): Zahl ⇒ jedes abgelegte NSC wird auf diesem Level
+    gewürfelt. Reist als `level` im Drag-Payload → `npcStatblockDrop` → `onNpcStatblockDrop` → `rollNpc(statblock, level)`
+    und bleibt als `Token.npcLevel` erhalten, damit „Neu würfeln" das Level behält. Leer = Level des Statblocks
+    (dann wird nur bei vorhandener Variation gewürfelt).
 - **lobby-side-panel**: NICHT MEHR VERWENDET (Inhalte in sidebar + character-panel migriert)
 
 ### Token-Modell (Token Interface)

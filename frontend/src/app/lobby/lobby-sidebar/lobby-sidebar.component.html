@@ -63,9 +63,21 @@
     @if (activeTab() === 'characters') {
       <!-- Sub-tab: Spieler / NSCs -->
       <div class="char-subtabs">
-        <button class="subtab-btn" [class.active]="charSubTab() === 'players'" (click)="charSubTab.set('players')">Spieler</button>
-        <button class="subtab-btn" [class.active]="charSubTab() === 'npcs'" (click)="charSubTab.set('npcs')">NSCs</button>
+        <button class="subtab-btn" [class.active]="charSubTab() === 'players'" (click)="switchCharSubTab('players')">Spieler</button>
+        <button class="subtab-btn" [class.active]="charSubTab() === 'npcs'" (click)="switchCharSubTab('npcs')">NSCs</button>
       </div>
+
+      @if (charSubTab() === 'npcs') {
+        <label class="level-override" title="Abgelegte NSCs bekommen dieses Level (leer = Level des Statblocks)">
+          <span>Level-Override</span>
+          <input type="number" min="1" placeholder="–"
+                 [value]="levelOverride() ?? ''"
+                 (input)="setLevelOverride($any($event.target).value)">
+          @if (levelOverride() !== null) {
+            <button type="button" class="level-override-clear" (click)="setLevelOverride('')" title="Zurücksetzen">&times;</button>
+          }
+        </label>
+      }
 
       @if (charSubTab() === 'players') {
       <div class="character-list">
