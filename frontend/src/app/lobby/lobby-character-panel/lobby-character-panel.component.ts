@@ -140,6 +140,22 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       </div>
     }
 
+    <!-- Reiter direkt unter dem Namen — sie stehen VOR den Ressourcen, sonst säße die Leiste im
+         Aktionen-Reiter unter den Leisten und in allen anderen oben (sie würde springen).
+         Status-Effekte stehen oben in der Status-Leiste, Zauber & Fähigkeiten unten im Dock.
+         Aussehen steht auch bei fremden Token offen — Zeichnen und Umbenennen darf jeder. -->
+    <div class="panel-tabs">
+      @if (canViewStats) {
+        <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="setTab('actions')" title="Aktionen"><span class="app-icon i-effektivity"></span></button>
+        <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="setTab('rolls')" title="Würfelverlauf"><span class="app-icon i-dice"></span></button>
+      }
+      <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="setTab('aussehen')" title="Aussehen &amp; Zeichnen"><span class="app-icon i-appearance"></span></button>
+      @if (canViewStats) {
+        <button class="ptab" [class.active]="activeTab() === 'equipment'" (click)="setTab('equipment')" title="Ausrüstung &amp; Beute"><span class="app-icon i-equipment"></span></button>
+        <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="setTab('linked')" title="Verknüpfte Token"><span class="app-icon i-tokenlink"></span></button>
+      }
+    </div>
+
     <!-- Ressourcen und Werte nur im Aktionen-Reiter: die anderen Reiter bekommen die volle Höhe. -->
     @if (canViewStats && activeTab() === 'actions') {
 
@@ -284,20 +300,6 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       </div>
     }
     }<!-- /Aktionen-Kopf -->
-
-    <!-- Reiter: Status-Effekte stehen oben in der Status-Leiste, Zauber & Fähigkeiten unten im Dock.
-         Aussehen steht auch bei fremden Token offen — Zeichnen und Umbenennen darf jeder. -->
-    <div class="panel-tabs">
-      @if (canViewStats) {
-        <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="setTab('actions')" title="Aktionen"><span class="app-icon i-effektivity"></span></button>
-        <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="setTab('rolls')" title="Würfelverlauf"><span class="app-icon i-dice"></span></button>
-      }
-      <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="setTab('aussehen')" title="Aussehen &amp; Zeichnen"><span class="app-icon i-appearance"></span></button>
-      @if (canViewStats) {
-        <button class="ptab" [class.active]="activeTab() === 'equipment'" (click)="setTab('equipment')" title="Ausrüstung &amp; Beute"><span class="app-icon i-equipment"></span></button>
-        <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="setTab('linked')" title="Verknüpfte Token"><span class="app-icon i-tokenlink"></span></button>
-      }
-    </div>
 
     <div class="panel-body">
 
