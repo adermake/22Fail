@@ -850,9 +850,30 @@
           <div class="panel-section">
             @if (selectedIds().length) {
               <p class="hint">{{ selectedIds().length }} ausgewählt</p>
+
+              <!-- Absolut, nicht relativ: ein Regler, der nur prozentual schiebt, hätte
+                   keine sinnvolle Position und würde eine gemischte Auswahl bei jedem Zug
+                   weiter auseinanderziehen. -->
+              <label class="slider-row">
+                <span>Größe</span>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="8"
+                  step="0.05"
+                  [value]="selectedScale()"
+                  (input)="setSelectedScale($any($event.target).value)"
+                />
+                <em>{{ selectedScale().toFixed(2) }}</em>
+              </label>
+
               <div class="history-row">
-                <button type="button" (click)="scaleSelected(1 / 1.2)">Kleiner</button>
-                <button type="button" (click)="scaleSelected(1.2)">Größer</button>
+                <button type="button" title="Auswahl anteilig verkleinern" (click)="scaleSelected(1 / 1.2)">
+                  Kleiner
+                </button>
+                <button type="button" title="Auswahl anteilig vergrößern" (click)="scaleSelected(1.2)">
+                  Größer
+                </button>
               </div>
               <div class="history-row">
                 <button type="button" (click)="rotateSelected(-0.2618)">↺</button>

@@ -188,12 +188,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private labelView = new LabelView();
   /** Vertex of the selected region currently being dragged. */
   private dragHandle: { index: number; before: MapRegion } | null = null;
-  /** Labels currently being dragged, with their pre-drag copies for undo. */
-  private dragLabel: {
-    startWorld: Point;
-    origins: Map<string, MapLabel>;
-    moved: boolean;
-  } | null = null;
+
   private subs: Subscription[] = [];
   private resizeObserver?: ResizeObserver;
 
@@ -2456,12 +2451,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     /** Where the drag started on screen, so the size ring can be drawn there. */
     screen?: { x: number; y: number };
   } | null = null;
-  private dragSymbols: {
-    startWorld: { x: number; y: number };
-    moved: boolean;
-    /** Pre-drag copies, for the undo entry committed on release. */
-    origins: Map<string, MapSymbol>;
-  } | null = null;
+
   /**
    * An in-progress drag of a whole secret group.
    *
@@ -2776,7 +2766,32 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private applyView(): void {
     this.renderer.syncView();
     this.zoomPct.set(Math.round(this.renderer.camera.zoom * 100));
+
+    /*
+     * The fog is rebuilt **here**, in the same task as the camera move — not in the streaming
+     * pass like everything else.
+     *
+     * Everything else may lag a frame: a symbol that pops in late is a blemish. Fog that lags
+     * a frame is a leak. Zooming out enlarges the viewport immediately, while the fog sprite
+     * still covered only the old one, so Pixi could paint a frame showing bare map around the
+     * edges — a fraction of a second of uncovered world on a fast scroll, which is exactly
+     * the thing fog exists to prevent.
+     *
+     * Synchronous closes the window completely: Pixi renders on its own frame callback, so
+     * nothing can paint between moving the camera and resizing the fog.
+     */
+    this.updateFog();
     this.scheduleStream();
+  }
+
+  /** Rebuild the fog for wherever the camera is now. Cheap when it already covers the view. */
+  private updateFog(): void {
+    this.fogView?.update(
+      this.renderer.camera.visibleBounds(0),
+      this.revealedSet,
+      this.isGM() && !this.asPlayer(),
+      this.fogRevision,
+    );
   }
 
   private scheduleStream(): void {
@@ -2813,14 +2828,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.drawOverview();
 
       this.passageView?.render(view);
-      // Passing `false` for the GM flag is what makes the preview honest: the fog goes
-      // opaque instead of the GM's see-through grey.
-      this.fogView?.update(
-        view,
-        this.revealedSet,
-        this.isGM() && !this.asPlayer(),
-        this.fogRevision,
-      );
+      // Also here, so a fog *edit* lands without waiting for the next camera move.
+      this.updateFog();
       this.sketchView?.render(view);
       this.playAids?.render(zoom, this.allMeasureLines());
 
@@ -2865,7 +2874,17 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   selectTab(tab: EditorTab): void {
     const previous = this.tab();
     this.tab.set(tab);
-    if (tab !== 'symbols') this.setSelection([]);
+
+    /*
+     * The selection survives a move between the two selector tabs.
+     *
+     * They now select the same things, so clearing on the way from one to the other would
+     * throw away a mix you had just assembled — and the usual reason to switch is to reach
+     * the panel for the other half of it.
+     */
+    const selectorTabs = tab === 'symbols' || tab === 'labels';
+    const wasSelector = previous === 'symbols' || previous === 'labels';
+    if (!(selectorTabs && wasSelector)) this.setCombinedSelection([], []);
     // The cross-category selection drives three views at once, so leaving the tab has to hand
     // each of them back its own idea of what is selected rather than leaving ours behind.
     if (previous === 'secrets' && tab !== 'secrets') {
@@ -2999,27 +3018,169 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.refreshHistoryState();
   }
 
-  private selectSymbolAt(world: { x: number; y: number }, additive: boolean): boolean {
-    const hit = this.symbols?.hitTest(world.x, world.y);
+  /**
+   * Select a symbol *or* a label, whichever the click sits deepest inside.
+   *
+   * Both selectors run this, so picking things up no longer depends on which tab you happen
+   * to be in: a town marker and its name are one thing on the map, and needing two tools and
+   * two drags to move them together was busywork the map itself never implied.
+   *
+   * The two selections stay in separate signals rather than being merged into one. They are
+   * what the per-kind panels and operations read — scaling and rotation only mean something
+   * for a symbol, text and style only for a label — and collapsing them would have meant
+   * re-deriving all of that from a combined list for no gain.
+   */
+  private selectObjectsAt(world: Point, additive: boolean): boolean {
+    const symbol = this.symbols?.hitTestScored(world.x, world.y) ?? null;
+    const label = this.labelView.hitTestScored(world.x, world.y);
+
+    // Draw order decides ties: labels sit above symbols.
+    const hit = pickTightest([
+      label ? { c: 'labels', id: label.label.id, score: label.score } : null,
+      symbol ? { c: 'symbols', id: symbol.sym.id, score: symbol.score } : null,
+    ]);
+
     if (!hit) {
-      if (!additive) this.setSelection([]);
+      if (!additive) this.setCombinedSelection([], []);
       return false;
     }
-    const current = this.selectedIds();
+
+    const symbolIds = this.selectedIds();
+    const labelIds = this.selectedLabelIds();
+    const inLabels = hit.c === 'labels';
+    const current = inLabels ? labelIds : symbolIds;
+
     if (additive) {
-      this.setSelection(
-        current.includes(hit.id) ? current.filter(i => i !== hit.id) : [...current, hit.id],
-      );
+      const next = current.includes(hit.id)
+        ? current.filter(i => i !== hit.id)
+        : [...current, hit.id];
+      this.setCombinedSelection(inLabels ? symbolIds : next, inLabels ? next : labelIds);
     } else if (!current.includes(hit.id)) {
-      this.setSelection([hit.id]);
+      // A fresh click replaces *both* lists, or a leftover selection of the other kind
+      // would be dragged along by something that never looked selected.
+      this.setCombinedSelection(inLabels ? [] : [hit.id], inLabels ? [hit.id] : []);
     }
     return true;
   }
+
+  private setCombinedSelection(symbolIds: string[], labelIds: string[]): void {
+    this.setSelection(symbolIds);
+    this.setLabelSelection(labelIds);
+  }
+
+  /** Whether anything at all is picked, of either kind. */
+  readonly hasObjectSelection = computed(
+    () => this.selectedIds().length > 0 || this.selectedLabelIds().length > 0,
+  );
+
+  /**
+   * Start dragging everything selected, of both kinds.
+   *
+   * Positions are snapshotted now, not on release: the drag mutates the objects in place, so
+   * capturing later would record the already-moved state and undo to nothing.
+   */
+  private beginObjectDrag(world: Point): void {
+    const symbols = new Map<string, MapSymbol>();
+    for (const id of this.selectedIds()) {
+      const sym = this.symbolById(id);
+      if (sym) symbols.set(id, clone(sym));
+    }
+
+    const labels = new Map<string, MapLabel>();
+    for (const id of this.selectedLabelIds()) {
+      const label = this.labelView.get(id);
+      if (label) labels.set(id, clone(label));
+    }
+
+    this.dragObjects = { startWorld: { ...world }, symbols, labels, moved: false };
+  }
+
+  /** Move the whole selection with the pointer, symbols and labels alike. */
+  private dragObjectsBy(world: Point): void {
+    const drag = this.dragObjects;
+    if (!drag) return;
+
+    const dx = world.x - drag.startWorld.x;
+    const dy = world.y - drag.startWorld.y;
+    if (dx === 0 && dy === 0) return;
+    drag.startWorld = { ...world };
+    drag.moved = true;
+
+    for (const id of this.selectedIds()) {
+      const sym = this.symbolById(id);
+      if (!sym) continue;
+      sym.x += dx;
+      sym.y += dy;
+      this.symbols?.update(sym);
+    }
+    for (const id of this.selectedLabelIds()) {
+      const label = this.labelView.get(id);
+      if (!label) continue;
+      label.x += dx;
+      label.y += dy;
+      this.labelView.update(label);
+    }
+    this.scheduleStream();
+  }
+
+  /** Commit the move as **one** undo step, however many kinds it touched. */
+  private commitObjectDrag(): void {
+    const drag = this.dragObjects;
+    this.dragObjects = null;
+    if (!drag?.moved) return;
+
+    this.undoStack?.begin();
+    for (const [id, before] of drag.symbols) {
+      const sym = this.symbolById(id);
+      if (!sym) continue;
+      this.undoStack?.recordObject({ c: 'symbols', id, before, after: clone(sym) });
+      this.store.updateObject('symbols', id, { x: sym.x, y: sym.y });
+    }
+    for (const [id, before] of drag.labels) {
+      const label = this.labelView.get(id);
+      if (!label) continue;
+      this.undoStack?.recordObject({ c: 'labels', id, before, after: clone(label) });
+      this.store.updateObject('labels', id, { x: label.x, y: label.y });
+    }
+    this.undoStack?.commit('Objekte verschieben');
+    this.refreshHistoryState();
+  }
+
+  private dragObjects: {
+    startWorld: Point;
+    symbols: Map<string, MapSymbol>;
+    labels: Map<string, MapLabel>;
+    moved: boolean;
+  } | null = null;
 
   private setSelection(ids: string[]): void {
     this.selectedIds.set(ids);
     this.symbols?.setSelection(ids);
     this.scheduleStream();
+  }
+
+  /** Delete everything selected, of both kinds, as one undo step. */
+  deleteSelectedObjects(): void {
+    const symbolIds = this.selectedIds();
+    const labelIds = this.selectedLabelIds();
+    if (!symbolIds.length && !labelIds.length) return;
+
+    this.undoStack?.begin();
+    for (const id of symbolIds) {
+      const sym = this.symbolById(id);
+      if (!sym) continue;
+      this.undoStack?.recordObject({ c: 'symbols', id, before: clone(sym), after: null });
+      this.store.deleteObject('symbols', id);
+    }
+    for (const id of labelIds) {
+      const label = this.labelView.get(id);
+      if (!label) continue;
+      this.undoStack?.recordObject({ c: 'labels', id, before: clone(label), after: null });
+      this.store.deleteObject('labels', id);
+    }
+    this.undoStack?.commit('Objekte löschen');
+    this.refreshHistoryState();
+    this.setCombinedSelection([], []);
   }
 
   deleteSelected(): void {
@@ -3062,6 +3223,20 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.editSelected('Symbol spiegeln', sym => ({ flipX: !sym.flipX }));
   }
 
+  /**
+   * The symbol to edit, taken from the **document**, not the spatial index.
+   *
+   * The index is a cache of references, and it is only the same object as the document's as
+   * long as nothing has replaced the document since the views were built — a reconnect or a
+   * reload does exactly that. When they drift, an edit reads the stale copy, writes the patch
+   * to the live one, and then refreshes the view from the stale one again: the document ends
+   * up correct and the map never changes, which is precisely what "the buttons do nothing"
+   * looks like. Editing from the document cannot drift.
+   */
+  private symbolToEdit(id: string): MapSymbol | undefined {
+    return this.store.data()?.symbols.find(sym => sym.id === id);
+  }
+
   /** Apply a patch to the whole selection as a single undoable step. */
   private editSelected(
     label: string,
@@ -3072,7 +3247,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.undoStack?.begin();
     for (const id of this.selectedIds()) {
-      const sym = this.symbolById(id);
+      const sym = this.symbolToEdit(id);
       if (!sym) continue;
       const patch = patchFor(sym);
       this.undoStack?.recordObject({
@@ -3082,9 +3257,39 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         after: clone({ ...sym, ...patch }),
       });
       this.store.updateObject('symbols', id, patch);
+      // Re-sync the view from the object the document actually holds, so a drifted index
+      // cannot leave the map showing the old value.
+      this.symbols?.update(sym);
     }
     this.undoStack?.commit(label);
     this.refreshHistoryState();
+    this.scheduleStream();
+  }
+
+  /**
+   * Scale of the selection, for the slider.
+   *
+   * The first selected symbol speaks for the rest. With a mixed selection there is no single
+   * right answer, and showing the first is at least the one you picked first.
+   */
+  readonly selectedScale = computed(() => {
+    this.store.revision();
+    const first = this.selectedIds()[0];
+    if (!first) return 1;
+    return this.symbolToEdit(first)?.scale ?? 1;
+  });
+
+  /**
+   * Set an absolute size on every selected symbol.
+   *
+   * Absolute rather than proportional: a slider that moved things *relatively* would have no
+   * meaningful position to sit at, and dragging it would drift the selection further apart on
+   * every pass. Größer/Kleiner stay for nudging a mixed selection while keeping its
+   * differences.
+   */
+  setSelectedScale(value: string | number): void {
+    const scale = Math.max(0.05, Math.min(8, Number(value) || 1));
+    this.editSelected('Symbolgröße', () => ({ scale }));
   }
 
   setSymbolScale(value: string | number): void {
@@ -3242,24 +3447,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.refreshHistoryState();
 
     this.setLabelSelection([label.id]);
-  }
-
-  private selectLabelAt(world: Point, additive: boolean): boolean {
-    const hit = this.labelView.hitTest(world.x, world.y);
-    if (!hit) {
-      if (!additive) this.setLabelSelection([]);
-      return false;
-    }
-
-    const current = this.selectedLabelIds();
-    if (additive) {
-      this.setLabelSelection(
-        current.includes(hit.id) ? current.filter(i => i !== hit.id) : [...current, hit.id],
-      );
-    } else if (!current.includes(hit.id)) {
-      this.setLabelSelection([hit.id]);
-    }
-    return true;
   }
 
   private setLabelSelection(ids: string[]): void {
@@ -3953,13 +4140,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (this.tab() === 'labels') {
       if (this.labelTool() === 'place') {
         this.placeLabel(world);
-      } else if (this.selectLabelAt(world, e.shiftKey)) {
-        const origins = new Map<string, MapLabel>();
-        for (const id of this.selectedLabelIds()) {
-          const l = this.labelView.get(id);
-          if (l) origins.set(id, clone(l));
-        }
-        this.dragLabel = { startWorld: world, origins, moved: false };
+      } else if (this.selectObjectsAt(world, e.shiftKey)) {
+        this.beginObjectDrag(world);
       } else {
         // Empty space starts a rubber band, matching the symbol selector.
         this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
@@ -4017,17 +4199,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.isSelecting()) {
-      const hit = this.selectSymbolAt(world, e.shiftKey);
-      if (hit) {
-        // Snapshot positions now: the drag mutates them in place, so capturing later
-        // would record the already-moved state and undo to nothing.
-        const origins = new Map<string, MapSymbol>();
-        for (const id of this.selectedIds()) {
-          const sym = this.symbolById(id);
-          if (sym) origins.set(id, clone(sym));
-        }
-        this.dragSymbols = { startWorld: world, moved: false, origins };
-      } else {
+      if (this.selectObjectsAt(world, e.shiftKey)) this.beginObjectDrag(world);
+      else {
         // Empty space starts a rubber band rather than doing nothing.
         this.boxSelect = { startWorld: world, startScreen: p, additive: e.shiftKey };
         this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
@@ -4269,20 +4442,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.dragLabel) {
-      const dx = world.x - this.dragLabel.startWorld.x;
-      const dy = world.y - this.dragLabel.startWorld.y;
-      this.dragLabel.startWorld = world;
-      this.dragLabel.moved = true;
-
-      for (const id of this.selectedLabelIds()) {
-        const label = this.labelView.get(id);
-        if (!label) continue;
-        label.x += dx;
-        label.y += dy;
-        this.labelView.update(label);
-      }
-      this.scheduleStream();
+    if (this.dragObjects) {
+      this.dragObjectsBy(world);
       return;
     }
 
@@ -4324,10 +4485,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.dragSymbols) {
-      this.dragSelection(world);
-      return;
-    }
 
     if (this.isPanning) {
       this.renderer.camera.panByScreen(
@@ -4439,19 +4596,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.dragLabel) {
-      if (this.dragLabel.moved) {
-        this.undoStack?.begin();
-        for (const [id, before] of this.dragLabel.origins) {
-          const label = this.labelView.get(id);
-          if (!label) continue;
-          this.undoStack?.recordObject({ c: 'labels', id, before, after: clone(label) });
-          this.store.updateObject('labels', id, { x: label.x, y: label.y });
-        }
-        this.undoStack?.commit('Beschriftung verschieben');
-        this.refreshHistoryState();
-      }
-      this.dragLabel = null;
+    if (this.dragObjects) {
+      this.commitObjectDrag();
       return;
     }
 
@@ -4473,12 +4619,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       if (this.tab() === 'secrets') {
         this.secretSelectInRect(rect, this.boxSelect.additive);
       } else if (this.tab() === 'labels') {
-        this.setLabelSelection(this.labelView.inRect(rect).map(l => l.id));
+        // Both selectors band-select both kinds, same as clicking does.
+        this.setCombinedSelection(
+          this.symbols?.inRect(rect).map(sym => sym.id) ?? [],
+          this.labelView.inRect(rect).map(l => l.id),
+        );
       } else if (this.tab() === 'regions') {
         // Select the region's vertices inside the box, so a whole edge can be dragged.
         this.selectRegionPointsIn(rect);
       } else {
-        this.setSelection(this.symbols?.inRect(rect).map(s => s.id) ?? []);
+        this.setCombinedSelection(
+          this.symbols?.inRect(rect).map(sym => sym.id) ?? [],
+          this.labelView.inRect(rect).map(l => l.id),
+        );
       }
 
       this.boxSelect = null;
@@ -4492,11 +4645,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.dragSymbols) {
-      if (this.dragSymbols.moved) this.commitSelectionMove();
-      this.dragSymbols = null;
-      return;
-    }
 
     this.endPaint();
   };
@@ -4512,27 +4660,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    */
   private symbolById(id: string): MapSymbol | undefined {
     return this.symbols?.index.get(id);
-  }
-
-  private dragSelection(world: { x: number; y: number }): void {
-    const drag = this.dragSymbols;
-    const data = this.store.data();
-    if (!drag || !data) return;
-
-    const dx = world.x - drag.startWorld.x;
-    const dy = world.y - drag.startWorld.y;
-    if (dx === 0 && dy === 0) return;
-    drag.moved = true;
-    drag.startWorld = world;
-
-    for (const id of this.selectedIds()) {
-      const sym = this.symbolById(id);
-      if (!sym) continue;
-      sym.x += dx;
-      sym.y += dy;
-      this.symbols?.update(sym);
-    }
-    this.scheduleStream();
   }
 
   /**
@@ -4578,23 +4705,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
     this.drawOverview();
     this.scheduleStream();
-  }
-
-  private commitSelectionMove(): void {
-    const data = this.store.data();
-    const origins = this.dragSymbols?.origins;
-    if (!data || !origins) return;
-
-    this.undoStack?.begin();
-    for (const id of this.selectedIds()) {
-      const sym = this.symbolById(id);
-      const before = origins.get(id);
-      if (!sym || !before) continue;
-      this.undoStack?.recordObject({ c: 'symbols', id, before, after: clone(sym) });
-      this.store.updateObject('symbols', id, { x: sym.x, y: sym.y });
-    }
-    this.undoStack?.commit('Symbole verschieben');
-    this.refreshHistoryState();
   }
 
   private onWheel = (e: WheelEvent): void => {
@@ -4787,9 +4897,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      if (this.selectedIds().length) {
+      if (this.hasObjectSelection()) {
+        // Both kinds at once: a selection that spans symbols and labels has to delete as a
+        // whole, or Delete would quietly remove half of what is visibly picked.
         e.preventDefault();
-        this.deleteSelected();
+        this.deleteSelectedObjects();
       } else if (this.selectedRegionId()) {
         e.preventDefault();
         this.deleteSelectedRegion();
