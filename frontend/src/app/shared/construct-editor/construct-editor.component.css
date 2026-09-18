@@ -84,6 +84,8 @@
 }
 .ce-btn-ghost { border-color: rgba(255, 255, 255, 0.16); }
 .ce-btn-ghost:hover { background: rgba(255, 255, 255, 0.06); }
+.ce-btn:disabled { opacity: 0.35; cursor: default; }
+.ce-btn:disabled:hover { background: transparent; }
 .ce-btn-primary { background: #d9a04a; color: #1a1207; border-color: #d9a04a; }
 .ce-btn-primary:hover { background: #e8b160; }
 
@@ -198,6 +200,11 @@
     #070a10;
 }
 .ce-canvas { position: relative; margin: 0 auto; min-width: 100%; }
+/* While a node is being moved: no text selection, and no hover affordances fighting the drag. */
+.ce-canvas.ce-dragging { user-select: none; cursor: grabbing; }
+.ce-canvas.ce-dragging .ce-node,
+.ce-canvas.ce-dragging .ce-socket-hit { pointer-events: none; }
+.ce-canvas.ce-dragging .ce-wire { opacity: 0.3; }
 
 .ce-wires { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .ce-wire {
@@ -239,7 +246,10 @@
   flex-direction: column;
   gap: 6px;
   overflow: hidden;
+  cursor: grab;
+  user-select: none;
 }
+.ce-node:active { cursor: grabbing; }
 .ce-node-root { border-color: #d9a04a; box-shadow: 0 0 18px rgba(217, 160, 74, 0.16); }
 .ce-node-broken { border-color: rgba(248, 113, 113, 0.5); opacity: 0.75; }
 

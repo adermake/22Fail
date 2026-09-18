@@ -152,6 +152,17 @@ export class ItemBlock {
   constructMaterialKind?: 'weapon' | 'armor';
   /** Konstrukt-specific: its Anschlüsse. Undefined or empty = nothing can be attached. */
   sockets?: ConstructSocket[];
+  /**
+   * Bauplan layout nudge, in px, as an OFFSET from where auto-layout would put this node —
+   * not an absolute position.
+   *
+   * Storing the offset rather than a coordinate means the tidy tree stays the baseline: a machine
+   * nobody has dragged still lays itself out, a part keeps its nudge when siblings are added around
+   * it, and moving a node carries its whole subtree because children inherit their ancestors'
+   * offsets. Purely cosmetic — nothing in the rules reads it.
+   */
+  bauplanDX?: number;
+  bauplanDY?: number;
 
   // Stat modifiers
   statModifiers?: StatModifier[];

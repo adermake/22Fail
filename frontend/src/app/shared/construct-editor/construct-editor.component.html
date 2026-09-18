@@ -32,6 +32,10 @@
     </div>
 
     <div class="ce-actions">
+      <button class="ce-btn ce-btn-ghost" (click)="resetLayout()" [disabled]="!hasManualLayout()"
+              title="Verschobene Teile zur&#xFC;ck in die automatische Anordnung">
+        Anordnen
+      </button>
       <button class="ce-btn ce-btn-ghost" (click)="close()">Abbrechen</button>
       <button class="ce-btn ce-btn-primary" (click)="confirm()">&#xDC;bernehmen</button>
     </div>
@@ -89,14 +93,17 @@
           Teil in der Hand &mdash; auf einen Knoten oder eine freie Raute klicken.
         } @else {
           Teil anklicken oder ziehen &mdash; oder ein Kabel aus einer freien Raute ziehen.
+          Knoten lassen sich frei verschieben; Teile darunter kommen mit.
         }
       </div>
     </div>
 
     <!-- ── Canvas ───────────────────────────────────────────────────────── -->
     <div class="ce-canvas-wrap">
-      <div class="ce-canvas" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight"
-           (mousemove)="onCanvasMove($event)" (click)="clearSelection()">
+      <div class="ce-canvas" [class.ce-dragging]="isDraggingNode"
+           [style.width.px]="canvasWidth" [style.height.px]="canvasHeight"
+           (mousemove)="onCanvasMove($event)" (mouseup)="endNodeDrag()"
+           (mouseleave)="endNodeDrag()" (click)="clearSelection()">
 
         <svg class="ce-wires" [attr.width]="canvasWidth" [attr.height]="canvasHeight"
              xmlns="http://www.w3.org/2000/svg">
@@ -119,13 +126,15 @@
                [class.ce-node-target]="!!picked() && freeSocketCount(node) > 0"
                [class.ce-node-full]="!!picked() && freeSocketCount(node) === 0"
                [style.left.px]="node.x" [style.top.px]="node.y"
-               (click)="$event.stopPropagation(); dropOnNode(node)"
+               (mousedown)="startNodeDrag(node, $event)"
+               (click)="$event.stopPropagation(); nodeClick(node)"
                (dragover)="$event.preventDefault()"
                (drop)="$event.preventDefault(); $event.stopPropagation(); dropOnNode(node)">
             <div class="ce-node-head">
               <span class="ce-node-name">{{ node.item.name }}</span>
               @if (node.depth > 0) {
-                <button class="ce-detach" (click)="$event.stopPropagation(); detach(node)"
+                <button class="ce-detach" (mousedown)="$event.stopPropagation()"
+                        (click)="$event.stopPropagation(); detach(node)"
                         [title]="'Abnehmen — ' + subtreeSize(node) + ' Teil(e) gehen zurück ins Inventar'">
                   &#x2715;
                 </button>

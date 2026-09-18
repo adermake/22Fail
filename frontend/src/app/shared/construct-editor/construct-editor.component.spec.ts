@@ -230,6 +230,134 @@ describe('Bauplan', () => {
     });
   });
 
+  describe('Knoten verschieben', () => {
+    /** A canvas-relative mouse event; the component reads clientX/Y against the canvas rect. */
+    function mouse(x: number, y: number): MouseEvent {
+      return {
+        button: 0, clientX: x, clientY: y,
+        stopPropagation: () => {},
+        currentTarget: { closest: () => ({ getBoundingClientRect: () => ({ left: 0, top: 0 }) }) },
+      } as unknown as MouseEvent;
+    }
+
+    function drag(c: ConstructEditorComponent, node: ReturnType<() => any>, dx: number, dy: number) {
+      c.startNodeDrag(node, mouse(100, 100));
+      c.onCanvasMove({
+        clientX: 100 + dx, clientY: 100 + dy,
+        currentTarget: { getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+      } as unknown as MouseEvent);
+      c.endNodeDrag();
+    }
+
+    beforeEach(() => {
+      c.pick(railItem('Arm'));
+      c.dropOnNode(c.nodes[0]);
+      c.pick(railItem('Saege'));
+      c.dropOnNode(c.nodes.find(n => n.item.name === 'Arm')!);
+    });
+
+    function nodeAt(name: string) { return c.nodes.find(n => n.item.name === name)!; }
+
+    it('moves a node by the pointer delta', () => {
+      const before = nodeAt('Arm');
+      drag(c, before, 60, 40);
+      const after = nodeAt('Arm');
+      expect(after.x).toBe(before.x + 60);
+      expect(after.y).toBe(before.y + 40);
+    });
+
+    it('carries the parts underneath along', () => {
+      const sawBefore = nodeAt('Saege');
+      drag(c, nodeAt('Arm'), 60, 40);
+      const sawAfter = nodeAt('Saege');
+      expect(sawAfter.x).toBe(sawBefore.x + 60);
+      expect(sawAfter.y).toBe(sawBefore.y + 40);
+    });
+
+    it('moves a leaf on its own without disturbing its parent', () => {
+      const armBefore = nodeAt('Arm');
+      drag(c, nodeAt('Saege'), 30, 0);
+      expect(nodeAt('Arm').x).toBe(armBefore.x);
+      expect(nodeAt('Saege').x).toBe(nodeAt('Saege').autoX + 30);
+    });
+
+    it('keeps the wire attached to both ends after a move', () => {
+      drag(c, nodeAt('Saege'), 120, 20);
+      const saw = nodeAt('Saege');
+      const arm = nodeAt('Arm');
+      const wire = c.edges.find(e => e.cost === 2)!;
+      expect(wire.d).toContain(`${saw.x + 164 / 2} ${saw.y}`);
+      expect(wire.d).toContain(`M ${arm.sockets[0].cx} ${arm.sockets[0].cy}`);
+    });
+
+    it('grows the canvas so a node dragged right stays reachable', () => {
+      const before = c.canvasWidth;
+      drag(c, nodeAt('Saege'), 500, 0);
+      expect(c.canvasWidth).toBeGreaterThan(before);
+      expect(c.canvasWidth).toBeGreaterThanOrEqual(nodeAt('Saege').x + 164);
+    });
+
+    it('will not let a node be dragged off the top-left', () => {
+      drag(c, nodeAt('Arm'), -9999, -9999);
+      expect(nodeAt('Arm').x).toBeGreaterThanOrEqual(0);
+      expect(nodeAt('Arm').y).toBeGreaterThanOrEqual(0);
+    });
+
+    it('ignores a twitch below the drag threshold', () => {
+      drag(c, nodeAt('Arm'), 2, 1);
+      expect(nodeAt('Arm').item.bauplanDX).toBeUndefined();
+    });
+
+    it('does not attach anything on the click that ends a drag', () => {
+      // Free the Säge up again so there IS something in hand that a stray click could attach.
+      c.detach(nodeAt('Saege'));
+      c.pick(railItem('Saege'));
+      expect(c.picked()).toBeTruthy();
+
+      c.startNodeDrag(nodeAt('Arm'), mouse(100, 100));
+      c.onCanvasMove({
+        clientX: 160, clientY: 100,
+        currentTarget: { getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+      } as unknown as MouseEvent);
+      c.endNodeDrag();
+
+      const before = c.partCount;
+      c.nodeClick(nodeAt('Arm'));
+      expect(c.partCount).toBe(before);
+      expect(c.picked()).toBeTruthy(); // still in hand, not silently bolted on
+
+      // …and the very next click, which is a real click, still works.
+      c.nodeClick(nodeAt('Arm'));
+      expect(c.partCount).toBe(before + 1);
+    });
+
+    it('restores the tidy tree on demand', () => {
+      const armAuto = nodeAt('Arm').autoX;
+      drag(c, nodeAt('Arm'), 90, 70);
+      expect(c.hasManualLayout()).toBe(true);
+
+      c.resetLayout();
+      expect(c.hasManualLayout()).toBe(false);
+      expect(nodeAt('Arm').x).toBe(armAuto);
+    });
+
+    it('keeps positions through a change-detection pass', () => {
+      drag(c, nodeAt('Arm'), 50, 30);
+      const moved = nodeAt('Arm').x;
+      changeDetection(c, [arm, saw]);
+      expect(nodeAt('Arm').x).toBe(moved);
+    });
+
+    it('sends the positions along on save, so they survive the session', () => {
+      let emitted: { root: ItemBlock; pool: ItemBlock[] } | null = null;
+      c.save.subscribe(e => (emitted = e));
+      drag(c, nodeAt('Arm'), 45, 25);
+      c.confirm();
+      expect(emitted!.root.sockets![0].child!.bauplanDX).toBe(45);
+      expect(emitted!.root.sockets![0].child!.bauplanDY).toBe(25);
+    });
+  });
+
   it('emits the machine and the leftovers on save', () => {
     let emitted: { root: ItemBlock; pool: ItemBlock[] } | null = null;
     c.save.subscribe(e => (emitted = e));

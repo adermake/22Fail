@@ -12,13 +12,45 @@ import {
 interface LaidOutNode {
   item: ItemBlock;
   depth: number;
+  /** Where it actually sits: the auto position plus its own and its ancestors' nudges. */
   x: number;
   y: number;
+  /** Where the tidy tree would have put it — the baseline a drag measures against. */
+  autoX: number;
+  autoY: number;
   /** The socket on the parent that holds it — what a detach button addresses. */
   parentId?: string;
   socketId?: string;
   sockets: { socket: ConstructSocket; cx: number; cy: number; index: number }[];
 }
+
+interface Layout {
+  nodes: LaidOutNode[];
+  edges: LaidOutEdge[];
+  width: number;
+  height: number;
+}
+
+/** A node being dragged, and what it takes to work out where it should land. */
+interface NodeDrag {
+  item: ItemBlock;
+  /** Pointer position when the drag started. */
+  startPX: number;
+  startPY: number;
+  /** The node's own nudge at that moment. */
+  startDX: number;
+  startDY: number;
+  /** Auto-layout baseline, so the node can be kept on the canvas. */
+  autoX: number;
+  autoY: number;
+  /** Ancestors' accumulated nudge — this node's own offset is relative to that. */
+  inheritedX: number;
+  inheritedY: number;
+  moved: boolean;
+}
+
+/** How far the pointer must travel before a click becomes a drag. */
+const DRAG_THRESHOLD = 4;
 
 /** A line from a parent's socket down to the child hanging off it. */
 interface LaidOutEdge {
@@ -139,14 +171,25 @@ export class ConstructEditorComponent implements OnChanges {
   get canvasWidth(): number { return this.laidOut().width; }
   get canvasHeight(): number { return this.laidOut().height; }
 
-  /**
-   * Tidy top-down tree: depth picks the row, siblings share their parent's span.
-   *
-   * Recomputed on read rather than cached — a machine is a handful of nodes, and keeping stored
-   * coordinates in sync across clients would cost far more than laying it out again.
-   */
-  private laidOut(): { nodes: LaidOutNode[]; edges: LaidOutEdge[]; width: number; height: number } {
+  private layoutCache: { key: ItemBlock | null; value: Layout } | null = null;
+
+  /** Cached on the root's identity — every edit replaces the root, so the key is free. */
+  private laidOut(): Layout {
     const root = this.working();
+    if (this.layoutCache?.key === root) return this.layoutCache.value;
+    const value = this.computeLayout(root);
+    this.layoutCache = { key: root, value };
+    return value;
+  }
+
+  /**
+   * Tidy top-down tree, then each node's own nudge on top.
+   *
+   * A node's offset is inherited by everything below it, so dragging a branch carries its parts
+   * along and only the part you actually grabbed moves on its own. Undragged machines lay
+   * themselves out exactly as before — the tidy tree is the baseline, not a one-time seed.
+   */
+  private computeLayout(root: ItemBlock | null): Layout {
     if (!root) return { nodes: [], edges: [], width: 0, height: 0 };
 
     const spanOf = (item: ItemBlock): number => {
@@ -157,17 +200,21 @@ export class ConstructEditorComponent implements OnChanges {
     };
 
     const nodes: LaidOutNode[] = [];
-    const edges: LaidOutEdge[] = [];
 
     const place = (item: ItemBlock, depth: number, left: number,
+                   inheritedX: number, inheritedY: number,
                    parentId?: string, socketId?: string): void => {
       const span = spanOf(item);
-      const x = left + span / 2 - NODE_W / 2;
-      const y = PAD + depth * (NODE_H + V_GAP);
+      const autoX = left + span / 2 - NODE_W / 2;
+      const autoY = PAD + depth * (NODE_H + V_GAP);
+      const dx = inheritedX + (item.bauplanDX ?? 0);
+      const dy = inheritedY + (item.bauplanDY ?? 0);
+      const x = autoX + dx;
+      const y = autoY + dy;
       const socks = constructSockets(item);
 
       nodes.push({
-        item, depth, x, y, parentId, socketId,
+        item, depth, x, y, autoX, autoY, parentId, socketId,
         sockets: socks.map((socket, index) => ({
           socket, index,
           cx: x + (NODE_W * (index + 1)) / (socks.length + 1),
@@ -182,26 +229,36 @@ export class ConstructEditorComponent implements OnChanges {
 
       for (const socket of socks) {
         if (!socket.child) continue;
-        const childSpan = spanOf(socket.child);
-        const childX = cursor + childSpan / 2;
-        const childY = PAD + (depth + 1) * (NODE_H + V_GAP);
-        const port = nodes[nodes.length - 1].sockets.find(s => s.socket.id === socket.id)!;
-        const midY = (port.cy + childY) / 2;
-        edges.push({
-          d: `M ${port.cx} ${port.cy} C ${port.cx} ${midY}, ${childX} ${midY}, ${childX} ${childY}`,
-          cost: depth + 1,
-          midX: (port.cx + childX) / 2,
-          midY,
-        });
-        place(socket.child, depth + 1, cursor, item.id ?? item.name, socket.id);
-        cursor += childSpan + H_GAP;
+        place(socket.child, depth + 1, cursor, dx, dy, item.id ?? item.name, socket.id);
+        cursor += spanOf(socket.child) + H_GAP;
       }
     };
 
-    place(root, 0, PAD);
-    const width = spanOf(root) + PAD * 2;
-    const depth = nodes.reduce((max, n) => Math.max(max, n.depth), 0);
-    return { nodes, edges, width, height: PAD * 2 + (depth + 1) * NODE_H + depth * V_GAP };
+    place(root, 0, PAD, 0, 0);
+
+    // Wires second: a child may have been dragged anywhere, so both ends have to be final first.
+    const byId = new Map(nodes.map(n => [n.item.id ?? n.item.name, n]));
+    const edges: LaidOutEdge[] = [];
+    for (const node of nodes) {
+      if (!node.parentId || !node.socketId) continue;
+      const port = byId.get(node.parentId)?.sockets.find(s => s.socket.id === node.socketId);
+      if (!port) continue;
+      const cx = node.x + NODE_W / 2;
+      const midY = (port.cy + node.y) / 2;
+      edges.push({
+        d: `M ${port.cx} ${port.cy} C ${port.cx} ${midY}, ${cx} ${midY}, ${cx} ${node.y}`,
+        cost: node.depth,
+        midX: (port.cx + cx) / 2,
+        midY,
+      });
+    }
+
+    // Grow the canvas around wherever the parts ended up, so dragged nodes stay reachable.
+    const width = Math.max(spanOf(root) + PAD * 2,
+      ...nodes.map(n => n.x + NODE_W + PAD));
+    const height = Math.max(PAD * 2 + NODE_H,
+      ...nodes.map(n => n.y + NODE_H + PAD));
+    return { nodes, edges, width, height };
   }
 
   // ── Assembly ────────────────────────────────────────────────────────────────
@@ -286,9 +343,88 @@ export class ConstructEditorComponent implements OnChanges {
   }
 
   onCanvasMove(event: MouseEvent): void {
-    if (!this.armedSocket()) return;
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    this.pointer.set({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+    const px = event.clientX - rect.left;
+    const py = event.clientY - rect.top;
+
+    const drag = this.nodeDrag;
+    if (drag) {
+      const movedBy = Math.abs(px - drag.startPX) + Math.abs(py - drag.startPY);
+      if (!drag.moved && movedBy < DRAG_THRESHOLD) return;
+      drag.moved = true;
+
+      // The node's own nudge sits on top of its ancestors', so the pointer delta applies to it
+      // directly. Clamped so nothing can be dragged off the top-left and become unreachable.
+      const wantDX = drag.startDX + (px - drag.startPX);
+      const wantDY = drag.startDY + (py - drag.startPY);
+      drag.item.bauplanDX = Math.max(8 - drag.autoX - drag.inheritedX, wantDX);
+      drag.item.bauplanDY = Math.max(8 - drag.autoY - drag.inheritedY, wantDY);
+      this.touchWorking();
+      return;
+    }
+
+    if (this.armedSocket()) this.pointer.set({ x: px, y: py });
+  }
+
+  // ── Moving nodes ────────────────────────────────────────────────────────────
+
+  private nodeDrag: NodeDrag | null = null;
+  /** Set for one event loop after a drag, so the trailing click does not also attach something. */
+  private suppressClick = false;
+
+  startNodeDrag(node: LaidOutNode, event: MouseEvent): void {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    const canvas = (event.currentTarget as HTMLElement).closest('.ce-canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    this.nodeDrag = {
+      item: node.item,
+      startPX: event.clientX - rect.left,
+      startPY: event.clientY - rect.top,
+      startDX: node.item.bauplanDX ?? 0,
+      startDY: node.item.bauplanDY ?? 0,
+      autoX: node.autoX,
+      autoY: node.autoY,
+      // What the node inherits from above: its final position minus its own contribution.
+      inheritedX: node.x - node.autoX - (node.item.bauplanDX ?? 0),
+      inheritedY: node.y - node.autoY - (node.item.bauplanDY ?? 0),
+      moved: false,
+    };
+  }
+
+  endNodeDrag(): void {
+    if (!this.nodeDrag) return;
+    this.suppressClick = this.nodeDrag.moved;
+    this.nodeDrag = null;
+  }
+
+  /** True while a node is being moved — the canvas uses it to suppress hover affordances. */
+  get isDraggingNode(): boolean { return !!this.nodeDrag?.moved; }
+
+  /** A click on a node: attach what is in hand, unless that click was the end of a drag. */
+  nodeClick(node: LaidOutNode): void {
+    if (this.suppressClick) { this.suppressClick = false; return; }
+    this.dropOnNode(node);
+  }
+
+  hasManualLayout(): boolean {
+    return flattenConstruct(this.working()).some(n => n.item.bauplanDX || n.item.bauplanDY);
+  }
+
+  /** Drop every nudge and let the tidy tree take over again. */
+  resetLayout(): void {
+    for (const node of flattenConstruct(this.working())) {
+      delete node.item.bauplanDX;
+      delete node.item.bauplanDY;
+    }
+    this.touchWorking();
+  }
+
+  /** Republish the root so the layout cache and the template both see the mutation. */
+  private touchWorking(): void {
+    const root = this.working();
+    if (root) this.working.set({ ...root });
   }
 
   /** The wire trailing from an armed Anschluss to the cursor. */
