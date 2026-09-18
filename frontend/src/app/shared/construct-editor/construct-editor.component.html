@@ -64,8 +64,10 @@
       <div class="ce-rail-list">
         @for (item of workingPool(); track item.id ?? item.name) {
           <div class="ce-rail-item" [class.ce-picked]="picked() === item"
+               [class.ce-rail-target]="!!armedSocket()"
                draggable="true" (dragstart)="onDragStart(item)" (click)="pick(item)"
-               [title]="item.description || item.name">
+               (dragover)="$event.preventDefault()"
+               [title]="armedSocket() ? 'Hier anschließen' : (item.description || item.name)">
             <div class="ce-rail-name">{{ item.name }}</div>
             <div class="ce-rail-meta">
               @if (nodeStat(item); as st) {
@@ -81,13 +83,20 @@
       </div>
 
       <div class="ce-rail-hint">
-        Teil anklicken oder ziehen, dann auf einen freien Anschluss setzen.
+        @if (armedSocket()) {
+          Kabel h&#xE4;ngt &mdash; jetzt ein Teil anklicken.
+        } @else if (picked()) {
+          Teil in der Hand &mdash; auf einen Knoten oder eine freie Raute klicken.
+        } @else {
+          Teil anklicken oder ziehen &mdash; oder ein Kabel aus einer freien Raute ziehen.
+        }
       </div>
     </div>
 
     <!-- ── Canvas ───────────────────────────────────────────────────────── -->
     <div class="ce-canvas-wrap">
-      <div class="ce-canvas" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
+      <div class="ce-canvas" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight"
+           (mousemove)="onCanvasMove($event)" (click)="clearSelection()">
 
         <svg class="ce-wires" [attr.width]="canvasWidth" [attr.height]="canvasHeight"
              xmlns="http://www.w3.org/2000/svg">
@@ -97,16 +106,26 @@
             <text class="ce-wire-badge" [attr.x]="edge.midX" [attr.y]="edge.midY + 4"
                   text-anchor="middle">+{{ edge.cost }}</text>
           }
+          @if (pendingWire; as wire) {
+            <path class="ce-wire-pending" [attr.d]="wire" />
+          }
         </svg>
 
         @for (node of nodes; track node.item.id ?? node.item.name) {
+          <!-- The node itself is a drop target: a part lands in the first free Anschluss, so
+               nobody has to hit a 13px diamond to build something. -->
           <div class="ce-node" [class.ce-node-root]="node.depth === 0"
                [class.ce-node-broken]="node.item.broken"
-               [style.left.px]="node.x" [style.top.px]="node.y">
+               [class.ce-node-target]="!!picked() && freeSocketCount(node) > 0"
+               [class.ce-node-full]="!!picked() && freeSocketCount(node) === 0"
+               [style.left.px]="node.x" [style.top.px]="node.y"
+               (click)="$event.stopPropagation(); dropOnNode(node)"
+               (dragover)="$event.preventDefault()"
+               (drop)="$event.preventDefault(); $event.stopPropagation(); dropOnNode(node)">
             <div class="ce-node-head">
               <span class="ce-node-name">{{ node.item.name }}</span>
               @if (node.depth > 0) {
-                <button class="ce-detach" (click)="detach(node)"
+                <button class="ce-detach" (click)="$event.stopPropagation(); detach(node)"
                         [title]="'Abnehmen — ' + subtreeSize(node) + ' Teil(e) gehen zurück ins Inventar'">
                   &#x2715;
                 </button>
@@ -123,17 +142,23 @@
             </div>
           </div>
 
-          <!-- Anschlüsse, drawn as diamonds on the node's lower edge -->
+          <!-- Anschlüsse: a small diamond inside a much larger invisible hit area, so the thing
+               you aim at is ~34px even though the thing you see is 13px. -->
           @for (port of node.sockets; track port.socket.id) {
-            <div class="ce-socket"
-                 [class.ce-socket-used]="!!port.socket.child"
-                 [class.ce-socket-target]="!port.socket.child && !!picked()"
+            <div class="ce-socket-hit"
+                 [class.ce-hit-live]="!port.socket.child"
                  [style.left.px]="port.cx"
                  [style.top.px]="port.cy"
-                 [title]="port.socket.label || ('Anschluss ' + (port.index + 1))"
-                 (click)="attachTo(node, port.socket)"
+                 [title]="port.socket.child
+                   ? (port.socket.label || ('Anschluss ' + (port.index + 1)))
+                   : (picked() ? 'Teil hier anschließen' : 'Kabel von hier ziehen')"
+                 (click)="$event.stopPropagation(); socketClick(node, port.socket)"
                  (dragover)="$event.preventDefault()"
-                 (drop)="$event.preventDefault(); attachTo(node, port.socket)">
+                 (drop)="$event.preventDefault(); $event.stopPropagation(); socketClick(node, port.socket)">
+              <span class="ce-socket"
+                    [class.ce-socket-used]="!!port.socket.child"
+                    [class.ce-socket-target]="!port.socket.child && !!picked()"
+                    [class.ce-socket-armed]="isArmed(node, port.socket)"></span>
             </div>
           }
         }

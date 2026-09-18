@@ -76,16 +76,32 @@ export class ConstructEditorComponent implements OnChanges {
   workingPool = signal<ItemBlock[]>([]);
   /** Part picked up in the rail — click-to-pick works alongside dragging. */
   picked = signal<ItemBlock | null>(null);
+  /** Anschluss armed on the canvas, waiting for a part: the wire-first direction. */
+  armedSocket = signal<{ nodeId: string; socketId: string } | null>(null);
+  /** Cursor position inside the canvas, for the pending wire. */
+  pointer = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   message = signal<string>('');
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['root'] || changes['pool']) {
-      // Deep copy: everything here is provisional until the player saves.
-      this.working.set(this.root ? structuredClone(this.root) : null);
-      this.workingPool.set((this.pool ?? []).filter(isConstruct).map(i => structuredClone(i)));
-      this.picked.set(null);
-      this.message.set('');
-    }
+  /** The root this session was seeded from — see ngOnChanges. */
+  private seededFrom: ItemBlock | null = null;
+
+  ngOnChanges(_: SimpleChanges): void {
+    /*
+     * Seed on the ROOT's identity only, never on `pool`.
+     *
+     * The parent hands `pool` in from a getter, so it is a fresh array on every change-detection
+     * pass and Angular reports it as changed every single time. Re-seeding on that wiped the
+     * assembly — and the picked part — between the click on a part and the click on a socket, so
+     * attaching silently did nothing at all.
+     */
+    if (this.root === this.seededFrom) return;
+    this.seededFrom = this.root;
+    // Deep copy: everything here is provisional until the player saves.
+    this.working.set(this.root ? structuredClone(this.root) : null);
+    this.workingPool.set((this.pool ?? []).filter(i => isConstruct(i)).map(i => structuredClone(i)));
+    this.picked.set(null);
+    this.armedSocket.set(null);
+    this.message.set('');
   }
 
   // ── Live numbers ────────────────────────────────────────────────────────────
@@ -189,8 +205,25 @@ export class ConstructEditorComponent implements OnChanges {
   }
 
   // ── Assembly ────────────────────────────────────────────────────────────────
+  //
+  // A connection can be started from either end, like the Runen editor: pick a part and drop it on
+  // an Anschluss, or pull a wire out of an Anschluss and click the part it should hold. Whichever
+  // is armed, clicking the other end completes it.
 
+  nodeId(node: LaidOutNode): string { return node.item.id ?? node.item.name; }
+
+  isArmed(node: LaidOutNode, socket: ConstructSocket): boolean {
+    const armed = this.armedSocket();
+    return !!armed && armed.nodeId === this.nodeId(node) && armed.socketId === socket.id;
+  }
+
+  /** Click a part in the rail: completes an armed wire, or picks the part up. */
   pick(item: ItemBlock): void {
+    const armed = this.armedSocket();
+    if (armed) {
+      this.attachByIds(armed.nodeId, armed.socketId, item);
+      return;
+    }
     this.picked.set(this.picked() === item ? null : item);
     this.message.set('');
   }
@@ -200,13 +233,41 @@ export class ConstructEditorComponent implements OnChanges {
     this.message.set('');
   }
 
-  /** Drop a picked part onto a free Anschluss. */
-  attachTo(node: LaidOutNode, socket: ConstructSocket): void {
+  /** Click an Anschluss: completes a picked part, or arms the wire for a part to be chosen. */
+  socketClick(node: LaidOutNode, socket: ConstructSocket): void {
+    if (socket.child) return;
     const part = this.picked();
-    const root = this.working();
-    if (!part || !root || socket.child) return;
+    if (part) {
+      this.attachByIds(this.nodeId(node), socket.id, part);
+      return;
+    }
+    this.armedSocket.set(
+      this.isArmed(node, socket) ? null : { nodeId: this.nodeId(node), socketId: socket.id },
+    );
+    this.message.set('');
+  }
 
-    const { root: next, refused } = attachChild(root, node.item.id ?? node.item.name, socket.id, part);
+  /**
+   * Drop a part anywhere on a node and it takes the first free Anschluss.
+   *
+   * Aiming at a 13px diamond was the whole problem — the node itself is a target big enough to hit,
+   * and which socket a part sits in changes nothing about the machine.
+   */
+  dropOnNode(node: LaidOutNode): void {
+    const part = this.picked();
+    if (!part) return;
+    const free = node.sockets.find(s => !s.socket.child);
+    if (!free) {
+      this.message.set(`„${node.item.name}" hat keinen freien Anschluss.`);
+      return;
+    }
+    this.attachByIds(this.nodeId(node), free.socket.id, part);
+  }
+
+  private attachByIds(nodeId: string, socketId: string, part: ItemBlock): void {
+    const root = this.working();
+    if (!root) return;
+    const { root: next, refused } = attachChild(root, nodeId, socketId, part);
     if (refused) {
       this.message.set(REFUSAL_TEXT[refused]);
       return;
@@ -214,7 +275,32 @@ export class ConstructEditorComponent implements OnChanges {
     this.working.set(next);
     this.workingPool.set(this.workingPool().filter(i => i !== part));
     this.picked.set(null);
+    this.armedSocket.set(null);
     this.message.set('');
+  }
+
+  /** Clicking empty canvas drops whatever is in hand. */
+  clearSelection(): void {
+    this.picked.set(null);
+    this.armedSocket.set(null);
+  }
+
+  onCanvasMove(event: MouseEvent): void {
+    if (!this.armedSocket()) return;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.pointer.set({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+  }
+
+  /** The wire trailing from an armed Anschluss to the cursor. */
+  get pendingWire(): string | null {
+    const armed = this.armedSocket();
+    if (!armed) return null;
+    const node = this.nodes.find(n => this.nodeId(n) === armed.nodeId);
+    const port = node?.sockets.find(s => s.socket.id === armed.socketId);
+    if (!port) return null;
+    const p = this.pointer();
+    const midY = (port.cy + p.y) / 2;
+    return `M ${port.cx} ${port.cy} C ${port.cx} ${midY}, ${p.x} ${midY}, ${p.x} ${p.y}`;
   }
 
   /** Pull a part (and everything under it) back into the pool. Never blocked. */
