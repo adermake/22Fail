@@ -10,7 +10,6 @@
 import { Container, Graphics } from 'pixi.js';
 import { MapRegion, Point } from './map-editor.model';
 import { Bounds } from './map-camera';
-import { SpatialIndex } from './spatial-index';
 
 /** Handle size for point editing, in screen px (converted by the caller's zoom). */
 export const HANDLE_SCREEN_PX = 7;
@@ -119,7 +118,22 @@ export function pathBounds(points: Point[]): Bounds {
 
 export class RegionView {
   readonly container = new Container();
-  readonly index = new SpatialIndex<MapRegion>();
+
+  /**
+   * Each region's bounding box, kept in step with its points.
+   *
+   * Regions are **not** in a `SpatialIndex` like symbols and labels are, and that is the
+   * whole point. That index files an object at a single position, and a region's position is
+   * its centroid — which for a territory spanning a thousand hexes can be six thousand world
+   * pixels from any part of it you are looking at. Both the viewport cull and the hit test
+   * queried a box around the *cursor*, so a big region vanished the moment you zoomed in on
+   * its border, and clicking that border selected nothing: the centroid was never in the box.
+   *
+   * A linear scan over the bounding boxes has no such failure mode, and regions are drawn by
+   * hand in the dozens, not scattered in the tens of thousands — the cost this replaces was
+   * never the one that mattered.
+   */
+  private bounds = new Map<string, Bounds>();
 
   private graphics = new Graphics();
   private handles = new Graphics();
@@ -135,28 +149,45 @@ export class RegionView {
 
   rebuild(regions: MapRegion[]): void {
     this.regions.clear();
-    for (const r of regions) this.regions.set(r.id, r);
-    this.index.rebuild(regions);
+    this.bounds.clear();
+    for (const r of regions) this.track(r);
     this.dirty = true;
   }
 
   add(region: MapRegion): void {
-    this.regions.set(region.id, region);
-    this.index.insert(region);
+    this.track(region);
     this.dirty = true;
   }
 
   update(region: MapRegion): void {
-    this.regions.set(region.id, region);
-    this.index.update(region);
+    this.track(region);
     this.dirty = true;
   }
 
   remove(id: string): void {
     this.regions.delete(id);
-    this.index.remove(id);
+    this.bounds.delete(id);
     if (this.selectedId === id) this.selectedId = null;
     this.dirty = true;
+  }
+
+  /** Store a region and recompute its box; every mutation goes through here. */
+  private track(region: MapRegion): void {
+    this.regions.set(region.id, region);
+    this.bounds.set(region.id, pathBounds(region.points));
+  }
+
+  /** Regions whose box overlaps an area, with the box to hand. */
+  private overlapping(area: Bounds): MapRegion[] {
+    const out: MapRegion[] = [];
+    for (const [id, region] of this.regions) {
+      const b = this.bounds.get(id);
+      if (!b) continue;
+      if (b.minX > area.maxX || b.maxX < area.minX) continue;
+      if (b.minY > area.maxY || b.maxY < area.minY) continue;
+      out.push(region);
+    }
+    return out;
   }
 
   get(id: string): MapRegion | undefined {
@@ -200,12 +231,7 @@ export class RegionView {
     const g = this.graphics;
     g.clear();
 
-    for (const region of this.index.query({
-      minX: bounds.minX - 4096,
-      minY: bounds.minY - 4096,
-      maxX: bounds.maxX + 4096,
-      maxY: bounds.maxY + 4096,
-    })) {
+    for (const region of this.overlapping(bounds)) {
       if (region.vis === 'secret' && !showSecrets) continue;
       if (region.points.length < 2) continue;
 
@@ -274,15 +300,22 @@ export class RegionView {
 
   /** Region whose outline passes near a world point. */
   hitTest(x: number, y: number, tolerance: number): MapRegion | null {
+    // Nothing is grabbable while the layer is hidden. Selecting an outline you cannot see —
+    // and then dragging its vertices — is the kind of surprise a view toggle must not cause.
+    if (!this.container.visible) return null;
+
     let best: MapRegion | null = null;
     let bestDist = tolerance;
 
-    for (const region of this.index.query({
-      minX: x - 4096,
-      minY: y - 4096,
-      maxX: x + 4096,
-      maxY: y + 4096,
-    })) {
+    // The box is grown by the tolerance, so an outline can still be grabbed from just
+    // outside it — the only reason a point near the border might miss the box at all.
+    const near = {
+      minX: x - tolerance,
+      minY: y - tolerance,
+      maxX: x + tolerance,
+      maxY: y + tolerance,
+    };
+    for (const region of this.overlapping(near)) {
       const d = distanceToPath(region.points, x, y);
       if (d <= bestDist) {
         bestDist = d;
@@ -300,18 +333,11 @@ export class RegionView {
    * could never be caught by the same drag that catches everything sitting inside it.
    */
   inRect(rect: Bounds): MapRegion[] {
-    return this.index
-      .query({
-        minX: rect.minX - 4096,
-        minY: rect.minY - 4096,
-        maxX: rect.maxX + 4096,
-        maxY: rect.maxY + 4096,
-      })
-      .filter(r =>
-        r.points.some(
-          p => p.x >= rect.minX && p.x <= rect.maxX && p.y >= rect.minY && p.y <= rect.maxY,
-        ),
-      );
+    return this.overlapping(rect).filter(r =>
+      r.points.some(
+        p => p.x >= rect.minX && p.x <= rect.maxX && p.y >= rect.minY && p.y <= rect.maxY,
+      ),
+    );
   }
 
   /** Index of the selected region's vertex near a point, or -1. */
@@ -326,7 +352,7 @@ export class RegionView {
 
   destroy(): void {
     this.container.destroy({ children: true });
-    this.index.clear();
+    this.bounds.clear();
     this.regions.clear();
   }
 }

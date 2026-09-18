@@ -319,6 +319,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           secretOverview: this.overviewOn(),
           mode: this.mode(),
           viewAs: this.viewAs(),
+          showRegions: this.showRegions(),
         }),
       );
     } catch {
@@ -359,6 +360,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       if (typeof p['secretOverview'] === 'boolean') this.overviewOn.set(p['secretOverview']);
       if (p['mode'] === 'game' || p['mode'] === 'edit') this.mode.set(p['mode']);
       if (VIEW_AS_DEFS.some(v => v.id === p['viewAs'])) this.viewAs.set(p['viewAs'] as MapViewAs);
+      if (typeof p['showRegions'] === 'boolean') this.showRegions.set(p['showRegions']);
 
       // Only `in` distinguishes a stored Auto (null) from a preference never expressed.
       if ('tierPin' in p) {
@@ -1416,6 +1418,27 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.viewAs.set(mode);
     this.saveBrushPrefs();
     this.applyMode();
+  }
+
+  /**
+   * Whether region outlines are drawn.
+   *
+   * A local view toggle like the hex grid, not map state: territory borders cover everything
+   * underneath them, and on a map with many of them there is no other way to look at the
+   * terrain they sit on. Hidden regions are also unclickable, so the toggle cannot leave you
+   * dragging the vertices of something invisible.
+   */
+  readonly showRegions = signal(true);
+
+  toggleRegions(): void {
+    this.showRegions.update(v => !v);
+    this.applyRegionVisibility();
+    this.saveBrushPrefs();
+  }
+
+  private applyRegionVisibility(): void {
+    this.regionView.container.visible = this.showRegions();
+    this.scheduleStream();
   }
 
   /** True while previewing the players' view — the one mode that hides things from the GM. */
@@ -2711,6 +2734,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.setTierPin(this.tierPin());
     // After the views exist: the mode decides whether the fog is drawn at all.
     this.applyMode();
+    this.applyRegionVisibility();
     this.ready.set(true);
   }
 

@@ -40,6 +40,16 @@
     }
 
     <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">Hexgitter</button>
+    @if (isGM()) {
+      <button
+        type="button"
+        [class.active]="showRegions()"
+        title="Regionsgrenzen ein- oder ausblenden — nur für dich, nicht für die Spieler"
+        (click)="toggleRegions()"
+      >
+        Regionen
+      </button>
+    }
     <button
       type="button"
       [class.active]="diagOn()"

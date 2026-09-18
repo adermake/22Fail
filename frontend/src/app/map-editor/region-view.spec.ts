@@ -119,3 +119,71 @@ describe('region rubber band', () => {
     expect(view.inRect({ minX: 40, minY: 40, maxX: 60, maxY: 60 })).toEqual([]);
   });
 });
+
+/**
+ * Huge regions.
+ *
+ * A territory can span a thousand hexes, and both the viewport cull and the hit test used to
+ * go through a `SpatialIndex`, which files an object at a single point — for a region, its
+ * centroid. Queried with a box around the cursor, a region whose centroid sat six thousand
+ * world pixels away was never even considered: it vanished as soon as you zoomed in on its
+ * border, and clicking that border selected nothing.
+ */
+describe('Sehr große Regionen', () => {
+  /** A ring roughly 14000 world px across — about what a thousand hexes covers. */
+  function huge(id: string): MapRegion {
+    const points: Point[] = [];
+    const r = 7000;
+    for (let i = 0; i < 24; i++) {
+      const a = (Math.PI * 2 * i) / 24;
+      points.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    const c = centroid(points);
+    return { id, x: c.x, y: c.y, vis: 'public', points, color: '#fff', thickness: 4, dash: 0, gap: 0 };
+  }
+
+  it('wird gezeichnet, wenn man auf den Rand hineinzoomt', () => {
+    const view = new RegionView();
+    view.rebuild([huge('r1')]);
+
+    // A tight viewport on the border, far from the centroid at the origin.
+    const atBorder = { minX: 6800, minY: -200, maxX: 7200, maxY: 200 };
+    expect(view.inRect(atBorder).map(r => r.id)).toEqual(['r1']);
+  });
+
+  it('lässt sich am Rand anklicken, obwohl der Schwerpunkt weit weg liegt', () => {
+    const view = new RegionView();
+    view.rebuild([huge('r1')]);
+
+    // Right on the outline; the centroid is 7000px away, well past the old ±4096 query box.
+    expect(view.hitTest(7000, 0, 40)?.id).toBe('r1');
+  });
+
+  it('greift nicht nach einer Region, die weit entfernt liegt', () => {
+    const view = new RegionView();
+    view.rebuild([huge('r1')]);
+    // Dead centre: inside the ring's box, but nowhere near the outline itself.
+    expect(view.hitTest(0, 0, 40)).toBeNull();
+  });
+
+  it('folgt der Region, wenn sie verschoben wird', () => {
+    const view = new RegionView();
+    const region = huge('r1');
+    view.rebuild([region]);
+
+    // The cached box must be recomputed on update, or a moved region keeps its old extent.
+    const moved = { ...region, points: region.points.map(p => ({ x: p.x + 50000, y: p.y })) };
+    view.update(moved);
+
+    expect(view.hitTest(7000, 0, 40)).toBeNull();
+    expect(view.hitTest(57000, 0, 40)?.id).toBe('r1');
+  });
+
+  it('ist unantastbar, solange die Ebene ausgeblendet ist', () => {
+    const view = new RegionView();
+    view.rebuild([huge('r1')]);
+    view.container.visible = false;
+    // Hiding the layer must not leave invisible outlines grabbable.
+    expect(view.hitTest(7000, 0, 40)).toBeNull();
+  });
+});
