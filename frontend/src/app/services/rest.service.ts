@@ -5,6 +5,7 @@ import { SpellBlock } from '../model/spell-block-model';
 import { FormulaType } from '../model/formula-type.enum';
 import { hasRestBlock, REST_TRIGGER } from '../scripting/interpreter';
 import { isItemEquipped } from '../utils/equip-slot.utils';
+import { flattenConstruct } from '../utils/construct.util';
 import { MacroExecutorService } from './macro-executor.service';
 import { TrueStatsService } from './true-stats.service';
 
@@ -95,9 +96,15 @@ export class RestService {
         out.push({ kind: 'item', name: entry.item.name, script });
       }
     }
-    for (const item of sheet.equipment ?? []) {
-      if (item?.script && hasRestBlock(item.script) && isItemEquipped(item)) {
-        out.push({ kind: 'equipment', name: item.name, script: item.script });
+    // Konstrukt parts have onRest blocks of their own — a machine's furnace has to be stoked like
+    // anything else, so the walk goes into the tree rather than stopping at the frame.
+    for (const root of sheet.equipment ?? []) {
+      if (!isItemEquipped(root)) continue;
+      for (const node of flattenConstruct(root, { functional: true })) {
+        const item = node.item;
+        if (item?.script && hasRestBlock(item.script)) {
+          out.push({ kind: 'equipment', name: node.trail.join(' / '), script: item.script });
+        }
       }
     }
     for (const skill of sheet.skills ?? []) {

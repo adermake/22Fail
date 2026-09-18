@@ -427,6 +427,12 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - **Ids**: `attachChild` vergibt jedem eintretenden Teil eine Id. `itemKey` fällt sonst auf den Namen zurück und zwei gleichnamige Arme würden ihre Merkmale vermischen.
 - **Löschen**: eine Wurzel zu löschen nimmt den ganzen Baum mit → `constructContents()` liefert die Teile für Rückfrage + Papierkorb-Label.
 - **TrueStatsService**: nichts iteriert `sheet.equipment` mehr direkt — alles läuft über `withConstructParts()`.
+- **Schmieden**: Der Waffe/Rüstung-Schalter ist jetzt die *Materialwahl*; daneben steht „Bauart: Normal | Konstrukt" plus Anschlusszahl. In `buildForgedItem` sind das `isWeapon` (Material) und `producesConstruct` + `socketCount` (Ergebnis) — vorher war beides derselbe Boolean, weshalb ein Konstrukt gar nicht schmiedbar war.
+- **Bauplan** (`shared/construct-editor/`): Vollbild-Montageansicht. Links das Inventar-Regal (lose Konstrukte), rechts der Baum. Auto-Layout aus der Baumform — **keine gespeicherten Koordinaten**, also auch kein zusätzlicher Sync. Jede Verbindung trägt ihre Kosten (`+1`, `+2`, …) als Badge, der Kopf zeigt Komplexität gegen freien Fokus. Anstecken per Klick oder Drag auf eine freie Raute; Abnehmen per ✕ am Knoten, immer erlaubt.
+- **Öffnen**: Item-Kontextmenü → „Bauplan" (nur bei `itemType === 'construct'`). Anschlusszahl lässt sich auch im Item-Editor ändern — `setSocketCount` entfernt nur LEERE Anschlüsse, damit Verkleinern nie ein Teil verschluckt.
+- **Löschen**: `deleteItem` in Inventar und Equipment fragt nach und listet die Teile auf, die mitgehen; der Papierkorb bekommt die Maschine als EINEN Eintrag und stellt sie zusammengebaut wieder her.
+- **Begleiter/NSC**: `_buildNpcSheet` gibt dem Stub jetzt `equipment`/`inventory` (per Referenz, Item-Identität muss stimmen) und rechnet `fokusOverride` in `fokusBonus` um — dadurch gelten für Begleiter exakt dieselben Konstrukt-Regeln wie für Spieler. Vorher hatte der Stub gar keine Ausrüstung, weshalb auch `useArmorStabilitaet` nichts zu lesen hatte.
+- **Rast**: `collectRestSources` läuft durch den Baum, `onRest`-Blöcke einzelner Teile feuern mit.
 
 ## Konventionen
 - **Sprache**: UI vollständig auf Deutsch

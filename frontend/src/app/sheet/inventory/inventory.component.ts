@@ -24,6 +24,10 @@ import { MacroExecutorService } from '../../services/macro-executor.service';
 import { PartyStashService } from '../../services/party-stash.service';
 import { DragSplitService } from '../../services/drag-split.service';
 import { canMerge, stackAmount, withAmount } from '../../utils/item-stack.util';
+import {
+  constructComplexity, constructContents, ensureItemId, flattenConstruct, isConstruct,
+} from '../../utils/construct.util';
+import { ConstructEditorComponent } from '../../shared/construct-editor/construct-editor.component';
 import { PartyStashEntry } from '../../model/world.model';
 import { CurrentEvent, ShopEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
@@ -37,6 +41,7 @@ import { ActiveStatusEffect } from '../../model/status-effect.model';
     CardComponent,
     ItemCreatorComponent,
     ItemEditorComponent,
+    ConstructEditorComponent,
     DragDropModule,
     FormsModule,
   ],
@@ -315,6 +320,20 @@ getCurrencyWeight(): number {
     const item = this.sheet.inventory[index];
     if (!item) return;
 
+    // A Konstrukt holds its parts inside itself, so binning the frame bins everything bolted into
+    // it — and the Papierkorb would show a single line for the lot. Name them before it happens.
+    const contents = constructContents(item);
+    if (contents.length) {
+      const names = contents.map(c => `• ${c.name}`).join('\n');
+      const ok = confirm(
+        `„${item.name}" ist zusammengebaut. Wegwerfen nimmt ${contents.length} `
+        + `${contents.length === 1 ? 'Teil' : 'Teile'} mit:\n\n${names}\n\n`
+        + `Alles landet gemeinsam im Papierkorb und kann von dort zurückgeholt werden. `
+        + `Zum Auseinandernehmen stattdessen den Bauplan öffnen.`,
+      );
+      if (!ok) return;
+    }
+
     // Null out slot (preserves positions of all other items)
     const newInv = [...this.sheet.inventory] as (ItemBlock | null)[];
     newInv[index] = null;
@@ -322,7 +341,8 @@ getCurrencyWeight(): number {
     while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
     this.sheet.inventory = newInv;
 
-    // Add to trash
+    // Add to trash — whole machine in one entry, labelled with what came along, so the
+    // Papierkorb restores it assembled rather than as a pile of parts.
     const trash = this.sheet.trash || [];
     trash.push({ type: 'item', data: item, deletedAt: Date.now() });
 
@@ -787,6 +807,97 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     this.editingItemIndex = index;
     this.editingItem = this.sheet.inventory[index];
     this.showItemEditor = true;
+  }
+
+  // ── Bauplan (Konstrukte) ─────────────────────────────────────────────────
+
+  showBauplan = false;
+  bauplanIndex: number | null = null;
+  bauplanRoot: ItemBlock | null = null;
+
+  isConstruct = isConstruct;
+
+  openBauplan(index: number) {
+    const item = this.sheet.inventory[index];
+    if (!isConstruct(item)) return;
+
+    // Give every Konstrukt an id before the Bauplan opens. Parts are matched back into the
+    // inventory by id on save, and item-modifier bookkeeping keys on `id || name` — two hand-made
+    // parts sharing a name would otherwise be indistinguishable in both places.
+    let changed = false;
+    for (const entry of this.sheet.inventory ?? []) {
+      if (!isConstruct(entry)) continue;
+      for (const node of flattenConstruct(entry)) {
+        if (!node.item.id) { ensureItemId(node.item); changed = true; }
+      }
+    }
+    if (changed) {
+      this.sheet.inventory = [...this.sheet.inventory];
+      this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+    }
+
+    this.bauplanIndex = index;
+    this.bauplanRoot = this.sheet.inventory[index];
+    this.showBauplan = true;
+  }
+
+  closeBauplan() {
+    this.showBauplan = false;
+    this.bauplanIndex = null;
+    this.bauplanRoot = null;
+  }
+
+  /** Loose Konstrukte the player could bolt on — everything except the machine being edited. */
+  get bauplanPool(): ItemBlock[] {
+    return (this.sheet.inventory ?? [])
+      .filter((i, idx): i is ItemBlock => !!i && idx !== this.bauplanIndex && isConstruct(i));
+  }
+
+  /**
+   * Fokus left for this machine: the pool, minus sustained spells, minus every OTHER equipped
+   * Konstrukt. A machine in the backpack is measured against what it would cost to actually use.
+   */
+  get bauplanFokusFree(): number {
+    const max = this.trueStats.calculateFokusMax(this.sheet);
+    const used = this.trueStats.calculateFokusUsed(this.sheet);
+    const self = this.bauplanRoot && (this.sheet.equipment ?? []).includes(this.bauplanRoot)
+      ? constructComplexity(this.bauplanRoot)
+      : 0;
+    return Math.max(0, max - used + self);
+  }
+
+  /**
+   * Apply an assembly. Parts that went into the machine leave the inventory and parts that came
+   * out go back into it — the whole inventory is rewritten in one patch rather than trying to
+   * address nested sockets by path.
+   */
+  saveBauplan(result: { root: ItemBlock; pool: ItemBlock[] }) {
+    if (this.bauplanIndex === null) { this.closeBauplan(); return; }
+
+    const keptIds = new Set(result.pool.map(i => i.id ?? i.name));
+    const inv = [...this.sheet.inventory] as (ItemBlock | null)[];
+    inv[this.bauplanIndex] = result.root;
+
+    // Drop the parts that are now inside the machine, keeping every other slot where it is.
+    for (let i = 0; i < inv.length; i++) {
+      const entry = inv[i];
+      if (i === this.bauplanIndex || !entry || !isConstruct(entry)) continue;
+      if (!keptIds.has(entry.id ?? entry.name)) inv[i] = null;
+    }
+    // …and hand back anything detached that is not already sitting somewhere.
+    const present = new Set(inv.filter((e): e is ItemBlock => !!e).map(e => e.id ?? e.name));
+    for (const part of result.pool) {
+      const key = part.id ?? part.name;
+      if (present.has(key)) continue;
+      const free = inv.indexOf(null);
+      if (free >= 0) inv[free] = part; else inv.push(part);
+      present.add(key);
+    }
+    while (inv.length > 0 && inv[inv.length - 1] === null) inv.pop();
+
+    this.sheet.inventory = inv as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+    this.closeBauplan();
   }
 
   // Create new item via full-screen editor

@@ -11,6 +11,7 @@ import { CdkDragDrop, CdkDragStart, DragDropModule } from '@angular/cdk/drag-dro
 import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
 import { getEquipSlot } from '../../utils/equip-slot.utils';
+import { constructContents } from '../../utils/construct.util';
 import { roundTo } from '../../utils/round.util';
 
 @Component({
@@ -75,6 +76,21 @@ export class EquipmentComponent {
 
   deleteItem(index: number) {
     const item = this.sheet.equipment[index];
+
+    // Same guard as the inventory: a Konstrukt takes its parts with it, and the Papierkorb would
+    // only show one line for all of them.
+    const contents = constructContents(item);
+    if (contents.length) {
+      const names = contents.map(c => `• ${c.name}`).join('\n');
+      const ok = confirm(
+        `„${item.name}" ist zusammengebaut. Wegwerfen nimmt ${contents.length} `
+        + `${contents.length === 1 ? 'Teil' : 'Teile'} mit:\n\n${names}\n\n`
+        + `Alles landet gemeinsam im Papierkorb und kann von dort zurückgeholt werden. `
+        + `Zum Auseinandernehmen stattdessen den Bauplan öffnen.`,
+      );
+      if (!ok) return;
+    }
+
     this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== index);
 
     // Add to trash

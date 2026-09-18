@@ -77,7 +77,16 @@ export class ForgingComponent implements OnInit {
   allForgeTraits: ForgeTrait[] = [];
 
   // ── Session configuration ────────────────────────────────────────────────────
+  /**
+   * Which MaterialStats this session reads — NOT necessarily what comes out of it.
+   * With `producesConstruct` on, weapon materials give a Konstrukt part Effektivität and armor
+   * materials give it Stabilität, but the finished item is a Konstrukt either way.
+   */
   itemType: 'weapon' | 'armor' = 'weapon';
+  /** Forge a Konstrukt instead of a plain weapon/Rüstung — an item with Anschlüssen. */
+  producesConstruct = false;
+  /** How many Anschlüsse the Konstrukt gets. Free to set: Komplexität is the real limit, not SP. */
+  socketCount = 2;
   itemName = '';
   schmiedepunkte = 100;
   /** Chosen stat requirement for the item (weapon only — label for min stat). */
@@ -633,7 +642,9 @@ export class ForgingComponent implements OnInit {
     const item = new ItemBlock();
     item.id = `forged_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     item.name = this.itemName.trim();
-    item.itemType = isWeapon ? 'weapon' : 'armor';
+    // The material kind and the produced type are two different things: a Konstrukt is forged from
+    // weapon OR armor materials and stays a Konstrukt either way.
+    item.itemType = this.producesConstruct ? 'construct' : (isWeapon ? 'weapon' : 'armor');
     item.description = this.buildDescription();
     item.primaryEffect = this.allExtraEffects.join(' | ') || undefined;
     item.lost = false;
@@ -680,6 +691,17 @@ export class ForgingComponent implements OnInit {
       if (this.selectedArmorType) {
         item.armorType = this.selectedArmorType.itemBlockType;
       }
+    }
+
+    if (this.producesConstruct) {
+      // Keep whichever stat the materials produced — the roll-up reads both — and record which
+      // material set it came from, so the item editor can show the right one.
+      item.constructMaterialKind = isWeapon ? 'weapon' : 'armor';
+      item.armorType = isWeapon ? 'weapon' : 'extra';
+      item.sockets = Array.from({ length: Math.max(0, this.socketCount) }, (_, i) => ({
+        id: `sock_${i + 1}_${Math.random().toString(36).substring(2, 7)}`,
+        label: `Anschluss ${i + 1}`,
+      }));
     }
 
     if (this.appliedTraits.length > 0) {
@@ -779,6 +801,8 @@ export class ForgingComponent implements OnInit {
 
   private resetSession(): void {
     this.itemName = '';
+    this.producesConstruct = false;
+    this.socketCount = 2;
     this.primarySlot = { entries: [] };
     this.secondarySlot = { entries: [] };
     this.bonusSlot = { entries: [] };

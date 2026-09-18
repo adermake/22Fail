@@ -129,7 +129,17 @@ export function spentForgePoints(
 
 export interface ForgedItemInput {
   name: string;
+  /**
+   * Which MaterialStats to read — NOT what comes out. With `producesConstruct` set, weapon
+   * materials give the part Effektivität and armor materials Stabilität, but either way the
+   * finished item is a Konstrukt. The two used to be the same flag, which is why a Konstrukt could
+   * not be forged at all.
+   */
   isWeapon: boolean;
+  /** Produce a Konstrukt (an item with Anschlüssen) instead of a plain weapon/Rüstung. */
+  producesConstruct?: boolean;
+  /** Konstrukt only: how many Anschlüsse to give it. */
+  socketCount?: number;
   primary: readonly SlotMaterialEntry[];
   secondary: readonly SlotMaterialEntry[];
   bonus: readonly SlotMaterialEntry[];
@@ -162,7 +172,7 @@ export function buildForgedItem(input: ForgedItemInput): ItemBlock {
   const item = new ItemBlock();
   item.id = `forged_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   item.name = input.name;
-  item.itemType = input.isWeapon ? 'weapon' : 'armor';
+  item.itemType = input.producesConstruct ? 'construct' : (input.isWeapon ? 'weapon' : 'armor');
   item.description = input.description ?? '';
   item.primaryEffect = totals.extraEffects.join(' | ') || undefined;
   item.lost = false;
@@ -205,6 +215,15 @@ export function buildForgedItem(input: ForgedItemInput): ItemBlock {
     item.stability = totals.effektivitaet;
     item.armorDebuff = totals.ruestungsmalus || undefined;
     if (input.armorSlot) item.armorType = input.armorSlot;
+  }
+
+  if (input.producesConstruct) {
+    item.constructMaterialKind = input.isWeapon ? 'weapon' : 'armor';
+    item.armorType = input.isWeapon ? 'weapon' : 'extra';
+    item.sockets = Array.from({ length: Math.max(0, input.socketCount ?? 0) }, (_, i) => ({
+      id: `sock_${i + 1}_${Math.random().toString(36).substring(2, 7)}`,
+      label: `Anschluss ${i + 1}`,
+    }));
   }
 
   if (input.traits.length) {

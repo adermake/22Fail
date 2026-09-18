@@ -1,0 +1,143 @@
+<div class="ce-overlay">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="ce-header">
+    <div class="ce-title-wrap">
+      <span class="app-icon i-equipment ce-title-ico"></span>
+      <span class="ce-title">Bauplan</span>
+      <span class="ce-subtitle">{{ working()?.name }}</span>
+    </div>
+
+    <div class="ce-metrics">
+      <div class="ce-metric" [class.ce-bad]="!fits" [class.ce-good]="fits"
+           title="Jeder belegte Anschluss kostet seine Tiefe: an der Wurzel 1, eine Ebene tiefer 2 …">
+        <span class="ce-metric-label">Komplexit&#xE4;t</span>
+        <span class="ce-metric-value">{{ complexity }}</span>
+        <span class="ce-metric-of">/ {{ fokusFree }} Fokus</span>
+      </div>
+      @if (stability > 0) {
+        <div class="ce-metric">
+          <span class="app-icon i-stability"></span>
+          <span class="ce-metric-value">{{ stability }}</span>
+        </div>
+      }
+      <div class="ce-metric">
+        <span class="ce-metric-label">Teile</span>
+        <span class="ce-metric-value">{{ partCount }}</span>
+      </div>
+      <div class="ce-metric">
+        <span class="ce-metric-label">Gewicht</span>
+        <span class="ce-metric-value">{{ weight }}</span>
+      </div>
+    </div>
+
+    <div class="ce-actions">
+      <button class="ce-btn ce-btn-ghost" (click)="close()">Abbrechen</button>
+      <button class="ce-btn ce-btn-primary" (click)="confirm()">&#xDC;bernehmen</button>
+    </div>
+  </div>
+
+  @if (!fits) {
+    <div class="ce-warn">
+      Nicht genug Fokus: {{ overBy }} zu viel. Das Konstrukt l&#xE4;sst sich tragen, aber nicht
+      benutzen &mdash; es gibt weder Werte noch F&#xE4;higkeiten, bis Anschl&#xFC;sse frei werden
+      oder der Fokus steigt.
+    </div>
+  }
+  @if (message()) {
+    <div class="ce-warn ce-warn-soft">{{ message() }}</div>
+  }
+
+  <div class="ce-layout">
+
+    <!-- ── Rail: loose Konstrukte ───────────────────────────────────────── -->
+    <div class="ce-rail">
+      <div class="ce-rail-head">
+        <span class="ce-rail-title">Inventar</span>
+        <span class="ce-rail-count">{{ workingPool().length }}</span>
+      </div>
+
+      @if (!workingPool().length) {
+        <div class="ce-rail-empty">Keine losen Konstrukte.</div>
+      }
+
+      <div class="ce-rail-list">
+        @for (item of workingPool(); track item.id ?? item.name) {
+          <div class="ce-rail-item" [class.ce-picked]="picked() === item"
+               draggable="true" (dragstart)="onDragStart(item)" (click)="pick(item)"
+               [title]="item.description || item.name">
+            <div class="ce-rail-name">{{ item.name }}</div>
+            <div class="ce-rail-meta">
+              @if (nodeStat(item); as st) {
+                <span class="ce-chip"><span class="app-icon" [class]="st.icon"></span>{{ st.value }}</span>
+              }
+              @if (item.sockets?.length) {
+                <span class="ce-chip">{{ item.sockets?.length }} Anschl.</span>
+              }
+              @if (item.broken) { <span class="ce-chip ce-chip-bad">Defekt</span> }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="ce-rail-hint">
+        Teil anklicken oder ziehen, dann auf einen freien Anschluss setzen.
+      </div>
+    </div>
+
+    <!-- ── Canvas ───────────────────────────────────────────────────────── -->
+    <div class="ce-canvas-wrap">
+      <div class="ce-canvas" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
+
+        <svg class="ce-wires" [attr.width]="canvasWidth" [attr.height]="canvasHeight"
+             xmlns="http://www.w3.org/2000/svg">
+          @for (edge of edges; track $index) {
+            <path class="ce-wire" [attr.d]="edge.d" />
+            <circle class="ce-wire-badge-bg" [attr.cx]="edge.midX" [attr.cy]="edge.midY" r="11" />
+            <text class="ce-wire-badge" [attr.x]="edge.midX" [attr.y]="edge.midY + 4"
+                  text-anchor="middle">+{{ edge.cost }}</text>
+          }
+        </svg>
+
+        @for (node of nodes; track node.item.id ?? node.item.name) {
+          <div class="ce-node" [class.ce-node-root]="node.depth === 0"
+               [class.ce-node-broken]="node.item.broken"
+               [style.left.px]="node.x" [style.top.px]="node.y">
+            <div class="ce-node-head">
+              <span class="ce-node-name">{{ node.item.name }}</span>
+              @if (node.depth > 0) {
+                <button class="ce-detach" (click)="detach(node)"
+                        [title]="'Abnehmen — ' + subtreeSize(node) + ' Teil(e) gehen zurück ins Inventar'">
+                  &#x2715;
+                </button>
+              }
+            </div>
+            <div class="ce-node-meta">
+              @if (nodeStat(node.item); as st) {
+                <span class="ce-chip"><span class="app-icon" [class]="st.icon"></span>{{ st.value }}</span>
+              }
+              @if (node.item.broken) { <span class="ce-chip ce-chip-bad">Defekt</span> }
+              @if (freeSocketCount(node) > 0) {
+                <span class="ce-chip ce-chip-free">{{ freeSocketCount(node) }} frei</span>
+              }
+            </div>
+          </div>
+
+          <!-- Anschlüsse, drawn as diamonds on the node's lower edge -->
+          @for (port of node.sockets; track port.socket.id) {
+            <div class="ce-socket"
+                 [class.ce-socket-used]="!!port.socket.child"
+                 [class.ce-socket-target]="!port.socket.child && !!picked()"
+                 [style.left.px]="port.cx"
+                 [style.top.px]="port.cy"
+                 [title]="port.socket.label || ('Anschluss ' + (port.index + 1))"
+                 (click)="attachTo(node, port.socket)"
+                 (dragover)="$event.preventDefault()"
+                 (drop)="$event.preventDefault(); attachTo(node, port.socket)">
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+</div>

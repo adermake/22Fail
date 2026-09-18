@@ -2,7 +2,7 @@ import {
   MAX_CONSTRUCT_DEPTH, attachChild, constructArmorDebuff, constructComplexity, constructContents,
   constructDepth, constructRequirements, constructSkills, constructSpells, constructStability,
   constructValue, constructWeapons, constructWeight, detachChild, findConstructNode,
-  flattenConstruct, isConstruct, usedSockets,
+  flattenConstruct, isConstruct, resolveActiveConstructs, usedSockets,
 } from './construct.util';
 import { ConstructSocket, ItemBlock } from '../model/item-block.model';
 
@@ -365,6 +365,50 @@ describe('Konstrukte', () => {
       expect(flattenConstruct(rebuilt).map(n => n.item.name))
         .toEqual(flattenConstruct(original).map(n => n.item.name));
       expect(constructComplexity(rebuilt)).toBe(4);
+    });
+  });
+
+  describe('Fokus-Budget', () => {
+    /** A Konstrukt costing exactly `cost` Komplexität, as a flat fan of sockets. */
+    function costing(name: string, cost: number): ItemBlock {
+      return part(name, {
+        sockets: Array.from({ length: cost }, (_, i) => socket(`s${i}`, part(`${name}_${i}`))),
+      });
+    }
+
+    it('runs everything that fits', () => {
+      const a = costing('A', 2), b = costing('B', 3);
+      expect(resolveActiveConstructs([a, b], 5)).toEqual(new Set([a, b]));
+    });
+
+    it('serves in order and skips what no longer fits', () => {
+      const a = costing('A', 4), b = costing('B', 2);
+      const active = resolveActiveConstructs([a, b], 5);
+      expect(active.has(a)).toBe(true);
+      expect(active.has(b)).toBe(false);
+    });
+
+    it('lets the owner choose by reordering — the same pair, the other way round', () => {
+      const a = costing('A', 4), b = costing('B', 2);
+      const active = resolveActiveConstructs([b, a], 5);
+      expect(active.has(b)).toBe(true);
+      expect(active.has(a)).toBe(false);
+    });
+
+    it('keeps serving smaller machines after skipping one that does not fit', () => {
+      const big = costing('Gross', 9), small = costing('Klein', 1);
+      const active = resolveActiveConstructs([big, small], 5);
+      expect(active.has(big)).toBe(false);
+      expect(active.has(small)).toBe(true);
+    });
+
+    it('always runs unassembled Konstrukte, even at zero Fokus', () => {
+      const bare = part('Kernkörper', { sockets: [socket('c1')] });
+      expect(resolveActiveConstructs([bare], 0)).toEqual(new Set([bare]));
+    });
+
+    it('runs nothing that costs anything at zero Fokus', () => {
+      expect(resolveActiveConstructs([costing('A', 1)], 0).size).toBe(0);
     });
   });
 

@@ -18,6 +18,7 @@ import { stackAmount } from '../utils/item-stack.util';
 import { roundTo } from '../utils/round.util';
 import {
   ConstructWeapon, constructComplexity, constructWeapons, flattenConstruct, isConstruct,
+  resolveActiveConstructs,
 } from '../utils/construct.util';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
@@ -271,18 +272,8 @@ export class TrueStatsService {
    * character who cannot sustain everything decides what runs by putting it first.
    */
   private activeConstructs(sheet: CharacterSheet): Set<ItemBlock> {
-    const active = new Set<ItemBlock>();
     const free = this.calculateFokusMax(sheet) - this.sustainedFokus(sheet);
-    let spent = 0;
-    for (const root of this.equippedConstructs(sheet)) {
-      const cost = constructComplexity(root);
-      // An unassembled Konstrukt costs nothing, so it always runs — even at zero free Fokus.
-      if (cost === 0) { active.add(root); continue; }
-      if (spent + cost > free) continue;
-      spent += cost;
-      active.add(root);
-    }
-    return active;
+    return resolveActiveConstructs(this.equippedConstructs(sheet), free);
   }
 
   /**

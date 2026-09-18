@@ -33,7 +33,8 @@ import { SpellcastWindowComponent } from '../../sheet/spellcast-window/spellcast
 import { createEmptySheet } from '../../model/character-sheet-model';
 import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
 import { ItemBlock } from '../../model/item-block.model';
-import { isWieldedWeapon } from '../../utils/equip-slot.utils';
+import { isItemEquipped, isWieldedWeapon } from '../../utils/equip-slot.utils';
+import { constructWeapons, isConstruct, rawStatResolver } from '../../utils/construct.util';
 import { applyStability } from '../../utils/stability.util';
 import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -1827,9 +1828,31 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return this.character?.equipment ?? this.npc?.equipment ?? [];
   }
 
-  /** Every wielded (non-stowed) weapon, in slot order — the weapon slot stacks. */
+  /**
+   * Every wielded (non-stowed) weapon, in slot order — the weapon slot stacks.
+   *
+   * A Konstrukt contributes one entry per cutting part rather than one for the machine: a frame
+   * with two blade-arms and a saw fights as three weapons, each pickable on its own.
+   */
   get wieldedWeapons(): ItemBlock[] {
-    return this.equipment.filter(i => isWieldedWeapon(i) && i.efficiency !== undefined);
+    // The NPC stub carries the same equipment objects, so Begleiter go through the identical
+    // Konstrukt rules as players — including the Fokus budget.
+    const sheet = this.diceSheet;
+    const out: ItemBlock[] = [];
+    for (const item of this.equipment) {
+      if (isConstruct(item)) {
+        if (!isItemEquipped(item)) continue;
+        if (sheet && !this.trueStats.isConstructActive(sheet, item)) continue;
+        for (const w of constructWeapons(item, (part, prop) => sheet
+          ? this.trueStats.resolveItemStat(sheet, part, prop)
+          : rawStatResolver(part, prop))) {
+          out.push(w.item);
+        }
+        continue;
+      }
+      if (isWieldedWeapon(item) && item.efficiency !== undefined) out.push(item);
+    }
+    return out;
   }
 
   /** Which wielded weapon the effectivity refers to: an index, or 'both' to add them up. */
@@ -1850,9 +1873,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
    * draw item modifiers from, so its gear reports its forged value.
    */
   itemEffectivity(item: ItemBlock): number {
-    return this.character
-      ? this.trueStats.resolveEfficiency(this.character, item)
-      : (item.efficiency ?? 0);
+    const sheet = this.diceSheet;
+    return sheet ? this.trueStats.resolveEfficiency(sheet, item) : (item.efficiency ?? 0);
   }
 
   /** Effectivity of the chosen weapon — or the sum of all of them when 'both' is picked. */
@@ -1933,8 +1955,17 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     // Include spells for the spellcast window + spell effectActive while cast.
     sheet.spells = npc.spells ?? [];
     sheet.castingSpells = this.token?.castingSpells ?? [];
-    sheet.fokusBonus = 0;
+    // Worn gear, by reference: item identity has to match `npc.equipment` or the Konstrukt budget
+    // cannot recognise the same machine twice. Without this the stub had no equipment at all, so
+    // `useArmorStabilitaet` had nothing to read and a Begleiter's Konstrukt did nothing.
+    sheet.equipment = npc.equipment ?? [];
+    sheet.inventory = npc.inventory ?? [];
     sheet.fokusMultiplier = 1;
+    // A statblock states its Fokus outright; the sheet derives it from Intelligenz. Bridge the two
+    // so Konstrukte on a Begleiter are measured against the Fokus the GM actually gave it.
+    sheet.fokusBonus = npc.fokusOverride
+      ? (npc.fokus ?? 0) - (Math.floor((npc.intelligence ?? 0) / 2) + 5)
+      : 0;
     sheet.statuses = this.npcStatuses();
     return sheet;
   }

@@ -45,6 +45,8 @@ export class ItemComponent implements OnChanges {
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
+  /** Konstrukte only: open the Bauplan (assembly view). */
+  @Output() openBauplan = new EventEmitter<void>();
   /** Copy this item; the host inserts the copy and opens its editor. */
   @Output() duplicate = new EventEmitter<void>();
   /** Verbrauchsgegenstand used up: runs its action and moves it into the Verbraucht queue. */
@@ -196,6 +198,12 @@ export class ItemComponent implements OnChanges {
   openEditorFromMenu() {
     this.closeActionMenu();
     this.openEditor.emit();
+  }
+
+  /** Konstrukte only: open the assembly view instead of the plain item editor. */
+  openBauplanFromMenu() {
+    this.closeActionMenu();
+    this.openBauplan.emit();
   }
 
   /** Anything with effects to spend: potion, Verbrauchsgegenstand or a scripted item. */

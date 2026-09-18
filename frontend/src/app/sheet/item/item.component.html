@@ -52,6 +52,11 @@
               <span class="app-icon i-ability"></span> {{ trig }}
             </button>
           }
+          @if (item.itemType === 'construct') {
+            <button class="iam-btn" (click)="openBauplanFromMenu()">
+              <span class="app-icon i-equipment"></span> Bauplan
+            </button>
+          }
           <button class="iam-btn" (click)="openEditorFromMenu()">
             <span class="app-icon i-draw"></span> Bearbeiten
           </button>

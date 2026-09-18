@@ -397,6 +397,31 @@ export function detachChild(root: ItemBlock, parentItemId: string, socketId: str
 }
 
 /**
+ * Which of a set of equipped Konstrukte actually run, resolved in order: first come, first served.
+ *
+ * Shared by players and Begleiter so a summon with a machine strapped to it obeys exactly the rule
+ * its summoner does. Order is the owner's lever — equipment reorders by drag, so whoever cannot
+ * sustain everything decides what runs by putting it first.
+ *
+ * An unassembled Konstrukt costs nothing and therefore always runs, even at zero free Fokus.
+ */
+export function resolveActiveConstructs(
+  roots: readonly ItemBlock[],
+  freeFokus: number,
+): Set<ItemBlock> {
+  const active = new Set<ItemBlock>();
+  let spent = 0;
+  for (const root of roots) {
+    const cost = constructComplexity(root);
+    if (cost === 0) { active.add(root); continue; }
+    if (spent + cost > freeFokus) continue;
+    spent += cost;
+    active.add(root);
+  }
+  return active;
+}
+
+/**
  * Every part inside a machine, root excluded — what deleting it would silently take along.
  *
  * The inventory's delete has no confirm and the Recycle-Bin shows one line per entry, so without

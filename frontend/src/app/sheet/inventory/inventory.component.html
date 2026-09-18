@@ -88,6 +88,7 @@
               (delete)="deleteItem(i)"
               (editingChange)="onEditingChange(i, $event)"
               (openEditor)="openItemEditor(i)"
+              (openBauplan)="openBauplan(i)"
               (duplicate)="duplicateItem(i)"
               (consume)="consumeItem(i)"
               (runTrigger)="runItemTrigger(i, $event)"
@@ -156,6 +157,7 @@
           (delete)="deleteItem(exp.activeIdx)"
           (editingChange)="onEditingChange(exp.activeIdx, $event)"
           (openEditor)="openItemEditor(exp.activeIdx)"
+          (openBauplan)="openBauplan(exp.activeIdx)"
           (duplicate)="duplicateItem(exp.activeIdx)"
           (consume)="consumeItem(exp.activeIdx)"
           (runTrigger)="runItemTrigger(exp.activeIdx, $event)"
@@ -283,5 +285,16 @@
       (save)="saveItemFromEditor($event)"
       (cancel)="closeItemEditor()"
     ></app-item-editor>
+  }
+
+  <!-- Bauplan (Konstrukt-Montage) -->
+  @if (showBauplan && bauplanRoot) {
+    <app-construct-editor
+      [root]="bauplanRoot"
+      [pool]="bauplanPool"
+      [fokusFree]="bauplanFokusFree"
+      (save)="saveBauplan($event)"
+      (cancel)="closeBauplan()"
+    ></app-construct-editor>
   }
 </app-card>

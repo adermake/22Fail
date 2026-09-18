@@ -17,6 +17,7 @@ import { SpellBlock } from '../../model/spell-block-model';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
+import { constructComplexity, flattenConstruct } from '../../utils/construct.util';
 
 @Component({
   selector: 'app-item-editor',
@@ -259,7 +260,48 @@ export class ItemEditorComponent implements OnInit {
     } else if (type === 'armor') {
       if (this.editItem.stability === undefined) this.editItem.stability = 10;
       if (this.editItem.armorDebuff === undefined) this.editItem.armorDebuff = 0;
+    } else if (type === 'construct') {
+      if (!this.editItem.sockets) this.setSocketCount(2);
+      if (!this.editItem.armorType) this.editItem.armorType = 'extra';
+      if (!this.editItem.constructMaterialKind) this.editItem.constructMaterialKind = 'armor';
     }
+  }
+
+  // === Konstrukt ===
+
+  get socketCount(): number {
+    return this.editItem.sockets?.length ?? 0;
+  }
+
+  /**
+   * Grow or shrink the Anschluss list.
+   *
+   * Only ever removes EMPTY sockets, back to front: shrinking the list must not silently swallow a
+   * part that is bolted into it. Anything still occupied stays, so the count can end up higher than
+   * asked for — take the part off in the Bauplan first.
+   */
+  setSocketCount(next: number): void {
+    const target = Math.max(0, Math.min(12, Math.floor(Number(next) || 0)));
+    const sockets = [...(this.editItem.sockets ?? [])];
+
+    while (sockets.length < target) {
+      sockets.push({
+        id: `sock_${sockets.length + 1}_${Math.random().toString(36).substring(2, 7)}`,
+        label: `Anschluss ${sockets.length + 1}`,
+      });
+    }
+    for (let i = sockets.length - 1; i >= 0 && sockets.length > target; i--) {
+      if (!sockets[i].child) sockets.splice(i, 1);
+    }
+    this.editItem.sockets = sockets;
+  }
+
+  get attachedPartCount(): number {
+    return Math.max(0, flattenConstruct(this.editItem).length - 1);
+  }
+
+  get constructComplexity(): number {
+    return constructComplexity(this.editItem);
   }
 
   // === Durability Methods ===
