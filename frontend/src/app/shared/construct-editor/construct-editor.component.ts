@@ -31,22 +31,33 @@ interface Layout {
   height: number;
 }
 
-/** A node being dragged, and what it takes to work out where it should land. */
+/**
+ * A node being dragged.
+ *
+ * Attached and staged parts move in different coordinate spaces — an offset from auto-layout versus
+ * an absolute canvas position — so the drag records where it started and how far left/up it may go,
+ * and writes the result into whichever pair of fields applies.
+ */
 interface NodeDrag {
   item: ItemBlock;
+  staged: boolean;
   /** Pointer position when the drag started. */
   startPX: number;
   startPY: number;
-  /** The node's own nudge at that moment. */
-  startDX: number;
-  startDY: number;
-  /** Auto-layout baseline, so the node can be kept on the canvas. */
-  autoX: number;
-  autoY: number;
-  /** Ancestors' accumulated nudge — this node's own offset is relative to that. */
-  inheritedX: number;
-  inheritedY: number;
+  /** The value being moved, as it was at mousedown. */
+  startX: number;
+  startY: number;
+  /** Clamp floor in that same space, so nothing lands off the top-left and out of reach. */
+  minX: number;
+  minY: number;
   moved: boolean;
+}
+
+/** An unattached part lying on the canvas, waiting to be wired up. */
+interface StagedNode {
+  item: ItemBlock;
+  x: number;
+  y: number;
 }
 
 /** How far the pointer must travel before a click becomes a drag. */
@@ -105,7 +116,20 @@ export class ConstructEditorComponent implements OnChanges {
   @Output() cancel = new EventEmitter<void>();
 
   working = signal<ItemBlock | null>(null);
+  /** Loose parts still on the shelf. Parts lying on the canvas live in `staged` instead. */
   workingPool = signal<ItemBlock[]>([]);
+  /** Loose parts dropped on the canvas: on the workbench, connected to nothing yet. */
+  staged = signal<ItemBlock[]>([]);
+  /**
+   * Bumped whenever a node is moved in place.
+   *
+   * Layout positions are mutated ON the item rather than by rebuilding the tree, so there is no new
+   * root reference to publish. Copying the root instead (`working.set({...root})`) looked like it
+   * worked, because children are shared through the copied `sockets` array and kept receiving
+   * mutations — but the ROOT object was replaced, leaving the in-flight drag writing to an orphan.
+   * That is why the root node used to move exactly one frame and then stick.
+   */
+  revision = signal(0);
   /** Part picked up in the rail — click-to-pick works alongside dragging. */
   picked = signal<ItemBlock | null>(null);
   /** Anschluss armed on the canvas, waiting for a part: the wire-first direction. */
@@ -130,10 +154,17 @@ export class ConstructEditorComponent implements OnChanges {
     this.seededFrom = this.root;
     // Deep copy: everything here is provisional until the player saves.
     this.working.set(this.root ? structuredClone(this.root) : null);
-    this.workingPool.set((this.pool ?? []).filter(i => isConstruct(i)).map(i => structuredClone(i)));
+
+    // A loose part that carries canvas coordinates was left on the workbench last time; everything
+    // else belongs on the shelf.
+    const loose = (this.pool ?? []).filter(i => isConstruct(i)).map(i => structuredClone(i));
+    this.staged.set(loose.filter(i => i.bauplanX !== undefined || i.bauplanY !== undefined));
+    this.workingPool.set(loose.filter(i => i.bauplanX === undefined && i.bauplanY === undefined));
+
     this.picked.set(null);
     this.armedSocket.set(null);
     this.message.set('');
+    this.revision.set(0);
   }
 
   // ── Live numbers ────────────────────────────────────────────────────────────
@@ -171,15 +202,30 @@ export class ConstructEditorComponent implements OnChanges {
   get canvasWidth(): number { return this.laidOut().width; }
   get canvasHeight(): number { return this.laidOut().height; }
 
-  private layoutCache: { key: ItemBlock | null; value: Layout } | null = null;
+  private layoutCache: { key: ItemBlock | null; rev: number; value: Layout } | null = null;
 
-  /** Cached on the root's identity — every edit replaces the root, so the key is free. */
+  /**
+   * Cached on the root's identity AND the revision counter: structural edits replace the root,
+   * moves bump the revision. Reading `revision()` here is also what registers the dependency that
+   * repaints the canvas mid-drag.
+   */
   private laidOut(): Layout {
     const root = this.working();
-    if (this.layoutCache?.key === root) return this.layoutCache.value;
+    const rev = this.revision();
+    if (this.layoutCache?.key === root && this.layoutCache.rev === rev) return this.layoutCache.value;
     const value = this.computeLayout(root);
-    this.layoutCache = { key: root, value };
+    this.layoutCache = { key: root, rev, value };
     return value;
+  }
+
+  /** Unattached parts on the workbench, laid out where they were dropped. */
+  get stagedNodes(): StagedNode[] {
+    this.revision();
+    return this.staged().map((item, i) => ({
+      item,
+      x: item.bauplanX ?? PAD + i * (NODE_W + H_GAP),
+      y: item.bauplanY ?? PAD,
+    }));
   }
 
   /**
@@ -253,11 +299,15 @@ export class ConstructEditorComponent implements OnChanges {
       });
     }
 
-    // Grow the canvas around wherever the parts ended up, so dragged nodes stay reachable.
+    // Grow the canvas around wherever the parts ended up — attached or merely parked — so nothing
+    // that was dragged out to the side becomes unreachable.
+    const staged = this.staged();
     const width = Math.max(spanOf(root) + PAD * 2,
-      ...nodes.map(n => n.x + NODE_W + PAD));
+      ...nodes.map(n => n.x + NODE_W + PAD),
+      ...staged.map(i => (i.bauplanX ?? 0) + NODE_W + PAD));
     const height = Math.max(PAD * 2 + NODE_H,
-      ...nodes.map(n => n.y + NODE_H + PAD));
+      ...nodes.map(n => n.y + NODE_H + PAD),
+      ...staged.map(i => (i.bauplanY ?? 0) + NODE_H + PAD));
     return { nodes, edges, width, height };
   }
 
@@ -324,19 +374,78 @@ export class ConstructEditorComponent implements OnChanges {
   private attachByIds(nodeId: string, socketId: string, part: ItemBlock): void {
     const root = this.working();
     if (!root) return;
-    const { root: next, refused } = attachChild(root, nodeId, socketId, part);
+    // An attached part takes its place from the tree, so its workbench coordinates go.
+    const placed: ItemBlock = { ...part };
+    delete placed.bauplanX;
+    delete placed.bauplanY;
+
+    const { root: next, refused } = attachChild(root, nodeId, socketId, placed);
     if (refused) {
       this.message.set(REFUSAL_TEXT[refused]);
       return;
     }
     this.working.set(next);
     this.workingPool.set(this.workingPool().filter(i => i !== part));
+    this.staged.set(this.staged().filter(i => i !== part));
     this.picked.set(null);
     this.armedSocket.set(null);
     this.message.set('');
   }
 
-  /** Clicking empty canvas drops whatever is in hand. */
+  // ── The workbench: parts on the canvas, connected to nothing ────────────────
+
+  /** Park a part on the canvas at a point. It is still loose — just no longer on the shelf. */
+  private stageAt(part: ItemBlock, x: number, y: number): void {
+    part.bauplanX = Math.max(8, x - NODE_W / 2);
+    part.bauplanY = Math.max(8, y - NODE_H / 2);
+    if (!this.staged().includes(part)) this.staged.set([...this.staged(), part]);
+    this.workingPool.set(this.workingPool().filter(i => i !== part));
+    this.picked.set(null);
+    this.touchWorking();
+  }
+
+  /** Click on a parked part: completes an armed wire, or picks it up to place elsewhere. */
+  stagedClick(staged: StagedNode): void {
+    if (this.suppressClick) { this.suppressClick = false; return; }
+    const armed = this.armedSocket();
+    if (armed) {
+      this.attachByIds(armed.nodeId, armed.socketId, staged.item);
+      return;
+    }
+    this.picked.set(this.picked() === staged.item ? null : staged.item);
+    this.message.set('');
+  }
+
+  /** Send a parked part back to the shelf. */
+  unstage(staged: StagedNode): void {
+    delete staged.item.bauplanX;
+    delete staged.item.bauplanY;
+    this.staged.set(this.staged().filter(i => i !== staged.item));
+    this.workingPool.set([...this.workingPool(), staged.item]);
+    if (this.picked() === staged.item) this.picked.set(null);
+    this.touchWorking();
+  }
+
+  /** Empty canvas: park what is in hand there, or clear the selection. */
+  onCanvasClick(event: MouseEvent): void {
+    if (this.suppressClick) { this.suppressClick = false; return; }
+    const part = this.picked();
+    if (part) {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      this.stageAt(part, event.clientX - rect.left, event.clientY - rect.top);
+      return;
+    }
+    this.clearSelection();
+  }
+
+  onCanvasDrop(event: MouseEvent): void {
+    event.preventDefault();
+    const part = this.picked();
+    if (!part) return;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.stageAt(part, event.clientX - rect.left, event.clientY - rect.top);
+  }
+
   clearSelection(): void {
     this.picked.set(null);
     this.armedSocket.set(null);
@@ -353,12 +462,15 @@ export class ConstructEditorComponent implements OnChanges {
       if (!drag.moved && movedBy < DRAG_THRESHOLD) return;
       drag.moved = true;
 
-      // The node's own nudge sits on top of its ancestors', so the pointer delta applies to it
-      // directly. Clamped so nothing can be dragged off the top-left and become unreachable.
-      const wantDX = drag.startDX + (px - drag.startPX);
-      const wantDY = drag.startDY + (py - drag.startPY);
-      drag.item.bauplanDX = Math.max(8 - drag.autoX - drag.inheritedX, wantDX);
-      drag.item.bauplanDY = Math.max(8 - drag.autoY - drag.inheritedY, wantDY);
+      const x = Math.max(drag.minX, drag.startX + (px - drag.startPX));
+      const y = Math.max(drag.minY, drag.startY + (py - drag.startPY));
+      if (drag.staged) {
+        drag.item.bauplanX = x;
+        drag.item.bauplanY = y;
+      } else {
+        drag.item.bauplanDX = x;
+        drag.item.bauplanDY = y;
+      }
       this.touchWorking();
       return;
     }
@@ -372,23 +484,53 @@ export class ConstructEditorComponent implements OnChanges {
   /** Set for one event loop after a drag, so the trailing click does not also attach something. */
   private suppressClick = false;
 
+  private canvasRect(event: MouseEvent): DOMRect | null {
+    const canvas = (event.currentTarget as HTMLElement).closest('.ce-canvas');
+    return canvas ? canvas.getBoundingClientRect() : null;
+  }
+
+  /** Move an attached node: what travels is its offset from the tidy-tree position. */
   startNodeDrag(node: LaidOutNode, event: MouseEvent): void {
     if (event.button !== 0) return;
     event.stopPropagation();
-    const canvas = (event.currentTarget as HTMLElement).closest('.ce-canvas');
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    // Stops the browser starting a text/image drag out of the node's own label, which otherwise
+    // swallows the mousemove stream and leaves the node stuck where it started.
+    event.preventDefault();
+    const rect = this.canvasRect(event);
+    if (!rect) return;
+
+    // What the node inherits from above: its final position minus its own contribution.
+    const inheritedX = node.x - node.autoX - (node.item.bauplanDX ?? 0);
+    const inheritedY = node.y - node.autoY - (node.item.bauplanDY ?? 0);
     this.nodeDrag = {
       item: node.item,
+      staged: false,
       startPX: event.clientX - rect.left,
       startPY: event.clientY - rect.top,
-      startDX: node.item.bauplanDX ?? 0,
-      startDY: node.item.bauplanDY ?? 0,
-      autoX: node.autoX,
-      autoY: node.autoY,
-      // What the node inherits from above: its final position minus its own contribution.
-      inheritedX: node.x - node.autoX - (node.item.bauplanDX ?? 0),
-      inheritedY: node.y - node.autoY - (node.item.bauplanDY ?? 0),
+      startX: node.item.bauplanDX ?? 0,
+      startY: node.item.bauplanDY ?? 0,
+      minX: 8 - node.autoX - inheritedX,
+      minY: 8 - node.autoY - inheritedY,
+      moved: false,
+    };
+  }
+
+  /** Move a parked part: absolute canvas coordinates, with no tree position to offset from. */
+  startStagedDrag(staged: StagedNode, event: MouseEvent): void {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    event.preventDefault();
+    const rect = this.canvasRect(event);
+    if (!rect) return;
+    this.nodeDrag = {
+      item: staged.item,
+      staged: true,
+      startPX: event.clientX - rect.left,
+      startPY: event.clientY - rect.top,
+      startX: staged.x,
+      startY: staged.y,
+      minX: 8,
+      minY: 8,
       moved: false,
     };
   }
@@ -409,10 +551,11 @@ export class ConstructEditorComponent implements OnChanges {
   }
 
   hasManualLayout(): boolean {
+    this.revision();
     return flattenConstruct(this.working()).some(n => n.item.bauplanDX || n.item.bauplanDY);
   }
 
-  /** Drop every nudge and let the tidy tree take over again. */
+  /** Drop every nudge and let the tidy tree take over again. Parked parts keep their spot. */
   resetLayout(): void {
     for (const node of flattenConstruct(this.working())) {
       delete node.item.bauplanDX;
@@ -421,10 +564,14 @@ export class ConstructEditorComponent implements OnChanges {
     this.touchWorking();
   }
 
-  /** Republish the root so the layout cache and the template both see the mutation. */
+  /**
+   * Announce an in-place mutation.
+   *
+   * A counter, NOT a copy of the root: see `revision`. Copying broke dragging the root node, since
+   * the drag then held a reference to the object that had just been replaced.
+   */
   private touchWorking(): void {
-    const root = this.working();
-    if (root) this.working.set({ ...root });
+    this.revision.update(v => v + 1);
   }
 
   /** The wire trailing from an armed Anschluss to the cursor. */
@@ -439,15 +586,25 @@ export class ConstructEditorComponent implements OnChanges {
     return `M ${port.cx} ${port.cy} C ${port.cx} ${midY}, ${p.x} ${midY}, ${p.x} ${p.y}`;
   }
 
-  /** Pull a part (and everything under it) back into the pool. Never blocked. */
+  /**
+   * Pull a part (and everything under it) off the machine. Never blocked.
+   *
+   * It stays on the canvas exactly where it was rather than vanishing back to the shelf — taking
+   * something apart to rearrange it is the common case, and watching it teleport away was jarring.
+   */
   detach(node: LaidOutNode): void {
     const root = this.working();
     if (!root || !node.parentId || !node.socketId) return;
     const { root: next, detached } = detachChild(root, node.parentId, node.socketId);
     if (!detached) return;
     this.working.set(next);
-    this.workingPool.set([...this.workingPool(), detached]);
+    detached.bauplanX = node.x;
+    detached.bauplanY = node.y;
+    delete detached.bauplanDX;
+    delete detached.bauplanDY;
+    this.staged.set([...this.staged(), detached]);
     this.message.set('');
+    this.touchWorking();
   }
 
   /** How many parts come away with this one — shown on the detach button. */
@@ -469,7 +626,8 @@ export class ConstructEditorComponent implements OnChanges {
   confirm(): void {
     const root = this.working();
     if (!root) return;
-    this.save.emit({ root, pool: this.workingPool() });
+    // Both shelf and workbench are still loose inventory items; only their coordinates differ.
+    this.save.emit({ root, pool: [...this.workingPool(), ...this.staged()] });
   }
 
   close(): void { this.cancel.emit(); }

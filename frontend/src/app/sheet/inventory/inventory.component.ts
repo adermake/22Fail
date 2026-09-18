@@ -874,24 +874,26 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
   saveBauplan(result: { root: ItemBlock; pool: ItemBlock[] }) {
     if (this.bauplanIndex === null) { this.closeBauplan(); return; }
 
-    const keptIds = new Set(result.pool.map(i => i.id ?? i.name));
     const inv = [...this.sheet.inventory] as (ItemBlock | null)[];
     inv[this.bauplanIndex] = result.root;
 
-    // Drop the parts that are now inside the machine, keeping every other slot where it is.
+    // The editor hands back COPIES, carrying their Bauplan coordinates. Write those copies into the
+    // inventory rather than keeping the originals in place, or a part parked on the workbench would
+    // come back shelved next time the Bauplan opens.
+    const remaining = new Map(result.pool.map(i => [i.id ?? i.name, i]));
     for (let i = 0; i < inv.length; i++) {
       const entry = inv[i];
       if (i === this.bauplanIndex || !entry || !isConstruct(entry)) continue;
-      if (!keptIds.has(entry.id ?? entry.name)) inv[i] = null;
+      const key = entry.id ?? entry.name;
+      const updated = remaining.get(key);
+      // No longer loose = now bolted into the machine, so its old slot empties.
+      inv[i] = updated ?? null;
+      remaining.delete(key);
     }
-    // …and hand back anything detached that is not already sitting somewhere.
-    const present = new Set(inv.filter((e): e is ItemBlock => !!e).map(e => e.id ?? e.name));
-    for (const part of result.pool) {
-      const key = part.id ?? part.name;
-      if (present.has(key)) continue;
+    // Anything detached during the session needs a slot of its own.
+    for (const part of remaining.values()) {
       const free = inv.indexOf(null);
       if (free >= 0) inv[free] = part; else inv.push(part);
-      present.add(key);
     }
     while (inv.length > 0 && inv[inv.length - 1] === null) inv.pop();
 

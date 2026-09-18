@@ -163,6 +163,15 @@ export class ItemBlock {
    */
   bauplanDX?: number;
   bauplanDY?: number;
+  /**
+   * Bauplan position while the part is UNATTACHED but lying on the canvas — absolute px, unlike
+   * the offsets above, because a part connected to nothing has no auto-layout slot to offset from.
+   *
+   * Their presence is what marks a loose part as staged on the workbench rather than shelved in the
+   * rail, so the arrangement survives closing and reopening the Bauplan. Cleared on attach.
+   */
+  bauplanX?: number;
+  bauplanY?: number;
 
   // Stat modifiers
   statModifiers?: StatModifier[];

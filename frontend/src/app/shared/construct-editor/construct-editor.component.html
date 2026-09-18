@@ -77,8 +77,8 @@
               @if (nodeStat(item); as st) {
                 <span class="ce-chip"><span class="app-icon" [class]="st.icon"></span>{{ st.value }}</span>
               }
-              @if (item.sockets?.length) {
-                <span class="ce-chip">{{ item.sockets?.length }} Anschl.</span>
+              @if (item.sockets; as socks) {
+                @if (socks.length) { <span class="ce-chip">{{ socks.length }} Anschl.</span> }
               }
               @if (item.broken) { <span class="ce-chip ce-chip-bad">Defekt</span> }
             </div>
@@ -92,8 +92,9 @@
         } @else if (picked()) {
           Teil in der Hand &mdash; auf einen Knoten oder eine freie Raute klicken.
         } @else {
-          Teil anklicken oder ziehen &mdash; oder ein Kabel aus einer freien Raute ziehen.
-          Knoten lassen sich frei verschieben; Teile darunter kommen mit.
+          Teil anklicken oder ziehen: auf einen Knoten zum Anschlie&#xDF;en, auf freie Fl&#xE4;che
+          zum Ablegen. Kabel ziehst du aus einer freien Raute. Knoten lassen sich frei
+          verschieben &mdash; Teile darunter kommen mit.
         }
       </div>
     </div>
@@ -103,7 +104,8 @@
       <div class="ce-canvas" [class.ce-dragging]="isDraggingNode"
            [style.width.px]="canvasWidth" [style.height.px]="canvasHeight"
            (mousemove)="onCanvasMove($event)" (mouseup)="endNodeDrag()"
-           (mouseleave)="endNodeDrag()" (click)="clearSelection()">
+           (mouseleave)="endNodeDrag()" (click)="onCanvasClick($event)"
+           (dragover)="$event.preventDefault()" (drop)="onCanvasDrop($event)">
 
         <svg class="ce-wires" [attr.width]="canvasWidth" [attr.height]="canvasHeight"
              xmlns="http://www.w3.org/2000/svg">
@@ -170,6 +172,38 @@
                     [class.ce-socket-armed]="isArmed(node, port.socket)"></span>
             </div>
           }
+        }
+
+        <!-- Parked parts: on the workbench, connected to nothing yet -->
+        @for (staged of stagedNodes; track staged.item.id ?? staged.item.name) {
+          <div class="ce-node ce-node-staged"
+               [class.ce-picked-node]="picked() === staged.item"
+               [class.ce-node-target]="!!armedSocket()"
+               [class.ce-node-broken]="staged.item.broken"
+               [style.left.px]="staged.x" [style.top.px]="staged.y"
+               [title]="armedSocket() ? 'Hier anschließen' : staged.item.name"
+               (mousedown)="startStagedDrag(staged, $event)"
+               (click)="$event.stopPropagation(); stagedClick(staged)"
+               (dragover)="$event.preventDefault()"
+               (drop)="$event.preventDefault(); $event.stopPropagation(); stagedClick(staged)">
+            <!-- Where a wire lands, mirroring the Anschluss diamonds on the underside of a node -->
+            <span class="ce-inlet" [class.ce-inlet-live]="!!armedSocket()"></span>
+            <div class="ce-node-head">
+              <span class="ce-node-name">{{ staged.item.name }}</span>
+              <button class="ce-detach" (mousedown)="$event.stopPropagation()"
+                      (click)="$event.stopPropagation(); unstage(staged)"
+                      title="Zur&#xFC;ck ins Regal">&#x21A9;</button>
+            </div>
+            <div class="ce-node-meta">
+              @if (nodeStat(staged.item); as st) {
+                <span class="ce-chip"><span class="app-icon" [class]="st.icon"></span>{{ st.value }}</span>
+              }
+              @if (staged.item.sockets; as socks) {
+                @if (socks.length) { <span class="ce-chip">{{ socks.length }} Anschl.</span> }
+              }
+              @if (staged.item.broken) { <span class="ce-chip ce-chip-bad">Defekt</span> }
+            </div>
+          </div>
         }
       </div>
     </div>

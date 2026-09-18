@@ -181,7 +181,7 @@ describe('Bauplan', () => {
   });
 
   describe('Zerlegen', () => {
-    it('hands a part and its subtree back to the rail', () => {
+    it('leaves a detached part and its subtree parked where it stood', () => {
       c.pick(railItem('Arm'));
       c.dropOnNode(c.nodes[0]);
       const armNode = c.nodes.find(n => n.item.name === 'Arm')!;
@@ -189,10 +189,15 @@ describe('Bauplan', () => {
       c.dropOnNode(armNode);
       expect(c.complexity).toBe(1 + 2);
 
-      c.detach(c.nodes.find(n => n.item.name === 'Arm')!);
+      const where = c.nodes.find(n => n.item.name === 'Arm')!;
+      c.detach(where);
       expect(c.partCount).toBe(0);
-      expect(c.workingPool().map(i => i.name)).toEqual(['Arm']);
-      expect(flattenConstruct(c.workingPool()[0]).map(n => n.item.name)).toEqual(['Arm', 'Saege']);
+      // Parked on the canvas at its old spot, not teleported back to the shelf.
+      expect(c.workingPool().map(i => i.name)).toEqual([]);
+      const parked = c.stagedNodes.find(s => s.item.name === 'Arm')!;
+      expect(parked.x).toBe(where.x);
+      expect(parked.y).toBe(where.y);
+      expect(flattenConstruct(parked.item).map(n => n.item.name)).toEqual(['Arm', 'Saege']);
     });
 
     it('works on a machine far over its Fokus budget', () => {
@@ -202,6 +207,100 @@ describe('Bauplan', () => {
       expect(c.fits).toBe(false);
       c.detach(c.nodes.find(n => n.item.name === 'Arm')!);
       expect(c.partCount).toBe(0);
+    });
+
+    it('can send a parked part back to the shelf', () => {
+      c.pick(railItem('Arm'));
+      c.dropOnNode(c.nodes[0]);
+      c.detach(c.nodes.find(n => n.item.name === 'Arm')!);
+      c.unstage(c.stagedNodes[0]);
+      expect(c.stagedNodes).toEqual([]);
+      expect(c.workingPool().map(i => i.name)).toContain('Arm');
+    });
+  });
+
+  describe('Werkbank', () => {
+    /** A click on the canvas at a point. */
+    function canvasClick(x: number, y: number): MouseEvent {
+      return {
+        clientX: x, clientY: y,
+        currentTarget: { getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+        preventDefault: () => {},
+      } as unknown as MouseEvent;
+    }
+
+    it('parks a part on empty canvas instead of attaching it', () => {
+      c.pick(railItem('Arm'));
+      c.onCanvasClick(canvasClick(400, 300));
+      expect(c.partCount).toBe(0);                      // not bolted on
+      expect(c.workingPool().map(i => i.name)).toEqual(['Saege']);
+      const parked = c.stagedNodes[0];
+      expect(parked.item.name).toBe('Arm');
+      expect(parked.x).toBe(400 - 164 / 2);             // centred on the drop point
+      expect(parked.y).toBe(300 - 74 / 2);
+    });
+
+    it('wires a parked part up from an armed Anschluss', () => {
+      c.pick(railItem('Arm'));
+      c.onCanvasClick(canvasClick(400, 300));
+
+      c.socketClick(c.nodes[0], c.nodes[0].sockets[0].socket);
+      c.stagedClick(c.stagedNodes[0]);
+
+      expect(c.working()!.sockets![0].child!.name).toBe('Arm');
+      expect(c.stagedNodes).toEqual([]);
+      expect(c.complexity).toBe(1);
+    });
+
+    it('drops the workbench coordinates once a part is attached', () => {
+      c.pick(railItem('Arm'));
+      c.onCanvasClick(canvasClick(400, 300));
+      c.socketClick(c.nodes[0], c.nodes[0].sockets[0].socket);
+      c.stagedClick(c.stagedNodes[0]);
+      const attached = c.working()!.sockets![0].child!;
+      expect(attached.bauplanX).toBeUndefined();
+      expect(attached.bauplanY).toBeUndefined();
+    });
+
+    it('picks a parked part back up when nothing is armed', () => {
+      c.pick(railItem('Arm'));
+      c.onCanvasClick(canvasClick(400, 300));
+      c.stagedClick(c.stagedNodes[0]);
+      expect(c.picked()!.name).toBe('Arm');
+    });
+
+    it('keeps parked parts across a change-detection pass', () => {
+      c.pick(railItem('Arm'));
+      c.onCanvasClick(canvasClick(400, 300));
+      changeDetection(c, [arm, saw]);
+      expect(c.stagedNodes.length).toBe(1);
+    });
+
+    it('re-opens parked parts onto the workbench, shelved ones onto the shelf', () => {
+      // A genuine re-open: a fresh session on a machine whose loose parts carry coordinates.
+      const fresh = new ConstructEditorComponent();
+      const parked = { ...part('Geparkt'), bauplanX: 300, bauplanY: 200 } as ItemBlock;
+      open(fresh, part('Kernkoerper', 2), [arm, parked]);
+      expect(fresh.workingPool().map(i => i.name)).toEqual(['Arm']);
+      expect(fresh.stagedNodes.map(s => s.item.name)).toEqual(['Geparkt']);
+      expect(fresh.stagedNodes[0].x).toBe(300);
+    });
+
+    it('grows the canvas to reach a part parked far out', () => {
+      const before = c.canvasWidth;
+      c.pick(railItem('Arm'));
+      c.onCanvasClick(canvasClick(1400, 200));
+      expect(c.canvasWidth).toBeGreaterThan(before);
+    });
+
+    it('sends parked parts back with the leftovers on save', () => {
+      let emitted: { root: ItemBlock; pool: ItemBlock[] } | null = null;
+      c.save.subscribe(e => (emitted = e));
+      c.pick(railItem('Arm'));
+      c.onCanvasClick(canvasClick(400, 300));
+      c.confirm();
+      const back = emitted!.pool.find(i => i.name === 'Arm')!;
+      expect(back.bauplanX).toBe(400 - 164 / 2);
     });
   });
 
@@ -235,7 +334,7 @@ describe('Bauplan', () => {
     function mouse(x: number, y: number): MouseEvent {
       return {
         button: 0, clientX: x, clientY: y,
-        stopPropagation: () => {},
+        stopPropagation: () => {}, preventDefault: () => {},
         currentTarget: { closest: () => ({ getBoundingClientRect: () => ({ left: 0, top: 0 }) }) },
       } as unknown as MouseEvent;
     }
@@ -257,6 +356,23 @@ describe('Bauplan', () => {
     });
 
     function nodeAt(name: string) { return c.nodes.find(n => n.item.name === name)!; }
+
+    it('keeps moving the ROOT across successive mousemoves', () => {
+      // Regression: state used to be published by copying the root (`working.set({...root})`).
+      // Children survived that, because they are shared through the copied sockets array — but the
+      // root object itself was replaced, so the in-flight drag went on writing to an orphan and the
+      // root node moved exactly one frame and then stuck.
+      const root = nodeAt('Kernkoerper');
+      c.startNodeDrag(root, mouse(100, 100));
+      for (const step of [110, 140, 200]) {
+        c.onCanvasMove({
+          clientX: step, clientY: 100,
+          currentTarget: { getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+        } as unknown as MouseEvent);
+      }
+      c.endNodeDrag();
+      expect(nodeAt('Kernkoerper').x).toBe(root.x + 100);
+    });
 
     it('moves a node by the pointer delta', () => {
       const before = nodeAt('Arm');
@@ -310,8 +426,9 @@ describe('Bauplan', () => {
 
     it('does not attach anything on the click that ends a drag', () => {
       // Free the Säge up again so there IS something in hand that a stray click could attach.
+      // Detaching parks it on the canvas, so it is picked back up from there, not from the shelf.
       c.detach(nodeAt('Saege'));
-      c.pick(railItem('Saege'));
+      c.stagedClick(c.stagedNodes.find(s => s.item.name === 'Saege')!);
       expect(c.picked()).toBeTruthy();
 
       c.startNodeDrag(nodeAt('Arm'), mouse(100, 100));
