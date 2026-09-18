@@ -45,8 +45,15 @@ const TEX_H = 768;
 const MAX_HOLES = 20000;
 
 export const FOG_COLOR = '#0b0d14';
-/** Player opacity. Not 1.0: a hint of the coastline underneath keeps the map readable. */
-export const FOG_ALPHA_PLAYER = 0.97;
+/**
+ * Player opacity — fully opaque, and it has to stay that way.
+ *
+ * It was 0.97 on the theory that a hint of the coastline underneath kept the map readable.
+ * That was an invention, and a leak: three percent of a bright parchment map under near-black
+ * fog is plainly legible, so players could make out coastlines and landmasses they had never
+ * explored. Fog that can be seen through is not fog.
+ */
+export const FOG_ALPHA_PLAYER = 1;
 /** GM opacity — enough to see the fog's edge, little enough to work through it. */
 export const FOG_ALPHA_GM = 0.42;
 

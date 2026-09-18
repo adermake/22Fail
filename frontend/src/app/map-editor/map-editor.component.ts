@@ -1187,11 +1187,89 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     event.preventDefault();
     event.stopPropagation();
 
+    const p = this.localPoint(event as unknown as PointerEvent);
+    const cursor = this.renderer.camera.screenToWorld(p.x, p.y);
+
+    /*
+     * Where on the figure it was grabbed.
+     *
+     * Without this the figure jumps so its centre lands under the cursor the moment the drag
+     * starts — grab it by the rim and it leaps. Carrying the offset means it stays exactly
+     * where it was picked up, which is how the lobby and the old world map behave.
+     */
+    this.dragGrabOffset = { x: token.x - cursor.x, y: token.y - cursor.y };
+
     this.selectedTokenId.set(token.id);
     this.dragTokenId.set(token.id);
     this.dragTokenWorld.set({ x: token.x, y: token.y });
     this.dragTokenFrom = clone(token);
     this.closeContextMenu();
+
+    /*
+     * Listened for on the **document**, not the canvas.
+     *
+     * The figures are HTML on their own layer above the map, so as soon as one slides under
+     * the pointer it swallows the move events and the canvas handler stops hearing them. The
+     * figure then only advanced while the cursor happened to be over bare map and jumped
+     * whenever it crossed — which read as snapping to some grid nobody could place. Document
+     * listeners follow the pointer wherever it goes, which is what the old map did too.
+     */
+    this.tokenDragMove = (e: PointerEvent) => this.onTokenDragMove(e);
+    this.tokenDragUp = () => this.endTokenDrag();
+    document.addEventListener('pointermove', this.tokenDragMove);
+    document.addEventListener('pointerup', this.tokenDragUp);
+  }
+
+  private dragGrabOffset = { x: 0, y: 0 };
+  private tokenDragMove?: (e: PointerEvent) => void;
+  private tokenDragUp?: () => void;
+
+  /** Follow the pointer, keeping the grab offset, without snapping until release. */
+  private onTokenDragMove(event: PointerEvent): void {
+    if (!this.dragTokenId()) return;
+
+    const p = this.localPoint(event);
+    const cursor = this.renderer.camera.screenToWorld(p.x, p.y);
+    this.dragTokenWorld.set({
+      x: cursor.x + this.dragGrabOffset.x,
+      y: cursor.y + this.dragGrabOffset.y,
+    });
+    this.viewEpoch.update(n => n + 1);
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Drop the figure on the hex it was let go over.
+   *
+   * Snapping happens here and nowhere else: during the drag it moves freely, so it never
+   * jitters between two hexes while you are still deciding which one you meant.
+   */
+  private endTokenDrag(): void {
+    if (this.tokenDragMove) document.removeEventListener('pointermove', this.tokenDragMove);
+    if (this.tokenDragUp) document.removeEventListener('pointerup', this.tokenDragUp);
+    this.tokenDragMove = undefined;
+    this.tokenDragUp = undefined;
+
+    const dragId = this.dragTokenId();
+    const at = this.dragTokenWorld();
+    const from = this.dragTokenFrom;
+    this.dragTokenId.set(null);
+    this.dragTokenWorld.set(null);
+    this.dragTokenFrom = null;
+    if (!dragId || !at || !from) return;
+
+    const hex = worldToHex(at.x, at.y);
+    const centre = hexToWorld(hex);
+    if (hex.q === from.position.q && hex.r === from.position.r) {
+      this.viewEpoch.update(n => n + 1);
+      return;
+    }
+
+    const patch = { x: centre.x, y: centre.y, position: { q: hex.q, r: hex.r } };
+    this.tokens.update(list => list.map(t => (t.id === dragId ? { ...t, ...patch } : t)));
+    // One op at the end, not one per hex crossed while dragging across the map.
+    this.store.updateObject('tokens', dragId, patch);
+    this.scheduleStream();
   }
 
   onTokenContextMenu(token: MapToken, event: MouseEvent): void {
@@ -2639,6 +2717,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
     this.pingCtl.destroy();
+    // A drag interrupted by navigation would otherwise leave listeners on the document.
+    this.endTokenDrag();
     // Withdraw our ruler, or it stays on everyone else's map with nobody able to clear it.
     this.store.sendMeasure(null);
     if (this.diagTimer) clearInterval(this.diagTimer);
@@ -4262,13 +4342,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.redrawCursor();
       return;
     }
-    if (this.dragTokenId()) {
-      // Follows the cursor freely and only snaps on release, so the figure does not jump
-      // between hexes under the pointer while you are still deciding.
-      this.dragTokenWorld.set({ x: world.x, y: world.y });
-      this.viewEpoch.update(n => n + 1);
-      this.cdr.markForCheck();
-    }
+    // A token drag is not handled here: it runs on document listeners for as long as it
+    // lasts, because the figures are HTML that swallows the canvas's move events.
   }
 
   /** Finish whatever play gesture was in progress. */
@@ -4294,28 +4369,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.fogPainting = false;
       return;
     }
-    const dragId = this.dragTokenId();
-    if (dragId) {
-      const at = this.dragTokenWorld();
-      const from = this.dragTokenFrom;
-      this.dragTokenId.set(null);
-      this.dragTokenWorld.set(null);
-      this.dragTokenFrom = null;
-      if (!at || !from) return;
-
-      const hex = worldToHex(at.x, at.y);
-      const centre = hexToWorld(hex);
-      if (hex.q === from.position.q && hex.r === from.position.r) {
-        this.viewEpoch.update(n => n + 1);
-        return;
-      }
-
-      const patch = { x: centre.x, y: centre.y, position: { q: hex.q, r: hex.r } };
-      this.tokens.update(list => list.map(t => (t.id === dragId ? { ...t, ...patch } : t)));
-      // One op at the end, not one per hex crossed while dragging across the map.
-      this.store.updateObject('tokens', dragId, patch);
-      this.scheduleStream();
-    }
+    // Token drags end through their own document listener, not here.
   }
 
   /** Withdraw this client's ruler line from everyone's map. */
