@@ -85,6 +85,30 @@ export function gameToolsFor(isGM: boolean): GameToolDef[] {
   return isGM ? GAME_TOOL_DEFS : GAME_TOOL_DEFS.filter(t => !t.gmOnly);
 }
 
+/**
+ * How the map is being *looked at*, independent of which tool is in hand.
+ *
+ * This began as a pair of buttons in the game-mode panel, which put it in the wrong place
+ * twice over: it was reachable only from one tool, and it was only about secrets. It is
+ * neither. It answers "whose view am I looking at", which applies while editing as much as
+ * while playing, and it has to cover everything that differs between the two — secrets *and*
+ * fog, or a preview that claims to be the players' view is not one.
+ */
+export type MapViewAs = 'gm' | 'player';
+
+export const VIEW_AS_DEFS: { id: MapViewAs; label: string; title: string }[] = [
+  {
+    id: 'gm',
+    label: 'GM-Sicht',
+    title: 'Alles sichtbar: Geheimnisse markiert, Nebel nur angedeutet',
+  },
+  {
+    id: 'player',
+    label: 'Spielersicht',
+    title: 'Genau das, was am Spielertisch auf dem Schirm steht — mit vollem Nebel',
+  },
+];
+
 /** Pen widths offered as presets, matching the old toolbar. */
 export const PEN_SIZES = [2, 4, 8, 12, 20];
 

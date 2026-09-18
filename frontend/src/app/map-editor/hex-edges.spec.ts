@@ -8,6 +8,7 @@
 
 import {
   HEX_RADIUS,
+  edgeCrossing,
   edgeEndpoints,
   edgeKey,
   edgeMidpoint,
@@ -211,5 +212,68 @@ describe('Durchgänge im Dokument', () => {
 
   it('legt ein leeres Dokument mit der Sammlung an', () => {
     expect(createEmptyMapEditorData('Testwelt').passages).toEqual([]);
+  });
+});
+
+/**
+ * The mark a passage is drawn on.
+ *
+ * It crosses the edge rather than lying along it. Along the boundary the same `o—o` read as a
+ * wall — a line on a border says "here is the border", which is the opposite of "these two
+ * hexes are joined".
+ */
+describe('Durchgang quer zur Kante', () => {
+  it('steht senkrecht auf der Kante', () => {
+    const a = { q: 2, r: 1 };
+    for (const b of hexNeighbors(a)) {
+      const key = edgeKey(a, b);
+      const [e0, e1] = edgeEndpoints(key)!;
+      const [c0, c1] = edgeCrossing(key, 100)!;
+
+      const edge = { x: e1.x - e0.x, y: e1.y - e0.y };
+      const cross = { x: c1.x - c0.x, y: c1.y - c0.y };
+      const dot = edge.x * cross.x + edge.y * cross.y;
+      const norm = Math.hypot(edge.x, edge.y) * Math.hypot(cross.x, cross.y);
+      // Perpendicular in every one of the six directions.
+      expect(Math.abs(dot / norm)).toBeLessThan(1e-9);
+    }
+  });
+
+  it('sitzt mittig auf der Kante', () => {
+    const key = edgeKey({ q: 0, r: 0 }, { q: 1, r: 0 });
+    const mid = edgeMidpoint(key)!;
+    const [c0, c1] = edgeCrossing(key, 120)!;
+    expect((c0.x + c1.x) / 2).toBeCloseTo(mid.x, 6);
+    expect((c0.y + c1.y) / 2).toBeCloseTo(mid.y, 6);
+  });
+
+  it('hat die verlangte Länge', () => {
+    const key = edgeKey({ q: 3, r: -1 }, { q: 3, r: 0 });
+    const [c0, c1] = edgeCrossing(key, 137)!;
+    expect(Math.hypot(c1.x - c0.x, c1.y - c0.y)).toBeCloseTo(137, 6);
+  });
+
+  it('legt je ein Ende in jedes der beiden Hexe', () => {
+    const a = { q: 1, r: 2 };
+    for (const b of hexNeighbors(a)) {
+      const key = edgeKey(a, b);
+      const [c0, c1] = edgeCrossing(key, 120)!;
+      // A knob in each hex is what makes it read as a connection rather than a barrier.
+      const hexes = [worldToHex(c0.x, c0.y), worldToHex(c1.x, c1.y)].map(h => `${h.q},${h.r}`);
+      expect(new Set(hexes).size).toBe(2);
+      expect(hexes.sort()).toEqual([`${a.q},${a.r}`, `${b.q},${b.r}`].sort());
+    }
+  });
+
+  it('zeigt von beiden Seiten in dieselbe Richtung', () => {
+    const a = { q: -2, r: 4 };
+    const b = hexNeighbor(a, 5);
+    // The key is canonical, so the segment cannot flip depending on which side was clicked.
+    expect(edgeCrossing(edgeKey(a, b), 90)).toEqual(edgeCrossing(edgeKey(b, a), 90));
+  });
+
+  it('meldet nichts für eine kaputte Kante', () => {
+    expect(edgeCrossing('kaputt', 100)).toBeNull();
+    expect(edgeCrossing('0,0|9,9', 100)).toBeNull();
   });
 });

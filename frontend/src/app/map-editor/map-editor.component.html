@@ -23,6 +23,22 @@
       <span class="sep"></span>
     }
 
+    @if (isGM()) {
+      <!-- Eine Ansichtseinstellung, kein Werkzeug: sie beantwortet "wessen Sicht sehe ich
+           gerade" und gilt beim Bearbeiten wie im Spiel. -->
+      @for (v of viewAsOptions; track v.id) {
+        <button
+          type="button"
+          [class.active]="viewAs() === v.id"
+          [title]="v.title"
+          (click)="setViewAs(v.id)"
+        >
+          {{ v.label }}
+        </button>
+      }
+      <span class="sep"></span>
+    }
+
     <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">Hexgitter</button>
     <button
       type="button"
@@ -487,34 +503,6 @@
             Klick auf ein verborgenes Objekt deckt sein ganzes Geheimnis auf — sofort und für
             alle Spieler.
           </p>
-        }
-
-        @if (isGM()) {
-          <!-- Zwei verschiedene Fragen im Spiel: "was gibt es hier" und "was sehen die
-               Spieler gerade". Deshalb umschaltbar statt eines Kompromisses. -->
-          <div class="panel-section">
-            <div class="panel-title">Geheimnisse</div>
-            <div class="history-row">
-              <button
-                type="button"
-                [class.active-toggle]="secretView() === 'marked'"
-                (click)="setSecretView('marked')"
-              >
-                Markiert zeigen
-              </button>
-              <button
-                type="button"
-                [class.active-toggle]="secretView() === 'hidden'"
-                (click)="setSecretView('hidden')"
-              >
-                Wie Spieler
-              </button>
-            </div>
-            <p class="hint">
-              Markiert: verborgene Geheimnisse blass und grün gerahmt, aufgedeckte normal.
-              Wie Spieler: genau das, was am Spielertisch auf dem Schirm steht.
-            </p>
-          </div>
         }
 
         <div class="panel-section">

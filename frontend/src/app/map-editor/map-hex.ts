@@ -201,6 +201,42 @@ export function edgeEndpoints(key: string): [Point, Point] | null {
   return [corners[dir], corners[(dir + 1) % 6]];
 }
 
+/**
+ * A segment that *crosses* an edge, centred on it and pointing from the first hex to the
+ * second.
+ *
+ * This is what a passage is drawn on. Along the edge it read as a wall — a line lying on the
+ * boundary says "here is the boundary", which is the opposite of the intent. Across it the
+ * same mark says the two hexes are joined, which is what a pass or a ford is.
+ *
+ * The direction comes from the two hex *centres* rather than a perpendicular computed from
+ * the edge. On a regular hex grid they are the same line, but the centres also fix the sign:
+ * the segment always runs from `a` into `b`, with no separate rule for which way round the
+ * perpendicular should point.
+ */
+export function edgeCrossing(key: string, length: number): [Point, Point] | null {
+  const pair = parseEdgeKey(key);
+  if (!pair) return null;
+
+  const mid = edgeMidpoint(key);
+  if (!mid) return null;
+
+  const ca = hexToWorld(pair.a);
+  const cb = hexToWorld(pair.b);
+  const dx = cb.x - ca.x;
+  const dy = cb.y - ca.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return null;
+
+  const half = length / 2;
+  const ux = (dx / len) * half;
+  const uy = (dy / len) * half;
+  return [
+    { x: mid.x - ux, y: mid.y - uy },
+    { x: mid.x + ux, y: mid.y + uy },
+  ];
+}
+
 /** Midpoint of an edge, used as the passage's position for culling and hit-testing. */
 export function edgeMidpoint(key: string): Point | null {
   const ends = edgeEndpoints(key);

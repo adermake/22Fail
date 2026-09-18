@@ -1,27 +1,43 @@
 /**
  * Passages — a way through a hex edge: a pass, a ford, a gate.
  *
- * Drawn as a line along the boundary with a circle at each end, `o—o`, so it reads as an
- * opening in the line rather than a mark on the ground. The line follows the edge exactly,
- * which is what makes it obvious *which* boundary is meant when three hexes meet.
+ * Drawn as a short `o—o` **across** the boundary, not along it: a circle in each hex joined
+ * by a bar through the edge. Along the edge the same mark read as a wall, which is exactly
+ * backwards — a line lying on a boundary says "here is the boundary", while one crossing it
+ * says the two hexes are connected.
+ *
+ * ## Sized in world units, not screen units
+ *
+ * Everything here is a fixed number of world pixels, so a passage shrinks with the map as you
+ * zoom out. The first version divided by the zoom to keep it constant on screen, which meant
+ * that zoomed out to a continent the passages were the only thing still at full size — a
+ * scatter of bright marks over a map that had faded to nothing. A passage is a feature of the
+ * terrain and should recede with it.
  *
  * Everything lands in one `Graphics`. A map may carry hundreds of these along a mountain
  * range, and a display object each would be hundreds of draw calls for a pile of short
  * segments.
- *
- * Sizes are divided by the zoom so the line and the circles stay the same on screen at any
- * scale. In world units a passage would be a hairline when zoomed out to a continent — which
- * is exactly the view where you want to see where the passes are.
  */
 
 import { Container, Graphics } from 'pixi.js';
 import { MapPassage } from './map-editor.model';
 import { Bounds } from './map-camera';
-import { HEX_RADIUS, edgeEndpoints } from './map-hex';
+import { HEX_RADIUS, edgeCrossing } from './map-hex';
 
 /** Warm ink, readable over both parchment land and open water. */
 const PASSAGE_COLOR = 0x3a2a18;
 const PASSAGE_HALO = 0xf2e6cc;
+
+/**
+ * How far the bar reaches across the boundary, in world pixels.
+ *
+ * A fifth of a hex's width — long enough that both circles sit clearly inside their own hex,
+ * short enough that a row of passes along a mountain range does not turn into a hatched band.
+ */
+const CROSSING_LENGTH = HEX_RADIUS * 0.42;
+const BAR_WIDTH = HEX_RADIUS * 0.035;
+const HALO_WIDTH = BAR_WIDTH * 2.6;
+const KNOB_RADIUS = HEX_RADIUS * 0.062;
 
 export class PassageView {
   readonly container = new Container();
@@ -76,62 +92,78 @@ export class PassageView {
 
   markDirty(): void {
     this.dirty = true;
+    this.drawn = null;
   }
 
   /**
    * Redraw.
    *
-   * Culled by the edge midpoint plus a hex radius, which is more than the half-edge a
-   * passage can extend past it — so nothing pops in at the screen border.
+   * Culled by the edge midpoint plus a hex radius, which is more than the crossing can reach
+   * past it — so nothing pops in at the screen border.
+   *
+   * Independent of zoom, since every size here is in world units. That is also why the
+   * redraw is keyed on a padded view: geometry only changes when a passage is added or
+   * removed, or when the camera leaves what was last drawn.
    */
-  render(bounds: Bounds, zoom: number): void {
-    if (!this.dirty && zoom === this.lastZoom) return;
-    this.dirty = false;
-    this.lastZoom = zoom;
+  render(bounds: Bounds): void {
+    const fits =
+      !this.dirty &&
+      this.drawn !== null &&
+      bounds.minX >= this.drawn.minX &&
+      bounds.minY >= this.drawn.minY &&
+      bounds.maxX <= this.drawn.maxX &&
+      bounds.maxY <= this.drawn.maxY;
+    if (fits) return;
 
-    const px = 1 / Math.max(zoom, 1e-6);
+    this.dirty = false;
+    const padX = (bounds.maxX - bounds.minX) * 0.3;
+    const padY = (bounds.maxY - bounds.minY) * 0.3;
+    const area = {
+      minX: bounds.minX - padX,
+      minY: bounds.minY - padY,
+      maxX: bounds.maxX + padX,
+      maxY: bounds.maxY + padY,
+    };
+    this.drawn = area;
+
     const g = this.graphics;
     g.clear();
 
     for (const passage of this.passages.values()) {
       if (
-        passage.x + HEX_RADIUS < bounds.minX ||
-        passage.x - HEX_RADIUS > bounds.maxX ||
-        passage.y + HEX_RADIUS < bounds.minY ||
-        passage.y - HEX_RADIUS > bounds.maxY
+        passage.x + HEX_RADIUS < area.minX ||
+        passage.x - HEX_RADIUS > area.maxX ||
+        passage.y + HEX_RADIUS < area.minY ||
+        passage.y - HEX_RADIUS > area.maxY
       ) {
         continue;
       }
 
-      const ends = edgeEndpoints(passage.edge);
+      const ends = edgeCrossing(passage.edge, CROSSING_LENGTH);
       if (!ends) continue;
 
-      const [a, b] = ends;
-      // Pulled in from the corners so the circles sit inside the edge rather than on the
-      // junction where three hexes meet, which would make them ambiguous.
-      const inset = 0.18;
-      const p0 = { x: a.x + (b.x - a.x) * inset, y: a.y + (b.y - a.y) * inset };
-      const p1 = { x: b.x - (b.x - a.x) * inset, y: b.y - (b.y - a.y) * inset };
+      const [p0, p1] = ends;
 
       // A pale halo under everything, so the mark survives dark terrain and the hex grid.
       g.moveTo(p0.x, p0.y);
       g.lineTo(p1.x, p1.y);
-      g.stroke({ color: PASSAGE_HALO, width: 7 * px, alpha: 0.75, cap: 'round' });
+      g.stroke({ color: PASSAGE_HALO, width: HALO_WIDTH, alpha: 0.75, cap: 'round' });
 
       g.moveTo(p0.x, p0.y);
       g.lineTo(p1.x, p1.y);
-      g.stroke({ color: PASSAGE_COLOR, width: 3 * px, alpha: 0.95, cap: 'round' });
+      g.stroke({ color: PASSAGE_COLOR, width: BAR_WIDTH, alpha: 0.95, cap: 'round' });
 
       for (const end of [p0, p1]) {
-        g.circle(end.x, end.y, 5.5 * px);
+        g.circle(end.x, end.y, KNOB_RADIUS);
         g.fill({ color: PASSAGE_HALO, alpha: 0.95 });
-        g.circle(end.x, end.y, 5.5 * px);
-        g.stroke({ color: PASSAGE_COLOR, width: 2.5 * px, alpha: 1 });
+        g.circle(end.x, end.y, KNOB_RADIUS);
+        g.stroke({ color: PASSAGE_COLOR, width: BAR_WIDTH * 0.8, alpha: 1 });
       }
     }
   }
 
-  private lastZoom = -1;
+  /** The padded area the current drawing covers; null until the first render. */
+  private drawn: Bounds | null = null;
 
   destroy(): void {
     this.container.destroy({ children: true });

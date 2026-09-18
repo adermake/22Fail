@@ -120,6 +120,8 @@ import {
   DRAW_COLORS,
   FogMode,
   GameTool,
+  MapViewAs,
+  VIEW_AS_DEFS,
   PEN_SIZES,
   REGION_TOOL_DEFS,
   RegionTool,
@@ -316,6 +318,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
           tierPin: this.tierPin(),
           secretOverview: this.overviewOn(),
           mode: this.mode(),
+          viewAs: this.viewAs(),
         }),
       );
     } catch {
@@ -355,6 +358,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
       if (typeof p['secretOverview'] === 'boolean') this.overviewOn.set(p['secretOverview']);
       if (p['mode'] === 'game' || p['mode'] === 'edit') this.mode.set(p['mode']);
+      if (VIEW_AS_DEFS.some(v => v.id === p['viewAs'])) this.viewAs.set(p['viewAs'] as MapViewAs);
 
       // Only `in` distinguishes a stored Auto (null) from a preference never expressed.
       if ('tierPin' in p) {
@@ -857,7 +861,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   /** Push mode-derived state onto the views. */
   private applyMode(): void {
-    this.fogView?.setEnabled(this.inGame());
+    /*
+     * Fog also comes on while previewing the players' view, even in edit mode.
+     *
+     * "See it as a player" is not worth much if the one thing that actually hides the map
+     * from them is the one thing still switched off.
+     */
+    this.fogView?.setEnabled(this.inGame() || this.asPlayer());
     this.fogView?.invalidate();
 
     // Editing overlays have no business on screen during play, and vice versa.
@@ -1321,18 +1331,20 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    * unrevealed secrets faded and framed, revealed ones drawn normally — while `hidden` gives
    * the players' view, which is the only way to check what they can actually see.
    */
-  readonly secretView = signal<'marked' | 'hidden'>('marked');
+  readonly viewAs = signal<MapViewAs>('gm');
+  readonly viewAsOptions = VIEW_AS_DEFS;
 
-  setSecretView(mode: 'marked' | 'hidden'): void {
-    this.secretView.set(mode);
+  setViewAs(mode: MapViewAs): void {
+    this.viewAs.set(mode);
     this.saveBrushPrefs();
     this.applyMode();
   }
 
+  /** True while previewing the players' view — the one mode that hides things from the GM. */
+  readonly asPlayer = computed(() => this.viewAs() === 'player');
+
   /** Whether secret objects are drawn at all for this viewer. */
-  readonly showSecrets = computed(
-    () => this.isGM() && (!this.inGame() || this.secretView() === 'marked'),
-  );
+  readonly showSecrets = computed(() => this.isGM() && !this.asPlayer());
 
   toggleOverview(): void {
     this.overviewOn.update(on => !on);
@@ -1340,11 +1352,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.applyOverview();
   }
 
-  readonly overviewActive = computed(() =>
-    this.inGame()
-      ? this.isGM() && this.secretView() === 'marked'
-      : this.tab() === 'secrets' && this.overviewOn(),
-  );
+  readonly overviewActive = computed(() => {
+    // Nothing is marked while previewing the players' view; the whole point is to see what
+    // they see, and a frame round a secret is exactly what they do not get.
+    if (this.asPlayer()) return false;
+    return this.inGame() ? this.isGM() : this.tab() === 'secrets' && this.overviewOn();
+  });
 
   /** The dark veil belongs to the editing audit, not to play. */
   private overviewDim(): number {
@@ -2695,8 +2708,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       // any earlier would frame where things were on the previous frame.
       this.drawOverview();
 
-      this.passageView?.render(view, zoom);
-      this.fogView?.update(view, this.revealedSet, this.isGM(), this.fogRevision);
+      this.passageView?.render(view);
+      // Passing `false` for the GM flag is what makes the preview honest: the fog goes
+      // opaque instead of the GM's see-through grey.
+      this.fogView?.update(
+        view,
+        this.revealedSet,
+        this.isGM() && !this.asPlayer(),
+        this.fogRevision,
+      );
       this.sketchView?.render(view);
       this.playAids?.render(zoom, this.allMeasureLines());
 
