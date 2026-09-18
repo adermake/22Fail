@@ -358,7 +358,8 @@ export class EquipmentComponent {
     if (!item) return false;
 
     if (targetSlot === 'weapon') {
-      return item.itemType === 'weapon';
+      // A Konstrukt may be wielded as well as worn — its parts can be blades.
+      return item.itemType === 'weapon' || item.itemType === 'construct';
     }
 
     if (targetSlot === 'extra') {

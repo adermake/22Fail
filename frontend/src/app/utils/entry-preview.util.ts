@@ -19,6 +19,7 @@ export const ITEM_TYPE_LABEL: Record<ItemType, string> = {
   'raw-material': 'Rohstoff',
   'ingredient': 'Wirkstoff',
   'extractor': 'Extraktor',
+  'construct': 'Konstrukt',
 };
 
 /** Die Rüstungsplätze, ausgeschrieben. */

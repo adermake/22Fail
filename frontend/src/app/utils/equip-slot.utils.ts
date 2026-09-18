@@ -17,6 +17,7 @@ export function isWieldedWeapon(item: ItemBlock): boolean {
  * Is this item actually WORN/WIELDED, i.e. does its `effectActive` script count?
  *  - a weapon must sit in the weapon slot (not stowed in Extra),
  *  - armour must sit in an armour slot,
+ *  - a Konstrukt counts in either: a blade-arm is wielded, a mech frame is worn,
  *  - anything else counts while it is in the Extra slot.
  * A lost item never counts.
  */
@@ -25,5 +26,6 @@ export function isItemEquipped(item: ItemBlock | null | undefined): boolean {
   const slot = getEquipSlot(item);
   if (item.itemType === 'weapon') return slot === 'weapon';
   if (item.itemType === 'armor') return slot !== 'weapon' && slot !== 'extra';
+  if (item.itemType === 'construct') return slot === 'weapon' || slot === 'extra';
   return slot === 'extra';
 }

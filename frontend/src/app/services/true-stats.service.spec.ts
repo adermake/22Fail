@@ -688,4 +688,281 @@ describe('TrueStatsService', () => {
       expect(svc.calculateTotalStability(sheet)).toBe(4);
     });
   });
+
+  // ── Konstrukte ────────────────────────────────────────────────────────────
+  // A Konstrukt is an item with parts bolted inside it. The parts have to reach every calculation
+  // the sheet runs, and the whole machine has to switch off when its Komplexität outruns Fokus.
+
+  /** A Konstrukt part. `sockets` is what makes it a machine rather than a component. */
+  function konstrukt(name: string, partial: Partial<ItemBlock> = {}): ItemBlock {
+    return item({
+      id: `k_${name}`, name, itemType: 'construct', armorType: 'extra',
+      lost: false, broken: false, weight: 0, ...partial,
+    });
+  }
+
+  /** Kernkörper ─┬─ Arm ── Säge / └─ Schild. Komplexität 4, as in the design sketch. */
+  function machine(over: {
+    core?: Partial<ItemBlock>; arm?: Partial<ItemBlock>;
+    saw?: Partial<ItemBlock>; shield?: Partial<ItemBlock>;
+  } = {}): ItemBlock {
+    return konstrukt('Kernkörper', {
+      ...over.core,
+      sockets: [
+        { id: 'c1', child: konstrukt('Arm', {
+          ...over.arm,
+          sockets: [{ id: 'a1', child: konstrukt('Säge', over.saw) }],
+        }) },
+        { id: 'c2', child: konstrukt('Schild', over.shield) },
+      ],
+    });
+  }
+
+  describe('Konstrukte: Fokus-Budget', () => {
+    it('charges Komplexität against Fokus and reports what is bound', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine()];
+      expect(svc.calculateFokusMax(sheet)).toBe(10); // ⌊10/2⌋ + 5
+      expect(svc.calculateFokusUsed(sheet)).toBe(4);
+    });
+
+    it('counts sustained spells alongside Konstrukte', () => {
+      const sheet = makeSheet();
+      sheet.spells = [{ id: 'sp1', name: 'Schild', perTurnFokus: 3 } as any];
+      sheet.castingSpells = [{ spellId: 'sp1', spellName: 'Schild' } as any];
+      sheet.equipment = [machine()];
+      expect(svc.calculateFokusUsed(sheet)).toBe(7);
+    });
+
+    it('runs a machine that fits the budget', () => {
+      const sheet = makeSheet();
+      const m = machine({ core: { stability: 50 } });
+      sheet.equipment = [m];
+      expect(svc.isConstructActive(sheet, m)).toBe(true);
+      expect(svc.calculateTotalStability(sheet)).toBe(10);
+    });
+
+    it('makes a machine inert when Komplexität outruns Fokus — carried, but granting nothing', () => {
+      const sheet = makeSheet();
+      sheet.intelligence.base = 0; // Fokus max 5
+      const m = machine({ core: { stability: 50, weight: 12 } });
+      // Six sockets deep enough to cost 6 > 5.
+      m.sockets!.push({ id: 'c3', child: konstrukt('Bein') }, { id: 'c4', child: konstrukt('Bein2') });
+      sheet.equipment = [m];
+
+      expect(svc.calculateFokusUsed(sheet)).toBe(6);
+      expect(svc.isConstructActive(sheet, m)).toBe(false);
+      expect(svc.calculateTotalStability(sheet)).toBe(0);
+      // …but it is still strapped to the character and still weighs what it weighs.
+      expect(svc.getTotalWeight(sheet)).toBe(12);
+    });
+
+    it('keeps an inert machine inert — its cost does not vanish and free it up again', () => {
+      const sheet = makeSheet();
+      sheet.intelligence.base = 0;
+      const m = machine();
+      m.sockets!.push({ id: 'c3', child: konstrukt('Bein') }, { id: 'c4', child: konstrukt('Bein2') });
+      sheet.equipment = [m];
+      // Read it repeatedly: an inert machine that stopped costing Fokus would flicker back on.
+      expect([1, 2, 3].map(() => svc.isConstructActive(sheet, m))).toEqual([false, false, false]);
+      expect(svc.calculateFokusUsed(sheet)).toBe(6);
+    });
+
+    it('serves Konstrukte in equipment order — first come, first served', () => {
+      const sheet = makeSheet();
+      sheet.intelligence.base = 0; // Fokus max 5
+      const first = machine({ core: { stability: 50 } });        // costs 4
+      const second = konstrukt('Zweitwaffe', {
+        stability: 30, sockets: [{ id: 'z1', child: konstrukt('Klinge') }, { id: 'z2', child: konstrukt('Klinge2') }],
+      });                                                        // costs 2, does not fit alongside
+      sheet.equipment = [first, second];
+
+      expect(svc.isConstructActive(sheet, first)).toBe(true);
+      expect(svc.isConstructActive(sheet, second)).toBe(false);
+      expect(svc.calculateTotalStability(sheet)).toBe(10); // only the first machine's 50 ÷ 5
+    });
+
+    it('always runs an unassembled Konstrukt — carrying one costs nothing', () => {
+      const sheet = makeSheet();
+      sheet.intelligence.base = 0;
+      const bare = konstrukt('Kernkörper', { stability: 25, sockets: [{ id: 'c1' }] });
+      sheet.equipment = [bare];
+      expect(svc.calculateFokusUsed(sheet)).toBe(0);
+      expect(svc.isConstructActive(sheet, bare)).toBe(true);
+      expect(svc.calculateTotalStability(sheet)).toBe(5);
+    });
+
+    it('lets ordinary gear raise Fokus — the modifier used to be ignored entirely', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({ armorType: 'extra', statModifiers: [{ stat: 'focus', amount: 4 }] })];
+      expect(svc.calculateFokusMax(sheet)).toBe(14);
+    });
+
+    it('refuses to let a Konstrukt raise the budget it is charged against', () => {
+      const sheet = makeSheet();
+      const m = machine({ core: { statModifiers: [{ stat: 'focus', amount: 4 }] } });
+      sheet.equipment = [m];
+      // The amulet above works; a machine granting the same Fokus must not, or it would buy the
+      // room it is spending and bootstrap itself into being affordable.
+      expect(svc.calculateFokusMax(sheet)).toBe(10);
+    });
+
+    it('resolves the budget without recursing, even when a part buffs Intelligenz', () => {
+      const sheet = makeSheet();
+      const m = machine({ arm: { statModifiers: [{ stat: 'intelligence', amount: 6 }] } });
+      sheet.equipment = [m];
+      expect(() => svc.calculateFokusMax(sheet)).not.toThrow();
+      expect(svc.calculateFokusMax(sheet)).toBe(10);  // Konstrukt INT is invisible to the budget…
+      expect(svc.calculateIntelligence(sheet)).toBe(16); // …but not to the character.
+    });
+  });
+
+  describe('Konstrukte: was die Teile beitragen', () => {
+    it('sums the stability of every working part', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine({
+        core: { stability: 50 }, arm: { stability: 20 }, saw: { stability: 5 }, shield: { stability: 25 },
+      })];
+      expect(svc.calculateTotalStability(sheet)).toBe(20); // 100 ÷ 5
+    });
+
+    it('drops a broken part and everything under it, keeping the rest working', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine({
+        core: { stability: 50 }, arm: { stability: 20, broken: true },
+        saw: { stability: 5 }, shield: { stability: 25 },
+      })];
+      expect(svc.calculateTotalStability(sheet)).toBe(15); // 75 ÷ 5
+    });
+
+    it('surfaces a part\'s Fähigkeiten and Zauber on the sheet', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine({
+        saw: { embeddedSkills: [skill({ name: 'Sägen', type: 'active' })] },
+        shield: { embeddedSpells: [{ name: 'Barriere', description: '', tags: [] } as any] },
+      })];
+      expect(svc.getItemSkillBlocks(sheet).map(s => s.name)).toEqual(['Sägen']);
+      expect(svc.getItemSpellBlocks(sheet).map(s => s.name)).toEqual(['Barriere']);
+    });
+
+    it('takes a part\'s stat modifiers into the character stats', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine({ arm: { statModifiers: [{ stat: 'strength', amount: 5 }] } })];
+      expect(svc.calculateStrength(sheet)).toBe(15);
+    });
+
+    it('presents every cutting part as its own weapon', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine({ saw: { efficiency: 12 }, shield: { efficiency: 4 } })];
+      expect(svc.getConstructWeapons(sheet).map(w => [w.label, w.effectivity])).toEqual([
+        ['Kernkörper / Arm / Säge', 12],
+        ['Kernkörper / Schild', 4],
+      ]);
+    });
+
+    it('sums weight over every part, broken ones included', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine({
+        core: { weight: 10 }, arm: { weight: 4 }, saw: { weight: 2, broken: true }, shield: { weight: 3 },
+      })];
+      expect(svc.getTotalWeight(sheet)).toBe(19);
+    });
+
+    it('charges the broken-armour malus for a seized-up part', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [machine({ arm: { broken: true } })];
+      expect(svc.calculateTotalArmorDebuff(sheet)).toBe(5);
+    });
+  });
+
+  describe('Konstrukte: Skripte und Merkmale der Teile', () => {
+    /** A part carrying one Schmiedemerkmal script. */
+    function merkmalPart(name: string, traitName: string, script: string, extra: Partial<ItemBlock> = {}) {
+      return konstrukt(name, {
+        ...extra,
+        forgingData: {
+          createdAt: 0, itemType: 'weapon', totalSP: 0, spentSP: 0,
+          appliedTraits: [{ name: traitName, level: 2, script }],
+        },
+      });
+    }
+
+    it('runs a nested part\'s Merkmal and lands it on THAT part', () => {
+      const sheet = makeSheet();
+      const saw = merkmalPart('Säge', 'Schärfe', 'effectActive { item.effectivity += 3 * merkmalLevel }',
+        { efficiency: 4 });
+      const m = konstrukt('Kernkörper', {
+        sockets: [{ id: 'c1', child: konstrukt('Arm', { sockets: [{ id: 'a1', child: saw }] }) }],
+      });
+      sheet.equipment = [m];
+      // 4 forged + 3 × level 2 — and only on the Säge, not on the Arm it hangs from.
+      expect(svc.resolveEfficiency(sheet, saw)).toBe(10);
+      expect(svc.getConstructWeapons(sheet).map(w => [w.label, w.effectivity]))
+        .toEqual([['Kernkörper / Arm / Säge', 10]]);
+    });
+
+    it('lets a Merkmal arm an armor-kind part — one kind per node is a forging rule, not a cap', () => {
+      const sheet = makeSheet();
+      const arm = merkmalPart('Arm', 'Klingenhand', 'effectActive { item.effectivity += 8 }',
+        { constructMaterialKind: 'armor', stability: 10 });
+      sheet.equipment = [konstrukt('Kernkörper', { sockets: [{ id: 'c1', child: arm }] })];
+      expect(svc.getConstructWeapons(sheet).map(w => [w.label, w.effectivity]))
+        .toEqual([['Kernkörper / Arm', 8]]);
+    });
+
+    it('lets a part\'s script buff the wearer', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [konstrukt('Kernkörper', {
+        sockets: [{ id: 'c1', child: konstrukt('Arm', {
+          script: 'effectActive { strength += 6 }',
+        }) }],
+      })];
+      expect(svc.calculateStrength(sheet)).toBe(16);
+    });
+
+    it('runs nothing at all inside an inert machine', () => {
+      const sheet = makeSheet();
+      sheet.intelligence.base = 0; // Fokus max 5
+      const m = konstrukt('Kernkörper', {
+        sockets: [
+          { id: 'c1', child: konstrukt('A', { script: 'effectActive { strength += 6 }',
+            sockets: [{ id: 'a1', child: konstrukt('A2') }] }) },
+          { id: 'c2', child: konstrukt('B', { sockets: [{ id: 'b1', child: konstrukt('B2') }] }) },
+          { id: 'c3', child: konstrukt('C') },
+        ],
+      });
+      sheet.equipment = [m];
+      expect(svc.calculateFokusUsed(sheet)).toBe(7); // 1+2 + 1+2 + 1
+      expect(svc.isConstructActive(sheet, m)).toBe(false);
+      expect(svc.calculateStrength(sheet)).toBe(10);
+    });
+
+    it('re-derives when a part changes — the cache key reaches into the tree', () => {
+      const sheet = makeSheet();
+      const arm = konstrukt('Arm', { script: 'effectActive { strength += 6 }' });
+      const m = konstrukt('Kernkörper', { sockets: [{ id: 'c1', child: arm }] });
+      sheet.equipment = [m];
+      expect(svc.calculateStrength(sheet)).toBe(16);
+
+      // Breaking a part deep in the machine must invalidate the memo, not leave the old buff up.
+      arm.broken = true;
+      expect(svc.calculateStrength(sheet)).toBe(10);
+
+      arm.broken = false;
+      arm.script = 'effectActive { strength += 2 }';
+      expect(svc.calculateStrength(sheet)).toBe(12);
+    });
+
+    it('keeps two same-named parts apart, as long as they carry ids', () => {
+      const sheet = makeSheet();
+      const left = merkmalPart('Arm', 'Schärfe', 'effectActive { item.effectivity += 1 * merkmalLevel }',
+        { id: 'k_links', efficiency: 5 });
+      const right = konstrukt('Arm', { id: 'k_rechts', efficiency: 5 });
+      sheet.equipment = [konstrukt('Kernkörper', {
+        sockets: [{ id: 'c1', child: left }, { id: 'c2', child: right }],
+      })];
+      expect(svc.resolveEfficiency(sheet, left)).toBe(7);
+      expect(svc.resolveEfficiency(sheet, right)).toBe(5);
+    });
+  });
 });

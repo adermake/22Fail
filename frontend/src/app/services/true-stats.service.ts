@@ -16,6 +16,9 @@ import { SpellBlock } from '../model/spell-block-model';
 import { isItemEquipped } from '../utils/equip-slot.utils';
 import { stackAmount } from '../utils/item-stack.util';
 import { roundTo } from '../utils/round.util';
+import {
+  ConstructWeapon, constructComplexity, constructWeapons, flattenConstruct, isConstruct,
+} from '../utils/construct.util';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
 export interface DerivedModifier {
@@ -56,7 +59,13 @@ const EMPTY_DERIVED: DerivedEntry = {
 /** Flat Leben every character gains per level, on top of Konstitution ×5. */
 export const HEALTH_PER_LEVEL = 2;
 
-/** Identity for item-modifier bookkeeping. Falls back to the name for items without an id. */
+/**
+ * Identity for item-modifier bookkeeping. Falls back to the name for items without an id.
+ *
+ * The fallback is why `attachChild` in construct.util backfills an id on every part entering a
+ * Konstrukt: two hand-made arms both called 'Arm' inside one machine would otherwise share a key
+ * and merge each other's Merkmale.
+ */
 function itemKey(item: ItemBlock): string {
   return item.id || item.name;
 }
@@ -139,6 +148,16 @@ export class TrueStatsService {
 
   /** Guards against recursion: while collecting, calculators return their pre-pipeline value. */
   private collectingEffectActive = false;
+  /**
+   * Guards the Fokus budget against itself: while set, Konstrukte are invisible to every item walk.
+   *
+   * Working out whether a Konstrukt runs needs the Fokus maximum, which needs Intelligenz, which
+   * needs equipped items — which is where the Konstrukt came in. Hiding Konstrukte for the duration
+   * cuts that loop, and it cuts it in the direction the rules want: a Konstrukt can never raise the
+   * budget it is charged against, so no machine bootstraps itself into being affordable. Ordinary
+   * gear still raises Fokus normally.
+   */
+  private resolvingFokusBudget = false;
   /** Per-sheet memo of derived modifiers/skills, keyed by a cheap fingerprint of the effects. */
   private derivedCache = new WeakMap<CharacterSheet, DerivedEntry>();
   /** Bumped to force all derived caches to recompute (e.g. after a library effect is edited). */
@@ -186,9 +205,106 @@ export class TrueStatsService {
   // effect-granted skills these are DERIVED (never written into sheet.skills): unequip the item
   // and they vanish on their own.
 
-  /** Equipped, non-lost items — the only ones whose abilities count. */
+  /** Equipped, non-lost items — the only ones whose abilities count. Konstrukt parts included. */
   private grantingItems(sheet: CharacterSheet) {
-    return (sheet.equipment ?? []).filter(i => i && !i.lost);
+    return this.withConstructParts(sheet, (sheet.equipment ?? []).filter(i => i && !i.lost), true);
+  }
+
+  // ── Konstrukte ──────────────────────────────────────────────────────────────
+  // An assembled Konstrukt behaves as ONE item whose parts are nested inside it. Nothing below
+  // iterates `sheet.equipment` directly any more: every walk goes through withConstructParts, or a
+  // machine's arms would be invisible to the sheet the moment they were bolted on.
+
+  /**
+   * Unfold Konstrukte in a list of equipment entries.
+   *
+   * `functional` is the structural/functional split from construct.util: false counts every
+   * attached part (weight, Anforderungen — a dead limb still hangs off the frame), true counts only
+   * the parts that actually work, and drops an inert machine entirely.
+   */
+  private withConstructParts(
+    sheet: CharacterSheet,
+    roots: readonly ItemBlock[],
+    functional: boolean,
+  ): ItemBlock[] {
+    const out: ItemBlock[] = [];
+    for (const root of roots) {
+      if (!isConstruct(root)) { out.push(root); continue; }
+      // See `resolvingFokusBudget`: a Konstrukt may not pay for its own Fokus.
+      if (this.resolvingFokusBudget) continue;
+      if (functional && !this.isConstructActive(sheet, root)) continue;
+      for (const node of flattenConstruct(root, { functional })) out.push(node.item);
+    }
+    return out;
+  }
+
+  /** Equipped Konstrukt roots, in equipment order — the order that decides who gets Fokus first. */
+  private equippedConstructs(sheet: CharacterSheet): ItemBlock[] {
+    return (sheet.equipment ?? []).filter(i => isConstruct(i) && isItemEquipped(i));
+  }
+
+  /** Fokus held by sustained spells — what is already spoken for before any Konstrukt. */
+  sustainedFokus(sheet: CharacterSheet): number {
+    const spells = sheet.spells ?? [];
+    return (sheet.castingSpells ?? []).reduce((sum, entry) => {
+      const spell = spells.find(s => s.id === entry.spellId);
+      return sum + (spell ? (spell.perTurnFokus || spell.costFokus || 0) : 0);
+    }, 0);
+  }
+
+  /**
+   * Total Fokus held: sustained spells plus the Komplexität of every equipped Konstrukt.
+   *
+   * Counts INERT machines too, and must keep doing so. If an over-budget Konstrukt stopped costing
+   * Fokus the moment it went inert, it would free up the very room that makes it affordable and
+   * flicker between states on every recalculation.
+   */
+  calculateFokusUsed(sheet: CharacterSheet): number {
+    return this.sustainedFokus(sheet)
+      + this.equippedConstructs(sheet).reduce((sum, c) => sum + constructComplexity(c), 0);
+  }
+
+  /**
+   * Which equipped Konstrukte actually run, resolved in equipment order: first come, first served.
+   *
+   * Order matters and is the player's lever — equipment slots already reorder by drag, so a
+   * character who cannot sustain everything decides what runs by putting it first.
+   */
+  private activeConstructs(sheet: CharacterSheet): Set<ItemBlock> {
+    const active = new Set<ItemBlock>();
+    const free = this.calculateFokusMax(sheet) - this.sustainedFokus(sheet);
+    let spent = 0;
+    for (const root of this.equippedConstructs(sheet)) {
+      const cost = constructComplexity(root);
+      // An unassembled Konstrukt costs nothing, so it always runs — even at zero free Fokus.
+      if (cost === 0) { active.add(root); continue; }
+      if (spent + cost > free) continue;
+      spent += cost;
+      active.add(root);
+    }
+    return active;
+  }
+
+  /**
+   * Can this Konstrukt be used at all? A machine whose Komplexität outruns the wearer's Fokus is
+   * carried, not run: it keeps its weight and its Anforderungen but grants nothing.
+   */
+  isConstructActive(sheet: CharacterSheet, root: ItemBlock | null | undefined): boolean {
+    if (!isConstruct(root)) return true;
+    return this.activeConstructs(sheet).has(root!);
+  }
+
+  /**
+   * Every weapon the equipped Konstrukte present — a machine with three blades fights as three.
+   * Resolved through `resolveItemStat`, so a Merkmal can arm an otherwise structural part.
+   */
+  getConstructWeapons(sheet: CharacterSheet): ConstructWeapon[] {
+    const out: ConstructWeapon[] = [];
+    for (const root of this.equippedConstructs(sheet)) {
+      if (!this.isConstructActive(sheet, root)) continue;
+      out.push(...constructWeapons(root, (item, prop) => this.resolveItemStat(sheet, item, prop)));
+    }
+    return out;
   }
 
   /** Skills granted by equipped items, tagged read-only and labelled with the item name. */
@@ -252,12 +368,16 @@ export class TrueStatsService {
     }
     // Equipped items carry scripts too — swapping or losing gear must recompute. So do the
     // Schmiedemerkmale forged into them, each with its own level.
-    for (const item of sheet.equipment ?? []) {
-      if (!isItemEquipped(item)) continue;
-      if (item?.script) s += `|IT:${item.name}#${item.durability ?? ''}#${item.script}`;
+    // Konstrukt parts carry scripts and Merkmale of their own, so the walk has to go all the way
+    // down: without it, bolting on a new arm or breaking an old one would leave the cache holding
+    // stats from the machine's previous shape until some unrelated edit happened to shift the key.
+    const wornRoots = (sheet.equipment ?? []).filter(i => isItemEquipped(i));
+    for (const item of this.withConstructParts(sheet, wornRoots, false)) {
+      if (item?.script) s += `|IT:${item.id || item.name}#${item.durability ?? ''}#${item.script}`;
       for (const t of item?.forgingData?.appliedTraits ?? []) {
-        if (t.script) s += `|MK:${item.name}/${t.name}@${t.level}#${t.script}`;
+        s += `|MK:${item.id || item.name}/${t.name}@${t.level}#${t.script ?? ''}`;
       }
+      s += `|CX:${item.id || item.name}#${item.broken ? 1 : 0}${item.lost ? 'L' : ''}`;
     }
 
     /*
@@ -343,8 +463,11 @@ export class TrueStatsService {
       // Items apply while actually worn: weapon in the weapon slot, armour in an armour slot,
       // anything else in Extra. The item itself is in scope, so its script can read
       // `durability` and `counter("…")`.
-      for (const item of sheet.equipment ?? []) {
-        if (!isItemEquipped(item)) continue;
+      // Konstrukt parts run their own scripts and Merkmale, each in its own `item` scope — that is
+      // what lets a Merkmal on one arm write `item.effectivity` without touching the other arm.
+      // An inert machine runs nothing at all.
+      const worn = (sheet.equipment ?? []).filter(i => isItemEquipped(i));
+      for (const item of this.withConstructParts(sheet, worn, true)) {
 
         /*
          * An item contributes through two channels: its own script, and the script of each
@@ -441,7 +564,7 @@ export class TrueStatsService {
         if (normalise(mod.stat) === target) total += mod.amount * (skill.level || 1);
       }
     }
-    for (const item of sheet.equipment ?? []) {
+    for (const item of this.withConstructParts(sheet, sheet.equipment ?? [], true)) {
       for (const mod of item.statModifiers ?? []) {
         if (normalise(mod.stat) === target) total += mod.amount;
       }
@@ -474,8 +597,7 @@ export class TrueStatsService {
    * the 'stability' target on top, so macros affect it. Never negative.
    */
   calculateTotalStability(sheet: CharacterSheet): number {
-    const equip = (sheet.equipment ?? [])
-      .filter(i => !i.lost)
+    const equip = this.withConstructParts(sheet, (sheet.equipment ?? []).filter(i => !i.lost), true)
       .reduce((sum, i) => sum + this.resolveItemStat(sheet, i, 'stability'), 0);
     const core = Math.floor(equip / 5)
       + this.getStatusModifierTotal(sheet, 'stability')
@@ -523,14 +645,12 @@ export class TrueStatsService {
       }
     }
 
-    // Add bonuses from equipped items
-    if (sheet.equipment) {
-      for (const item of sheet.equipment) {
-        if (item.statModifiers) {
-          for (const modifier of item.statModifiers) {
-            if (modifier.stat === statKey) {
-              total += modifier.amount;
-            }
+    // Add bonuses from equipped items, Konstrukt parts included
+    for (const item of this.withConstructParts(sheet, sheet.equipment ?? [], true)) {
+      if (item.statModifiers) {
+        for (const modifier of item.statModifiers) {
+          if (modifier.stat === statKey) {
+            total += modifier.amount;
           }
         }
       }
@@ -891,10 +1011,15 @@ export class TrueStatsService {
   getFokusFormulaTooltip(sheet: CharacterSheet): string {
     const int = this.calculateIntelligence(sheet);
     const intHalf = Math.floor(int / 2);
-    const fb = sheet.fokusBonus || 0;
+    const fb = (sheet.fokusBonus || 0)
+      + this.getStatusModifierTotal(sheet, 'fokus')
+      + this.getSkillItemModifierTotal(sheet, 'fokus');
     const fm = sheet.fokusMultiplier || 1;
     const inner = fb ? `${intHalf} + 5 + ${fb}` : `${intHalf} + 5`;
-    return `(⌊INT / 2⌋ + 5 + Bonus) × Multiplikator\n= (${inner}) × ${fm} = ${this.calculateFokusMax(sheet)}`;
+    const used = this.calculateFokusUsed(sheet);
+    const line = `(⌊INT / 2⌋ + 5 + Bonus) × Multiplikator`
+      + `\n= (${inner}) × ${fm} = ${this.calculateFokusMax(sheet)}`;
+    return used ? `${line}\nGebunden: ${used} (Zauber + Konstrukte)` : line;
   }
 
   getArmorNegationFormulaTooltip(sheet: CharacterSheet): string {
@@ -1001,11 +1126,35 @@ export class TrueStatsService {
     return roundTo(w * qty);
   }
 
-  /** Max spell fokus pool from calculated intelligence + sheet bonuses + status effects. */
+  /**
+   * Max Fokus pool from calculated Intelligenz + sheet bonuses + status effects + gear.
+   *
+   * Gear counts, Konstrukte do not: the whole call runs behind `resolvingFokusBudget`, which hides
+   * them from every item walk underneath. A Fokus-granting amulet therefore works and a
+   * Fokus-granting machine does not — a machine may not buy the budget it is spending.
+   *
+   * The derived cache is warmed BEFORE the guard goes up, so the entry it stores is the normal,
+   * Konstrukt-aware one rather than the narrowed view this call needs.
+   */
   calculateFokusMax(sheet: CharacterSheet): number {
+    if (this.resolvingFokusBudget) return this.rawFokusMax(sheet);
+    this.getDerived(sheet);
+    this.resolvingFokusBudget = true;
+    try {
+      return this.rawFokusMax(sheet);
+    } finally {
+      this.resolvingFokusBudget = false;
+    }
+  }
+
+  private rawFokusMax(sheet: CharacterSheet): number {
     const intelligence = this.calculateIntelligence(sheet);
     const base = Math.floor(intelligence / 2) + 5;
-    const bonus = (sheet.fokusBonus || 0) + this.getStatusModifierTotal(sheet, 'fokus');
+    // `getSkillItemModifierTotal` was missing here, so a skill or item with a `focus` modifier
+    // silently did nothing — the one piece of counterplay to Nutzungskomplexität did not exist.
+    const bonus = (sheet.fokusBonus || 0)
+      + this.getStatusModifierTotal(sheet, 'fokus')
+      + this.getSkillItemModifierTotal(sheet, 'fokus');
     return Math.floor((base + bonus) * (sheet.fokusMultiplier || 1));
   }
 
@@ -1108,8 +1257,9 @@ export class TrueStatsService {
     // Only equipped items run scripts, so only their weight can be script-modified; anything in
     // the backpack weighs what it says it weighs.
     const itemWeight = sheet.inventory?.reduce((sum, item) => sum + this.getItemStackWeight(item), 0) || 0;
-    const equipmentWeight = sheet.equipment?.reduce(
-      (sum, item) => sum + roundTo(this.resolveItemStat(sheet, item, 'weight') * stackAmount(item)), 0) || 0;
+    // Structural walk: an inert or broken Konstrukt still hangs off the frame at full weight.
+    const equipmentWeight = this.withConstructParts(sheet, sheet.equipment ?? [], false).reduce(
+      (sum, item) => sum + roundTo(this.resolveItemStat(sheet, item, 'weight') * stackAmount(item)), 0);
     
     // Currency weight (using COIN_WEIGHT constant)
     const COIN_WEIGHT = 0.02; // 50 coins per pound
@@ -1148,11 +1298,13 @@ export class TrueStatsService {
   calculateTotalArmorDebuff(sheet: CharacterSheet): number {
     if (!sheet.equipment) return 0;
 
+    // Structural: a seized-up Konstrukt limb hinders exactly as much as a broken breastplate, so
+    // the broken penalty has to reach the parts too. The debuff itself is read per part.
     let sumOfArmorDebuffs = 0;
     let brokenPenalty = 0;
-    for (const item of sheet.equipment) {
+    for (const item of this.withConstructParts(sheet, sheet.equipment, false)) {
       sumOfArmorDebuffs += this.resolveItemStat(sheet, item, 'armorDebuff');
-      if (item.broken && item.itemType === 'armor') {
+      if (item.broken && (item.itemType === 'armor' || item.itemType === 'construct')) {
         brokenPenalty += 5;
       }
     }

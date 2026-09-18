@@ -411,6 +411,23 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - **Material-Editor** (`shared/material-editor/`): Kompaktes me-* CSS-Klassen-Schema — eine Zeile für Name/Rarität/Kosten, Checkboxen-Reihe, Stats in 4-Spalten-Grid (`26px 1fr 34px 1fr`)
 - **Blaue Icon-Box**: `.sr-icon.sr-icon-eff` — `background: #1e1b4b; border: 1px solid #6366f1; color: #a5b4fc` — für ⚔/⛊ Effektivitäts-Icons in forging + wissen
 
+## Konstrukt-System (`utils/construct.util.ts`, `model/item-block.model.ts`)
+- **Was**: Itemtyp `'construct'` — ein Gegenstand mit **Anschlüssen** (`sockets: ConstructSocket[]`), in die weitere Konstrukte gesteckt werden. Rekursiv. Der zusammengebaute Baum verhält sich wie EIN Item.
+- **Containment**: `socket.child` enthält das Teil physisch; angesteckt ist es NICHT mehr im Inventar. Eine Maschine = ein JSON-Teilbaum (Loot/Handel/Begleiter funktionieren dadurch von selbst).
+- **Schmieden**: kein eigenes Material — `constructMaterialKind: 'weapon' | 'armor'` bestimmt, welche `MaterialStats` gelesen werden (Waffe → Effektivität, Rüstung → Stabilität). Ein Merkmal darf die Grenze überschreiten.
+- **Zwei Arten von Aufsummierung** (der zentrale Unterschied, `flattenConstruct(root, { functional })`):
+  - *strukturell* (Komplexität, Anforderungen, Gewicht): zählt JEDES angebaute Teil, auch kaputte
+  - *funktional* (Stabilität, Effektivität, Fähigkeiten, Zauber, Skripte): überspringt kaputte/verlorene Teile **samt Unterbaum**; ein inertes Konstrukt trägt gar nichts bei
+- **Nutzungskomplexität** = Σ Tiefe aller Nicht-Wurzel-Knoten (Anschluss an der Wurzel = 1, eine Ebene tiefer = 2 …). Wurzel selbst kostet nichts.
+- **Fokus**: Komplexität belegt dasselbe Budget wie dauerhafte Zauber (`calculateFokusUsed`). Reicht Fokus nicht, ist das Konstrukt **getragen, aber inert** — nie blockiert, nie unzerlegbar. Mehrere Konstrukte werden in Equipment-Reihenfolge bedient (first come, first served).
+- **Komplexität ist strukturell und per Skript NICHT änderbar** — sonst Zyklus (Skript senkt Komplexität → passt ins Budget → wird aktiv → Skript läuft). Aus demselben Grund sind Konstrukte in `calculateFokusMax` unsichtbar (`resolvingFokusBudget`): ein Konstrukt kann seinen eigenen Fokus nicht bezahlen, normale Ausrüstung schon.
+- **Anforderungen** zerfallen mit der Tiefe: `floor(Σ req / (depth + 1))` — Wurzel voll, Stufe 2 halb, Stufe 3 ein Drittel. Dadurch: tiefe Bäume = teuer in Fokus, billig in Kraft; breite umgekehrt.
+- **Effektivität** wird NICHT summiert — jedes schneidende Teil ist eine eigene Waffe (`getConstructWeapons`, Label `Kernkörper / Arm / Säge`).
+- **Stat-Rollups gehen über `resolveItemStat`**, nie über `item.efficiency` direkt — sonst zählen Merkmale der Teile nicht.
+- **Ids**: `attachChild` vergibt jedem eintretenden Teil eine Id. `itemKey` fällt sonst auf den Namen zurück und zwei gleichnamige Arme würden ihre Merkmale vermischen.
+- **Löschen**: eine Wurzel zu löschen nimmt den ganzen Baum mit → `constructContents()` liefert die Teile für Rückfrage + Papierkorb-Label.
+- **TrueStatsService**: nichts iteriert `sheet.equipment` mehr direkt — alles läuft über `withConstructParts()`.
+
 ## Konventionen
 - **Sprache**: UI vollständig auf Deutsch
 - **Icons**: Emoji-basiert (🏪 shop, 🎁 bundle, 🎪 events, etc.)

@@ -64,7 +64,27 @@ export type ItemType =
   | 'cooking-ingredient'
   | 'raw-material'
   | 'ingredient'
-  | 'extractor';
+  | 'extractor'
+  /**
+   * Konstrukt: an item with Anschlüsse that other Konstrukte plug into, recursively. The assembled
+   * tree rolls its stats up into the root — see `utils/construct.util.ts`.
+   */
+  | 'construct';
+
+/**
+ * One Anschluss on a Konstrukt. A socket holds at most one child.
+ *
+ * Attachment is by CONTAINMENT: while `child` is set, that item lives here and nowhere else — it is
+ * not also in the inventory. Detaching pops it back out. One assembled machine is therefore one
+ * JSON subtree, which is what makes looting, trading and equipping it on a Begleiter just work.
+ */
+export interface ConstructSocket {
+  id: string;
+  /** Free-text label shown on the Bauplan node, e.g. 'Arm', 'Waffenhalterung'. */
+  label?: string;
+  /** The attached Konstrukt. Undefined = the socket is free and costs no Komplexität. */
+  child?: ItemBlock;
+}
 
 /** Resource kinds stored on the Resources tab (not normal inventory). */
 export type ResourceItemType = 'raw-material' | 'ingredient' | 'extractor';
@@ -123,6 +143,16 @@ export class ItemBlock {
   /** What reloading / re-readying costs in combat. Undefined = free. */
   reloadAction?: 'ACTION' | 'BONUS' | 'FREE';
   
+  // Konstrukt-specific
+  /**
+   * Which MaterialStats the Schmiede reads for this node: weapon materials give it Effektivität,
+   * armor materials Stabilität. One kind per node — but a Schmiedemerkmal writing `item.effectivity`
+   * can still turn a structural part into a weapon, so never branch on this when rolling stats up.
+   */
+  constructMaterialKind?: 'weapon' | 'armor';
+  /** Konstrukt-specific: its Anschlüsse. Undefined or empty = nothing can be attached. */
+  sockets?: ConstructSocket[];
+
   // Stat modifiers
   statModifiers?: StatModifier[];
   
