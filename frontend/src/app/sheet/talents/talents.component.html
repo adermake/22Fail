@@ -4,7 +4,10 @@
 
     <!-- Header row with point summary -->
     <div class="talents-header">
-      <div class="points-info" [class.has-points]="availableTalentPoints > 0">
+      <div class="points-info"
+           [class.has-points]="availableTalentPoints > 0"
+           [class.over-budget]="isOverspent"
+           [title]="isOverspent ? 'Mehr Punkte ausgegeben als verfügbar — nur ein Hinweis, Fähigkeiten können das erlauben.' : ''">
         <span class="points-label">Talentpunkte:</span>
         <span class="points-summary">
           <span class="pts-ungenutzt" [class.pts-flash]="availableTalentPoints > 0">Ungenutzt {{ availableTalentPoints }}</span>
@@ -15,7 +18,10 @@
         </span>
       </div>
       <div class="header-right">
-        <span class="max-rank-hint">Max. pro Talent: {{ maxRankPerTalent }}</span>
+        <span class="max-rank-hint" [class.warn]="hasRankOverLimit"
+              title="Empfohlene Obergrenze pro Talent. Wird nicht erzwungen.">
+          Max. pro Talent: {{ maxRankPerTalent }}
+        </span>
         <div class="bonus-adjust">
           <span class="bonus-label">Bonus (GM):</span>
           <div class="bonus-controls">
@@ -34,8 +40,10 @@
         <span class="col-effect">Effekt</span>
         <span class="col-stat">Stat</span>
         <span class="col-mod">Mod</span>
+        <span class="col-char" title="Frei vergebbarer Charakterbonus. Zählt wie Punkte, kostet aber keine.">Charakter</span>
         <span class="col-ranks">Punkte</span>
         <span class="col-total">Würfel</span>
+        <span class="col-actions"></span>
       </div>
 
       @for (talent of talents; track talent.id) {
@@ -57,11 +65,21 @@
                 [class.dice-zero]="getStatModDisplay(talent) === 0">
             {{ getStatModDisplay(talent) > 0 ? '+' : '' }}{{ getStatModDisplay(talent) }}
           </span>
+          <span class="col-char">
+            <input class="char-bonus-input" type="number" step="1"
+                   [value]="getCharacterBonus(talent)"
+                   title="Charakterbonus — frei vergebbar, zählt wie Punkte."
+                   (change)="setCharacterBonus(talent, $any($event.target).value)"
+                   (keydown.enter)="$any($event.target).blur()" />
+          </span>
           <span class="col-ranks">
             <div class="rank-controls">
-              <button class="rank-btn minus" (click)="decrementRank(talent.id)" [disabled]="getRank(talent.id) <= 0">−</button>
-              <span class="rank-value">{{ getRank(talent.id) }}</span>
-              <button class="rank-btn plus" (click)="incrementRank(talent.id)" [disabled]="!canIncrement(talent.id)">+</button>
+              <button class="rank-btn minus" (click)="decrementRank(talent)" [disabled]="getRank(talent) <= 0">−</button>
+              <span class="rank-value" [class.over-limit]="isRankOverLimit(talent)"
+                    [title]="isRankOverLimit(talent) ? 'Über der empfohlenen Obergrenze von ' + maxRankPerTalent : ''">
+                {{ getRank(talent) }}
+              </span>
+              <button class="rank-btn plus" (click)="incrementRank(talent)">+</button>
             </div>
           </span>
           <span class="col-total"
@@ -70,47 +88,82 @@
                 [class.dice-zero]="getTotalDiceBonus(talent) === 0">
             {{ getTotalDiceBonus(talent) > 0 ? '+' : '' }}{{ getTotalDiceBonus(talent) }}
           </span>
+          <span class="col-actions"></span>
         </div>
       }
     </div>
 
-    <!-- Herstellen (Sonstiges) -->
-    <div class="herstellen-section">
-      <div class="herstellen-header">
-        <span class="section-label">Sonstiges — Herstellen</span>
-        <button class="add-herstellen-btn" (click)="addHerstellen()" title="Neues Herstellen-Talent">
+    <!-- Sonstige Talente (frei definierbar) -->
+    <div class="custom-section">
+      <div class="custom-header">
+        <span class="section-label">Sonstige Talente</span>
+        <button class="add-custom-btn" (click)="addCustomTalent()" title="Neues eigenes Talent">
           + Hinzufügen
         </button>
       </div>
 
-      @if (herstellenEntries.length === 0) {
-        <p class="herstellen-empty">Noch keine Herstellen-Talente.</p>
+      @if (customRows.length === 0) {
+        <p class="custom-empty">Noch keine eigenen Talente.</p>
       }
 
-      @for (entry of herstellenEntries; track entry.id) {
-        <div class="herstellen-row">
+      @for (row of customRows; track row.id) {
+        <div class="custom-row">
           <input
-            class="herstellen-label-input"
+            class="custom-label-input"
             type="text"
-            [value]="entry.label"
-            placeholder="Was wird hergestellt?"
-            (blur)="updateHerstellenLabel(entry.id, $any($event.target).value)"
+            [value]="row.name"
+            placeholder="Name des Talents"
+            (blur)="updateCustomLabel(row.id, $any($event.target).value)"
             (keydown.enter)="$any($event.target).blur()" />
-          <div class="rank-controls">
-            <button class="rank-btn minus" (click)="decrementHerstellenRank(entry.id)" [disabled]="(entry.rank || 0) <= 0">−</button>
-            <span class="rank-value">{{ entry.rank || 0 }}</span>
-            <button class="rank-btn plus" (click)="incrementHerstellenRank(entry.id)" [disabled]="!canIncrementHerstellen(entry)">+</button>
-          </div>
-          <span class="col-total"
-                [class.dice-good]="getHerstellenDiceBonus(entry) < 0"
-                [class.dice-bad]="getHerstellenDiceBonus(entry) > 0"
-                [class.dice-zero]="getHerstellenDiceBonus(entry) === 0">
-            {{ getHerstellenDiceBonus(entry) > 0 ? '+' : '' }}{{ getHerstellenDiceBonus(entry) }}
+          <span class="col-effect"
+                [class.dice-good]="getEffectDice(row) < 0"
+                [class.dice-bad]="getEffectDice(row) > 0"
+                [class.dice-zero]="getEffectDice(row) === 0"
+                [class.has-effect]="getEffectDice(row) !== 0"
+                [title]="getEffectTooltip(row)">
+            {{ getEffectDice(row) > 0 ? '+' : '' }}{{ getEffectDice(row) }}
           </span>
-          <button class="remove-herstellen-btn" (click)="removeHerstellen(entry.id)" title="Entfernen">&times;</button>
+          <select class="custom-stat-select"
+                  [value]="row.stat ?? ''"
+                  title="Basiswert, dessen Modifikator das Talent skaliert"
+                  (change)="updateCustomStat(row.id, $any($event.target).value)">
+            <option value="">—</option>
+            @for (opt of statOptions; track opt.key) {
+              <option [value]="opt.key" [selected]="row.stat === opt.key">{{ opt.label }}</option>
+            }
+          </select>
+          <span class="col-mod"
+                [class.dice-good]="getStatModDisplay(row) < 0"
+                [class.dice-bad]="getStatModDisplay(row) > 0"
+                [class.dice-zero]="getStatModDisplay(row) === 0">
+            {{ getStatModDisplay(row) > 0 ? '+' : '' }}{{ getStatModDisplay(row) }}
+          </span>
+          <span class="col-char">
+            <input class="char-bonus-input" type="number" step="1"
+                   [value]="getCharacterBonus(row)"
+                   title="Charakterbonus — frei vergebbar, zählt wie Punkte."
+                   (change)="setCharacterBonus(row, $any($event.target).value)"
+                   (keydown.enter)="$any($event.target).blur()" />
+          </span>
+          <span class="col-ranks">
+            <div class="rank-controls">
+              <button class="rank-btn minus" (click)="decrementRank(row)" [disabled]="getRank(row) <= 0">−</button>
+              <span class="rank-value" [class.over-limit]="isRankOverLimit(row)"
+                    [title]="isRankOverLimit(row) ? 'Über der empfohlenen Obergrenze von ' + maxRankPerTalent : ''">
+                {{ getRank(row) }}
+              </span>
+              <button class="rank-btn plus" (click)="incrementRank(row)">+</button>
+            </div>
+          </span>
+          <span class="col-total"
+                [class.dice-good]="getTotalDiceBonus(row) < 0"
+                [class.dice-bad]="getTotalDiceBonus(row) > 0"
+                [class.dice-zero]="getTotalDiceBonus(row) === 0">
+            {{ getTotalDiceBonus(row) > 0 ? '+' : '' }}{{ getTotalDiceBonus(row) }}
+          </span>
+          <button class="remove-custom-btn" (click)="removeCustomTalent(row.id)" title="Entfernen">&times;</button>
         </div>
       }
     </div>
   </app-card>
 </div>
-

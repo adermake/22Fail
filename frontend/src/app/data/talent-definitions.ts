@@ -138,3 +138,17 @@ export const TALENT_DEFINITIONS: TalentDefinition[] = [
 
 /** Talent id from TALENT_DEFINITIONS (e.g. 'akrobatik', 'athletik'). */
 export type TalentId = (typeof TALENT_DEFINITIONS)[number]['id'];
+
+/** Selectable base stats for free-form talents (Sonstige Talente). */
+export const TALENT_STAT_OPTIONS: { key: TalentStatKey; label: string; name: string }[] = [
+  { key: 'strength', label: 'STR', name: 'Stärke' },
+  { key: 'dexterity', label: 'GSK', name: 'Geschicklichkeit' },
+  { key: 'constitution', label: 'KON', name: 'Konstitution' },
+  { key: 'speed', label: 'GSW', name: 'Geschwindigkeit' },
+  { key: 'intelligence', label: 'INT', name: 'Intelligenz' },
+  { key: 'chill', label: 'WIL', name: 'Wille' },
+];
+
+export function talentStatLabel(stat: TalentStatKey | null | undefined): string {
+  return TALENT_STAT_OPTIONS.find((o) => o.key === stat)?.label ?? '—';
+}

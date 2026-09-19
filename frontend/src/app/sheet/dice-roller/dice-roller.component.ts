@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { TrueStatsService } from '../../services/true-stats.service';
-import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
+import { TALENT_DEFINITIONS, TalentStatKey, talentStatLabel } from '../../data/talent-definitions';
 import { computeSkillTalentBonuses } from '../../utils/skill-talent-bonus.utils';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { LibraryStoreService } from '../../services/library-store.service';
@@ -248,28 +248,58 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       .filter(b => b.value !== 0);
   });
 
-  /** Talent bonuses — matches talents tab: -(statModifier + ranks + skill bonuses). */
+  /** Talent bonuses — matches talents tab: -(statModifier + ranks + Charakterbonus + skill bonuses).
+   *  Includes the free-form "Sonstige Talente", which may have no base stat. */
   talentBonuses = computed(() => {
     if (!this.sheet) return [];
     const ranks = this.sheet.talentRanks ?? {};
+    const charBonuses = this.sheet.talentCharacterBonus ?? {};
     const skillBonuses = computeSkillTalentBonuses(this.sheet);
-    return TALENT_DEFINITIONS
+
+    type TalentLine = { id: string; name: string; stat: TalentStatKey | null; statLabel: string; rank: number; charBonus: number };
+    const lines: TalentLine[] = [
+      ...TALENT_DEFINITIONS.map(t => ({
+        id: t.id,
+        name: t.name,
+        stat: t.stat as TalentStatKey | null,
+        statLabel: t.statLabel,
+        rank: ranks[t.id] ?? 0,
+        charBonus: charBonuses[t.id] ?? 0,
+      })),
+      ...(this.sheet.herstellenEntries ?? [])
+        .filter(e => (e.label ?? '').trim().length > 0)
+        .map(e => ({
+          id: e.id,
+          name: e.label,
+          stat: e.stat ?? null,
+          statLabel: talentStatLabel(e.stat),
+          rank: e.rank ?? 0,
+          charBonus: e.charBonus ?? 0,
+        })),
+    ];
+
+    return lines
       .map(t => {
-        const statKey = t.stat as 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
-        const statModifier = this.trueStats.calculateStatModifier(this.sheet, statKey);
-        const talentRank = ranks[t.id] ?? 0;
+        const statModifier = t.stat ? this.trueStats.calculateStatModifier(this.sheet, t.stat) : 0;
         const skillBonus = skillBonuses.get(t.id) ?? 0;
-        const totalValue = -(statModifier + talentRank + skillBonus);
-        const contextParts = [`${t.statLabel}: ${statModifier >= 0 ? '+' : ''}${statModifier}`, `${talentRank} Ränge`];
+        const totalValue = -(statModifier + t.rank + t.charBonus + skillBonus);
+        const contextParts: string[] = [];
+        if (t.stat) contextParts.push(`${t.statLabel}: ${statModifier >= 0 ? '+' : ''}${statModifier}`);
+        contextParts.push(`${t.rank} Ränge`);
+        if (t.charBonus !== 0) contextParts.push(`${t.charBonus > 0 ? '+' : ''}${t.charBonus} Charakter`);
         if (skillBonus !== 0) contextParts.push(`+${skillBonus} Fähigkeiten`);
         return {
-          name: `Talent: ${t.name}`,
-          value: totalValue,
-          source: 'talent' as const,
-          context: contextParts.join(', '),
-        } as DiceBonus;
+          bonus: {
+            name: `Talent: ${t.name}`,
+            value: totalValue,
+            source: 'talent' as const,
+            context: contextParts.join(', '),
+          } as DiceBonus,
+          relevant: t.rank > 0 || t.charBonus !== 0 || skillBonus !== 0,
+        };
       })
-      .filter((b, i) => b.value !== 0 || (ranks[TALENT_DEFINITIONS[i].id] ?? 0) > 0 || (skillBonuses.get(TALENT_DEFINITIONS[i].id) ?? 0) > 0);
+      .filter(x => x.bonus.value !== 0 || x.relevant)
+      .map(x => x.bonus);
   });
 
   totalBonus = computed(() => {

@@ -221,7 +221,16 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - Änderungen laufen über `WorldStoreService.applyPatch('worldClock')` und `WorldStoreService.applyPatch('encounterTimer')` und sind dadurch synchron
 
 ### Talent System (DnD-style Proficiencies)
-- **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`
+- **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`,
+  `talentCharacterBonus: { [talentId: string]: number }` (frei vergebbarer Charakterbonus, zählt wie
+  Punkte, kostet aber keine)
+- **Sonstige Talente**: frei definierbare Talente in `herstellenEntries` (`CustomTalentEntry` — Legacy-
+  JSON-Key aus der alten "Herstellen"-Zeile, absichtlich beibehalten). Jeder Eintrag hat Label,
+  optionalen Basis-Stat (`stat: TalentStatKey | null`), `rank` und `charBonus` und läuft in der
+  Komponente über dieselbe `TalentRow`-Rechenstrecke wie die festen Talente.
+- **Limits sind nur Hinweise**: Weder Punktebudget noch `maxRankPerTalent` werden erzwungen
+  (Fähigkeiten dürfen sie brechen) — Überschreitung wird nur farblich markiert
+  (`.points-info.over-budget`, `.rank-value.over-limit`, `.max-rank-hint.warn`)
 - **Definitionen**: `data/talent-definitions.ts` → `TALENT_DEFINITIONS` (15 Talente: Athletik, Akrobatik, Heimlichkeit, etc.)
 - **Punkte-Formel**: `5 + Math.floor((level - 1) / 3)` (Level 1=5, Level 4=6, etc.)
 - **Modifier-Formel**: `(-5 + stat / 2) | 0` via `TrueStatsService.calculateStatModifier()` (DnD-Standard)

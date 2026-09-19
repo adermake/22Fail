@@ -132,9 +132,10 @@ export function createPlayerContext(
       if (!def) return 0;
       const statMod = trueStats.calculateStatModifier(sheet, def.stat as StatKey);
       const rank = (sheet.talentRanks ?? {})[id] ?? 0;
+      const charBonus = (sheet.talentCharacterBonus ?? {})[id] ?? 0;
       const skillBonus = computeSkillTalentBonusBreakdown(sheet).get(id as never)?.total ?? 0;
       const statusBonus = trueStats.getStatusTalentBonus(sheet, id);
-      return -(statMod + rank + skillBonus + statusBonus);
+      return -(statMod + rank + charBonus + skillBonus + statusBonus);
     },
     hasSkill: (name) =>
       (sheet.skills ?? []).some(s => s.name === name || s.skillId === name) ||

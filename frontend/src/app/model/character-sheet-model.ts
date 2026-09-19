@@ -10,6 +10,7 @@ import { ActiveStatusEffect } from './status-effect.model';
 import { SoulBlock } from './soul-block.model';
 import { CompanionBlock } from './companion-block.model';
 import { PendingGrant } from './gm-desk.model';
+import { TalentStatKey } from '../data/talent-definitions';
 
 export interface SheetTrashItem {
   type: 'item' | 'equipment' | 'rune' | 'spell' | 'skill';
@@ -23,10 +24,16 @@ export interface ConsumedItemEntry {
   consumedAt: number;
 }
 
-export interface HerstellenEntry {
+/** A free-form talent the player defines themselves (Sonstige Talente).
+ *  Behaves like a normal talent: optional base stat, own Charakterbonus and Punkte. */
+export interface CustomTalentEntry {
   id: string;   // Unique identifier (uuid-style)
-  label: string; // What is being crafted, e.g. "Schwerter"
+  label: string; // Free name, e.g. "Herstellen: Schwerter"
   rank: number;
+  /** Base stat whose modifier scales this talent; null/undefined = no stat. */
+  stat?: TalentStatKey | null;
+  /** Freely assigned character bonus, counted like invested Punkte. */
+  charBonus?: number;
 }
 
 export interface CharacterSheet {
@@ -91,7 +98,10 @@ export interface CharacterSheet {
   // Talente System (DnD-style stat proficiencies)
   talentRanks?: { [talentId: string]: number }; // Invested ranks per talent
   talentRankBonus?: number;       // GM-assigned bonus talent points for the talent system
-  herstellenEntries?: HerstellenEntry[]; // Custom crafting talents (multiple, each with own name)
+  /** Freely assigned Charakterbonus per talent; counts like invested Punkte but costs nothing. */
+  talentCharacterBonus?: { [talentId: string]: number };
+  /** Sonstige Talente (free-form). Legacy JSON key — kept so existing characters keep their entries. */
+  herstellenEntries?: CustomTalentEntry[];
   // Free Stat Points System
   freeStatPoints: number;         // Available free stat points to spend
   freeStatPointsBonus: number;    // GM-assigned bonus stat points
@@ -166,6 +176,7 @@ export function createEmptySheet(): CharacterSheet {
     learnedSkillIds: [],
     talentRanks: {},
     talentRankBonus: 0,
+    talentCharacterBonus: {},
     herstellenEntries: [],
     freeStatPoints: 0,
     freeStatPointsBonus: 0,
