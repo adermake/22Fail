@@ -692,6 +692,12 @@ lobby-container
   SkillBlock/SpellBlock/ItemBlock bleiben unberührt. `normalizeNpcVariation` repariert die Ausrichtung (Editor-Load, Speichern, vor jedem Wurf);
   im Editor laufen alle push/splice über `listPush`/`listRemove`.
 - Werte: `variation.stats` = Level von–bis (neues Level → Budget per `distributeByRatio` neu verteilen) + Streuung (Punkte wandern, Summe bleibt).
+- Punktbudget der Seele: `soulPointBudget(level, bonusPoints)` = 30 auf Level 1, +1 je Level, **+ `soul.bonusPoints`**
+  (Zusatzpunkte-Feld im Editor, negativ erlaubt, Minimum 6). Gilt überall: gesperrtes Wachstum, Spawn-Wurf (`rollSoul`),
+  Seelenextraktion (`soulFromNpc` übernimmt es in den `SoulBlock`) und die Lobby-Vorschau.
+- Browser-Reiter *Klassen & Rassen*: der Baum listet unter den Klassen jede Rasse (`RaceService`) mit ihren Vorteilen,
+  Nachteilen und Stufen-Fertigkeiten; die Suche greift auf beides. Übernommene Rassenfertigkeiten werden als
+  `skillSource: 'race'` + `sourceRaceId` kopiert (damit Klassen-Gating sie nicht deaktiviert).
 - Ausrüstung Zufällig: handverlesene Items + **generierte Plätze** (`variation.gear.slots`, je Chance), beim Ablegen frisch geschmiedet
   mit den Einstellungen aus `app-gear-generator mode="template"`. Pro Rüstungsslot bleibt nur ein Teil, Waffen dürfen mehrfach.
   Min/Max getrennt für **Rüstung** und **Waffen** (`variation.equipmentGroups`, handverlesen + generiert zusammen; Min-Auffüllen

@@ -135,6 +135,15 @@ export interface NpcSoul {
   /** The stat proportions frozen at the moment of locking. Only read while `locked`. */
   ratio?: Record<NpcStatKey, number>;
   /**
+   * Zusatzpunkte: extra (or, negative, missing) points on top of the level budget.
+   *
+   * The level economy is deliberately flat — 30 points at level 1 for everyone — which leaves no
+   * way to build a creature that is simply *more* than its level, e.g. a level 1 dragon starting
+   * from 60 points instead of 30. This is that dial, and it is part of the budget everywhere:
+   * locked re-deals, spawn rolls and soul extraction all see it.
+   */
+  bonusPoints?: number;
+  /**
    * @deprecated Replaced by `locked` + `ratio`. Was `stats = round(growth × level)`, which
    * ignored the point budget entirely — a level 10 creature scaled to 40 ended up with roughly
    * 240 points where a hand-built level 40 NPC has 69. Kept on the interface so stored JSON
@@ -161,15 +170,26 @@ export interface NpcBody {
   mods: NpcBodyStatMod[];
 }
 
-/** Point budget = 30 at level 1, +1 per level. */
-export function soulPointBudget(level: number): number {
-  return 29 + Math.max(1, Math.floor(level) || 1);
+/**
+ * Point budget = 30 at level 1, +1 per level, plus `bonusPoints` (see `NpcSoul.bonusPoints`).
+ *
+ * A negative bonus is allowed — a creature below the baseline is as legitimate as one above it —
+ * but the budget never falls below one point per stat, because that is the floor
+ * `distributeByRatio` can honour.
+ */
+export function soulPointBudget(level: number, bonusPoints = 0): number {
+  const base = 29 + Math.max(1, Math.floor(level) || 1);
+  return Math.max(NPC_STAT_KEYS.length, base + (Math.floor(bonusPoints) || 0));
+}
+/** The budget of a concrete soul: its level plus its own Zusatzpunkte. */
+export function soulBudget(soul: NpcSoul): number {
+  return soulPointBudget(soul.level, soul.bonusPoints);
 }
 export function soulPointsSpent(soul: NpcSoul): number {
   return NPC_STAT_KEYS.reduce((sum, k) => sum + (soul.stats[k] || 0), 0);
 }
 export function soulPointsRemaining(soul: NpcSoul): number {
-  return soulPointBudget(soul.level) - soulPointsSpent(soul);
+  return soulBudget(soul) - soulPointsSpent(soul);
 }
 
 /**

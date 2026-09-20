@@ -280,6 +280,9 @@
 .npc-tree-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 10px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-left-width: 3px; border-radius: 6px; color: var(--text, #e5e7eb); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
 .npc-tree-head small { opacity: 0.6; font-size: 0.64rem; }
 .npc-folder-head { border-left-color: #eab308; }
+/* Rassen stehen im selben Baum wie die Klassen — eigene Farbe, damit sie auffallen. */
+.npc-race-head { border-left-color: #f472b6; }
+.npc-race-tag { flex-shrink: 0; margin-left: 8px; color: var(--text-muted, #9ca3af); font-size: 0.68rem; }
 .npc-folder-head span { display: inline-flex; align-items: center; gap: 5px; }
 .npc-tree-skills { display: flex; flex-direction: column; gap: 3px; padding: 4px 0 6px 12px; }
 .npc-tree-skill { display: flex; align-items: center; justify-content: space-between; padding: 4px 9px; background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text-muted, #cbd5e1); font-size: 0.79rem; cursor: pointer; text-align: left; }

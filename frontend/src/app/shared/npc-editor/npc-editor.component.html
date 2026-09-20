@@ -56,6 +56,18 @@
             <span class="npc-hint">{{ growthLocked ? 'Verteilt das Budget im gespeicherten Verhältnis' : 'Effizienz der Seelenrune — je Level +1 Punkt' }}</span>
           </div>
 
+          <!-- Zusatzpunkte: Grundbudget über (oder unter) dem Level — z. B. 60 statt 30 auf Level 1 -->
+          <div class="npc-level-row">
+            <label>Zusatzpunkte</label>
+            <input type="number" [ngModel]="soul.bonusPoints ?? 0" (ngModelChange)="setBonusPoints($event)"
+                   [disabled]="soulLocked"
+                   title="Punkte zusätzlich zum Levelbudget. Negativ für ein Wesen unter dem Grundwert.">
+            <span class="npc-hint">
+              Grundbudget {{ budget }} statt {{ levelOnlyBudget }} — {{ soul.level }} Level
+              {{ (soul.bonusPoints ?? 0) >= 0 ? '+' : '−' }} {{ absBonusPoints }} Zusatz
+            </span>
+          </div>
+
           <div class="npc-soul-grid">
             @for (k of statGrid; track k) {
               <div class="npc-soul-cell">
@@ -423,14 +435,14 @@
           <!-- SKILLS -->
           @if (browseCategory === 'skills') {
             <div class="npc-subtabs">
-              <button [class.active]="skillTab === 'tree'" (click)="skillTab = 'tree'">Klassenbaum</button>
+              <button [class.active]="skillTab === 'tree'" (click)="skillTab = 'tree'">Klassen &amp; Rassen</button>
               <button [class.active]="skillTab === 'library'" (click)="skillTab = 'library'">Bibliothek</button>
             </div>
 
             @if (skillTab === 'tree') {
               <input class="npc-search" type="text" [(ngModel)]="treeQuery" placeholder="Fertigkeit suchen…">
               <div class="npc-scroll">
-                @for (cls of skillClasses; track cls) {
+                @for (cls of visibleSkillClasses; track cls) {
                   <div class="npc-tree-class">
                     <button class="npc-tree-head" [ngClass]="tierClass(classTier(cls))" (click)="toggleClass(cls)">
                       <span>{{ expandedClass === cls ? '▾' : '▸' }} {{ cls }}</span>
@@ -450,6 +462,29 @@
                     }
                   </div>
                 }
+
+                <!-- Rassenfertigkeiten: Vorteile, Nachteile und Stufen jeder Rasse -->
+                @for (g of visibleRaceGroups; track g.raceId) {
+                  <div class="npc-tree-class">
+                    <button class="npc-tree-head npc-race-head" (click)="toggleRace(g.raceId)">
+                      <span>{{ expandedRace === g.raceId ? '▾' : '▸' }} {{ g.raceName }}</span>
+                      <small>Rasse</small>
+                    </button>
+                    @if (expandedRace === g.raceId || treeQuery) {
+                      <div class="npc-tree-skills">
+                        @for (e of raceSkillsFor(g); track e.key) {
+                          <button class="npc-tree-skill"
+                                  [class.picked]="isSkillAdded(e.skill)"
+                                  [class.selected]="selectedRaceKey === e.key"
+                                  (click)="selectRaceSkill(e.key)">
+                            <span>{{ isSkillAdded(e.skill) ? '✓' : '' }} {{ e.skill.name }}</span>
+                            <span class="npc-race-tag">{{ e.origin }}</span>
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
               </div>
 
               <!-- Info box: read the selected skill in full, then add it -->
@@ -458,7 +493,7 @@
                   <div class="npc-info-head">
                     <span class="npc-hint">Vorschau</span>
                     <button class="npc-btn-add" (click)="addSelectedTreeSkill()">
-                      {{ isAdded(selectedTreeSkillId!) ? '＋ Nochmal hinzufügen' : '＋ Hinzufügen' }}
+                      {{ selectedIsAdded ? '＋ Nochmal hinzufügen' : '＋ Hinzufügen' }}
                     </button>
                   </div>
                   <app-skill [skill]="sel" [sheet]="previewSheet" [index]="0" [readOnly]="true"></app-skill>

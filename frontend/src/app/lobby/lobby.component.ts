@@ -1372,8 +1372,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
       strength: sb.strength, dexterity: sb.dexterity, speed: sb.speed,
       intelligence: sb.intelligence, constitution: sb.constitution, wille: sb.wille,
     };
-    const stats = distributeByRatio(soulPointBudget(L), ratio);
-    const budget = soulPointBudget(L) || 1;
+    const bonus = sb.soul?.bonusPoints || 0;
+    const stats = distributeByRatio(soulPointBudget(L, bonus), ratio);
+    const budget = soulPointBudget(L, bonus) || 1;
     const mk = (label: string, key: NpcStatKey) => {
       const value = stats[key];
       // Dice convention: negative modifier helps the roll, positive hurts it.

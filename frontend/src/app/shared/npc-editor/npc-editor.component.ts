@@ -21,6 +21,7 @@ import {
   createEmptyNpcBody,
   effectiveNpcStats,
   soulPointBudget,
+  soulBudget,
   soulPointsSpent,
   soulPointsRemaining,
   distributeByRatio,
@@ -55,6 +56,8 @@ import {
 } from '../../data/skill-definitions';
 import { NpcGeneratorService } from '../../services/npc-generator.service';
 import { ImageService } from '../../services/image.service';
+import { RaceService } from '../../services/race.service';
+import { Race } from '../../model/race.model';
 import { SkillEditorComponent } from '../skill-editor/skill-editor.component';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SpellEditorOverlayComponent } from '../../sheet/spell-editor-overlay/spell-editor-overlay.component';
@@ -70,6 +73,18 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { goldValue, isUnidentified, kindLabel, previewText } from '../../utils/entry-preview.util';
 
 interface LibFolder { path: string; label: string; files: AssetFile[]; }
+
+/** One racial ability, flattened out of a race so the tree can list it like a class skill. */
+interface RaceSkillEntry {
+  /** Stable row id: race + bucket + position (racial skills have no definition id). */
+  key: string;
+  skill: SkillBlock;
+  raceId: string;
+  /** Where it sits in the race: Vorteil, Nachteil or "Stufe N". */
+  origin: string;
+}
+
+interface RaceGroup { raceId: string; raceName: string; entries: RaceSkillEntry[]; }
 
 @Component({
   selector: 'app-npc-editor',
@@ -99,6 +114,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   private npcGen = inject(NpcGeneratorService);
   private cdr = inject(ChangeDetectorRef);
   private imageService = inject(ImageService);
+  private raceService = inject(RaceService);
   readonly weaponTypeService = inject(WeaponTypeService);
 
   draft!: NpcStatblock;
@@ -187,6 +203,11 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   treeQuery = '';
   /** Class-tree: the skill currently highlighted for preview (not yet added). */
   selectedTreeSkillId: string | null = null;
+  /** Rassenfertigkeiten in the same tree: groups, open group, and the previewed row. */
+  raceGroups: RaceGroup[] = [];
+  private raceEntries = new Map<string, RaceSkillEntry>();
+  expandedRace: string | null = null;
+  selectedRaceKey: string | null = null;
 
   /** Library browser: folder groups per category + which folder is open (keyed "cat|path"). */
   itemFolders: LibFolder[] = [];
@@ -257,6 +278,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     // Roll config parallel to the lists — repaired after the skills above were materialised.
     normalizeNpcVariation(this.draft);
     void this.weaponTypeService.load();
+    void this.loadRaceSkills();
 
     // Group the library lists by their folder (like the class-tree dropdowns).
     this.itemFolders = this.groupByFolder(this.availableItems);
@@ -332,7 +354,10 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   // ─── Soul: level → point budget → distribute over the 6 base stats ──────────
   get soul(): NpcSoul { return this.draft.soul!; }
-  get budget(): number { return soulPointBudget(this.soul.level); }
+  get budget(): number { return soulBudget(this.soul); }
+  /** What the level alone would grant — shown next to the Zusatzpunkte field. */
+  get levelOnlyBudget(): number { return soulPointBudget(this.soul.level); }
+  get absBonusPoints(): number { return Math.abs(this.soul.bonusPoints ?? 0); }
   get spent(): number { return soulPointsSpent(this.soul); }
   get remaining(): number { return soulPointsRemaining(this.soul); }
 
@@ -343,6 +368,23 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.soul.level = Math.max(1, Math.floor(v) || 1);
     // Locked: the new budget is dealt out again along the frozen ratio. Unlocked: the level only
     // moves the budget, and the extra point waits for someone to place it.
+    if (this.soul.locked) {
+      this.soul.stats = distributeByRatio(this.budget, this.soul.ratio);
+    }
+    this.recalc();
+  }
+
+  /**
+   * Zusatzpunkte: moves the budget without touching the level.
+   *
+   * Same split as `setLevel` — a locked soul re-deals the new budget along its frozen ratio, an
+   * unlocked one just gets more (or fewer) points to place by hand. Taking points away can leave
+   * the pad over budget; that shows as the usual red warning rather than silently trimming stats
+   * the GM entered.
+   */
+  setBonusPoints(v: number): void {
+    const n = Math.floor(v) || 0;
+    this.soul.bonusPoints = n === 0 ? undefined : n;
     if (this.soul.locked) {
       this.soul.stats = distributeByRatio(this.budget, this.soul.ratio);
     }
@@ -439,8 +481,10 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   skillsForClass(cls: string) {
     const q = this.treeQuery.trim().toLowerCase();
+    // Searching the group itself ("Ritter") lists everything it grants; otherwise match names.
+    const wholeGroup = !q || cls.toLowerCase().includes(q);
     return SKILL_DEFINITIONS
-      .filter(s => s.class === cls && (!q || s.name.toLowerCase().includes(q)))
+      .filter(s => s.class === cls && (wholeGroup || s.name.toLowerCase().includes(q)))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -450,16 +494,30 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   /** Class-tree click just SELECTS a skill for preview — you read it, then press Hinzufügen. */
   selectTreeSkill(id: string): void {
+    this.selectedRaceKey = null;
     this.selectedTreeSkillId = this.selectedTreeSkillId === id ? null : id;
   }
 
-  /** The selected class-tree skill materialised for the full app-skill preview. */
+  /** The selected tree row (class skill OR racial ability) materialised for the preview. */
   get selectedTreeSkill(): SkillBlock | null {
-    return this.selectedTreeSkillId ? this.materializeSkill(this.selectedTreeSkillId) : null;
+    if (this.selectedTreeSkillId) return this.materializeSkill(this.selectedTreeSkillId);
+    if (this.selectedRaceKey) return this.materializeRaceSkill(this.selectedRaceKey);
+    return null;
   }
 
   /** True once a class-tree skill has been added to this NPC (by its definition id). */
   isAdded(id: string): boolean { return this.draft.customSkills.some(s => s.skillId === id); }
+
+  /** Already on this NSC? By definition id when there is one, else by name (racial/library). */
+  isSkillAdded(sk: SkillBlock): boolean {
+    return this.draft.customSkills.some(s => (sk.skillId ? s.skillId === sk.skillId : s.name === sk.name));
+  }
+
+  /** Label state of the Hinzufügen button, for either kind of tree row. */
+  get selectedIsAdded(): boolean {
+    const sk = this.selectedTreeSkill;
+    return !!sk && this.isSkillAdded(sk);
+  }
 
   addSelectedTreeSkill(): void {
     const sk = this.selectedTreeSkill;
@@ -467,6 +525,77 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.listPush('customSkills', sk);
     this.recalcFokus();
     this.selectedTreeSkillId = null;
+    this.selectedRaceKey = null;
+  }
+
+  /** Classes shown in the tree — while searching, only the ones with a hit. */
+  get visibleSkillClasses(): string[] {
+    if (!this.treeQuery.trim()) return this.skillClasses;
+    return this.skillClasses.filter(cls => this.skillsForClass(cls).length > 0);
+  }
+
+  // ─── Skills: Rassenfertigkeiten ───────────────────────────────────────────
+  /** Flatten every race's Vorteile, Nachteile and Stufen into searchable tree rows. */
+  private async loadRaceSkills(): Promise<void> {
+    let races: Race[] = [];
+    try {
+      races = await this.raceService.getRaces();
+    } catch {
+      races = []; // Kein Rassen-Endpunkt erreichbar: der Klassenbaum funktioniert weiter.
+    }
+
+    this.raceEntries.clear();
+    this.raceGroups = [];
+    for (const race of races) {
+      const entries: RaceSkillEntry[] = [];
+      const push = (skill: SkillBlock | undefined, bucket: string, origin: string): void => {
+        if (!skill?.name) return;
+        const entry: RaceSkillEntry = { key: `${race.id}|${bucket}`, skill, raceId: race.id, origin };
+        entries.push(entry);
+        this.raceEntries.set(entry.key, entry);
+      };
+
+      (race.advantages ?? []).forEach((sk, i) => push(sk, `adv${i}`, 'Vorteil'));
+      (race.disadvantages ?? []).forEach((sk, i) => push(sk, `dis${i}`, 'Nachteil'));
+      (race.skills ?? []).forEach((group, gi) =>
+        (group.skills ?? []).forEach((sk, si) => push(sk, `lvl${gi}-${si}`, `Stufe ${group.levelRequired}`)),
+      );
+
+      if (entries.length) this.raceGroups.push({ raceId: race.id, raceName: race.name, entries });
+    }
+    this.cdr.markForCheck();
+  }
+
+  raceSkillsFor(group: RaceGroup): RaceSkillEntry[] {
+    const q = this.treeQuery.trim().toLowerCase();
+    // Same rule as the classes: the race name lists everything, otherwise match skill names.
+    if (!q || group.raceName.toLowerCase().includes(q)) return group.entries;
+    return group.entries.filter(e => e.skill.name.toLowerCase().includes(q));
+  }
+
+  /** Races shown in the tree — while searching, only the ones with a hit. */
+  get visibleRaceGroups(): RaceGroup[] {
+    if (!this.treeQuery.trim()) return this.raceGroups;
+    return this.raceGroups.filter(g => this.raceSkillsFor(g).length > 0);
+  }
+
+  toggleRace(raceId: string): void {
+    this.expandedRace = this.expandedRace === raceId ? null : raceId;
+  }
+
+  selectRaceSkill(key: string): void {
+    this.selectedTreeSkillId = null;
+    this.selectedRaceKey = this.selectedRaceKey === key ? null : key;
+  }
+
+  /** A racial ability copied for this NSC: tagged as racial so class gating can't disable it. */
+  private materializeRaceSkill(key: string): SkillBlock | null {
+    const entry = this.raceEntries.get(key);
+    if (!entry) return null;
+    const copy = JSON.parse(JSON.stringify(entry.skill)) as SkillBlock;
+    copy.skillSource = 'race';
+    copy.sourceRaceId = entry.raceId;
+    return copy;
   }
 
   /** Kurzes grünes Aufblitzen der angeklickten Zeile — die Quittung für den Klick. */

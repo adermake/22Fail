@@ -19,6 +19,8 @@ export interface SoulBlock {
   sourceType: 'npc' | 'pc';
   level: number;
   stats: Record<NpcStatKey, number>;
+  /** Zusatzpunkte of the source being — carried over so a capture can't quietly weaken it. */
+  bonusPoints?: number;
   skills: SkillBlock[];
   /** Image id inherited from the source being (used for the summon; overwritable in the editor). */
   image?: string;
@@ -44,13 +46,15 @@ export function soulFromNpc(npc: NpcStatblock, targetLevel: number, sourceType: 
   };
   const npcLevel = Math.max(1, npc.soul?.level ?? npc.level ?? 1);
   const L = Math.max(1, Math.floor(targetLevel) || npcLevel);
-  const stats = distributeByRatio(soulPointBudget(L), eff as Record<NpcStatKey, number>);
+  const bonusPoints = npc.soul?.bonusPoints || 0;
+  const stats = distributeByRatio(soulPointBudget(L, bonusPoints), eff as Record<NpcStatKey, number>);
   return {
     id: 'soul_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
     sourceName: npc.name || 'Unbekanntes Wesen',
     sourceType,
     level: L,
     stats,
+    bonusPoints: bonusPoints || undefined,
     skills: JSON.parse(JSON.stringify(npc.customSkills ?? [])) as SkillBlock[],
     image: npc.image || npc.defaultPortrait || undefined,
     createdAt: Date.now(),
@@ -66,7 +70,10 @@ export function createSummonStatblock(soul: SoulBlock): NpcStatblock {
   sb.name = soul.sourceName + ' (Beschwörung)';
   // Locked, with the soul's proportions frozen: moving the summon's level re-deals that level's
   // budget instead of leaving the summoner points to place by hand.
-  sb.soul = { level: soul.level, stats: { ...soul.stats }, locked: true, ratio: { ...soul.stats } };
+  sb.soul = {
+    level: soul.level, stats: { ...soul.stats }, locked: true, ratio: { ...soul.stats },
+    bonusPoints: soul.bonusPoints || undefined,
+  };
   sb.customSkills = JSON.parse(JSON.stringify(soul.skills ?? [])) as SkillBlock[];
   // Inherit the source image (overwritable in the summon editor).
   if (soul.image) { sb.image = soul.image; sb.defaultPortrait = soul.image; }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   NPC_STAT_KEYS, NpcSoul, NpcStatKey,
-  distributeByRatio, normalizeNpcSoul, soulPointBudget,
+  distributeByRatio, normalizeNpcSoul, soulBudget, soulPointBudget, soulPointsRemaining,
 } from './npc-statblock.model';
 
 const sum = (stats: Record<NpcStatKey, number>) =>
@@ -58,6 +58,38 @@ describe('distributeByRatio', () => {
     // The old growth x level rule blew past this: a level 10 creature scaled to 40 landed
     // near 240 points where the budget is 69.
     expect(sum(distributeByRatio(soulPointBudget(40), lopsided))).toBe(69);
+  });
+});
+
+describe('soulPointBudget — Zusatzpunkte', () => {
+  it('adds the bonus on top of the level budget', () => {
+    expect(soulPointBudget(1)).toBe(30);
+    expect(soulPointBudget(1, 30)).toBe(60);   // Level 1 mit 60 statt 30 Punkten
+    expect(soulPointBudget(10, 30)).toBe(69);  // 39 vom Level + 30 Zusatz
+  });
+
+  it('allows a negative bonus but never goes below one point per stat', () => {
+    expect(soulPointBudget(1, -10)).toBe(20);
+    expect(soulPointBudget(1, -100)).toBe(NPC_STAT_KEYS.length);
+  });
+
+  it('ignores a missing or unusable bonus', () => {
+    expect(soulPointBudget(5, undefined)).toBe(34);
+    expect(soulPointBudget(5, NaN)).toBe(34);
+  });
+
+  it('is what a soul and its remaining points are measured against', () => {
+    const soul: NpcSoul = { level: 1, stats: ratio({}), bonusPoints: 30 };
+    for (const k of NPC_STAT_KEYS) soul.stats[k] = 1;
+    expect(soulBudget(soul)).toBe(60);
+    expect(soulPointsRemaining(soul)).toBe(54);
+  });
+
+  it('spends the extra points along the ratio when the soul is locked', () => {
+    const lopsided = ratio({ strength: 20, dexterity: 5, speed: 5, intelligence: 3, constitution: 3, wille: 2 });
+    const stats = distributeByRatio(soulPointBudget(1, 30), lopsided);
+    expect(sum(stats)).toBe(60);
+    expect(stats.strength).toBeGreaterThan(stats.dexterity);
   });
 });
 

@@ -169,7 +169,10 @@ export function rollSoul(
     : Math.max(1, rollInt(rng, Math.max(1, variation!.levelMin || 1), Math.max(1, variation!.levelMax || 1)));
   if (level !== soul.level) {
     out.level = level;
-    out.stats = distributeByRatio(soulPointBudget(level), soul.locked ? soul.ratio : soul.stats);
+    out.stats = distributeByRatio(
+      soulPointBudget(level, soul.bonusPoints),
+      soul.locked ? soul.ratio : soul.stats,
+    );
   }
 
   const shuffle = enabled ? Math.max(0, Math.floor(variation!.shuffle || 0)) : 0;
