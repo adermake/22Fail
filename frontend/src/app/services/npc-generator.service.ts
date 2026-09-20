@@ -9,15 +9,18 @@
  * - Ressourcen aus Rasse berechnen
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   CLASS_DEFINITIONS,
   SKILL_DEFINITIONS,
   getSkillsForClass,
 } from '../data/skill-definitions';
+import { FormulaType } from '../model/formula-type.enum';
 import { SkillDefinition } from '../model/skill-definition.model';
-import { NpcArchetypeDefinition } from '../model/npc-statblock.model';
+import { NpcArchetypeDefinition, NpcStatblock } from '../model/npc-statblock.model';
 import { Race } from '../model/race.model';
+import { buildNpcSheet } from '../utils/npc-sheet.util';
+import { TrueStatsService } from './true-stats.service';
 
 export interface BaseStats {
   str: number;
@@ -30,6 +33,8 @@ export interface BaseStats {
 
 @Injectable({ providedIn: 'root' })
 export class NpcGeneratorService {
+
+  private readonly trueStats = inject(TrueStatsService);
 
   /** Eltern-Map: Kind-Klasse → Liste der Eltern-Klassen */
   private readonly parentMap: Map<string, string[]>;
@@ -325,6 +330,24 @@ export class NpcGeneratorService {
   /** Berechnet Grundbonus (= ⌊Level / 5⌋ + ⌊Wille / 5⌋). */
   calcGrundbonus(level: number, wille = 10): number {
     return Math.floor(level / 5) + Math.floor(wille / 5);
+  }
+
+  /**
+   * Leben/Ausdauer/Mana eines Statblocks — über **denselben** Rechner wie beim Spielerblatt
+   * (`TrueStatsService.calculateResourceMax` auf einem synthetischen Blatt).
+   *
+   * Damit gilt für NSCs dieselbe Formel: Stat×5 + flaches Leben pro Stufe + alles, was
+   * Fähigkeiten, Ausrüstung und Effekte auf `life`/`energy`/`mana` legen. Vorher stand hier
+   * schlicht `KON×5`, weshalb ein „+30 Leben" auf einer Fähigkeit bei NSCs nichts tat und das
+   * Leben pro Stufe ganz fehlte.
+   */
+  npcResourceMax(sb: NpcStatblock): { life: number; energy: number; mana: number } {
+    const sheet = buildNpcSheet(sb);
+    return {
+      life: this.trueStats.calculateResourceMax(sheet, FormulaType.LIFE),
+      energy: this.trueStats.calculateResourceMax(sheet, FormulaType.ENERGY),
+      mana: this.trueStats.calculateResourceMax(sheet, FormulaType.MANA),
+    };
   }
 
   // ─── Hilfsmethoden für die UI ─────────────────────────────────────────────

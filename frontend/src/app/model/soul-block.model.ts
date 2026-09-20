@@ -1,5 +1,5 @@
 import {
-  NpcStatKey, NPC_STAT_KEYS, NpcStatblock, effectiveNpcStats, createEmptyNpcStatblock,
+  NpcStatKey, NPC_STAT_KEYS, NpcSoulScaling, NpcStatblock, effectiveNpcStats, createEmptyNpcStatblock,
   distributeByRatio, soulPointBudget,
 } from './npc-statblock.model';
 import { SkillBlock } from './skill-block.model';
@@ -21,6 +21,8 @@ export interface SoulBlock {
   stats: Record<NpcStatKey, number>;
   /** Zusatzpunkte of the source being — carried over so a capture can't quietly weaken it. */
   bonusPoints?: number;
+  /** The source being's Skalierung, carried for the same reason (see `NpcSoul.scaling`). */
+  scaling?: NpcSoulScaling;
   skills: SkillBlock[];
   /** Image id inherited from the source being (used for the summon; overwritable in the editor). */
   image?: string;
@@ -47,7 +49,8 @@ export function soulFromNpc(npc: NpcStatblock, targetLevel: number, sourceType: 
   const npcLevel = Math.max(1, npc.soul?.level ?? npc.level ?? 1);
   const L = Math.max(1, Math.floor(targetLevel) || npcLevel);
   const bonusPoints = npc.soul?.bonusPoints || 0;
-  const stats = distributeByRatio(soulPointBudget(L, bonusPoints), eff as Record<NpcStatKey, number>);
+  const scaling = npc.soul?.scaling;
+  const stats = distributeByRatio(soulPointBudget(L, bonusPoints, scaling), eff as Record<NpcStatKey, number>);
   return {
     id: 'soul_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
     sourceName: npc.name || 'Unbekanntes Wesen',
@@ -55,6 +58,7 @@ export function soulFromNpc(npc: NpcStatblock, targetLevel: number, sourceType: 
     level: L,
     stats,
     bonusPoints: bonusPoints || undefined,
+    scaling,
     skills: JSON.parse(JSON.stringify(npc.customSkills ?? [])) as SkillBlock[],
     image: npc.image || npc.defaultPortrait || undefined,
     createdAt: Date.now(),
@@ -73,6 +77,7 @@ export function createSummonStatblock(soul: SoulBlock): NpcStatblock {
   sb.soul = {
     level: soul.level, stats: { ...soul.stats }, locked: true, ratio: { ...soul.stats },
     bonusPoints: soul.bonusPoints || undefined,
+    scaling: soul.scaling,
   };
   sb.customSkills = JSON.parse(JSON.stringify(soul.skills ?? [])) as SkillBlock[];
   // Inherit the source image (overwritable in the summon editor).

@@ -5,6 +5,7 @@ import {
   normalizeNpcVariation, soulPointBudget,
 } from '../model/npc-statblock.model';
 import { makeRng } from './gear-generator.util';
+import { NPC_BASE_POOL } from './npc-sheet.util';
 import {
   NpcDerivedCalc, rollEquipment, rollInventory, rollNpcInstance, rollSoul, rollSubset,
   scaleChanceForLevel, rollCetris,
@@ -14,6 +15,13 @@ const calc: NpcDerivedCalc = {
   calcReaktionswert: () => 0,
   calcGrundbonus: () => 0,
   calcFokus: (intelligence) => intelligence,
+  // Stand-in for TrueStatsService, same shape as the real formula (Grundpool + Stat×5 [+ Leben je
+  // Stufe]); the formula itself is covered by npc-sheet.spec.ts.
+  npcResourceMax: (sb) => ({
+    life: NPC_BASE_POOL + (sb.constitution ?? 0) * 5 + (sb.level || 1) * 2,
+    energy: NPC_BASE_POOL + (sb.dexterity ?? 0) * 5,
+    mana: NPC_BASE_POOL + (sb.intelligence ?? 0) * 5,
+  }),
 };
 const ctx = { materials: [], traits: [] };
 const entries = (...chances: number[]): NpcRollEntry[] => chances.map(chance => ({ chance }));
@@ -191,7 +199,8 @@ describe('rollNpcInstance', () => {
     normalizeNpcVariation(sb).stats = { enabled: true, levelMin: 5, levelMax: 5, shuffle: 0 };
     const rolled = rollNpcInstance(sb, ctx, 11, calc);
     expect(rolled.level).toBe(5);
-    expect(rolled.maxHealth).toBe(rolled.soul!.stats.constitution * 5);
+    // Pools come from the calculator now: Grundpool + Konstitution ×5 + flaches Leben je Stufe.
+    expect(rolled.maxHealth).toBe(NPC_BASE_POOL + rolled.soul!.stats.constitution * 5 + rolled.level * 2);
     expect(rolled.fokus).toBe(rolled.intelligence);
   });
 });

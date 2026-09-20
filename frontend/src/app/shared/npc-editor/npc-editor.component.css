@@ -74,6 +74,12 @@
 .npc-level-row label { font-size: 0.78rem; font-weight: 600; }
 .npc-level-row input { width: 76px; padding: 5px 8px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text, #e5e7eb); }
 
+/* Skalierungs-Umschalter (Beschwörung / Spieler) — zwei Knöpfe wie die Reiter oben */
+.npc-scaling { display: flex; gap: 4px; }
+.npc-scaling button { padding: 5px 9px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text-muted, #9ca3af); font-size: 0.74rem; cursor: pointer; }
+.npc-scaling button.active { background: rgba(139,92,246,0.18); border-color: var(--accent, #8b5cf6); color: var(--accent, #8b5cf6); font-weight: 600; }
+.npc-scaling button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .npc-soul-list { display: flex; flex-direction: column; gap: 5px; }
 .npc-soul-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; background: var(--bg, #1e293b); border-radius: 7px; }
 .npc-soul-label { display: flex; align-items: center; gap: 7px; font-size: 0.84rem; font-weight: 600; }

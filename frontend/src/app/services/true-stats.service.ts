@@ -71,6 +71,23 @@ function itemKey(item: ItemBlock): string {
   return item.id || item.name;
 }
 
+/**
+ * Every skill currently running, from BOTH activation channels.
+ *
+ * `activeSkillNames` is the cast window's toggle list; `activeSkillEntries` is what the lobby's
+ * abilities dock writes (it supports several instances of one skill). Only the first was consulted
+ * here, so a skill activated on a token — an NSC's above all, since that dock is the only way to
+ * activate one — never had its `effectActive` block collected: no stat modifiers, no
+ * `diceBonus(…)`, no granted skills.
+ */
+function activeSkillNames(sheet: CharacterSheet): Set<string> {
+  const names = new Set(sheet.activeSkillNames ?? []);
+  for (const entry of sheet.activeSkillEntries ?? []) {
+    if (entry?.skillName) names.add(entry.skillName);
+  }
+  return names;
+}
+
 /** Combine a modifier with the running value in the ordered stat pipeline. */
 function applyOp(acc: number, op: ModifierOp, amount: number): number {
   switch (op) {
@@ -347,9 +364,9 @@ export class TrueStatsService {
       s += `|${e.statusEffectId}@${e.appliedAt ?? 0}:${e.stacks ?? 1}:${e.duration ?? ''}#${eff?.priority ?? 0}#${eff?.script ?? ''}`;
     }
     // Skills/spells that feed effectActive also change the derived result — toggling one must recompute.
-    const activeNames = sheet.activeSkillNames ?? [];
+    const activeNames = activeSkillNames(sheet);
     for (const skill of sheet.skills ?? []) {
-      if (skill.script && (skill.type === 'passive' || activeNames.includes(skill.name))) {
+      if (skill.script && (skill.type === 'passive' || activeNames.has(skill.name))) {
         s += `|SK:${skill.name}#${skill.script}`;
       }
     }
@@ -438,10 +455,10 @@ export class TrueStatsService {
         for (const d of res.diceBonuses) diceBonuses.push({ ...d, source });
       };
 
-      const activeNames = sheet.activeSkillNames ?? [];
+      const activeNames = activeSkillNames(sheet);
       for (const skill of sheet.skills ?? []) {
         if (!skill.script) continue;
-        if (skill.type === 'passive' || activeNames.includes(skill.name)) runCollect(skill.script, skill.name);
+        if (skill.type === 'passive' || activeNames.has(skill.name)) runCollect(skill.script, skill.name);
       }
 
       const activeSpells = new Set(

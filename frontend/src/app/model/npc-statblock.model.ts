@@ -118,6 +118,12 @@ export type NpcStatKey =
 export const NPC_STAT_KEYS: NpcStatKey[] =
   ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'wille'];
 
+/**
+ * How the level turns into points: the flat soul-rune curve, or the one players are on.
+ * See `soulPointBudget` for the two formulas.
+ */
+export type NpcSoulScaling = 'summon' | 'player';
+
 /** The soul: a level plus the 6 base stats it spent its points on (min 1 each). */
 export interface NpcSoul {
   level: number;
@@ -134,6 +140,15 @@ export interface NpcSoul {
   locked?: boolean;
   /** The stat proportions frozen at the moment of locking. Only read while `locked`. */
   ratio?: Record<NpcStatKey, number>;
+  /**
+   * Which curve the level follows. Omitted = `summon`, so nothing changes for stored statblocks.
+   *
+   * `summon` is the soul-rune economy: 30 points at level 1, +1 per level. It is deliberately flat,
+   * which makes a level-10 summon far weaker than a level-10 player — a player starts from a race's
+   * 60 points and gains 1,5 per level plus a free point every third level. `player` puts the NSC on
+   * that second curve, for creatures meant to stand next to the party rather than be summoned by it.
+   */
+  scaling?: NpcSoulScaling;
   /**
    * Zusatzpunkte: extra (or, negative, missing) points on top of the level budget.
    *
@@ -171,19 +186,34 @@ export interface NpcBody {
 }
 
 /**
- * Point budget = 30 at level 1, +1 per level, plus `bonusPoints` (see `NpcSoul.bonusPoints`).
+ * Point budget for a level, on either curve, plus `bonusPoints` (see `NpcSoul.bonusPoints`).
+ *
+ * - `summon` (default): **30 at level 1, +1 per level** — the efficiency of the soul rune.
+ * - `player`: **60 at level 1, +1,5 per level, plus a free point every third level** — the curve a
+ *   player character is on (a race's 60 base points, its per-level gains, and `⌊Level/3⌋` free
+ *   points). Rounded to whole points, so it can sit one point either side of a hand-built player of
+ *   that level, whose stats each truncate on their own.
  *
  * A negative bonus is allowed — a creature below the baseline is as legitimate as one above it —
  * but the budget never falls below one point per stat, because that is the floor
  * `distributeByRatio` can honour.
  */
-export function soulPointBudget(level: number, bonusPoints = 0): number {
-  const base = 29 + Math.max(1, Math.floor(level) || 1);
+export function soulPointBudget(level: number, bonusPoints = 0, scaling: NpcSoulScaling = 'summon'): number {
+  const lvl = Math.max(1, Math.floor(level) || 1);
+  const base = scaling === 'player'
+    ? Math.floor(PLAYER_BASE_POINTS + PLAYER_POINTS_PER_LEVEL * (lvl - 1)) + Math.floor(lvl / 3)
+    : 29 + lvl;
   return Math.max(NPC_STAT_KEYS.length, base + (Math.floor(bonusPoints) || 0));
 }
-/** The budget of a concrete soul: its level plus its own Zusatzpunkte. */
+
+/** Stat points every race grants at level 1 (all of them sum to exactly this). */
+export const PLAYER_BASE_POINTS = 60;
+/** Stat points a race grants per level (every race's six gains sum to exactly this). */
+export const PLAYER_POINTS_PER_LEVEL = 1.5;
+
+/** The budget of a concrete soul: its level and curve, plus its own Zusatzpunkte. */
 export function soulBudget(soul: NpcSoul): number {
-  return soulPointBudget(soul.level, soul.bonusPoints);
+  return soulPointBudget(soul.level, soul.bonusPoints, soul.scaling);
 }
 export function soulPointsSpent(soul: NpcSoul): number {
   return NPC_STAT_KEYS.reduce((sum, k) => sum + (soul.stats[k] || 0), 0);

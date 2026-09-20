@@ -28,6 +28,8 @@ export interface NpcDerivedCalc {
   calcReaktionswert(wille: number, level?: number): number;
   calcGrundbonus(level: number, wille?: number): number;
   calcFokus(intelligence: number, learnedSkillIds: string[]): number;
+  /** Ressourcenmaxima über den einen Statrechner (TrueStatsService) — siehe `npcResourceMax`. */
+  npcResourceMax(sb: NpcStatblock): { life: number; energy: number; mana: number };
 }
 
 /** Library data that forging a generated slot needs. */
@@ -170,7 +172,7 @@ export function rollSoul(
   if (level !== soul.level) {
     out.level = level;
     out.stats = distributeByRatio(
-      soulPointBudget(level, soul.bonusPoints),
+      soulPointBudget(level, soul.bonusPoints, soul.scaling),
       soul.locked ? soul.ratio : soul.stats,
     );
   }
@@ -358,9 +360,12 @@ export function applyDerivedNpcStats(sb: NpcStatblock, calc: NpcDerivedCalc): vo
   sb.intelligence = e.intelligence;
   sb.constitution = e.constitution;
   sb.wille = e.wille;
-  sb.maxHealth = e.constitution * 5;
-  sb.maxEnergy = e.dexterity * 5;
-  sb.maxMana = e.intelligence * 5;
+  // Pools last: the calculator reads the flat stats above off the statblock, and it adds Stat×5,
+  // the flat Leben per level and every skill/item bonus itself — the same formula a player gets.
+  const pools = calc.npcResourceMax(sb);
+  sb.maxHealth = pools.life;
+  sb.maxEnergy = pools.energy;
+  sb.maxMana = pools.mana;
   sb.reaktionswert = calc.calcReaktionswert(e.wille, level);
   sb.grundbonus = calc.calcGrundbonus(level, e.wille);
   const skillIds = (sb.customSkills ?? []).filter(s => s.skillId).map(s => s.skillId!);

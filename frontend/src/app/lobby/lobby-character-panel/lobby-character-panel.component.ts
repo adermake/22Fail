@@ -25,18 +25,15 @@ import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
 import { CharacterSocketService } from '../../services/character-socket.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
-import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { DiceRollerComponent } from '../../sheet/dice-roller/dice-roller.component';
 import { DamageCalculatorComponent } from '../../world/damage-calculator/damage-calculator.component';
 import { SpellcastWindowComponent } from '../../sheet/spellcast-window/spellcast-window.component';
-import { createEmptySheet } from '../../model/character-sheet-model';
 import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { isItemEquipped, isWieldedWeapon } from '../../utils/equip-slot.utils';
 import { constructWeapons, isConstruct, rawStatResolver } from '../../utils/construct.util';
 import { applyStability } from '../../utils/stability.util';
-import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { tokenLabel } from '../../utils/entry-preview.util';
 import { committedFokus } from '../../utils/spell-costs.util';
@@ -44,6 +41,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LobbyTokenActionsService } from '../lobby-token-actions.service';
 import { LobbyMapManagerComponent, MapManagerPlayer } from '../lobby-map-manager/lobby-map-manager.component';
 import { formatCurrencyAsUnits, isEmptyCurrency } from '../../model/current-events.model';
+import { NpcSheetTokenState, buildNpcSheet, npcSkillBlocks } from '../../utils/npc-sheet.util';
 
 interface StatDisplay {
   label: string;
@@ -1639,13 +1637,11 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
         this._cachedNpcSheetId = tokenId;
         this._cachedNpcSheet = this.npc ? this._buildNpcSheet() : null;
       } else if (this._cachedNpcSheet && this.npc) {
-        // Same token, but its dynamic state (active skills / casting spells) may have changed —
-        // refresh those on the cached sheet so effectActive re-collects (active skill / cast spell).
-        this._cachedNpcSheet.activeSkillNames = this.token?.activeSkillNames ?? [];
-        this._cachedNpcSheet.castingSpells = this.token?.castingSpells ?? [];
-        this._cachedNpcSheet.skills = this.allSkills;
-        this._cachedNpcSheet.spells = this.npc.spells ?? [];
-        this._cachedNpcSheet.statuses = this.npcStatuses();
+        // Same token, but its dynamic state may have changed — rebuild in place (same object, so
+        // mutations from the cast window survive) instead of hand-copying a subset of the fields:
+        // `activeSkillEntries` and the token's status effects were missing from that subset, which
+        // is exactly what kept a skill activated at the table from ever running its effectActive.
+        Object.assign(this._cachedNpcSheet, buildNpcSheet(this.npc, this.npcTokenState()));
       }
     }
   }
@@ -1678,7 +1674,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (this.character) {
       return this.trueStats.calculateResourceMax(this.character, FormulaType.LIFE);
     }
-    return this.npc?.maxHealth ?? 0;
+    return this.npcResourceMax(FormulaType.LIFE, this.npc?.maxHealth);
   }
 
   get currentMana(): number {
@@ -1693,7 +1689,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (this.character) {
       return this.trueStats.calculateResourceMax(this.character, FormulaType.MANA);
     }
-    return this.npc?.maxMana ?? 0;
+    return this.npcResourceMax(FormulaType.MANA, this.npc?.maxMana);
   }
 
   get currentEnergy(): number {
@@ -1708,7 +1704,18 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (this.character) {
       return this.trueStats.calculateResourceMax(this.character, FormulaType.ENERGY);
     }
-    return this.npc?.maxEnergy ?? 0;
+    return this.npcResourceMax(FormulaType.ENERGY, this.npc?.maxEnergy);
+  }
+
+  /**
+   * An NSC's pool through the same calculator the sheet uses, so Fähigkeiten und Ausrüstung mit
+   * `+30 Leben` wirken und das flache Leben pro Stufe auch für NSCs gilt. Falls (noch) kein
+   * Blatt gebaut ist, bleibt der Wert aus dem Statblock — der ist bereits derselbe Wert.
+   */
+  private npcResourceMax(formula: FormulaType, fallback: number | undefined): number {
+    const sheet = this._cachedNpcSheet;
+    if (!sheet) return fallback ?? 0;
+    return this.trueStats.calculateResourceMax(sheet, formula);
   }
 
   // ---- Stat displays ----
@@ -1746,24 +1753,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   get activeSkills(): SkillBlock[] {
     if (this.character) return (this.character.skills || []).filter(s => s.type === 'active' && !s.disabled);
-    if (this.npc) {
-      // Resolve skill-tree skills from learnedSkillIds
-      const treeSkills: SkillBlock[] = (this.npc.learnedSkillIds || [])
-        .map(id => SKILL_DEFINITIONS.find(s => s.id === id))
-        .filter((def): def is NonNullable<typeof def> => !!def && def.type === 'active')
-        .map(def => ({
-          name: def.name,
-          class: def.class,
-          description: def.description,
-          type: def.type as 'active',
-          enlightened: def.enlightened ?? false,
-          skillId: def.id,
-          cost: def.cost,
-          actionType: def.actionType,
-        } as SkillBlock));
-      const customActive = (this.npc.customSkills || []).filter(s => s.type === 'active');
-      return [...treeSkills, ...customActive];
-    }
+    if (this.npc) return npcSkillBlocks(this.npc).filter(s => s.type === 'active');
     return [];
   }
 
@@ -1777,21 +1767,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
     if (this.character) return sortByType((this.character.skills || []).filter(s => !s.disabled));
     if (this.npc) {
-      const treeSkills: SkillBlock[] = (this.npc.learnedSkillIds || [])
-        .map(id => SKILL_DEFINITIONS.find(s => s.id === id))
-        .filter((def): def is NonNullable<typeof def> => !!def)
-        .map(def => ({
-          name: def.name,
-          class: def.class,
-          description: def.description,
-          type: def.type as SkillBlock['type'],
-          enlightened: def.enlightened ?? false,
-          skillId: def.id,
-          cost: def.cost,
-          actionType: def.actionType,
-        } as SkillBlock));
-      const customSkills = this.npc.customSkills || [];
-      return sortByType([...treeSkills, ...customSkills]);
+      // Shared materialisation: a Klassenbaum-Fertigkeit keeps its `statModifiers` here, the way
+      // learning it does on a player sheet.
+      return sortByType(npcSkillBlocks(this.npc));
     }
     return [];
   }
@@ -1919,55 +1897,28 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   /**
-   * The NPC token's Leben/Mana/Ausdauer as sheet statuses. Without them the cast window saw 0 Mana
-   * and refused every NPC spell; its Mana spend comes back through `handleAbilitiesPatch`.
+   * The NSC as a sheet — built by `buildNpcSheet`, the one builder the Statblock-Berechnung and the
+   * Makro-Ausführung share. Skills (incl. Klassenbaum-Fertigkeiten mit ihren `statModifiers`),
+   * Ausrüstung, Zauber, Statuseffekte und beide Aktivierungs-Kanäle kommen mit, damit
+   * `effectActive`, `diceBonus(…)` und die Ressourcenmaxima genauso rechnen wie bei Spielern.
    */
-  private npcStatuses(): CharacterSheet['statuses'] {
-    return [
-      { formulaType: FormulaType.LIFE, statusBase: this.maxHealth, statusCurrent: this.currentHealth, statusBonus: 0, statusEffectBonus: 0, statusName: 'Leben', statusColor: 'red' },
-      { formulaType: FormulaType.MANA, statusBase: this.maxMana, statusCurrent: this.currentMana, statusBonus: 0, statusEffectBonus: 0, statusName: 'Mana', statusColor: 'blue' },
-      { formulaType: FormulaType.ENERGY, statusBase: this.maxEnergy, statusCurrent: this.currentEnergy, statusBonus: 0, statusEffectBonus: 0, statusName: 'Ausdauer', statusColor: 'green' },
-    ] as CharacterSheet['statuses'];
+  private _buildNpcSheet(): CharacterSheet {
+    return buildNpcSheet(this.npc!, this.npcTokenState());
   }
 
-  private _buildNpcSheet(): CharacterSheet {
-    const npc = this.npc!;
-    const sheet = createEmptySheet();
-    sheet.name = npc.name;
-    sheet.id = this.token?.id ?? '';
-    sheet.worldName = this.worldName;
-    const makeStatBlock = (name: string, base: number): StatBlock => {
-      const sb = new StatBlock(name, base);
-      sb.current = base;
-      return sb;
+  /** Live-Zustand des Tokens für den Blattbau (nur die Felder, die sich im Spiel ändern). */
+  private npcTokenState(): NpcSheetTokenState {
+    return {
+      id: this.token?.id,
+      worldName: this.worldName,
+      currentHealth: this.token?.currentHealth,
+      currentMana: this.token?.currentMana,
+      currentEnergy: this.token?.currentEnergy,
+      activeSkillNames: this.token?.activeSkillNames ?? [],
+      activeSkillEntries: this.token?.activeSkillEntries ?? [],
+      castingSpells: this.token?.castingSpells ?? [],
+      activeStatusEffects: this.token?.activeStatusEffects ?? [],
     };
-    sheet.strength = makeStatBlock('Stärke', npc.strength);
-    sheet.dexterity = makeStatBlock('Geschicklichkeit', npc.dexterity);
-    sheet.speed = makeStatBlock('Geschwindigkeit', npc.speed);
-    sheet.intelligence = makeStatBlock('Intelligenz', npc.intelligence);
-    sheet.constitution = makeStatBlock('Konstitution', npc.constitution);
-    sheet.chill = makeStatBlock('Wille', npc.wille);
-    sheet.level = npc.level;
-    // Include skills so dice_bonus skills appear in the dice roller AND passive/active effectActive
-    // blocks are collected (via TrueStatsService) into this NPC's stats.
-    sheet.skills = this.allSkills;
-    sheet.activeSkillNames = this.token?.activeSkillNames ?? [];
-    // Include spells for the spellcast window + spell effectActive while cast.
-    sheet.spells = npc.spells ?? [];
-    sheet.castingSpells = this.token?.castingSpells ?? [];
-    // Worn gear, by reference: item identity has to match `npc.equipment` or the Konstrukt budget
-    // cannot recognise the same machine twice. Without this the stub had no equipment at all, so
-    // `useArmorStabilitaet` had nothing to read and a Begleiter's Konstrukt did nothing.
-    sheet.equipment = npc.equipment ?? [];
-    sheet.inventory = npc.inventory ?? [];
-    sheet.fokusMultiplier = 1;
-    // A statblock states its Fokus outright; the sheet derives it from Intelligenz. Bridge the two
-    // so Konstrukte on a Begleiter are measured against the Fokus the GM actually gave it.
-    sheet.fokusBonus = npc.fokusOverride
-      ? (npc.fokus ?? 0) - (Math.floor((npc.intelligence ?? 0) / 2) + 5)
-      : 0;
-    sheet.statuses = this.npcStatuses();
-    return sheet;
   }
 
   /** Status effects from all loaded libraries */

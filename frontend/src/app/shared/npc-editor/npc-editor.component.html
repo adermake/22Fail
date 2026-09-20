@@ -56,6 +56,22 @@
             <span class="npc-hint">{{ growthLocked ? 'Verteilt das Budget im gespeicherten Verhältnis' : 'Effizienz der Seelenrune — je Level +1 Punkt' }}</span>
           </div>
 
+          <!-- Skalierung: welche Punktekurve das Level fährt -->
+          <div class="npc-level-row">
+            <label>Skalierung</label>
+            <div class="npc-scaling">
+              <button type="button" [class.active]="scaling === 'summon'" [disabled]="soulLocked"
+                      (click)="setScaling('summon')"
+                      title="Seelenrune: 30 Punkte auf Stufe 1, +1 je Stufe">Beschwörung</button>
+              <button type="button" [class.active]="scaling === 'player'" [disabled]="soulLocked"
+                      (click)="setScaling('player')"
+                      title="Spielerkurve: 60 Punkte auf Stufe 1, +1,5 je Stufe, dazu ein freier Punkt alle 3 Stufen">Spieler</button>
+            </div>
+            <span class="npc-hint">
+              {{ scaling === 'player' ? '60 + 1,5/Stufe + freie Punkte — wie ein Spielercharakter' : '30 + 1/Stufe — Effizienz der Seelenrune' }}
+            </span>
+          </div>
+
           <!-- Zusatzpunkte: Grundbudget über (oder unter) dem Level — z. B. 60 statt 30 auf Level 1 -->
           <div class="npc-level-row">
             <label>Zusatzpunkte</label>

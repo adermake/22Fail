@@ -692,9 +692,27 @@ lobby-container
   SkillBlock/SpellBlock/ItemBlock bleiben unberührt. `normalizeNpcVariation` repariert die Ausrichtung (Editor-Load, Speichern, vor jedem Wurf);
   im Editor laufen alle push/splice über `listPush`/`listRemove`.
 - Werte: `variation.stats` = Level von–bis (neues Level → Budget per `distributeByRatio` neu verteilen) + Streuung (Punkte wandern, Summe bleibt).
-- Punktbudget der Seele: `soulPointBudget(level, bonusPoints)` = 30 auf Level 1, +1 je Level, **+ `soul.bonusPoints`**
-  (Zusatzpunkte-Feld im Editor, negativ erlaubt, Minimum 6). Gilt überall: gesperrtes Wachstum, Spawn-Wurf (`rollSoul`),
+- Punktbudget der Seele: `soulPointBudget(level, bonusPoints, scaling)` + `soulBudget(soul)`.
+  **Skalierung** (`soul.scaling`, Umschalter im Editor, leer = `summon`):
+  `summon` = 30 auf Stufe 1, +1 je Stufe (Seelenrune); `player` = 60 auf Stufe 1, +1,5 je Stufe, dazu ⌊Stufe/3⌋ freie
+  Punkte — die Spielerkurve (Rassen geben ausnahmslos 60 Basis- und 1,5 Punkte je Stufe). Dazu **`soul.bonusPoints`**
+  (Zusatzpunkte, negativ erlaubt, Minimum 6). Beides gilt überall: gesperrtes Wachstum, Spawn-Wurf (`rollSoul`),
   Seelenextraktion (`soulFromNpc` übernimmt es in den `SoulBlock`) und die Lobby-Vorschau.
+- **NSCs rechnen über den Spieler-Rechner** (`utils/npc-sheet.util.ts` → `buildNpcSheet`): ein synthetisches
+  `CharacterSheet` aus dem Statblock, das Lobby-Panel, Makro-/FailScript-Ausführung (`sheetForMacros`) und
+  `NpcGeneratorService.npcResourceMax` gemeinsam nutzen. Regeln dabei:
+  - Die sechs flachen Statfelder des Statblocks bleiben **Basis** (Seele + Körper); Fähigkeiten, Ausrüstung und
+    Statuseffekte legt `TrueStatsService` obendrauf. Nie beides, sonst zählt es doppelt.
+  - Ressourcenzeilen tragen `statusBase: NPC_BASE_POOL` (15 je Pool — billige Schätzung für die 50 Punkte, die jede
+    Rasse einem Spieler auf Leben/Mana/Ausdauer gibt; NSCs haben keine Rasse). `calculateResourceMax` addiert Stat×5,
+    `HEALTH_PER_LEVEL` je Stufe und alle `life`/`energy`/`mana`-Modifikatoren selbst. `applyDerivedNpcStats` schreibt
+    genau dieses Ergebnis in `maxHealth/maxEnergy/maxMana`, damit Editor, Spawn und Tisch dieselbe Zahl zeigen.
+  - Klassenbaum-Fertigkeiten werden über `npcSkillFromDefinition` materialisiert: `statBonus`/`statBonuses` → 
+    `statModifiers` (wie beim Lernen auf dem Spielerblatt). Ohne das waren die Zahlen auf NSC-Fertigkeiten Deko.
+  - Eine Fertigkeit gilt als aktiv, wenn sie in `activeSkillNames` **oder** `activeSkillEntries` steht
+    (`activeSkillNames()` in `true-stats.service.ts`). Die Aktivierung am Token schreibt nur Letzteres — deshalb lief
+    `effectActive`/`diceBonus(…)` einer am Token aktivierten Fertigkeit vorher nie.
+  - Token-Statuseffekte kommen als `activeStatusEffects` mit; sie verändern NSC-Werte jetzt wie bei Spielern.
 - Browser-Reiter *Klassen & Rassen*: der Baum listet unter den Klassen jede Rasse (`RaceService`) mit ihren Vorteilen,
   Nachteilen und Stufen-Fertigkeiten; die Suche greift auf beides. Übernommene Rassenfertigkeiten werden als
   `skillSource: 'race'` + `sourceRaceId` kopiert (damit Klassen-Gating sie nicht deaktiviert).

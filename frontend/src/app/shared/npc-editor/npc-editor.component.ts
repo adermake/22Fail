@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import {
   NpcStatblock,
   NpcSoul,
+  NpcSoulScaling,
   NpcStatKey,
   NPC_STAT_KEYS,
   NpcBodyStatMod,
@@ -58,6 +59,7 @@ import { NpcGeneratorService } from '../../services/npc-generator.service';
 import { ImageService } from '../../services/image.service';
 import { RaceService } from '../../services/race.service';
 import { Race } from '../../model/race.model';
+import { npcSkillFromDefinition } from '../../utils/npc-sheet.util';
 import { SkillEditorComponent } from '../skill-editor/skill-editor.component';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SpellEditorOverlayComponent } from '../../sheet/spell-editor-overlay/spell-editor-overlay.component';
@@ -336,15 +338,15 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     return this.expandedFolder === cat + '|' + path;
   }
 
-  /** Build a full editable SkillBlock from a class-tree definition id (same mapping the lobby uses). */
+  /**
+   * Build a full editable SkillBlock from a class-tree definition id.
+   *
+   * Shared with the lobby (`npcSkillFromDefinition`), which is the point: the definition's
+   * `statBonus` becomes `statModifiers` here, so the numbers a Fähigkeit advertises actually reach
+   * the NSC — they used to be dropped at this exact spot.
+   */
   private materializeSkill(id: string): SkillBlock | null {
-    const def = SKILL_DEFINITIONS.find(s => s.id === id);
-    if (!def) return null;
-    return {
-      name: def.name, class: def.class, description: def.description,
-      type: def.type as SkillBlock['type'], enlightened: (def as any).enlightened ?? false,
-      skillId: def.id, cost: (def as any).cost, actionType: (def as any).actionType,
-    } as SkillBlock;
+    return npcSkillFromDefinition(id);
   }
 
   ngOnDestroy(): void {
@@ -355,8 +357,8 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   // ─── Soul: level → point budget → distribute over the 6 base stats ──────────
   get soul(): NpcSoul { return this.draft.soul!; }
   get budget(): number { return soulBudget(this.soul); }
-  /** What the level alone would grant — shown next to the Zusatzpunkte field. */
-  get levelOnlyBudget(): number { return soulPointBudget(this.soul.level); }
+  /** What the level alone would grant on this curve — shown next to the Zusatzpunkte field. */
+  get levelOnlyBudget(): number { return soulPointBudget(this.soul.level, 0, this.soul.scaling); }
   get absBonusPoints(): number { return Math.abs(this.soul.bonusPoints ?? 0); }
   get spent(): number { return soulPointsSpent(this.soul); }
   get remaining(): number { return soulPointsRemaining(this.soul); }
@@ -368,6 +370,22 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.soul.level = Math.max(1, Math.floor(v) || 1);
     // Locked: the new budget is dealt out again along the frozen ratio. Unlocked: the level only
     // moves the budget, and the extra point waits for someone to place it.
+    if (this.soul.locked) {
+      this.soul.stats = distributeByRatio(this.budget, this.soul.ratio);
+    }
+    this.recalc();
+  }
+
+  /** Welche Punktekurve das Level fährt. */
+  get scaling(): NpcSoulScaling { return this.soul.scaling ?? 'summon'; }
+
+  /**
+   * Switch the curve. Like `setLevel`: a locked soul re-deals its budget along the frozen ratio,
+   * an unlocked one simply has more (or fewer) points to place.
+   */
+  setScaling(mode: NpcSoulScaling): void {
+    if (this.soulLocked || this.scaling === mode) return;
+    this.soul.scaling = mode === 'summon' ? undefined : mode;
     if (this.soul.locked) {
       this.soul.stats = distributeByRatio(this.budget, this.soul.ratio);
     }

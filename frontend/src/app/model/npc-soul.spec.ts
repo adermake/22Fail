@@ -93,6 +93,37 @@ describe('soulPointBudget — Zusatzpunkte', () => {
   });
 });
 
+describe('soulPointBudget — Skalierung', () => {
+  it('summon is the flat soul-rune curve (30 + 1 per level)', () => {
+    expect(soulPointBudget(1, 0, 'summon')).toBe(30);
+    expect(soulPointBudget(10, 0, 'summon')).toBe(39);
+    // Omitted scaling behaves exactly like 'summon' — stored statblocks must not change.
+    expect(soulPointBudget(10)).toBe(soulPointBudget(10, 0, 'summon'));
+  });
+
+  it('player starts at a race\'s 60 points and gains 1,5 per level plus free points', () => {
+    expect(soulPointBudget(1, 0, 'player')).toBe(60);
+    expect(soulPointBudget(3, 0, 'player')).toBe(64);   // 60 + 3 + 1 freier Punkt
+    expect(soulPointBudget(10, 0, 'player')).toBe(76);  // 60 + 13 + 3
+    expect(soulPointBudget(20, 0, 'player')).toBe(94);  // 60 + 28 + 6
+  });
+
+  it('is the level a summon needs to match a level-1 player', () => {
+    // The gap this option exists for: on the flat curve, 60 points arrive at level 31.
+    expect(soulPointBudget(31, 0, 'summon')).toBe(soulPointBudget(1, 0, 'player'));
+  });
+
+  it('adds Zusatzpunkte on either curve', () => {
+    expect(soulPointBudget(1, 30, 'summon')).toBe(60);
+    expect(soulPointBudget(1, 30, 'player')).toBe(90);
+  });
+
+  it('a soul carries its own curve', () => {
+    const soul: NpcSoul = { level: 10, stats: ratio({}), scaling: 'player' };
+    expect(soulBudget(soul)).toBe(76);
+  });
+});
+
 describe('normalizeNpcSoul', () => {
   it('turns a legacy growth soul into a locked one without touching its stats', () => {
     const soul: NpcSoul = {

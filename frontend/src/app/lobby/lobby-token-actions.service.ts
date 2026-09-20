@@ -1,7 +1,8 @@
 import { EventEmitter, Injectable, OnDestroy, Signal, inject, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { Token, TokenStatusEffect } from '../model/lobby.model';
-import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
+import { CharacterSheet } from '../model/character-sheet-model';
+import { buildNpcSheet } from '../utils/npc-sheet.util';
 import { NpcStatblock } from '../model/npc-statblock.model';
 import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../model/spell-block-model';
@@ -849,16 +850,25 @@ export class LobbyTokenActionsService implements OnDestroy {
     };
   }
 
+  /**
+   * Das Blatt, gegen das Makros/FailScript eines Tokens laufen.
+   *
+   * Für NSCs über `buildNpcSheet`: vorher war es ein leeres Blatt mit drei Ressourcenzeilen, also
+   * las jedes Skript Stärke 0 und `healthMax` doppelt (Statblock-Wert als Basis *und* KON×5 obendrauf).
+   */
   private get sheetForMacros(): CharacterSheet | null {
     if (this.character) return this.character;
     if (this.npc) {
-      const sheet = createEmptySheet();
-      sheet.statuses = [
-        { formulaType: FormulaType.LIFE, statusBase: this.npc.maxHealth ?? 0, statusCurrent: this.token?.currentHealth ?? 0, statusBonus: 0, statusEffectBonus: 0, statusName: 'Leben', statusColor: 'red' },
-        { formulaType: FormulaType.MANA, statusBase: this.npc.maxMana ?? 0, statusCurrent: this.token?.currentMana ?? 0, statusBonus: 0, statusEffectBonus: 0, statusName: 'Mana', statusColor: 'blue' },
-        { formulaType: FormulaType.ENERGY, statusBase: this.npc.maxEnergy ?? 0, statusCurrent: this.token?.currentEnergy ?? 0, statusBonus: 0, statusEffectBonus: 0, statusName: 'Ausdauer', statusColor: 'green' },
-      ];
-      return sheet;
+      return buildNpcSheet(this.npc, {
+        id: this.token?.id,
+        currentHealth: this.token?.currentHealth,
+        currentMana: this.token?.currentMana,
+        currentEnergy: this.token?.currentEnergy,
+        activeSkillNames: this.token?.activeSkillNames ?? [],
+        activeSkillEntries: this.token?.activeSkillEntries ?? [],
+        castingSpells: this.token?.castingSpells ?? [],
+        activeStatusEffects: this.token?.activeStatusEffects ?? [],
+      });
     }
     return null;
   }
@@ -1341,14 +1351,9 @@ export class LobbyTokenActionsService implements OnDestroy {
   get fokusMax(): number {
     if (this.character) return this.trueStats.calculateFokusMax(this.character);
     if (!this.npc) return 0;
-    // Same rule as players, from the NPC's Intelligenz (the panel builds its cast sheet the same way).
-    const sheet = createEmptySheet();
-    const intelligence = new StatBlock('Intelligenz', this.npc.intelligence);
-    intelligence.current = this.npc.intelligence;
-    sheet.intelligence = intelligence;
-    sheet.fokusBonus = 0;
-    sheet.fokusMultiplier = 1;
-    return this.trueStats.calculateFokusMax(sheet);
+    // Same rule as players, on the shared NSC sheet — so a stated Fokus (fokusOverride) and any
+    // Fokus from Fähigkeiten/Ausrüstung count, instead of Intelligenz alone.
+    return this.trueStats.calculateFokusMax(this.sheetForMacros ?? buildNpcSheet(this.npc));
   }
 
   /** Fokus not bound by running spells. */

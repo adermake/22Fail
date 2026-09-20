@@ -1373,8 +1373,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
       intelligence: sb.intelligence, constitution: sb.constitution, wille: sb.wille,
     };
     const bonus = sb.soul?.bonusPoints || 0;
-    const stats = distributeByRatio(soulPointBudget(L, bonus), ratio);
-    const budget = soulPointBudget(L, bonus) || 1;
+    const budget = soulPointBudget(L, bonus, sb.soul?.scaling) || 1;
+    const stats = distributeByRatio(budget, ratio);
     const mk = (label: string, key: NpcStatKey) => {
       const value = stats[key];
       // Dice convention: negative modifier helps the roll, positive hurts it.
