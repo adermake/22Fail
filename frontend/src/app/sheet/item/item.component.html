@@ -331,6 +331,31 @@
           </div>
         }
   
+        <!-- Eingeschriebene Zauber: this item is their Medium. Read-only — casting happens in the
+             Wirkfenster, so there is exactly one place a spell can be cast from. -->
+        @if (item.embeddedSpells && item.embeddedSpells.length > 0) {
+          <div class="inscribed-section">
+            <span class="inscribed-label">Eingeschriebene Zauber</span>
+            @for (spell of item.embeddedSpells; track $index) {
+              <div class="inscribed-row" [class.inscribed-row--broken]="inscriptionBroken(spell)">
+                <span class="inscribed-name">{{ spell.name }}</span>
+                <span class="inscribed-chip"
+                      [class.inscribed-chip--broken]="inscriptionBroken(spell)"
+                      [class.inscribed-chip--low]="inscriptionAtRisk(spell)">
+                  {{ inscriptionLabel(spell) }}
+                </span>
+                @if (inscriptionPercent(spell) !== null) {
+                  <span class="inscribed-bar">
+                    <span class="inscribed-bar-fill"
+                          [class.inscribed-bar-fill--low]="inscriptionAtRisk(spell)"
+                          [style.width.%]="inscriptionPercent(spell)"></span>
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        }
+
         <!-- 8. Attached Skills/Spells -->
         @if ((item.attachedSkills && item.attachedSkills.length > 0) || (item.attachedSpells && item.attachedSpells.length > 0)) {
           <div class="attached-section">

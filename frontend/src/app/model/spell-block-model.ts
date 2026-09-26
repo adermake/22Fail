@@ -1,11 +1,27 @@
 import { SpellGraph } from '../shared/spell-node-editor/spell-node.model';
 import { ActionMacro } from './action-macro.model';
 
+/**
+ * How well a character knows a spell. Lives on Zauberbuch entries (`sheet.spells`) only —
+ * meaningless on a copy embedded in an item.
+ *
+ * There is deliberately no 'unbekannt' member: not knowing a spell is the absence of an entry,
+ * not a stored state. See `spellKnowledge()` in utils/spell-medium.util.ts.
+ */
+export type SpellKnowledge = 'gelernt' | 'verinnerlicht';
+
 export interface SpellBinding {
+  /** Legacy/informational. The real knowledge state is SpellBlock.knowledge. */
   type: 'learned' | 'item';
   itemName?: string;
+  /** Haltbarkeit of THIS inscription. Undefined = unbegrenzt (legacy magic items burn nothing). */
   durability?: number;
   maxDurability?: number;
+  /**
+   * Burnt out for good by a failed Bruchprobe. The material can never be re-inscribed, so this
+   * deliberately survives `item.lost` being cleared by hand and is never reset in the UI.
+   */
+  broken?: boolean;
 }
 
 export interface SpellStatRequirements {
@@ -62,6 +78,12 @@ export interface CastingSpellEntry {
   skalierung?: number;      // Power multiplier chosen at cast time (default 1)
   remainingCast: number;    // Cast points remaining (d20 rolls reduce this; 0 = spell is active)
   roundsActive?: number;    // Rounds elapsed since spell became active (undefined = not yet active)
+  /** Where this cast drew from. Missing on legacy entries — treated as 'verinnerlicht'. */
+  sourceKind?: 'verinnerlicht' | 'medium';
+  /** Carrier of the inscription, for display in the active column. */
+  sourceItemName?: string;
+  /** Dot path of the inscription's binding at cast time, e.g. 'inventory.7.embeddedSpells.0.binding'. */
+  sourceBindingPath?: string;
 }
 
 // ── Active Skill Entry (per-instance tracking; allows same skill active multiple times) ──
@@ -120,6 +142,11 @@ export class SpellBlock {
   derived?: boolean;
   /** Name of the item that grants this spell (set together with `derived`). */
   itemOrigin?: string;
+  /**
+   * Zauberbuch only: how well the character knows this spell. Missing = 'gelernt', so existing
+   * sheets need no migration. Never set on an inscription inside an item.
+   */
+  knowledge?: SpellKnowledge;
 }
 
 export const SPELL_GLOW_COLORS = [

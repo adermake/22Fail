@@ -734,6 +734,34 @@ describe('TrueStatsService', () => {
       expect(svc.calculateFokusUsed(sheet)).toBe(7);
     });
 
+    it('charges Fokus for a spell sustained off a Medium, not just a Zauberbuch entry', () => {
+      // The spell is on a carried scroll and NOT in sheet.spells — resolving only against the
+      // Zauberbuch used to bind 0 Fokus, silently freeing the budget a running spell was paying for.
+      const sheet = makeSheet();
+      sheet.inventory = [{
+        name: 'Schriftrolle', lost: false, broken: false,
+        embeddedSpells: [{
+          id: 'sp9', name: 'Fremdschild', perTurnFokus: 3,
+          binding: { type: 'item', durability: 20, maxDurability: 20 },
+        }],
+      } as any];
+      sheet.castingSpells = [{ spellId: 'sp9', spellName: 'Fremdschild' } as any];
+      expect(svc.sustainedFokus(sheet)).toBe(3);
+    });
+
+    it('keeps charging Fokus after the Medium shatters mid-fight', () => {
+      const sheet = makeSheet();
+      sheet.inventory = [{
+        name: 'Schriftrolle', lost: false, broken: false,
+        embeddedSpells: [{
+          id: 'sp9', name: 'Fremdschild', perTurnFokus: 3,
+          binding: { type: 'item', durability: 0, maxDurability: 20, broken: true },
+        }],
+      } as any];
+      sheet.castingSpells = [{ spellId: 'sp9', spellName: 'Fremdschild' } as any];
+      expect(svc.sustainedFokus(sheet)).toBe(3);
+    });
+
     it('runs a machine that fits the budget', () => {
       const sheet = makeSheet();
       const m = machine({ core: { stability: 50 } });

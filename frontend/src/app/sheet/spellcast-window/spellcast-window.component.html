@@ -76,16 +76,33 @@
 
       <!-- Spells tab content -->
       @if (leftTab === 'spells') {
+        <!-- Bruchprobe: the Medium's roll after the last cast. Lower is better, so a negative
+             bonus is the helpful one and renders green. -->
+        @if (lastBruchprobe; as probe) {
+          <div class="scw-bruch" [class.scw-bruch--broken]="probe.broken">
+            <span class="scw-bruch-title">Bruchprobe &mdash; {{ probe.itemName }}</span>
+            <span class="scw-bruch-roll">
+              W20 {{ probe.roll }}
+              <span [class.dice-good]="probe.bonus < 0" [class.dice-bad]="probe.bonus > 0">
+                {{ probe.bonus > 0 ? '+' : '' }}{{ probe.bonus | number:'1.0-1' }}
+              </span>
+              = {{ probe.total | number:'1.0-1' }}
+            </span>
+            <span class="scw-bruch-verdict">{{ probe.broken ? 'Medium zerstört' : 'hält' }}</span>
+          </div>
+        }
         @if (availableSpells.length === 0) {
           <div class="scw-empty">Keine Zauber vorhanden.</div>
         } @else {
           <div class="scw-spell-grid">
-            @for (spell of availableSpells; track spell.id) {
+            @for (entry of castable; track entry.key) {
+              @let spell = entry.spell;
               <div class="scw-spell-card"
                    [class.is-casting]="isActivelyCasting(spell)"
+                   [class.scw-spell-card--no-medium]="!entry.castable"
                    [style.--sc]="spellColor(spell)"
-                   (click)="requestCast(spell)"
-                   [title]="'Klicken zum Wirken: ' + spell.name">
+                   (click)="entry.castable && requestCast(spell)"
+                   [title]="entry.castable ? 'Klicken zum Wirken: ' + spell.name : 'Medium fehlt'">
                 <div class="scw-spell-glow"></div>
 
                 <!-- Card header -->
@@ -94,6 +111,21 @@
                   <span class="scw-spell-name">{{ spell.name }}</span>
                   @if (isActivelyCasting(spell)) {
                     <span class="scw-active-badge">Aktiv</span>
+                  }
+                </div>
+
+                <!-- Wissen & Medium -->
+                <div class="scw-know">
+                  @if (entry.knowledge === 'verinnerlicht') {
+                    <span class="scw-chip scw-chip--inner">Verinnerlicht</span>
+                  } @else if (entry.knowledge === 'unbekannt') {
+                    <span class="scw-chip scw-chip--unknown">Unbekannt</span>
+                  }
+                  @for (medium of entry.media; track medium.path) {
+                    <span class="scw-chip scw-chip--medium">{{ mediumLabel(medium) }}</span>
+                  }
+                  @if (!entry.castable) {
+                    <span class="scw-chip scw-chip--missing">Medium fehlt</span>
                   }
                 </div>
 
@@ -332,7 +364,7 @@
                            min="0"
                            [ngModel]="entry.roundsActive ?? 0"
                            (ngModelChange)="setRoundsActive(entry, $event)" />
-                    @if (entryScaledHaltbarkeit(entry); as dur) {
+                    @if (entryScaledDauer(entry); as dur) {
                       @if (dur > 0) {
                         <span class="scw-round-of">/ {{ dur }}</span>
                       }
@@ -542,7 +574,7 @@
               <span class="cast-estimate-val">~{{ (pendingCastLevel / 10).toFixed(1) }} Runden</span>
             </div>
 
-            <!-- Skalierung (Effektivität, Haltbarkeit, Manakosten) -->
+            <!-- Skalierung (Effektivität, Dauer, Manakosten, Haltbarkeitsverbrauch) -->
             <div class="cast-section-label cast-section-label--skal">
               Skalierung
               <span class="cast-skal-val">× {{ skalierung.toFixed(1) }}</span>
@@ -554,13 +586,13 @@
                 </span>
               }
             </div>
-            @if (castPreview.scaledEffektivitaet > 0 || castPreview.scaledHaltbarkeit > 0) {
+            @if (castPreview.scaledEffektivitaet > 0 || castPreview.scaledDauer > 0) {
               <div class="cast-skal-stats">
                 @if (castPreview.scaledEffektivitaet > 0) {
                   <span class="cast-skal-stat"><span class="app-icon i-effektivity"></span> Eff. {{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
                 }
-                @if (castPreview.scaledHaltbarkeit > 0) {
-                  <span class="cast-skal-stat">⧗ {{ castPreview.scaledHaltbarkeit | number:'1.0-1' }} Rd</span>
+                @if (castPreview.scaledDauer > 0) {
+                  <span class="cast-skal-stat">⧗ {{ castPreview.scaledDauer | number:'1.0-1' }} Rd</span>
                 }
               </div>
             }
@@ -649,8 +681,8 @@
                 @if (pendingCastSpell.perTurnFokus) {
                   <span class="cast-perturn-chip cast-perturn-chip--fokus">+{{ pendingCastSpell.perTurnFokus }}/Rd ◆</span>
                 }
-                @if (castPreview.scaledHaltbarkeit > 0) {
-                  <span class="cast-perturn-chip cast-perturn-chip--dur">⧗&nbsp;{{ castPreview.scaledHaltbarkeit | number:'1.0-1' }}Rd</span>
+                @if (castPreview.scaledDauer > 0) {
+                  <span class="cast-perturn-chip cast-perturn-chip--dur">⧗&nbsp;{{ castPreview.scaledDauer | number:'1.0-1' }}Rd</span>
                 }
                 @if (castPreview.scaledEffektivitaet > 0) {
                   <span class="cast-perturn-chip cast-perturn-chip--eff"><span class="app-icon i-effektivity"></span>&nbsp;{{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
@@ -660,10 +692,49 @@
           </div>
         </div>
 
+        <!-- Medium: which piece of material this cast is written on, and what it costs it -->
+        @if (pendingNeedsMedium) {
+          <div class="cast-medium">
+            <div class="cast-section-label">Medium</div>
+            @if (pendingMediumChoices.length === 0) {
+              <span class="cast-medium-missing">Kein Medium mitgef&uuml;hrt &mdash; dieser Zauber ist nicht verinnerlicht.</span>
+            } @else if (pendingMediumChoices.length === 1) {
+              <span class="cast-medium-chip"><span class="app-icon i-item"></span>{{ mediumLabel(pendingMediumChoices[0]) }}</span>
+            } @else {
+              <select class="cast-medium-select"
+                      [ngModel]="pendingMedium?.path"
+                      (ngModelChange)="onMediumPick($event)"
+                      title="Welches Medium abgenutzt wird">
+                @for (medium of pendingMediumChoices; track medium.path) {
+                  <option [value]="medium.path">{{ mediumLabel(medium) }}</option>
+                }
+              </select>
+            }
+
+            @if (castPreview.haltbarkeitRest !== null) {
+              <div class="cast-medium-burn">
+                <span>Haltbarkeit</span>
+                <span class="cast-medium-num">{{ pendingMedium?.durability | number:'1.0-1' }}</span>
+                <span class="cast-medium-arrow">&rarr;</span>
+                <span class="cast-medium-num" [class.dice-bad]="castPreview.bruchprobeNoetig">
+                  {{ castPreview.haltbarkeitRest | number:'1.0-1' }}
+                </span>
+                <span class="cast-medium-cost">&minus;{{ castPreview.haltbarkeitsKosten | number:'1.0-1' }}</span>
+                @if (castPreview.bruchprobeNoetig) {
+                  <span class="cast-medium-warn">Bruchprobe n&ouml;tig</span>
+                }
+              </div>
+            } @else if (pendingMedium) {
+              <span class="cast-medium-endless">unbegrenzt &mdash; verbraucht keine Haltbarkeit</span>
+            }
+          </div>
+        }
+
         <!-- Footer actions -->
         <div class="cast-footer">
           <button class="cast-cancel-btn" (click)="cancelCast()">Abbrechen</button>
-          <button class="cast-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()" [disabled]="!canCast" [title]="!canCast ? 'Fehlende Ressourcen oder Stats' : ''">
+          <button class="cast-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()" [disabled]="!canCast"
+                  [title]="canCast ? '' : (pendingNeedsMedium && !pendingMedium ? 'Medium fehlt' : 'Fehlende Ressourcen oder Stats')">
             <span class="app-icon i-spell"></span> AKTIVIEREN
           </button>
         </div>

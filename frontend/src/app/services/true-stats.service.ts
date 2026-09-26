@@ -20,6 +20,7 @@ import {
   ConstructWeapon, constructComplexity, constructWeapons, flattenConstruct, isConstruct,
   resolveActiveConstructs,
 } from '../utils/construct.util';
+import { carriedMedia, resolveSpellByKey } from '../utils/spell-medium.util';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
 export interface DerivedModifier {
@@ -261,11 +262,17 @@ export class TrueStatsService {
     return (sheet.equipment ?? []).filter(i => isConstruct(i) && isItemEquipped(i));
   }
 
-  /** Fokus held by sustained spells — what is already spoken for before any Konstrukt. */
+  /**
+   * Fokus held by sustained spells — what is already spoken for before any Konstrukt.
+   *
+   * Resolved by `spellKey` across the Zauberbuch AND carried inscriptions, including broken ones.
+   * A spell sustained off a stranger's scroll is not in `sheet.spells` at all, and one whose scroll
+   * shattered mid-fight must keep costing Fokus — otherwise breaking your own medium would silently
+   * free up the budget it was paying for.
+   */
   sustainedFokus(sheet: CharacterSheet): number {
-    const spells = sheet.spells ?? [];
     return (sheet.castingSpells ?? []).reduce((sum, entry) => {
-      const spell = spells.find(s => s.id === entry.spellId);
+      const spell = resolveSpellByKey(sheet, entry.spellId);
       return sum + (spell ? (spell.perTurnFokus || spell.costFokus || 0) : 0);
     }, 0);
   }
@@ -332,15 +339,18 @@ export class TrueStatsService {
     return out;
   }
 
-  /** Spells granted by equipped items, tagged read-only and labelled with the item name. */
+  /**
+   * Spells carried on a Medium, tagged read-only and labelled with the carrier.
+   *
+   * Unlike `getItemSkillBlocks` this goes through `carriedMedia`, which counts the INVENTORY as
+   * well as equipment: a Schriftrolle works out of the pack and does not need a slot. Item skills
+   * deliberately keep the stricter equipment-only rule — a stowed sword must not swing itself.
+   * Burnt-out and spent inscriptions are already filtered here.
+   */
   getItemSpellBlocks(sheet: CharacterSheet): SpellBlock[] {
-    const out: SpellBlock[] = [];
-    for (const item of this.grantingItems(sheet)) {
-      for (const spell of item.embeddedSpells ?? []) {
-        out.push({ ...spell, itemOrigin: item.name, derived: true } as SpellBlock);
-      }
-    }
-    return out;
+    return carriedMedia(sheet)
+      .filter(m => m.usable)
+      .map(m => ({ ...m.inscription, itemOrigin: m.itemName, derived: true }) as SpellBlock);
   }
 
   private getDerived(sheet: CharacterSheet): DerivedEntry {

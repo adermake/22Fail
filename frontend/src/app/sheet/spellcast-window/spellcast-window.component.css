@@ -1870,3 +1870,61 @@
   display: flex; align-items: center; gap: 6px; padding: 2px 0;
   font-size: 10px; color: #6b7280;
 }
+/* ── Wissen & Medien ────────────────────────────────────────────────────────── */
+.scw-spell-card--no-medium { opacity: 0.5; filter: saturate(0.4); cursor: default; }
+
+.scw-know { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px; }
+.scw-chip {
+  font-size: 0.58rem; font-weight: 700; letter-spacing: 0.03em;
+  padding: 1px 6px; border-radius: 4px;
+  background: rgba(148, 163, 184, 0.16); color: #94a3b8;
+}
+.scw-chip--inner   { background: color-mix(in srgb, var(--sc, #8b5cf6) 24%, transparent); color: var(--sc, #a78bfa); }
+.scw-chip--medium  { background: rgba(96, 165, 250, 0.14); color: #60a5fa; }
+.scw-chip--unknown { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+.scw-chip--missing { background: rgba(239, 68, 68, 0.12); color: #f87171; }
+
+/* ── Medium row in the cast dialog ──────────────────────────────────────────── */
+.cast-medium { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+.cast-medium-chip {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  font-size: 0.72rem; font-weight: 600;
+  padding: 3px 8px; border-radius: 5px;
+  background: rgba(96, 165, 250, 0.14); color: #60a5fa;
+}
+.cast-medium-chip .app-icon { width: 12px; height: 12px; }
+.cast-medium-select {
+  align-self: flex-start; min-width: 220px;
+  padding: 5px 8px; border-radius: 5px; font-size: 0.76rem;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+}
+.cast-medium-missing, .cast-medium-endless {
+  font-size: 0.72rem; color: var(--text-muted, #9ca3af);
+}
+.cast-medium-missing { color: #f87171; }
+
+.cast-medium-burn {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 0.74rem; color: var(--text-muted, #9ca3af);
+}
+.cast-medium-num { font-weight: 700; color: var(--text); }
+.cast-medium-arrow { opacity: 0.6; }
+.cast-medium-cost { font-weight: 600; color: #f87171; }
+.cast-medium-warn {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: 4px;
+  background: rgba(239, 68, 68, 0.16); color: #f87171;
+}
+
+/* ── Bruchprobe banner ──────────────────────────────────────────────────────── */
+.scw-bruch {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 8px; padding: 7px 10px; border-radius: 6px;
+  background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3);
+  font-size: 0.74rem;
+}
+.scw-bruch--broken { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.35); }
+.scw-bruch-title { font-weight: 700; }
+.scw-bruch-roll { color: var(--text-muted, #9ca3af); }
+.scw-bruch-verdict { margin-left: auto; font-weight: 700; }
+.scw-bruch--broken .scw-bruch-verdict { color: #f87171; }

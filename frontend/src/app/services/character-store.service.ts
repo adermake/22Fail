@@ -4,6 +4,7 @@ import { CharacterApiService } from './character-api.service';
 import { CharacterSocketService } from './character-socket.service';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { JsonPatch } from '../model/json-patch.model';
+import { ensureSpellIds } from '../utils/spell-medium.util';
 
 /** Whether a path segment addresses an array position ('-' appends, a number indexes). */
 function isArrayKey(key: string | undefined): boolean {
@@ -62,7 +63,11 @@ export class CharacterStoreService {
       this.save();
     } else {
       sheet.id = id; // Ensure loaded sheets have ID property set
+      // Normalise-on-load, like normalizeRace: a Zauberbuch entry without an id cannot be matched
+      // against its inscriptions by anything but its name, which breaks the moment it is renamed.
+      const stamped = ensureSpellIds(sheet);
       this.sheetSubject.next(sheet);
+      if (stamped) this.save();
     }
 
     this.socket.connect();

@@ -623,3 +623,26 @@
   .iam-panel { flex-direction: column; }
   .iam-actions { width: auto; padding-left: 0; padding-top: 12px; border-left: none; border-top: 1px solid var(--border, #2d3748); }
 }
+
+/* ── Eingeschriebene Zauber (Medium) ────────────────────────────────────────── */
+.inscribed-section { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.inscribed-label {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted, #9ca3af);
+}
+.inscribed-row { display: flex; align-items: center; gap: 6px; }
+.inscribed-row--broken { opacity: 0.6; }
+.inscribed-name { font-size: 0.74rem; font-weight: 600; }
+.inscribed-chip {
+  font-size: 0.6rem; font-weight: 700;
+  padding: 1px 5px; border-radius: 4px;
+  background: rgba(96, 165, 250, 0.14); color: #60a5fa;
+}
+.inscribed-chip--low    { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+.inscribed-chip--broken { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+.inscribed-bar {
+  flex: 1; min-width: 40px; max-width: 120px; height: 4px;
+  border-radius: 2px; overflow: hidden; background: rgba(148, 163, 184, 0.2);
+}
+.inscribed-bar-fill { display: block; height: 100%; background: #60a5fa; }
+.inscribed-bar-fill--low { background: #f87171; }

@@ -109,9 +109,12 @@ Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber z
 :::formula
 +5 - Haltbarkeit
 :::
-Ein kaputter Zauber ist nicht mehr verwendbar und das Material kann nicht mehr verwendet werden, um neue Zauber darauf zu schreiben.
+Ein kaputter Zauber ist nicht mehr verwendbar und das Material kann nicht mehr verwendet werden, um neue Zauber darauf zu schreiben. Der Gegenstand selbst hält dem nicht stand: zerbricht die Inschrift, ist auch der Träger verloren.
 :::note{type:tip}
-Wenn ein Zauber in Ausrüstung eingraviert ist und diese kaputtgeht, ist auch der Zauber kaputt. Selbst wenn sie repariert wird ist der Zauber nicht mehr verwendbar, kann aber erneut eingraviert werden.
+Wenn ein Zauber in Ausrüstung eingraviert ist und diese kaputtgeht, ist auch der Zauber kaputt. Selbst wenn sie repariert wird ist der Zauber nicht mehr verwendbar.
+:::
+:::note{type=info}
+Der Verbrauch skaliert mit: ein langsam gewirkter Zauber senkt seine Voraussetzung und kostet entsprechend weniger Haltbarkeit, eine hochskalierte Rune dagegen mehr.
 :::
 :::
 :::note{type=tip}
@@ -145,6 +148,34 @@ Es gibt Wege eine gewisse Anzahl an Zaubern „verinnerlichen“. Das bedeutet, 
 Man kann das z.B über den Talentbaum im Magier Baum Richtung Runenkünstler erreichen.
 
 Ein verinnerlichter Zauber lässt sich durch einen anderen ersetzen, allerdings dauert der Prozess des Verinnerlichens mehrere Stunden.
+:::
+
+:::section{title="Zauberwissen" id=wissen}
+Wie gut du einen Zauber kennst und ob du ein Medium brauchst, sind zwei getrennte Fragen. Ein Zauber ist für dich immer in einem dieser drei Zustände:
+
+:::grid{min=200}
+:::card{title="Unbekannt" color=#f59e0b}
+Der Zauber steht nicht in deinem Zauberbuch. Du kannst ihn trotzdem wirken, wenn du ein Medium bei dir trägst, auf dem ihn jemand anderes für dich geschrieben hat — die Voraussetzungen musst du erfüllen. Selbst einschreiben kannst du ihn nicht.
+:::
+:::card{title="Gelernt" color=#60a5fa}
+Du kennst die Runen und ihre Anordnung. Wirken kannst du den Zauber nur von einem Medium, dieses aber selbst beschriften.
+:::
+:::card{title="Verinnerlicht" color=#a78bfa}
+Du formst die Runen ohne Hilfsmittel in der Luft um dich herum. Der Zauber ist jederzeit wirkbar, ganz ohne Medium — und einschreiben kannst du ihn ebenfalls.
+:::
+:::
+
+### Einschreiben
+Einen gelernten oder verinnerlichten Zauber kannst du auf ein mitgeführtes Material schreiben. Jedes Material hat eine begrenzte Anzahl an Plätzen: eine Schriftrolle trägt in der Regel einen Zauber, ein gebundenes Buch mehrere. Wie viele es sind, legt der Spielleiter je Gegenstand fest.
+
+Beim Einschreiben bestimmt ihr die [Haltbarkeit](zauber#zauber) der Inschrift — wie viel Material dem Zauber mitgegeben wird und damit, wie oft er sich nutzen lässt.
+
+:::note{type=info}
+Ein Medium zählt, solange du es bei dir trägst — ausgerüstet oder im Inventar. Eine Schriftrolle braucht keinen Ausrüstungsplatz.
+:::
+:::note{type=tip}
+Ein ausgebrannter Platz bleibt belegt: das Material an dieser Stelle ist verbraucht und nimmt keinen neuen Zauber mehr auf.
+:::
 :::
 
 :::section{title="Fokus" id=fokus}

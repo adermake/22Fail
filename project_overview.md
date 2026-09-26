@@ -559,8 +559,37 @@ interface SkillDefinition {
   - `id`: Stabile ID (`spell_<random>_<timestamp36>`) — verhindert Duplizier-Bug beim Speichern
   - `costSchedule?: StoredCostSchedule` — detaillierter Kosten-Plan (manuell oder aus Estimator)
   - `embeddedMacro?: ActionMacro` — optionales Makro, das bei Wirken ausgeführt wird
-- **CastingSpellEntry**: `{ spellId, spellName, castLevel }` — gezielt wirkende Zauber auf dem Sheet (cast-level-Tracking)
-- **Spell-Karte** (`sheet/spell/`): Rechtsklick → Kontextmenü (Wirken / Bearbeiten / Löschen); Linksklick → emittiert `cast` Output
+- **CastingSpellEntry**: `{ spellId, spellName, castLevel, sourceKind, sourceItemName?, sourceBindingPath? }`
+  — `spellId` ist der `spellKey` (ID, sonst normalisierter Name); `sourceKind` sagt, ob aus dem Kopf
+  oder von einem Medium gewirkt wurde
+- **Spell-Karte** (`sheet/spell/`): Rechtsklick → Kontextmenü (Verinnerlichen / Einschreiben /
+  Bearbeiten / Duplizieren / Löschen); Linksklick öffnet das Wirkfenster, sofern wirkbar
+
+### Zauberwissen & Medien (`utils/spell-medium.util.ts`, `utils/spell-break.util.ts`)
+Zwei **orthogonale** Achsen; Wirkbarkeit wird abgeleitet, nie gespeichert.
+- **Wissen**: `sheet.spells` ist das **Zauberbuch**. `knowledge: 'gelernt' | 'verinnerlicht'`,
+  fehlend = gelernt (`spellKnowledge`, Normalise-on-read — keine Migration). *Unbekannt* hat keinen
+  Speicher: es ist die Abwesenheit im Buch. Keine Obergrenze — freier Tag, die Gruppe erzwingt die Regel.
+- **Medium**: `item.embeddedSpells`, Haltbarkeit je Inschrift in `binding.durability/maxDurability`
+  (undefined = unbegrenzt), `binding.broken` = ausgebrannt. `item.inscriptionSlots` (fehlend = 1).
+- **`carriedMedia(sheet)`**: Ausrüstung **und** Inventar (`!lost && !broken`), Konstrukt-Teile per
+  eigener Rekursion mit `sockets.<i>.child`-Patchpfaden — *nicht* `flattenConstruct` (liefert keine Pfade).
+  Bewusst weiter als `TrueStatsService.grantingItems` (nur Ausrüstung): eine Rolle wirkt aus dem Rucksack,
+  ein verstautes Schwert schlägt nicht.
+- **`castableSpells(sheet)`**: Vereinigung Zauberbuch ∪ Medien, dedupliziert per `spellKey`. Gate:
+  `verinnerlicht || Medium dabei`. Ein gelernter Zauber ohne Medium bleibt gelistet, grau, „Medium fehlt".
+  Der Bucheintrag ist die **maßgebliche Definition** (die Rolle ist ein alter Schnappschuss).
+- **Identität**: eine Inschrift **erbt die ID** des Bucheintrags → „derselbe Zauber" ist ID-Gleichheit,
+  Umbenennen verwaist keine Rolle. `resolveSpellByKey` sucht auch **kaputte** Inschriften, damit ein
+  gehaltener Zauber nach dem Zerbrechen seines Mediums Fokus, Dauer und Zähler behält.
+- **Haltbarkeit**: Verbrauch = Voraussetzung × `100/(Cast+100)` × Skalierung
+  (`spellVoraussetzung` = höchster Einzelstat, `spellHaltbarkeitsKosten`).
+- **Bruchprobe**: Rest < 10 → W20 + `(5 − Haltbarkeit)`; **niedriger ist besser**, also ≤ 10 hält,
+  > 10 kaputt. Der Zauber gelingt **zuerst**, das Medium bricht danach. Bruch setzt
+  `binding.broken` **und** `item.lost` (`breakInscriptionPatches` — die einzige Stelle dieser Policy).
+- **Einschreiben**: `sheet/spell-inscribe-dialog/`, aufgerufen aus dem Kontextmenü im Zauberbuch.
+- **NSCs**: `buildNpcSheet` markiert Statblock-Zauber als `verinnerlicht` — die Medium-Regel ist
+  spielerseitig, sonst wäre jeder NSC-Zauber „Medium fehlt".
 - **Spell-Editor-Overlay** (`sheet/spell-editor-overlay/`): Vollbild-Overlay im Stil des Item-Editors
   - CSS-Variablen: `--bg, --card, --border, --accent, --accentdark, --text, --text-muted`
   - Dynamischer Titel gebunden an `spellName`; Spar-Feedback-Flash (1.5s)
@@ -568,11 +597,15 @@ interface SkillDefinition {
   - `<app-embedded-macro-editor>` eingebettet mit `max-height: 60vh; overflow-y: auto`
   - Runen-Editor öffnet `<app-spell-node-editor>` **außerhalb** des Panels (korrekter z-index)
   - Manuelle cost-schedule Bearbeitung (Fälle + Runden hinzufügen/entfernen)
-- **Aktive Skills & Zauber Panel** (`sheet/sheet-active-skills-spells/`): Direkt unter Status-Effekten im `grid-currentstats`
+- **Aktive Skills & Zauber**: `lobby/lobby-active-column/` und die Aktiv-Liste im Wirkfenster
+  (`sheet/spellcast-window/`). Das frühere `sheet/sheet-active-skills-spells/` war eine überholte
+  Zweitimplementierung und ist entfernt.
   - Zeigt: andauernde Fähigkeiten (Skills mit `cost.perRound = true`) als Toggle-Chips
   - Zeigt: Wirkende Zauber (`sheet.castingSpells`) mit Cast-Level +/- und Reduktions-Badge
   - `CharacterSheet.activeSkillNames?: string[]` — Names aktiver Toggle-Skills
   - `CharacterSheet.castingSpells?: CastingSpellEntry[]` — aktive Cast-Einträge
+  - Fokus: `TrueStatsService.sustainedFokus` löst Einträge per `resolveSpellByKey` auf (Zauberbuch
+    **und** Medien), sonst bindet ein von einer Rolle gehaltener Zauber 0 Fokus
   - Cast-Level-Reduktion: `Math.min(90, floor(castLevel/10)*10)`%
 
 ## Zauberwirken-Fenster (`sheet/spellcast-window/`)

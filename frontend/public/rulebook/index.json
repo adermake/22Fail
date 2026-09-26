@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T11:28:31.054Z",
+  "generatedAt": "2026-09-25T22:38:34.390Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -411,7 +411,7 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "e2ad25ff",
+      "hash": "ee32e15d",
       "outline": [
         {
           "id": "magiesystem",
@@ -502,6 +502,18 @@
           "text": "Allgemeines",
           "level": 3,
           "kind": "section"
+        },
+        {
+          "id": "wissen",
+          "text": "Zauberwissen",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "einschreiben",
+          "text": "Einschreiben",
+          "level": 3,
+          "kind": "heading"
         },
         {
           "id": "fokus",

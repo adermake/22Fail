@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DoCheck, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -6,25 +6,31 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { SpellComponent } from '../spell/spell.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { SpellBlock, generateSpellId, CastingSpellEntry } from '../../model/spell-block-model';
+import { SpellBlock, SpellKnowledge, generateSpellId } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
-import { TrueStatsService } from '../../services/true-stats.service';
+import { SpellInscribeDialogComponent } from '../spell-inscribe-dialog/spell-inscribe-dialog.component';
+import { applyJsonPatchTo } from '../../utils/json-patch.util';
+import {
+  CastableSpell, SpellKnowledgeState, SpellMedium, castableSpells, spellKey, spellKnowledge,
+} from '../../utils/spell-medium.util';
 
 @Component({
   selector: 'app-spells',
-  imports: [CommonModule, SpellComponent, CardComponent, DragDropModule, FormsModule, SpellEditorOverlayComponent],
+  imports: [
+    CommonModule, SpellComponent, CardComponent, DragDropModule, FormsModule,
+    SpellEditorOverlayComponent, SpellInscribeDialogComponent,
+  ],
   templateUrl: './spells.component.html',
   styleUrl: './spells.component.css',
 })
-export class SpellsComponent {
+export class SpellsComponent implements DoCheck {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input() editingSpells!: Set<number>;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
   @Output() requestCastWindow = new EventEmitter<void>();
 
-  showCreateDialog = false;
   placeholderHeight = '90px';
   placeholderWidth = '100%';
 
@@ -46,14 +52,37 @@ export class SpellsComponent {
     this.contextMenuIndex = -1;
   }
 
-  castFromMenu() {
-    if (this.contextMenuIndex >= 0) this.castSpell(this.contextMenuIndex);
-    this.closeContextMenu();
-  }
-
   openEditorFromMenu() {
     if (this.contextMenuIndex >= 0) this.openNodeEditor(this.contextMenuIndex);
     this.closeContextMenu();
+  }
+
+  /** Label the context menu against the spell it was opened on. */
+  get contextSpellVerinnerlicht(): boolean {
+    const spell = this.sheet.spells?.[this.contextMenuIndex];
+    return !!spell && spellKnowledge(spell) === 'verinnerlicht';
+  }
+
+  /**
+   * Flip gelernt ↔ verinnerlicht. One click, no cost and no cap: the ruleset makes internalising a
+   * matter of hours of study and a limited number of slots, and the group tracks that themselves.
+   */
+  toggleVerinnerlichtFromMenu() {
+    const index = this.contextMenuIndex;
+    this.closeContextMenu();
+    const spell = this.sheet.spells?.[index];
+    if (!spell) return;
+    const next: SpellKnowledge = spellKnowledge(spell) === 'verinnerlicht' ? 'gelernt' : 'verinnerlicht';
+    spell.knowledge = next;
+    this.sheet.spells = [...this.sheet.spells];
+    this.invalidateCastable();
+    this.patch.emit({ path: `spells.${index}.knowledge`, value: next });
+  }
+
+  openInscribeFromMenu() {
+    const index = this.contextMenuIndex;
+    this.closeContextMenu();
+    this.inscribeSpell = this.sheet.spells?.[index] ?? null;
   }
 
   /** Copy the spell and open the editor on the copy, ready to be renamed. */
@@ -86,6 +115,21 @@ export class SpellsComponent {
     if (this.showContextMenu) this.closeContextMenu();
   }
 
+  /** Spell whose Einschreiben dialog is open, if any. */
+  inscribeSpell: SpellBlock | null = null;
+
+  closeInscribe() {
+    this.inscribeSpell = null;
+  }
+
+  /** Apply the inscription patch and let the card pick up its new Medium. */
+  onInscribe(patch: JsonPatch) {
+    applyJsonPatchTo(this.sheet, patch);
+    this.inscribeSpell = null;
+    this.invalidateCastable();
+    this.patch.emit(patch);
+  }
+
   // Node editor state
   showNodeEditor = false;
   nodeEditorSpellIndex: number | null = null;
@@ -93,16 +137,64 @@ export class SpellsComponent {
     if (this.nodeEditorSpellIndex === null) return null;
     return this.sheet.spells[this.nodeEditorSpellIndex] ?? null;
   }
-  /** Spells embedded in EQUIPPED items — read-only, vanish when the item is unequipped. */
-  get itemSpells(): SpellBlock[] {
-    return this.trueStats.getItemSpellBlocks(this.sheet);
+  // ── Wissen & Medien ───────────────────────────────────────────────────────
+
+  /**
+   * Zauberbuch ∪ carried Media, recomputed per change-detection pass but memoised within it.
+   *
+   * `castableSpells` walks equipment, the sparse inventory and every Konstrukt subtree, and the
+   * template asks for it once per card — so it is cached against the current sheet identity and
+   * invalidated whenever we patch.
+   */
+  private _castableCache: CastableSpell[] | null = null;
+
+  private get castable(): CastableSpell[] {
+    return (this._castableCache ??= castableSpells(this.sheet));
+  }
+
+  private invalidateCastable(): void {
+    this._castableCache = null;
+  }
+
+  /**
+   * Drop the cache once per change-detection pass.
+   *
+   * The sheet is mutated IN PLACE by socket patches from other clients, so its identity never
+   * changes and there is nothing to compare against. Invalidating here keeps the union at most one
+   * pass stale — equipping a scroll in another tab shows up immediately — while still computing it
+   * only once however many cards read it.
+   */
+  ngDoCheck() {
+    this._castableCache = null;
+  }
+
+  private entryFor(spell: SpellBlock): CastableSpell | undefined {
+    const key = spellKey(spell);
+    return this.castable.find(c => c.key === key);
+  }
+
+  knowledgeOf(spell: SpellBlock): SpellKnowledgeState {
+    return this.entryFor(spell)?.knowledge ?? spellKnowledge(spell);
+  }
+
+  mediaOf(spell: SpellBlock): SpellMedium[] {
+    return this.entryFor(spell)?.media ?? [];
+  }
+
+  /**
+   * Inscriptions for spells that are NOT in the Zauberbuch — someone else's scroll.
+   *
+   * Spells the character does know already show their Medium as a chip on their own card, so
+   * repeating them here would list the same spell twice.
+   */
+  get foreignSpells(): CastableSpell[] {
+    return this.castable.filter(c => c.knowledge === 'unbekannt');
   }
 
   get learnedRunes(): RuneBlock[] {
     return ((this.sheet.runes || []).filter(r => r !== null)) as RuneBlock[];
   }
 
-  private trueStats = inject(TrueStatsService);
 
   constructor(private cd: ChangeDetectorRef) {}
 
@@ -110,14 +202,6 @@ export class SpellsComponent {
     if (!this.sheet.spells) {
       this.sheet.spells = [];
     }
-  }
-
-  openCreateDialog() {
-    this.showCreateDialog = true;
-  }
-
-  closeCreateDialog() {
-    this.showCreateDialog = false;
   }
 
   // Spell editor overlay
@@ -136,26 +220,6 @@ export class SpellsComponent {
       this.deleteSpell(this.nodeEditorSpellIndex);
     }
     this.closeNodeEditor();
-  }
-
-  castSpell(index: number) {
-    const spell = this.sheet.spells[index];
-    if (!spell) return;
-
-    // Ensure the spell has an ID (legacy spells may not)
-    if (!spell.id) {
-      spell.id = generateSpellId();
-      this.patch.emit({ path: 'spells', value: [...this.sheet.spells] });
-    }
-
-    // Add to castingSpells if not already present
-    const current: CastingSpellEntry[] = [...(this.sheet.castingSpells || [])];
-    const existing = current.find(e => e.spellId === spell.id);
-    if (!existing) {
-      current.push({ spellId: spell.id!, spellName: spell.name, castLevel: 0, remainingCast: 0 });
-      this.sheet.castingSpells = current;
-      this.patch.emit({ path: 'castingSpells', value: current });
-    }
   }
 
   saveFromNodeEditor(spell: SpellBlock) {
@@ -180,15 +244,6 @@ export class SpellsComponent {
     this.sheet.spells = spells;
     this.patch.emit({ path: 'spells', value: this.sheet.spells });
     // Do NOT close — spell editor stays open after save (explicit close via cancel/X)
-  }
-
-  createSpell(spell: SpellBlock) {
-    this.sheet.spells = [...this.sheet.spells, spell];
-    this.patch.emit({
-      path: 'spells',
-      value: this.sheet.spells,
-    });
-    this.closeCreateDialog();
   }
 
   deleteSpell(index: number) {

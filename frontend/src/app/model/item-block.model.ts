@@ -188,7 +188,14 @@ export class ItemBlock {
   
   // Embedded skills and spells (full data)
   embeddedSkills?: SkillBlock[];
+  /** Inscribed Zauber. This item is their Medium — see utils/spell-medium.util.ts. */
   embeddedSpells?: SpellBlock[];
+
+  /**
+   * How many Zauber can be inscribed on this item. Undefined = 1 (a Schriftrolle); a Buch may hold
+   * several. A slot burnt out by a failed Bruchprobe stays occupied — the material is spent.
+   */
+  inscriptionSlots?: number;
   
   // Stackable items (e.g. consumables)
   stackable?: boolean; // If true, item can have multiple amounts

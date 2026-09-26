@@ -1,12 +1,12 @@
 import {
   ChangeDetectionStrategy, ChangeDetectorRef, Component,
-  EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges,
+  DoCheck, EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CharacterSheet } from '../../model/character-sheet-model';
-import { SpellBlock, CastingSpellEntry, generateSpellId } from '../../model/spell-block-model';
+import { SpellBlock, CastingSpellEntry, SpellCounter } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -14,7 +14,13 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
-import { spellBaseCosts } from '../../utils/spell-costs.util';
+import { spellBaseCosts, spellHaltbarkeitsKosten } from '../../utils/spell-costs.util';
+import {
+  CastableSpell, SpellMedium, carriedMedia, castableSpells, resolveSpellByKey, spellKey,
+} from '../../utils/spell-medium.util';
+import {
+  Bruchprobe, breakInscriptionPatches, needsBruchprobe, resolveBruchprobe,
+} from '../../utils/spell-break.util';
 import {
   castFactorPercent,
   castLevelForStatRequirement,
@@ -36,7 +42,13 @@ interface CastCostPreview {
   fokusAfterPct: number;
   fokusCostPct: number;
   scaledEffektivitaet: number;
-  scaledHaltbarkeit: number;
+  scaledDauer: number;
+  /** Haltbarkeit this cast burns off the chosen Medium. 0 for a verinnerlicht cast. */
+  haltbarkeitsKosten: number;
+  /** Haltbarkeit left on the Medium afterwards, or null when none is involved / unbegrenzt. */
+  haltbarkeitRest: number | null;
+  /** Would the remaining Haltbarkeit force a Bruchprobe? */
+  bruchprobeNoetig: boolean;
 }
 
 const EMPTY_CAST_PREVIEW: CastCostPreview = {
@@ -49,7 +61,10 @@ const EMPTY_CAST_PREVIEW: CastCostPreview = {
   fokusAfterPct: 0,
   fokusCostPct: 0,
   scaledEffektivitaet: 0,
-  scaledHaltbarkeit: 0,
+  scaledDauer: 0,
+  haltbarkeitsKosten: 0,
+  haltbarkeitRest: null,
+  bruchprobeNoetig: false,
 };
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
@@ -97,7 +112,7 @@ const RUNE_SYMBOLS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ
   styleUrl: './spellcast-window.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
+export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, DoCheck {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input() defaultTab: 'spells' | 'skills' = 'spells';
   /** Open straight into the cast dialog of this spell (id or name) — e.g. picked in the lobby dock. */
@@ -127,6 +142,25 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   pendingCastLevel = 0;
   skalierung = 1;
   castPreview: CastCostPreview = { ...EMPTY_CAST_PREVIEW };
+  /** Which Medium burns for the pending cast. Null for a verinnerlicht cast. */
+  pendingMedium: SpellMedium | null = null;
+  /** Media available for the pending spell, when the player has to choose. */
+  pendingMediumChoices: SpellMedium[] = [];
+  /** Result of the last Bruchprobe, shown as a banner until the next cast. */
+  lastBruchprobe: (Bruchprobe & { itemName: string }) | null = null;
+
+  /**
+   * Zauberbuch ∪ carried Media, computed at most once per change-detection pass.
+   *
+   * It walks equipment, the sparse inventory and every Konstrukt subtree, and the template reads it
+   * once per card — so it is cached. But the sheet is mutated IN PLACE by socket patches, so its
+   * identity never changes and the cache has to be dropped on a schedule rather than on a compare.
+   */
+  private _castableCache: CastableSpell[] | null = null;
+
+  get castable(): CastableSpell[] {
+    return (this._castableCache ??= castableSpells(this.sheet));
+  }
 
   // ── Cast-bonus (saved on sheet) ───────────────────────────────────────────
 
@@ -143,7 +177,48 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   // ── Data accessors ────────────────────────────────────────────────────────
 
   get availableSpells(): SpellBlock[] {
-    return this.sheet.spells || [];
+    return this.castable.map(c => c.spell);
+  }
+
+  /** Drop the cached union. Called once per CD pass and after anything that changes either side. */
+  private refreshCastable(): void {
+    this._castableCache = null;
+  }
+
+  ngDoCheck(): void {
+    this._castableCache = null;
+  }
+
+  entryFor(spell: SpellBlock): CastableSpell | undefined {
+    const key = spellKey(spell);
+    return this.castable.find(c => c.key === key);
+  }
+
+  /** Is this spell castable at all — verinnerlicht, or a Medium in hand? */
+  isCastable(spell: SpellBlock): boolean {
+    return this.entryFor(spell)?.castable ?? false;
+  }
+
+  knowledgeOf(spell: SpellBlock): string {
+    const state = this.entryFor(spell)?.knowledge ?? 'gelernt';
+    return state === 'verinnerlicht' ? 'Verinnerlicht' : state === 'unbekannt' ? 'Unbekannt' : 'Gelernt';
+  }
+
+  mediaOf(spell: SpellBlock): SpellMedium[] {
+    return this.entryFor(spell)?.media ?? [];
+  }
+
+  /** Label for one Medium in the picker: 'Schriftrolle · 12/40' or '… · unbegrenzt'. */
+  mediumLabel(medium: SpellMedium): string {
+    if (medium.durability === undefined) return `${medium.itemName} · unbegrenzt`;
+    const max = medium.maxDurability ?? medium.durability;
+    return `${medium.itemName} · ${medium.durability}/${max}`;
+  }
+
+  onMediumPick(path: string): void {
+    this.pendingMedium = this.pendingMediumChoices.find(m => m.path === path) ?? null;
+    this.recalcCastPreview();
+    this.cdr.detectChanges();
   }
 
   get castingSpells(): CastingSpellEntry[] {
@@ -201,7 +276,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   get fokusUsed(): number {
     return this.castingSpells.reduce((sum, entry) => {
-      const spell = this.availableSpells.find(s => s.id === entry.spellId);
+      const spell = this.getSpell(entry.spellId);
       if (!spell) return sum;
       return sum + this.computeFokusCost(spell, entry.castLevel || 0);
     }, 0);
@@ -213,15 +288,24 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   isActivelyCasting(spell: SpellBlock): boolean {
-    return this.castingSpells.some(e => e.spellId === spell.id);
+    const key = spellKey(spell);
+    return this.castingSpells.some(e => e.spellId === key);
   }
 
   getActiveCast(spell: SpellBlock): CastingSpellEntry | undefined {
-    return this.castingSpells.find(e => e.spellId === spell.id);
+    const key = spellKey(spell);
+    return this.castingSpells.find(e => e.spellId === key);
   }
 
+  /**
+   * Resolve a casting entry back to its spell.
+   *
+   * Goes through `resolveSpellByKey`, which also searches BROKEN and spent inscriptions — a spell
+   * sustained off a scroll that then shattered must keep its Fokus cost, duration and counters, or
+   * the active row silently empties out mid-fight.
+   */
   getSpell(spellId: string): SpellBlock | undefined {
-    return this.availableSpells.find(s => s.id === spellId);
+    return resolveSpellByKey(this.sheet, spellId);
   }
 
   spellColor(spell: SpellBlock): string {
@@ -322,9 +406,9 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /** Resolve stored or graph-derived base values for a spell */
-  private spellBaseValues(spell: SpellBlock): { mana: number; fokus: number; effektivitaet: number; haltbarkeit: number } {
+  private spellBaseValues(spell: SpellBlock): { mana: number; fokus: number; effektivitaet: number; dauer: number } {
     // Shared with the lobby dock and Fokus readout (utils/spell-costs.util) so they cannot disagree.
-    return { ...spellBaseCosts(spell, this.learnedRunes()), haltbarkeit: spell.durationTurns ?? 0 };
+    return { ...spellBaseCosts(spell, this.learnedRunes()), dauer: spell.durationTurns ?? 0 };
   }
 
   /** Mana: base × 100/(Cast+100) × skalierung */
@@ -351,8 +435,8 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
       : scaledBySkalierung(baseEff, skalierung);
   }
 
-  computeScaledHaltbarkeit(spell: SpellBlock, skalierung: number): number {
-    return scaledBySkalierung(this.spellBaseValues(spell).haltbarkeit, skalierung);
+  computeScaledDauer(spell: SpellBlock, skalierung: number): number {
+    return scaledBySkalierung(this.spellBaseValues(spell).dauer, skalierung);
   }
 
   private recalcCastPreview(): void {
@@ -367,6 +451,16 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const manaAfter = this.manaCurrent - manaCost;
     const fokusAfter = this.fokusAvailable - fokusCost;
 
+    // Haltbarkeit only enters the picture when a Medium is actually burning. A verinnerlicht cast
+    // and an unbegrenzt inscription both cost nothing.
+    const medium = this.pendingMedium;
+    const burn = medium
+      ? spellHaltbarkeitsKosten(spell, this.learnedRunes(), this.pendingCastLevel, this.skalierung)
+      : 0;
+    const rest = medium && medium.durability !== undefined
+      ? Math.round(Math.max(0, medium.durability - burn) * 100) / 100
+      : null;
+
     this.castPreview = {
       manaCost,
       fokusCost,
@@ -377,8 +471,17 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
       fokusAfterPct: this.fokusMax > 0 ? Math.round((Math.max(0, fokusAfter) / this.fokusMax) * 100) : 0,
       fokusCostPct: this.fokusMax > 0 ? Math.min(100, Math.round((fokusCost / this.fokusMax) * 100)) : 0,
       scaledEffektivitaet: this.computeScaledEffektivitaet(spell, this.skalierung),
-      scaledHaltbarkeit: this.computeScaledHaltbarkeit(spell, this.skalierung),
+      scaledDauer: this.computeScaledDauer(spell, this.skalierung),
+      haltbarkeitsKosten: rest === null ? 0 : burn,
+      haltbarkeitRest: rest,
+      bruchprobeNoetig: rest !== null && needsBruchprobe(rest),
     };
+  }
+
+  /** Does the pending cast need a Medium, or is the spell verinnerlicht? */
+  get pendingNeedsMedium(): boolean {
+    if (!this.pendingCastSpell) return false;
+    return this.entryFor(this.pendingCastSpell)?.knowledge !== 'verinnerlicht';
   }
 
   get canCast(): boolean {
@@ -386,7 +489,10 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const manaOk = this.castPreview.manaAfter >= 0;
     const fokusOk = this.castPreview.fokusAfter >= 0;
     const statsOk = this.spellStatReqs(this.pendingCastSpell).every(r => this.castLevelMeetsReq(r.key, r.value));
-    return manaOk && fokusOk && statsOk;
+    // The Medium rule, and the only gate on knowledge: verinnerlicht casts from memory, everything
+    // else needs material in hand.
+    const mediumOk = !this.pendingNeedsMedium || !!this.pendingMedium;
+    return manaOk && fokusOk && statsOk && mediumOk;
   }
 
   get skalerungStars(): number[] {
@@ -415,6 +521,12 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     this.pendingCastSpell = spell;
     this.pendingCastLevel = 0;
     this.skalierung = 1;
+    this.lastBruchprobe = null;
+    // Pre-pick the Medium: with one there is nothing to choose, with several the player decides
+    // which one burns. The strongest first, so the default is the least wasteful.
+    this.pendingMediumChoices = [...this.mediaOf(spell)]
+      .sort((a, b) => (b.durability ?? Infinity) - (a.durability ?? Infinity));
+    this.pendingMedium = this.pendingMediumChoices[0] ?? null;
     this.recalcCastPreview();
     this._computePortalRunes(spell);
     this.cdr.markForCheck();
@@ -423,6 +535,8 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   cancelCast(): void {
     this.pendingCastSpell = null;
     this.castPreview = { ...EMPTY_CAST_PREVIEW };
+    this.pendingMedium = null;
+    this.pendingMediumChoices = [];
     this._portalRunes = [];
     this.cdr.markForCheck();
   }
@@ -432,10 +546,13 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     if (!spell || !this.canCast) return;
     const sk = this.skalierung;
     const cl = this.pendingCastLevel;
+    const medium = this.pendingMedium;
     this.pendingCastSpell = null;
     this.castPreview = { ...EMPTY_CAST_PREVIEW };
+    this.pendingMedium = null;
+    this.pendingMediumChoices = [];
     this._portalRunes = [];
-    this.castSpell(spell, cl, sk);
+    this.castSpell(spell, cl, sk, medium);
     this.cdr.markForCheck();
   }
 
@@ -485,30 +602,99 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  castSpell(spell: SpellBlock, castLevel = 0, skalierung = 1): void {
-    const entryId = `${spell.id || generateSpellId()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  /**
+   * Cast a spell, burning its Medium if one is involved.
+   *
+   * Order matters: the cast SUCCEEDS first, and only then may the Medium fail. A scroll that
+   * shatters does so after delivering the spell — the Bruchprobe decides whether you can use it
+   * again, never whether this cast worked.
+   */
+  castSpell(spell: SpellBlock, castLevel = 0, skalierung = 1, medium: SpellMedium | null = null): void {
+    const key = spellKey(spell);
+    const entryId = `${key}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const manaCost = this.computeManaCost(spell, castLevel, skalierung);
 
-    // Subtract mana from statuses immediately
+    // 1. Resources
     this._consumeMana(manaCost);
 
-    // Build the entry — remainingCast = castLevel (d20 rolls will reduce it to 0)
+    // 2. Haltbarkeit, and the Bruchprobe it may trigger
+    if (medium) this._burnMedium(spell, medium, castLevel, skalierung);
+
+    // 3. The entry — remainingCast = castLevel (d20 rolls will reduce it to 0)
     const entry: CastingSpellEntry = {
-      spellId: spell.id || generateSpellId(),
+      spellId: key,
       spellName: spell.name,
       castLevel,
       entryId,
       skalierung: skalierung !== 1 ? skalierung : undefined,
       remainingCast: castLevel,  // 0 = instant cast; >0 = needs d20 rolls to complete
       roundsActive: castLevel <= 0 ? 0 : undefined,  // instant spells start active immediately
+      sourceKind: medium ? 'medium' : 'verinnerlicht',
+      sourceItemName: medium?.itemName,
+      sourceBindingPath: medium ? `${medium.path}.binding` : undefined,
     };
     const updated = [...this.castingSpells, entry];
     this.sheet.castingSpells = updated;
     this.patch.emit({ path: 'castingSpells', value: updated });
     // No lobby action yet — action fires on each d20 roll and when casting completes
 
+    this.refreshCastable();
     this._spawnRunesForSpell(spell);
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Subtract Haltbarkeit and roll the Bruchprobe if the rest falls below 10.
+   *
+   * An inscription with no `durability` is unbegrenzt and burns nothing — that keeps legacy magic
+   * items working exactly as they did before this rule existed.
+   */
+  private _burnMedium(
+    spell: SpellBlock, medium: SpellMedium, castLevel: number, skalierung: number,
+  ): void {
+    if (medium.durability === undefined) return;
+
+    const burn = spellHaltbarkeitsKosten(spell, this.learnedRunes(), castLevel, skalierung);
+    const rest = Math.round(Math.max(0, medium.durability - burn) * 100) / 100;
+
+    medium.inscription.binding.durability = rest;
+    this.patch.emit({ path: `${medium.path}.binding.durability`, value: rest });
+
+    if (!needsBruchprobe(rest)) {
+      this.lastBruchprobe = null;
+      return;
+    }
+
+    const probe = resolveBruchprobe(rest, Math.floor(Math.random() * 20) + 1);
+    this.lastBruchprobe = { ...probe, itemName: medium.itemName };
+    this._sendBruchprobeRoll(spell, medium, probe);
+
+    if (!probe.broken) return;
+
+    medium.inscription.binding.broken = true;
+    medium.item.lost = true;
+    for (const patch of breakInscriptionPatches(medium)) this.patch.emit(patch);
+  }
+
+  /** Show the Bruchprobe in the lobby dice history, same channel as the cast rolls. */
+  private _sendBruchprobeRoll(spell: SpellBlock, medium: SpellMedium, probe: Bruchprobe): void {
+    if (!this.sheet.worldName) return;
+    this._worldSocket.sendDiceRoll({
+      id: `bruchprobe-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      worldName: this.sheet.worldName,
+      characterName: this.sheet.name,
+      characterId: this.sheet.id || '',
+      diceType: 20,
+      diceCount: 1,
+      bonuses: [{ name: 'Bruchprobe', value: probe.bonus, source: 'sheet' }],
+      result: probe.total,
+      rolls: [probe.roll],
+      timestamp: new Date(),
+      isSecret: false,
+      actionName: `Bruchprobe: ${medium.itemName} — ${probe.broken ? 'zerstört' : 'hält'}`,
+      actionIcon: spell.icon || '✦',
+      actionColor: probe.broken ? '#ef4444' : (spell.strokeColor || '#8b5cf6'),
+    });
   }
 
   private _consumeMana(amount: number): void {
@@ -620,7 +806,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return (entry.roundsActive ?? 0) >= scaledDur;
   }
 
-  entryScaledHaltbarkeit(entry: CastingSpellEntry): number {
+  entryScaledDauer(entry: CastingSpellEntry): number {
     const spell = this.getSpell(entry.spellId);
     const base = spell?.durationTurns ?? 0;
     return scaledBySkalierung(base, entry.skalierung ?? 1);
@@ -673,19 +859,35 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  /** Adjust a counter on a spell's definition and sync via patch */
+  /**
+   * Adjust a counter on a spell's definition and sync via patch.
+   *
+   * Falls back to the inscription when the spell is not in the Zauberbuch — a counter on a stranger's
+   * scroll has to be adjustable too, and it lives inside the item rather than in `sheet.spells`.
+   */
   adjustCounter(spellId: string, counterIndex: number, newValue: number): void {
-    const spells = [...(this.sheet.spells || [])];
-    const idx = spells.findIndex(s => s.id === spellId);
-    if (idx < 0) return;
-    const spell = { ...spells[idx] };
-    if (!spell.counters || counterIndex >= spell.counters.length) return;
-    spell.counters = spell.counters.map((c, i) =>
+    const clamp = (counters: SpellCounter[]) => counters.map((c, i) =>
       i === counterIndex ? { ...c, current: Math.max(c.min, Math.min(c.max, newValue)) } : c
     );
-    spells[idx] = spell;
-    this.sheet.spells = spells;
-    this.patch.emit({ path: 'spells', value: spells });
+
+    const spells = [...(this.sheet.spells || [])];
+    const idx = spells.findIndex(s => s && spellKey(s) === spellId);
+    if (idx >= 0) {
+      const spell = { ...spells[idx] };
+      if (!spell.counters || counterIndex >= spell.counters.length) return;
+      spell.counters = clamp(spell.counters);
+      spells[idx] = spell;
+      this.sheet.spells = spells;
+      this.patch.emit({ path: 'spells', value: spells });
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const medium = carriedMedia(this.sheet).find(m => spellKey(m.inscription) === spellId);
+    if (!medium?.inscription.counters || counterIndex >= medium.inscription.counters.length) return;
+    const counters = clamp(medium.inscription.counters);
+    medium.inscription.counters = counters;
+    this.patch.emit({ path: `${medium.path}.counters`, value: counters });
     this.cdr.markForCheck();
   }
 
@@ -804,17 +1006,24 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     this.leftTab = this.defaultTab;
+    this.refreshCastable();
     this._generateAmbientRunes();
     this.openInitialSpell();
   }
 
-  /** Jump into the cast dialog of `initialSpellId`, if it names one of this sheet's spells. */
+  /**
+   * Jump into the cast dialog of `initialSpellId`.
+   *
+   * Resolved against the union, not `sheet.spells` — the lobby dock lists Medium spells too, and
+   * picking one there used to open this window on nothing at all.
+   */
   private openInitialSpell(): void {
     if (!this.initialSpellId) return;
-    const spell = this.availableSpells.find(s => s.id === this.initialSpellId || s.name === this.initialSpellId);
-    if (!spell) return;
+    const pick = this.initialSpellId;
+    const entry = this.castable.find(c => c.key === pick || c.spell.id === pick || c.spell.name === pick);
+    if (!entry) return;
     this.leftTab = 'spells';
-    this.requestCast(spell);
+    this.requestCast(entry.spell);
   }
 
   ngOnDestroy(): void {
@@ -823,6 +1032,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    this.refreshCastable();
     // Another spell picked outside (lobby dock) while the window is already open.
     const pick = changes['initialSpellId'];
     if (pick && !pick.firstChange && this.initialSpellId) {

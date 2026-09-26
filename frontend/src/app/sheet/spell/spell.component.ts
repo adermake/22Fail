@@ -20,6 +20,8 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 import { SpellBlock, SPELL_TAG_OPTIONS, SPELL_GLOW_COLORS } from '../../model/spell-block-model';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { ImageService } from '../../services/image.service';
+import { SpellKnowledgeState, SpellMedium } from '../../utils/spell-medium.util';
+import { needsBruchprobe } from '../../utils/spell-break.util';
 
 @Component({
   selector: 'app-spell',
@@ -35,11 +37,14 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   @Input() isEditing = false;
   /** Item-granted spells are shown for reference only — no edit, delete or context menu. */
   @Input() readOnly = false;
+  /** How well the character knows this spell. 'unbekannt' = only readable off a Medium. */
+  @Input() knowledge: SpellKnowledgeState = 'gelernt';
+  /** Usable Media carrying it. Empty + not verinnerlicht = "Medium fehlt". */
+  @Input() media: SpellMedium[] = [];
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
-  @Output() cast = new EventEmitter<void>();
   /** Emitted on left-click — open the cast window for this spell */
   @Output() openCastView = new EventEmitter<void>();
   /** Emitted on right-click — parent component renders the context menu */
@@ -202,9 +207,29 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     return current >= value;
   }
 
+  /**
+   * The Medium rule: a spell can be cast if it is verinnerlicht, or if the character carries
+   * material with it written on. Anything else is knowledge without a way to use it.
+   */
   get isDisabled(): boolean {
-    // Binding is no longer used for enabling/disabling — always enabled
-    return false;
+    return this.knowledge !== 'verinnerlicht' && this.media.length === 0;
+  }
+
+  get knowledgeLabel(): string {
+    return this.knowledge === 'verinnerlicht' ? 'Verinnerlicht'
+         : this.knowledge === 'unbekannt' ? 'Unbekannt'
+         : 'Gelernt';
+  }
+
+  /** 'Schriftrolle · 12/40', or '· unbegrenzt' for an inscription with no Haltbarkeit. */
+  mediumLabel(medium: SpellMedium): string {
+    if (medium.durability === undefined) return `${medium.itemName} · unbegrenzt`;
+    return `${medium.itemName} · ${medium.durability}/${medium.maxDurability ?? medium.durability}`;
+  }
+
+  /** A nearly-spent Medium is about to force a Bruchprobe — warn before it shatters. */
+  mediumAtRisk(medium: SpellMedium): boolean {
+    return medium.durability !== undefined && needsBruchprobe(medium.durability);
   }
 
   get hasCostSchedule(): boolean {

@@ -26,9 +26,22 @@ export function scaledManaCost(baseMana: number, castLevel: number, skalierung: 
   return Math.round(baseMana * castFactor(castLevel) * skalierung * 100) / 100;
 }
 
-/** Effektivität / Haltbarkeit: base × skalierung */
+/** Effektivität / Dauer: base × skalierung */
 export function scaledBySkalierung(base: number, skalierung: number): number {
   return Math.round(base * skalierung * 100) / 100;
+}
+
+/**
+ * Haltbarkeit a single cast burns off its Medium: Voraussetzung × 100/(Cast+100) × Skalierung.
+ *
+ * Both scalings are the rulebook's: casting slowly lowers the Voraussetzung, and "macht man eine
+ * Rune doppelt so groß … verdoppeln sich auch die Manakosten und der Verbrauch der Haltbarkeit".
+ */
+export function haltbarkeitsKosten(
+  voraussetzung: number, castLevel: number, skalierung: number,
+): number {
+  if (voraussetzung <= 0) return 0;
+  return Math.round(effectiveStatRequirement(voraussetzung, castLevel) * skalierung * 100) / 100;
 }
 
 /**

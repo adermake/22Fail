@@ -1100,3 +1100,23 @@ canvas {
   overflow: hidden;
   background: var(--card);
 }
+/* ── Wissen & Medien ──────────────────────────────────────────────────────────
+   A spell the character knows but cannot currently cast stays visible and readable — hiding it
+   would leave the player unable to see what they know. It is greyed and not clickable instead. */
+.spell-card--no-medium .scv { opacity: 0.55; filter: saturate(0.45); }
+.spell-card--no-medium { cursor: default; }
+
+.scv-know { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 6px; }
+.scv-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.03em;
+  padding: 1px 6px; border-radius: 4px;
+  background: rgba(148, 163, 184, 0.16); color: var(--text-muted, #94a3b8);
+}
+.scv-chip .app-icon { width: 11px; height: 11px; }
+.scv-chip--inner  { background: color-mix(in srgb, var(--sc, #8b5cf6) 22%, transparent); color: var(--sc, #a78bfa); }
+.scv-chip--medium { background: rgba(96, 165, 250, 0.14); color: #60a5fa; }
+/* Under 10 Haltbarkeit the next cast forces a Bruchprobe. */
+.scv-chip--risk    { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+.scv-chip--unknown { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+.scv-chip--missing { background: rgba(239, 68, 68, 0.12); color: #f87171; }

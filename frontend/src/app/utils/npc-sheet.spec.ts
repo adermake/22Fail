@@ -9,6 +9,7 @@ import { SkillBlock } from '../model/skill-block.model';
 import { ActiveSkillEntry } from '../model/spell-block-model';
 import { HEALTH_PER_LEVEL, TrueStatsService } from '../services/true-stats.service';
 import { NPC_BASE_POOL, buildNpcSheet, npcSkillFromDefinition } from './npc-sheet.util';
+import { castableSpells } from './spell-medium.util';
 
 /**
  * NSCs on the player calculator.
@@ -126,6 +127,24 @@ describe('NSC-Blatt', () => {
       });
       const sheet = buildNpcSheet(sb, { activeSkillEntries: [entry('Rage')] });
       expect(svc.calculateStrength(sheet)).toBe(16);
+    });
+  });
+
+  describe('Zauber', () => {
+    it('marks statblock spells verinnerlicht so the Medium rule does not disarm NSCs', () => {
+      // The Medium rule is player-facing: no GM tracks Schriftrollen and Haltbarkeit for a wolf pack.
+      // Left as 'gelernt' with no Medium, every NSC spell would be listed uncastable.
+      const sb = statblock({ spells: [{ name: 'Feuerhauch', description: '', tags: [] } as any] });
+      const sheet = buildNpcSheet(sb);
+      expect(sheet.spells[0].knowledge).toBe('verinnerlicht');
+      expect(castableSpells(sheet)[0].castable).toBe(true);
+    });
+
+    it('does not write the flag back into the statblock', () => {
+      const spell = { name: 'Feuerhauch', description: '', tags: [] } as any;
+      const sb = statblock({ spells: [spell] });
+      buildNpcSheet(sb);
+      expect(spell.knowledge).toBeUndefined();
     });
   });
 

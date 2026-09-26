@@ -13,7 +13,8 @@ import {
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ForgedTraitRecord } from '../../model/forging.model';
 import { SkillBlock } from '../../model/skill-block.model';
-import { SpellBlock } from '../../model/spell-block-model';
+import { SpellBlock, generateSpellId } from '../../model/spell-block-model';
+import { inscriptionSlots, usedInscriptionSlots } from '../../utils/spell-medium.util';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
@@ -458,6 +459,9 @@ export class ItemEditorComponent implements OnInit {
     if (!this.editItem.embeddedSpells) {
       this.editItem.embeddedSpells = [];
     }
+    // Every inscription needs an id and a binding to this item: casting, Haltbarkeit and the
+    // Bruchprobe all address it by key, and an id-less spell can only be matched by its name.
+    this.bindInscription(spell);
     if (this.editingSpellIndex !== null) {
       // Editing existing
       this.editItem.embeddedSpells[this.editingSpellIndex] = spell;
@@ -466,6 +470,44 @@ export class ItemEditorComponent implements OnInit {
       this.editItem.embeddedSpells.push(spell);
     }
     this.closeSpellEditor();
+  }
+
+  /** Give an inscription an id and tie it to this item, preserving a Haltbarkeit already set. */
+  private bindInscription(spell: SpellBlock): void {
+    spell.id ??= generateSpellId();
+    spell.binding = {
+      ...spell.binding,
+      type: 'item',
+      itemName: this.editItem.name,
+    };
+    delete spell.knowledge;   // knowledge lives on the Zauberbuch, never on a Medium
+  }
+
+  // ── Einschreibe-Plätze ──────────────────────────────────────────────────────
+
+  get inscriptionSlotCount(): number {
+    return inscriptionSlots(this.editItem);
+  }
+
+  get usedInscriptionSlotCount(): number {
+    return usedInscriptionSlots(this.editItem);
+  }
+
+  /** 'Kaputt' marks a slot burnt out by a failed Bruchprobe — it can never be written on again. */
+  isInscriptionBroken(spell: SpellBlock): boolean {
+    return !!spell.binding?.broken;
+  }
+
+  setInscriptionDurability(index: number, value: number): void {
+    const spell = this.editItem.embeddedSpells?.[index];
+    if (!spell) return;
+    spell.binding = { ...spell.binding, type: 'item', durability: Math.max(0, value) };
+  }
+
+  setInscriptionMaxDurability(index: number, value: number): void {
+    const spell = this.editItem.embeddedSpells?.[index];
+    if (!spell) return;
+    spell.binding = { ...spell.binding, type: 'item', maxDurability: Math.max(0, value) };
   }
 
   deleteEmbeddedSpell(index: number) {
@@ -490,10 +532,10 @@ export class ItemEditorComponent implements OnInit {
     if (!this.editItem.embeddedSpells) {
       this.editItem.embeddedSpells = [];
     }
-    // Deep clone to avoid reference issues
-    const imported = JSON.parse(JSON.stringify(librarySpell));
-    // Set binding to item
-    imported.binding = { type: 'item', itemName: this.editItem.name };
+    // Deep clone to avoid reference issues. The id is kept deliberately: it is what ties this
+    // inscription to the same spell in a character's Zauberbuch.
+    const imported: SpellBlock = JSON.parse(JSON.stringify(librarySpell));
+    this.bindInscription(imported);
     this.editItem.embeddedSpells.push(imported);
   }
 

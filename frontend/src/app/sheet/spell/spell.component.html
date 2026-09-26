@@ -1,8 +1,9 @@
 <div
   class="spell-card"
   [class.editing]="isEditing"
+  [class.spell-card--no-medium]="isDisabled"
   (contextmenu)="onRightClick($event)"
-  (click)="!isEditing && openCastView.emit(); $event.stopPropagation()"
+  (click)="!isEditing && !isDisabled && openCastView.emit(); $event.stopPropagation()"
 >
   @if (!isEditing) {
   <!-- ── Trading-card style view ── -->
@@ -17,6 +18,23 @@
         <button class="scv-edit-btn" (click)="openEditor.emit(); $event.stopPropagation()" title="Bearbeiten"><span class="app-icon i-draw"></span></button>
         <button class="scv-del-btn" (click)="deleteSpell(); $event.stopPropagation()" title="Löschen">✕</button>
       </div>
+    </div>
+
+    <!-- Wissen und Medien: verinnerlicht casts from memory, everything else needs material -->
+    <div class="scv-know">
+      @if (knowledge === 'verinnerlicht') {
+        <span class="scv-chip scv-chip--inner"><span class="app-icon i-spell"></span>{{ knowledgeLabel }}</span>
+      } @else if (knowledge === 'unbekannt') {
+        <span class="scv-chip scv-chip--unknown">{{ knowledgeLabel }}</span>
+      }
+      @for (medium of media; track medium.path) {
+        <span class="scv-chip scv-chip--medium" [class.scv-chip--risk]="mediumAtRisk(medium)">
+          <span class="app-icon i-inventory"></span>{{ mediumLabel(medium) }}
+        </span>
+      }
+      @if (isDisabled) {
+        <span class="scv-chip scv-chip--missing">Medium fehlt</span>
+      }
     </div>
 
     <!-- Description -->

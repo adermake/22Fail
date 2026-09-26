@@ -138,7 +138,10 @@ export function buildNpcSheet(npc: NpcStatblock, state: NpcSheetTokenState = {})
   sheet.chill = stat('Wille', npc.wille ?? 0);
 
   sheet.skills = npcSkillBlocks(npc);
-  sheet.spells = npc.spells ?? [];
+  // Every statblock spell counts as verinnerlicht. An NSC's statblock is a list of what it can
+  // actually do, and no GM wants to track scrolls and Haltbarkeit for a wolf pack — the Medium rule
+  // is a player-facing constraint. Without this they would all read "Medium fehlt" and be uncastable.
+  sheet.spells = (npc.spells ?? []).map(s => ({ ...s, knowledge: 'verinnerlicht' as const }));
   // By reference: item identity has to match `npc.equipment` or the Konstrukt budget cannot
   // recognise the same machine twice.
   sheet.equipment = npc.equipment ?? [];

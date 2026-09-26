@@ -895,3 +895,21 @@
  */
 .ie-trait-script-host { height: 300px; min-height: 260px; }
 .ie-trait-open { border-color: var(--accent, #8b5cf6); }
+
+/* ── Einschreibe-Plätze und Haltbarkeit je Inschrift ────────────────────────── */
+.inscription-slots { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.inscription-slots label { font-size: 0.78rem; font-weight: 600; }
+.inscription-slots input { width: 70px; }
+.inscription-used { font-size: 0.7rem; color: var(--text-muted, #9ca3af); }
+
+.inscription-dur { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+.inscription-dur label { font-size: 0.66rem; color: var(--text-muted, #9ca3af); }
+.inscription-dur input { width: 58px; }
+.inscription-sep { color: var(--text-muted, #9ca3af); }
+
+/* Burnt out by a failed Bruchprobe — the slot stays used and can never be rewritten. */
+.inscription-broken {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: 4px;
+  background: rgba(239, 68, 68, 0.16); color: #f87171;
+}

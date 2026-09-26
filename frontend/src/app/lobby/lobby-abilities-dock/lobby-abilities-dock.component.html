@@ -57,12 +57,14 @@
             </button>
           }
           @for (spell of spells; track $index) {
-            @let affordable = svc.canAffordSpell(spell, fokusFree);
+            @let hasMedium = svc.spellCastable(spell);
+            @let affordable = svc.canAffordSpell(spell, fokusFree) && hasMedium;
             <button type="button" class="lad-card lad-card--spell"
                     [class.active]="svc.isSpellActive(spell)"
+                    [class.lad-card--no-medium]="!hasMedium"
                     [style.--sc]="svc.spellColor(spell)"
                     [disabled]="!affordable"
-                    [title]="affordable ? (spell.description || spell.name) : 'Nicht genug Mana oder Fokus'"
+                    [title]="affordable ? (spell.description || spell.name) : svc.spellBlockReason(spell)"
                     (click)="svc.requestCast(spell)">
               <span class="lad-card-top">
                 <span class="lad-badge">Zauber</span>
@@ -70,6 +72,7 @@
                 @if (svc.isSpellActive(spell)) { <span class="lad-active">Aktiv</span> }
               </span>
               <span class="lad-name">{{ spell.name }}</span>
+              @if (!hasMedium) { <span class="lad-nomedium">Medium fehlt</span> }
               @if (spell.description) { <span class="lad-desc">{{ spell.description }}</span> }
               @if (svc.spellCostSummary(spell); as cost) { <span class="lad-cost">{{ cost }}</span> }
             </button>

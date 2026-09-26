@@ -1,0 +1,50 @@
+<div class="sid-backdrop" (click)="cancel.emit()">
+  <div class="sid-dialog" (click)="$event.stopPropagation()">
+
+    <div class="sid-head">
+      <span class="app-icon i-draw"></span>
+      <h3>Zauber einschreiben &mdash; {{ spell.name }}</h3>
+      <button class="sid-x" (click)="cancel.emit()" title="Abbrechen">&#10005;</button>
+    </div>
+
+    <p class="sid-hint">
+      W&auml;hle das Material, auf das der Zauber geschrieben wird. Jeder Platz nimmt genau einen
+      Zauber auf; ein ausgebrannter Platz bleibt belegt.
+    </p>
+
+    <input class="sid-search" type="text" [(ngModel)]="search" placeholder="Gegenstand suchen&hellip;" />
+
+    <div class="sid-list">
+      @for (entry of candidates; track entry.path) {
+        <button type="button" class="sid-item"
+                [class.sel]="entry.path === selectedPath"
+                [class.full]="entry.free <= 0"
+                [disabled]="entry.free <= 0"
+                (click)="select(entry)">
+          <span class="sid-item-name">{{ entry.item.name }}</span>
+          <span class="sid-chip">{{ sourceLabel(entry) }}</span>
+          @if (entry.free > 0) {
+            <span class="sid-chip sid-chip--free">{{ entry.free }} frei</span>
+          } @else {
+            <span class="sid-chip sid-chip--full">Keine Pl&auml;tze frei</span>
+          }
+          <span class="sid-slots">{{ slotLabel(entry) }}</span>
+        </button>
+      } @empty {
+        <p class="sid-empty">Kein mitgef&uuml;hrter Gegenstand kann einen Zauber aufnehmen.</p>
+      }
+    </div>
+
+    <div class="sid-dur">
+      <label for="sid-durability">Haltbarkeit</label>
+      <input id="sid-durability" type="number" min="1" [(ngModel)]="durability" />
+      <span class="sid-dur-hint">Verbrauch je Wirkung = Voraussetzung des Zaubers</span>
+    </div>
+
+    <div class="sid-actions">
+      <button class="sid-btn" (click)="cancel.emit()">Abbrechen</button>
+      <button class="sid-btn sid-btn--go" [disabled]="!canInscribe" (click)="confirm()">Einschreiben</button>
+    </div>
+
+  </div>
+</div>

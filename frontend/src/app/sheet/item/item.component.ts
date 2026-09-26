@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ItemBlock, ItemCounter } from '../../model/item-block.model';
+import { SpellBlock } from '../../model/spell-block-model';
+import { needsBruchprobe } from '../../utils/spell-break.util';
 import { getEquipSlot } from '../../utils/equip-slot.utils';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -121,6 +123,37 @@ export class ItemComponent implements OnChanges {
         || this.trueStats.resolveItemStat(this.sheet, this.item, 'rangedRange') || undefined,
     });
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
+  }
+
+  // ── Eingeschriebene Zauber ──────────────────────────────────────────────────
+  // Display only: this item is the Medium, but casting always goes through the Wirkfenster so there
+  // is one place a spell can be cast from. Legacy inscriptions may have no `binding` at all.
+
+  inscriptionBroken(spell: SpellBlock): boolean {
+    return !!spell.binding?.broken;
+  }
+
+  /** 'Kaputt', 'unbegrenzt', or '12 / 40'. */
+  inscriptionLabel(spell: SpellBlock): string {
+    if (this.inscriptionBroken(spell)) return 'Kaputt';
+    const durability = spell.binding?.durability;
+    if (durability === undefined) return 'unbegrenzt';
+    return `${durability} / ${spell.binding?.maxDurability ?? durability}`;
+  }
+
+  /** Under 10 Haltbarkeit the next cast forces a Bruchprobe. */
+  inscriptionAtRisk(spell: SpellBlock): boolean {
+    const durability = spell.binding?.durability;
+    return !this.inscriptionBroken(spell) && durability !== undefined && needsBruchprobe(durability);
+  }
+
+  /** Bar fill, or null when there is no bar to draw (broken, or unbegrenzt). */
+  inscriptionPercent(spell: SpellBlock): number | null {
+    if (this.inscriptionBroken(spell)) return null;
+    const durability = spell.binding?.durability;
+    const max = spell.binding?.maxDurability;
+    if (durability === undefined || !max || max <= 0) return null;
+    return Math.max(0, Math.min(100, Math.round((durability / max) * 100)));
   }
 
   get canUseItem(): boolean {

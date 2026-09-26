@@ -193,3 +193,10 @@
   color: var(--text-muted, #9ca3af);
 }
 .item-spells app-spell { opacity: 0.95; }
+
+.spells-title { display: flex; align-items: baseline; gap: 8px; }
+.spells-sub {
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-muted, #9ca3af);
+}
+.ctx-sep { height: 1px; margin: 3px 0; background: var(--border); }

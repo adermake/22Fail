@@ -1,6 +1,9 @@
 <app-card>
   <div class="spells-header">
-    <h2>Zauber</h2>
+    <div class="spells-title">
+      <h2>Zauber</h2>
+      <span class="spells-sub">Zauberbuch</span>
+    </div>
     <button class="add-btn" (click)="openNodeEditor(null)">+ Neuer Zauber</button>
   </div>
 
@@ -12,11 +15,12 @@
         [sheet]="sheet"
         [index]="i"
         [isEditing]="isSpellEditing(i)"
+        [knowledge]="knowledgeOf(spell)"
+        [media]="mediaOf(spell)"
         (patch)="updateSpell(i, $event)"
         (delete)="deleteSpell(i)"
         (editingChange)="onEditingChange(i, $event)"
         (openEditor)="openNodeEditor(i)"
-        (cast)="castSpell(i)"
         (openCastView)="requestCastWindow.emit()"
         (contextMenuRequest)="onSpellContextMenu($event)"
       ></app-spell>
@@ -27,26 +31,29 @@
         [style.width]="placeholderWidth"
       ></div>
     </div>
-    } @if ((sheet.spells || []).length === 0 && itemSpells.length === 0) {
+    } @if ((sheet.spells || []).length === 0 && foreignSpells.length === 0) {
     <p class="empty-message">Noch keine Zauber. Klicke + um einen zu erstellen.</p>
     }
   </div>
 
-  <!-- Spells granted by equipped items: read-only, disappear when the item comes off. -->
-  @if (itemSpells.length) {
+  <!-- Fremde Zauber: inscriptions the character carries but has never learned. Spells that ARE in
+       the Zauberbuch already show their Medium as a chip above, so they are filtered out here. -->
+  @if (foreignSpells.length) {
     <div class="item-spells">
       <div class="item-spells-hdr">
         <span class="app-icon i-item"></span>
-        <span>Aus Gegenst&auml;nden</span>
+        <span>Medien</span>
       </div>
       <div class="spells-list">
-        @for (spell of itemSpells; track spell.name + '@' + (spell.itemOrigin || ''); let i = $index) {
+        @for (entry of foreignSpells; track entry.key) {
           <app-spell
-            [spell]="spell"
+            [spell]="entry.spell"
             [sheet]="sheet"
             [index]="-1"
             [isEditing]="false"
             [readOnly]="true"
+            [knowledge]="entry.knowledge"
+            [media]="entry.media"
             (openCastView)="requestCastWindow.emit()"
           ></app-spell>
         }
@@ -61,10 +68,27 @@
     [style.top.px]="contextMenuY"
     [style.left.px]="contextMenuX"
     (click)="$event.stopPropagation()">
+    @if (contextSpellVerinnerlicht) {
+      <button class="ctx-item" (click)="toggleVerinnerlichtFromMenu()">Verinnerlichung aufheben</button>
+    } @else {
+      <button class="ctx-item" (click)="toggleVerinnerlichtFromMenu()">Verinnerlichen</button>
+    }
+    <button class="ctx-item" (click)="openInscribeFromMenu()">Einschreiben&hellip;</button>
+    <div class="ctx-sep"></div>
     <button class="ctx-item" (click)="openEditorFromMenu()">Bearbeiten</button>
     <button class="ctx-item" (click)="duplicateFromMenu()">Duplizieren</button>
     <button class="ctx-item ctx-delete" (click)="deleteFromMenu()">Löschen</button>
   </div>
+}
+
+<!-- Einschreiben: copy a known spell onto a carried Medium -->
+@if (inscribeSpell) {
+  <app-spell-inscribe-dialog
+    [sheet]="sheet"
+    [spell]="inscribeSpell"
+    (inscribe)="onInscribe($event)"
+    (cancel)="closeInscribe()">
+  </app-spell-inscribe-dialog>
 }
 
 <!-- Spell Editor Overlay (fullscreen) -->

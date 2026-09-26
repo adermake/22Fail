@@ -5,7 +5,8 @@ import { CharacterSheet } from '../model/character-sheet-model';
 import { buildNpcSheet } from '../utils/npc-sheet.util';
 import { NpcStatblock } from '../model/npc-statblock.model';
 import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
-import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../model/spell-block-model';
+import { SpellBlock, CastingSpellEntry, ActiveSkillEntry, SpellCounter } from '../model/spell-block-model';
+import { carriedMedia, castableSpells, resolveSpellByKey, spellKey } from '../utils/spell-medium.util';
 import { SkillBlock } from '../model/skill-block.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { SKILL_DEFINITIONS } from '../data/skill-definitions';
@@ -182,11 +183,28 @@ export class LobbyTokenActionsService implements OnDestroy {
     return (this.npc?.customSkills ?? []).filter(s => s.type === 'active');
   }
 
+  /**
+   * Zauberbuch ∪ carried Media — the same union the cast window shows, so the dock cannot offer a
+   * spell the window then refuses. Entries that are known but have no Medium are included and come
+   * back `castable: false` from `spellCastable`, which greys the button.
+   */
   get availableSpells(): SpellBlock[] {
-    if (this.character) {
-      return [...(this.character.spells ?? []), ...this.trueStats.getItemSpellBlocks(this.character)];
-    }
+    if (this.character) return castableSpells(this.character).map(c => c.spell);
     return this.npc?.spells ?? [];
+  }
+
+  /** Can this spell be cast at all — verinnerlicht, or a Medium in hand? NPCs are unrestricted. */
+  spellCastable(spell: SpellBlock): boolean {
+    if (!this.character) return true;
+    const key = spellKey(spell);
+    return castableSpells(this.character).find(c => c.key === key)?.castable ?? false;
+  }
+
+  /** Why the dock button is greyed, for its tooltip. */
+  spellBlockReason(spell: SpellBlock): string {
+    if (!this.spellCastable(spell)) return 'Medium fehlt';
+    if (!this.canAffordSpell(spell)) return 'Nicht genug Mana oder Fokus';
+    return '';
   }
 
   // ── Active state ──────────────────────────────────────────────────────────
@@ -272,9 +290,13 @@ export class LobbyTokenActionsService implements OnDestroy {
 
   // ── Spell helpers ─────────────────────────────────────────────────────────
 
+  /**
+   * Resolve a casting entry back to its spell, across the Zauberbuch AND every carried inscription
+   * — including broken ones, so an active row whose scroll shattered keeps its costs and counters.
+   */
   getSpell(spellId: string): SpellBlock | undefined {
-    if (this.character) return (this.character.spells ?? []).find(s => s.id === spellId);
-    return (this.npc?.spells ?? []).find(s => s.id === spellId);
+    if (this.character) return resolveSpellByKey(this.character, spellId);
+    return (this.npc?.spells ?? []).find(s => spellKey(s) === spellId);
   }
 
   spellColor(spell: SpellBlock): string {
@@ -1327,8 +1349,8 @@ export class LobbyTokenActionsService implements OnDestroy {
    * the dock only asks for it to open on this spell.
    */
   requestCast(spell: SpellBlock): void {
-    if (!this.canAffordSpell(spell)) return;
-    this.castRequest.emit(spell.id || spell.name);
+    if (!this.canAffordSpell(spell) || !this.spellCastable(spell)) return;
+    this.castRequest.emit(spellKey(spell));
   }
 
   // ── Resources & costs ─────────────────────────────────────────────────────
@@ -1487,20 +1509,32 @@ export class LobbyTokenActionsService implements OnDestroy {
     this._patchCasting([...this.castingSpells]);
   }
 
+  /** Counters live either on the Zauberbuch entry or, for an unknown Medium spell, on the inscription. */
   adjustSpellCounter(spellId: string, counterIndex: number, newValue: number): void {
     if (!this.character) return;
-    const spells = [...(this.character.spells || [])];
-    const idx = spells.findIndex(s => s.id === spellId);
-    if (idx < 0) return;
-    const spell = { ...spells[idx] };
-    if (!spell.counters || counterIndex >= spell.counters.length) return;
-    spell.counters = spell.counters.map((c, i) =>
+    const charId = this.characterId;
+    const clamp = (counters: SpellCounter[]) => counters.map((c, i) =>
       i === counterIndex ? { ...c, current: Math.max(c.min, Math.min(c.max, newValue)) } : c
     );
-    spells[idx] = spell;
-    this.character.spells = spells;
-    const charId = this.characterId;
-    if (charId) this.charSocket.sendPatch(charId, { path: 'spells', value: spells });
+
+    const spells = [...(this.character.spells || [])];
+    const idx = spells.findIndex(s => s && spellKey(s) === spellId);
+    if (idx >= 0) {
+      const spell = { ...spells[idx] };
+      if (!spell.counters || counterIndex >= spell.counters.length) return;
+      spell.counters = clamp(spell.counters);
+      spells[idx] = spell;
+      this.character.spells = spells;
+      if (charId) this.charSocket.sendPatch(charId, { path: 'spells', value: spells });
+      this.bump();
+      return;
+    }
+
+    const medium = carriedMedia(this.character).find(m => spellKey(m.inscription) === spellId);
+    if (!medium?.inscription.counters || counterIndex >= medium.inscription.counters.length) return;
+    const counters = clamp(medium.inscription.counters);
+    medium.inscription.counters = counters;
+    if (charId) this.charSocket.sendPatch(charId, { path: `${medium.path}.counters`, value: counters });
     this.bump();
   }
 
