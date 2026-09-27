@@ -739,11 +739,8 @@ describe('TrueStatsService', () => {
       // Zauberbuch used to bind 0 Fokus, silently freeing the budget a running spell was paying for.
       const sheet = makeSheet();
       sheet.inventory = [{
-        name: 'Schriftrolle', lost: false, broken: false,
-        embeddedSpells: [{
-          id: 'sp9', name: 'Fremdschild', perTurnFokus: 3,
-          binding: { type: 'item', durability: 20, maxDurability: 20 },
-        }],
+        name: 'Schriftrolle', lost: false, broken: false, durability: 20, maxDurability: 20,
+        embeddedSpells: [{ id: 'sp9', name: 'Fremdschild', perTurnFokus: 3, binding: { type: 'item' } }],
       } as any];
       sheet.castingSpells = [{ spellId: 'sp9', spellName: 'Fremdschild' } as any];
       expect(svc.sustainedFokus(sheet)).toBe(3);
@@ -752,11 +749,8 @@ describe('TrueStatsService', () => {
     it('keeps charging Fokus after the Medium shatters mid-fight', () => {
       const sheet = makeSheet();
       sheet.inventory = [{
-        name: 'Schriftrolle', lost: false, broken: false,
-        embeddedSpells: [{
-          id: 'sp9', name: 'Fremdschild', perTurnFokus: 3,
-          binding: { type: 'item', durability: 0, maxDurability: 20, broken: true },
-        }],
+        name: 'Schriftrolle', lost: false, broken: false, durability: 0, maxDurability: 20,
+        embeddedSpells: [{ id: 'sp9', name: 'Fremdschild', perTurnFokus: 3, binding: { type: 'item', broken: true } }],
       } as any];
       sheet.castingSpells = [{ spellId: 'sp9', spellName: 'Fremdschild' } as any];
       expect(svc.sustainedFokus(sheet)).toBe(3);

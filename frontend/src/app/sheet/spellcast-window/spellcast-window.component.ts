@@ -15,6 +15,7 @@ import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { spellBaseCosts, spellHaltbarkeitsKosten } from '../../utils/spell-costs.util';
+import { CostChip, spellBaseCostChips, spellPerTurnChips } from '../../utils/resource-chips.util';
 import {
   CastableSpell, SpellMedium, carriedMedia, castableSpells, resolveSpellByKey, spellKey,
 } from '../../utils/spell-medium.util';
@@ -208,11 +209,10 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
     return this.entryFor(spell)?.media ?? [];
   }
 
-  /** Label for one Medium in the picker: 'Schriftrolle · 12/40' or '… · unbegrenzt'. */
+  /** Label for one Medium in the picker: 'Schriftrolle · 12/40' — the ITEM's Haltbarkeit. */
   mediumLabel(medium: SpellMedium): string {
-    if (medium.durability === undefined) return `${medium.itemName} · unbegrenzt`;
-    const max = medium.maxDurability ?? medium.durability;
-    return `${medium.itemName} · ${medium.durability}/${max}`;
+    if (!medium.wears) return `${medium.itemName} · keine Haltbarkeit`;
+    return `${medium.itemName} · ${medium.durability}/${medium.maxDurability}`;
   }
 
   onMediumPick(path: string): void {
@@ -312,18 +312,14 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
     return spell.strokeColor || '#8b5cf6';
   }
 
-  costLabel(spell: SpellBlock): string {
-    const parts: string[] = [];
-    if (spell.costMana)  parts.push(`${spell.costMana}M`);
-    if (spell.costFokus) parts.push(`${spell.costFokus}F`);
-    return parts.join(' ');
+  /** One-off cost as icons — the resources already have symbols, so no 'M'/'F' shorthand. */
+  costChips(spell: SpellBlock): CostChip[] {
+    return spellBaseCostChips(spell);
   }
 
-  perTurnLabel(spell: SpellBlock): string {
-    const parts: string[] = [];
-    if (spell.perTurnMana)  parts.push(`${spell.perTurnMana}M`);
-    if (spell.perTurnFokus) parts.push(`${spell.perTurnFokus}F`);
-    return parts.length ? parts.join(' ') + '/Rd' : '';
+  /** Per-round upkeep as icons. */
+  perTurnChips(spell: SpellBlock): CostChip[] {
+    return spellPerTurnChips(spell);
   }
 
   reductionLabel(castLevel: number): string {
@@ -451,13 +447,13 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
     const manaAfter = this.manaCurrent - manaCost;
     const fokusAfter = this.fokusAvailable - fokusCost;
 
-    // Haltbarkeit only enters the picture when a Medium is actually burning. A verinnerlicht cast
-    // and an unbegrenzt inscription both cost nothing.
+    // Haltbarkeit only enters the picture when a Medium burns. A verinnerlicht cast costs none:
+    // there is no material involved.
     const medium = this.pendingMedium;
-    const burn = medium
+    const burn = medium?.wears
       ? spellHaltbarkeitsKosten(spell, this.learnedRunes(), this.pendingCastLevel, this.skalierung)
       : 0;
-    const rest = medium && medium.durability !== undefined
+    const rest = medium?.wears
       ? Math.round(Math.max(0, medium.durability - burn) * 100) / 100
       : null;
 
@@ -472,7 +468,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
       fokusCostPct: this.fokusMax > 0 ? Math.min(100, Math.round((fokusCost / this.fokusMax) * 100)) : 0,
       scaledEffektivitaet: this.computeScaledEffektivitaet(spell, this.skalierung),
       scaledDauer: this.computeScaledDauer(spell, this.skalierung),
-      haltbarkeitsKosten: rest === null ? 0 : burn,
+      haltbarkeitsKosten: burn,
       haltbarkeitRest: rest,
       bruchprobeNoetig: rest !== null && needsBruchprobe(rest),
     };
@@ -523,9 +519,9 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
     this.skalierung = 1;
     this.lastBruchprobe = null;
     // Pre-pick the Medium: with one there is nothing to choose, with several the player decides
-    // which one burns. The strongest first, so the default is the least wasteful.
+    // which one wears. Most Haltbarkeit first, so the default is the least likely to shatter.
     this.pendingMediumChoices = [...this.mediaOf(spell)]
-      .sort((a, b) => (b.durability ?? Infinity) - (a.durability ?? Infinity));
+      .sort((a, b) => b.durability - a.durability);
     this.pendingMedium = this.pendingMediumChoices[0] ?? null;
     this.recalcCastPreview();
     this._computePortalRunes(spell);
@@ -644,21 +640,22 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
   }
 
   /**
-   * Subtract Haltbarkeit and roll the Bruchprobe if the rest falls below 10.
+   * Wear down the MEDIUM — the carrying item's Haltbarkeit — and roll the Bruchprobe if what is
+   * left falls below 10.
    *
-   * An inscription with no `durability` is unbegrenzt and burns nothing — that keeps legacy magic
-   * items working exactly as they did before this rule existed.
+   * The Haltbarkeit is the item's, never the inscription's: a spell damages the material it is
+   * written on, so a Buch holding three spells wears out three times as fast.
    */
   private _burnMedium(
     spell: SpellBlock, medium: SpellMedium, castLevel: number, skalierung: number,
   ): void {
-    if (medium.durability === undefined) return;
+    if (!medium.wears) return;   // no Haltbarkeit stat at all — nothing to wear down
 
     const burn = spellHaltbarkeitsKosten(spell, this.learnedRunes(), castLevel, skalierung);
     const rest = Math.round(Math.max(0, medium.durability - burn) * 100) / 100;
 
-    medium.inscription.binding.durability = rest;
-    this.patch.emit({ path: `${medium.path}.binding.durability`, value: rest });
+    medium.item.durability = rest;
+    this.patch.emit({ path: `${medium.itemPath}.durability`, value: rest });
 
     if (!needsBruchprobe(rest)) {
       this.lastBruchprobe = null;

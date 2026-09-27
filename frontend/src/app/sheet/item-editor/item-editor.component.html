@@ -467,13 +467,21 @@
         <section class="editor-section">
           <h3>Zauber</h3>
           
-          <!-- Einschreibe-Plätze: how many Zauber this material can carry at once -->
+          <!-- Einschreibe-Plätze: how many Zauber this material can carry at once. The Haltbarkeit
+               they consume is the item's own (Eigenschaften-Tab) — each cast costs the spell's
+               Voraussetzung, so several spells on one item share the same pool. -->
           <div class="inscription-slots">
             <label for="inscriptionSlots">Einschreibe-Pl&auml;tze</label>
             <input id="inscriptionSlots" type="number" min="0" placeholder="1"
                    [(ngModel)]="editItem.inscriptionSlots" name="inscriptionSlots" />
             <span class="inscription-used">{{ usedInscriptionSlotCount }} / {{ inscriptionSlotCount }} belegt</span>
           </div>
+          @if (!canCarryInscriptions) {
+            <p class="inscription-warn">
+              Dieser Gegenstand hat keine Haltbarkeit &mdash; ein Zauber kann darauf nicht gewirkt werden.
+              Setze eine max. Haltbarkeit in den Eigenschaften.
+            </p>
+          }
 
           <!-- Existing Embedded Spells -->
           @if (editItem.embeddedSpells && editItem.embeddedSpells.length > 0) {
@@ -488,18 +496,9 @@
                     @if (spell.tags && spell.tags.length > 0) {
                       <span class="attached-tags">{{ spell.tags.join(', ') }}</span>
                     }
-                    <!-- Haltbarkeit of THIS inscription. Empty = unbegrenzt: burns nothing. -->
+                    <!-- Cost per cast against the ITEM's Haltbarkeit (the spell's Voraussetzung). -->
                     <span class="inscription-dur">
-                      <label>Haltbarkeit</label>
-                      <input type="number" min="0" placeholder="&infin;"
-                             [ngModel]="spell.binding.durability"
-                             (ngModelChange)="setInscriptionDurability(i, $event)"
-                             [name]="'insDur' + i" />
-                      <span class="inscription-sep">/</span>
-                      <input type="number" min="0" placeholder="max"
-                             [ngModel]="spell.binding.maxDurability"
-                             (ngModelChange)="setInscriptionMaxDurability(i, $event)"
-                             [name]="'insMax' + i" />
+                      Haltbarkeit je Wirkung: &minus;{{ inscriptionCost(spell) }}
                     </span>
                   </div>
                   <div class="attached-actions">

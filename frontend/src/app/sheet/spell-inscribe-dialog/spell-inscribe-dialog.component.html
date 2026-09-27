@@ -9,7 +9,9 @@
 
     <p class="sid-hint">
       W&auml;hle das Material, auf das der Zauber geschrieben wird. Jeder Platz nimmt genau einen
-      Zauber auf; ein ausgebrannter Platz bleibt belegt.
+      Zauber auf; ein ausgebrannter Platz bleibt belegt. Nur Material mit Haltbarkeit kann einen
+      Zauber tragen &mdash; jede Wirkung verbraucht davon
+      <strong>{{ costPerCast }}</strong> (die Voraussetzung des Zaubers).
     </p>
 
     <input class="sid-search" type="text" [(ngModel)]="search" placeholder="Gegenstand suchen&hellip;" />
@@ -28,17 +30,18 @@
           } @else {
             <span class="sid-chip sid-chip--full">Keine Pl&auml;tze frei</span>
           }
+          <span class="sid-chip sid-chip--dur">Haltbarkeit {{ durabilityLabel(entry) }}</span>
+          @if (castsLeft(entry); as casts) {
+            <span class="sid-chip">&asymp; {{ casts }}&times; wirkbar</span>
+          }
           <span class="sid-slots">{{ slotLabel(entry) }}</span>
         </button>
       } @empty {
-        <p class="sid-empty">Kein mitgef&uuml;hrter Gegenstand kann einen Zauber aufnehmen.</p>
+        <p class="sid-empty">
+          Kein mitgef&uuml;hrter Gegenstand kann einen Zauber aufnehmen &mdash; das Material braucht
+          eine Haltbarkeit.
+        </p>
       }
-    </div>
-
-    <div class="sid-dur">
-      <label for="sid-durability">Haltbarkeit</label>
-      <input id="sid-durability" type="number" min="1" [(ngModel)]="durability" />
-      <span class="sid-dur-hint">Verbrauch je Wirkung = Voraussetzung des Zaubers</span>
     </div>
 
     <div class="sid-actions">

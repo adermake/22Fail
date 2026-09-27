@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ItemBlock, ItemCounter } from '../../model/item-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
-import { needsBruchprobe } from '../../utils/spell-break.util';
+import { RuneBlock } from '../../model/rune-block.model';
+import { spellVoraussetzung } from '../../utils/spell-costs.util';
 import { getEquipSlot } from '../../utils/equip-slot.utils';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -127,33 +128,36 @@ export class ItemComponent implements OnChanges {
 
   // ── Eingeschriebene Zauber ──────────────────────────────────────────────────
   // Display only: this item is the Medium, but casting always goes through the Wirkfenster so there
-  // is one place a spell can be cast from. Legacy inscriptions may have no `binding` at all.
+  // is one place a spell can be cast from. Haltbarkeit is the ITEM's — every spell written here
+  // draws down the same pool, which the durability bar above already shows.
 
   inscriptionBroken(spell: SpellBlock): boolean {
     return !!spell.binding?.broken;
   }
 
-  /** 'Kaputt', 'unbegrenzt', or '12 / 40'. */
-  inscriptionLabel(spell: SpellBlock): string {
-    if (this.inscriptionBroken(spell)) return 'Kaputt';
-    const durability = spell.binding?.durability;
-    if (durability === undefined) return 'unbegrenzt';
-    return `${durability} / ${spell.binding?.maxDurability ?? durability}`;
+  /** What one cast of this spell costs the item, at cast level 0 and Skalierung 1. */
+  inscriptionCost(spell: SpellBlock): number {
+    return spellVoraussetzung(spell, this.learnedRunes);
   }
 
-  /** Under 10 Haltbarkeit the next cast forces a Bruchprobe. */
-  inscriptionAtRisk(spell: SpellBlock): boolean {
-    const durability = spell.binding?.durability;
-    return !this.inscriptionBroken(spell) && durability !== undefined && needsBruchprobe(durability);
+  private get learnedRunes(): RuneBlock[] {
+    return (this.sheet.runes ?? []).filter((r): r is RuneBlock => !!r);
   }
 
-  /** Bar fill, or null when there is no bar to draw (broken, or unbegrenzt). */
-  inscriptionPercent(spell: SpellBlock): number | null {
-    if (this.inscriptionBroken(spell)) return null;
-    const durability = spell.binding?.durability;
-    const max = spell.binding?.maxDurability;
-    if (durability === undefined || !max || max <= 0) return null;
-    return Math.max(0, Math.min(100, Math.round((durability / max) * 100)));
+  /**
+   * Scrape an inscription off the material, freeing its Einschreibe-Platz.
+   *
+   * A burnt-out one cannot be removed: the rules are explicit that the material there is spent and
+   * takes no new spell, so freeing that Platz would launder a ruined one into a fresh one.
+   */
+  removeInscription(index: number): void {
+    const inscriptions = this.item.embeddedSpells ?? [];
+    const target = inscriptions[index];
+    if (!target || this.inscriptionBroken(target)) return;
+    const remaining = inscriptions.filter((_, i) => i !== index);
+    this.item.embeddedSpells = remaining;
+    // Item-relative path; the inventory/equipment parent prefixes it and syncs it.
+    this.patch.emit({ path: 'embeddedSpells', value: remaining });
   }
 
   get canUseItem(): boolean {

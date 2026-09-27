@@ -74,9 +74,9 @@
         [position]="getTokenScreenPosition(token)"
         [scale]="scale"
         [isCurrentTurn]="false"
-        [isSelected]="selectedTokenId === token.id"
+        [isSelected]="selectedTokenId === token.id || selectedTokenIds().has(token.id)"
         [isInteractive]="currentTool === 'cursor'"
-        [isDragging]="draggingToken?.id === token.id"
+        [isDragging]="draggingToken?.id === token.id || groupDragIds.has(token.id)"
         [resources]="getTokenResources(token.characterId)"
         [showResources]="isPartyMember(token.characterId)"
         (dragStart)="onTokenDragStart(token, $event)"
@@ -185,10 +185,13 @@
             class="quick-token-name-input"
             [value]="quickTokenName()"
             (input)="quickTokenName.set($any($event.target).value)"
-            placeholder="Token Name"
-            (keydown.enter)="onCreateQuickToken()"
+            placeholder="Token-Name"
+            (keydown.enter)="$any($event).shiftKey && isGM ? onCreateQuickNpc() : onCreateQuickToken()"
           />
-          <button (click)="onCreateQuickToken()">➕ Erstellen</button>
+          <button (click)="onCreateQuickToken()" title="Enter">Erstellen Simpel</button>
+          @if (isGM) {
+            <button (click)="onCreateQuickNpc()" title="Umschalt+Enter">Erstellen NSC</button>
+          }
         </div>
       }
     </div>

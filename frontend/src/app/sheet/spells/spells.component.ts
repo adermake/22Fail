@@ -10,7 +10,6 @@ import { SpellBlock, SpellKnowledge, generateSpellId } from '../../model/spell-b
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
 import { SpellInscribeDialogComponent } from '../spell-inscribe-dialog/spell-inscribe-dialog.component';
-import { applyJsonPatchTo } from '../../utils/json-patch.util';
 import {
   CastableSpell, SpellKnowledgeState, SpellMedium, castableSpells, spellKey, spellKnowledge,
 } from '../../utils/spell-medium.util';
@@ -122,9 +121,14 @@ export class SpellsComponent implements DoCheck {
     this.inscribeSpell = null;
   }
 
-  /** Apply the inscription patch and let the card pick up its new Medium. */
+  /**
+   * Hand the inscription patch up and let the card pick up its new Medium.
+   *
+   * Emit ONLY — do not apply it here. `CharacterStoreService.applyPatch` already applies every
+   * patch locally before sending it, so applying it here too made the trailing `-` append twice and
+   * the spell showed up on the item twice (locally; the server got one, so it healed on reload).
+   */
   onInscribe(patch: JsonPatch) {
-    applyJsonPatchTo(this.sheet, patch);
     this.inscribeSpell = null;
     this.invalidateCastable();
     this.patch.emit(patch);

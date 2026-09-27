@@ -302,11 +302,29 @@
                   @if (spell.description) {
                     <div class="scw-active-desc" [innerHTML]="enhancedSpellDesc(spell)"></div>
                   }
-                  @if (costLabel(spell); as cl) {
-                    <div class="scw-active-startcost"><span class="app-icon i-energy"></span> Einmalig: {{ cl }}</div>
+                  @if (costChips(spell); as chips) {
+                    @if (chips.length) {
+                      <div class="scw-active-startcost">
+                        Einmalig:
+                        @for (chip of chips; track chip.icon) {
+                          <span class="scw-cost-chip" [title]="chip.label">
+                            <span class="app-icon {{ chip.icon }}"></span>{{ chip.amount }}
+                          </span>
+                        }
+                      </div>
+                    }
                   }
-                  @if (perTurnLabel(spell); as ptl) {
-                    <div class="scw-active-cost">{{ ptl }}</div>
+                  @if (perTurnChips(spell); as chips) {
+                    @if (chips.length) {
+                      <div class="scw-active-cost">
+                        @for (chip of chips; track chip.icon) {
+                          <span class="scw-cost-chip" [title]="chip.label">
+                            <span class="app-icon {{ chip.icon }}"></span>{{ chip.amount }}
+                          </span>
+                        }
+                        <span class="scw-cost-rd">/Rd</span>
+                      </div>
+                    }
                   }
                   @if (spell.counters && spell.counters.length > 0) {
                     <div class="scw-counter-list">
@@ -711,10 +729,15 @@
               </select>
             }
 
-            @if (castPreview.haltbarkeitRest !== null) {
+            @if (pendingMedium?.wears === false) {
+              <span class="cast-medium-endless">
+                Ohne Haltbarkeit &mdash; dieser Gegenstand nutzt sich nicht ab.
+              </span>
+            } @else if (pendingMedium; as medium) {
+              <!-- The item's Haltbarkeit: casting wears out the material it is written on. -->
               <div class="cast-medium-burn">
                 <span>Haltbarkeit</span>
-                <span class="cast-medium-num">{{ pendingMedium?.durability | number:'1.0-1' }}</span>
+                <span class="cast-medium-num">{{ medium.durability | number:'1.0-1' }}</span>
                 <span class="cast-medium-arrow">&rarr;</span>
                 <span class="cast-medium-num" [class.dice-bad]="castPreview.bruchprobeNoetig">
                   {{ castPreview.haltbarkeitRest | number:'1.0-1' }}
@@ -724,8 +747,6 @@
                   <span class="cast-medium-warn">Bruchprobe n&ouml;tig</span>
                 }
               </div>
-            } @else if (pendingMedium) {
-              <span class="cast-medium-endless">unbegrenzt &mdash; verbraucht keine Haltbarkeit</span>
             }
           </div>
         }

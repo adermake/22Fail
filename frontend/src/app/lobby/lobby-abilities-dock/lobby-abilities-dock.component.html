@@ -45,7 +45,7 @@
                     [class.active]="svc.isSkillActive(skill)"
                     [attr.data-action]="action || 'Aktion'"
                     [disabled]="!affordable"
-                    [title]="affordable ? (skill.description || skill.name) : 'Nicht genug ' + (svc.skillCostLabel(skill) || 'Ressourcen')"
+                    [title]="affordable ? (skill.description || skill.name) : 'Nicht genug ' + (svc.skillCostText(skill) || 'Ressourcen')"
                     (click)="svc.activateSkill(skill)">
               <span class="lad-card-top">
                 <span class="lad-badge">{{ action || 'Fähigkeit' }}</span>
@@ -53,7 +53,17 @@
               </span>
               <span class="lad-name">{{ skill.name }}</span>
               @if (skill.description) { <span class="lad-desc">{{ skill.description }}</span> }
-              @if (svc.skillCostLabel(skill); as cost) { <span class="lad-cost">{{ cost }}</span> }
+              @if (svc.skillCostChips(skill); as chips) {
+                @if (chips.length) {
+                  <span class="lad-cost">
+                    @for (chip of chips; track chip.icon) {
+                      <span class="lad-cost-chip" [title]="chip.label">
+                        <span class="app-icon {{ chip.icon }}"></span>{{ chip.amount }}@if (chip.perRound) {<span class="lad-cost-rd">/Rd</span>}
+                      </span>
+                    }
+                  </span>
+                }
+              }
             </button>
           }
           @for (spell of spells; track $index) {
@@ -74,7 +84,17 @@
               <span class="lad-name">{{ spell.name }}</span>
               @if (!hasMedium) { <span class="lad-nomedium">Medium fehlt</span> }
               @if (spell.description) { <span class="lad-desc">{{ spell.description }}</span> }
-              @if (svc.spellCostSummary(spell); as cost) { <span class="lad-cost">{{ cost }}</span> }
+              @if (svc.spellCostChips(spell); as chips) {
+                @if (chips.length) {
+                  <span class="lad-cost">
+                    @for (chip of chips; track chip.icon) {
+                      <span class="lad-cost-chip" [title]="chip.label">
+                        <span class="app-icon {{ chip.icon }}"></span>{{ chip.amount }}
+                      </span>
+                    }
+                  </span>
+                }
+              }
             </button>
           }
         </div>

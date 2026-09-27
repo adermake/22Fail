@@ -14,7 +14,8 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ForgedTraitRecord } from '../../model/forging.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock, generateSpellId } from '../../model/spell-block-model';
-import { inscriptionSlots, usedInscriptionSlots } from '../../utils/spell-medium.util';
+import { canCarryInscription, inscriptionSlots, usedInscriptionSlots } from '../../utils/spell-medium.util';
+import { spellVoraussetzung } from '../../utils/spell-costs.util';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
@@ -498,16 +499,19 @@ export class ItemEditorComponent implements OnInit {
     return !!spell.binding?.broken;
   }
 
-  setInscriptionDurability(index: number, value: number): void {
-    const spell = this.editItem.embeddedSpells?.[index];
-    if (!spell) return;
-    spell.binding = { ...spell.binding, type: 'item', durability: Math.max(0, value) };
+  /**
+   * What one cast of this spell costs the ITEM's Haltbarkeit — the spell's Voraussetzung.
+   *
+   * There is no per-inscription Haltbarkeit: the material wears out, so every spell written on this
+   * item draws down the item's own pool.
+   */
+  inscriptionCost(spell: SpellBlock): number {
+    return spellVoraussetzung(spell, []);
   }
 
-  setInscriptionMaxDurability(index: number, value: number): void {
-    const spell = this.editItem.embeddedSpells?.[index];
-    if (!spell) return;
-    spell.binding = { ...spell.binding, type: 'item', maxDurability: Math.max(0, value) };
+  /** Only material with Haltbarkeit can carry a spell — there has to be something to wear down. */
+  get canCarryInscriptions(): boolean {
+    return canCarryInscription(this.editItem);
   }
 
   deleteEmbeddedSpell(index: number) {

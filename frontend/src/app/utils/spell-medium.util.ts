@@ -74,23 +74,58 @@ export interface SpellMedium {
   source: 'equipment' | 'inventory';
   /** Dot path of the inscription, e.g. 'equipment.2.sockets.0.child.embeddedSpells.1'. */
   path: string;
-  /** Dot path of the carrying item, for setting `lost`. */
+  /** Dot path of the carrying item — Haltbarkeit and `lost` both live there. */
   itemPath: string;
-  /** Undefined = unbegrenzt: this medium burns no Haltbarkeit. */
-  durability?: number;
-  maxDurability?: number;
+  /**
+   * The CARRIER's Haltbarkeit, not the inscription's: casting wears out the material, so every
+   * spell written on one item draws down the same pool.
+   */
+  durability: number;
+  maxDurability: number;
+  /**
+   * Does casting wear this medium down? False for an item with no Haltbarkeit stat at all — a
+   * GM-authored magic wand that simply does not degrade. New inscriptions always need Haltbarkeit
+   * (`canCarryInscription`), so this only covers items authored in the Item-Editor.
+   */
+  wears: boolean;
+  /** This one inscription is burnt out, even if the item still has Haltbarkeit left. */
   broken: boolean;
   /** Can this medium be cast from right now? */
   usable: boolean;
+}
+
+/** Haltbarkeit of the material. A medium with none is unusable — there is nothing to wear down. */
+export function itemDurability(item: ItemBlock): number {
+  return item.durability ?? 0;
+}
+
+export function itemMaxDurability(item: ItemBlock): number {
+  return item.maxDurability ?? 0;
+}
+
+/**
+ * Does this item have Haltbarkeit in play at all?
+ *
+ * `hasDurability` is the authoritative flag (a checkbox in the Item-Editor, set by the Schmiede and
+ * the Waffengenerator) — `maxDurability` alone can be left over on an item whose durability is off.
+ */
+export function itemWears(item: ItemBlock): boolean {
+  return !!item.hasDurability && itemMaxDurability(item) > 0;
+}
+
+/** Can this item hold an inscription at all? Only material with Haltbarkeit can carry a spell. */
+export function canCarryInscription(item: ItemBlock): boolean {
+  return itemWears(item);
 }
 
 function mediumFrom(
   item: ItemBlock, inscription: SpellBlock, index: number,
   itemPath: string, source: 'equipment' | 'inventory',
 ): SpellMedium {
-  const binding = inscription.binding;
-  const broken = !!binding?.broken;
-  const durability = binding?.durability;
+  const broken = !!inscription.binding?.broken;
+  const durability = itemDurability(item);
+  const maxDurability = itemMaxDurability(item);
+  const wears = itemWears(item);
   return {
     item,
     itemName: item.name,
@@ -99,9 +134,11 @@ function mediumFrom(
     path: `${itemPath}.embeddedSpells.${index}`,
     itemPath,
     durability,
-    maxDurability: binding?.maxDurability,
+    maxDurability,
+    wears,
     broken,
-    usable: !broken && (durability === undefined || durability > 0),
+    // A medium that wears is spent at 0 Haltbarkeit. One that does not wear has none to spend.
+    usable: !broken && (!wears || durability > 0),
   };
 }
 
@@ -270,7 +307,9 @@ export function inscribableItems(sheet: CharacterSheet): InscribableItem[] {
                 source: 'equipment' | 'inventory', depth: number): void => {
     if (!item || depth > MAX_CONSTRUCT_DEPTH) return;
     if (item.lost || item.broken) return;
-    if (inscriptionSlots(item) > 0) {
+    // Only material with Haltbarkeit can carry a spell: casting wears the medium down, so something
+    // with nothing to wear down cannot hold an inscription in the first place.
+    if (inscriptionSlots(item) > 0 && canCarryInscription(item)) {
       out.push({ item, path, free: freeInscriptionSlots(item), source });
     }
     constructSockets(item).forEach((socket, index) => {
@@ -288,17 +327,15 @@ export function inscribableItems(sheet: CharacterSheet): InscribableItem[] {
 /**
  * The copy that goes onto a Medium.
  *
- * Keeps the id (identity across copies), drops the Zauberbuch-only and derived fields, and binds it
- * to the carrier with a fresh Haltbarkeit.
+ * Keeps the id (identity across copies) and drops the Zauberbuch-only and derived fields. No
+ * Haltbarkeit is written: that belongs to the carrying item, which already has its own.
  */
-export function buildInscription(
-  spell: SpellBlock, itemName: string, durability: number,
-): SpellBlock {
+export function buildInscription(spell: SpellBlock, itemName: string): SpellBlock {
   const copy: SpellBlock = structuredClone(spell);
   delete copy.knowledge;
   delete copy.derived;
   delete copy.itemOrigin;
   copy.id = spell.id ?? generateSpellId();
-  copy.binding = { type: 'item', itemName, durability, maxDurability: durability };
+  copy.binding = { type: 'item', itemName };
   return copy;
 }

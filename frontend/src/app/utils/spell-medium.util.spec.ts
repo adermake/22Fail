@@ -3,7 +3,8 @@ import { CharacterSheet } from '../model/character-sheet-model';
 import { ItemBlock } from '../model/item-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import {
-  buildInscription, carriedMedia, castableSpells, ensureSpellIds, freeInscriptionSlots,
+  buildInscription, canCarryInscription, carriedMedia, castableSpells, ensureSpellIds,
+  freeInscriptionSlots,
   inscribableItems, mediaForSpell, resolveSpellByKey, sameSpell, spellKey, spellKnowledge,
 } from './spell-medium.util';
 
@@ -12,12 +13,14 @@ import {
 const spell = (partial: Partial<SpellBlock>): SpellBlock =>
   ({ name: 'Zauber', description: '', tags: [], binding: { type: 'learned' }, ...partial }) as SpellBlock;
 
+/** Haltbarkeit belongs to the ITEM: casting wears down the material, not the writing on it. */
 const item = (partial: Partial<ItemBlock>): ItemBlock =>
-  ({ name: 'Gegenstand', lost: false, broken: false, ...partial }) as ItemBlock;
+  ({ name: 'Gegenstand', lost: false, broken: false,
+     hasDurability: true, durability: 40, maxDurability: 40, ...partial }) as ItemBlock;
 
-/** A spell inscribed on an item, with its own Haltbarkeit. */
-const inscribed = (name: string, id: string, durability?: number, broken = false): SpellBlock =>
-  spell({ id, name, binding: { type: 'item', itemName: 'x', durability, maxDurability: durability, broken } });
+/** A spell inscribed on an item. The inscription carries no Haltbarkeit of its own. */
+const inscribed = (name: string, id: string, broken = false): SpellBlock =>
+  spell({ id, name, binding: { type: 'item', itemName: 'x', broken } });
 
 const sheet = (partial: Partial<CharacterSheet> = {}): CharacterSheet =>
   ({ spells: [], equipment: [], inventory: [], ...partial }) as CharacterSheet;
@@ -53,8 +56,8 @@ describe('Zauber-Identität', () => {
 describe('Mitgeführte Medien', () => {
   it('finds inscriptions in equipment AND inventory', () => {
     const s = sheet({
-      equipment: [item({ name: 'Stab', embeddedSpells: [inscribed('Licht', 'a', 20)] })],
-      inventory: [item({ name: 'Rolle', embeddedSpells: [inscribed('Feuer', 'b', 12)] })],
+      equipment: [item({ name: 'Stab', embeddedSpells: [inscribed('Licht', 'a')] })],
+      inventory: [item({ name: 'Rolle', embeddedSpells: [inscribed('Feuer', 'b')] })],
     });
     const media = carriedMedia(s);
     expect(media.map(m => m.itemName)).toEqual(['Stab', 'Rolle']);
@@ -63,7 +66,7 @@ describe('Mitgeführte Medien', () => {
 
   it('keeps sparse inventory indices so the patch path addresses the real slot', () => {
     const s = sheet({
-      inventory: [null, null, item({ name: 'Rolle', embeddedSpells: [inscribed('Feuer', 'b', 12)] })],
+      inventory: [null, null, item({ name: 'Rolle', embeddedSpells: [inscribed('Feuer', 'b')] })],
     });
     const [medium] = carriedMedia(s);
     expect(medium.path).toBe('inventory.2.embeddedSpells.0');
@@ -71,7 +74,7 @@ describe('Mitgeführte Medien', () => {
   });
 
   it('reaches inscriptions on Konstrukt parts and builds a nested path', () => {
-    const part = item({ name: 'Arm', embeddedSpells: [inscribed('Blitz', 'c', 30)] });
+    const part = item({ name: 'Arm', embeddedSpells: [inscribed('Blitz', 'c')] });
     const root = item({ name: 'Kernkörper', sockets: [{ id: 's1', child: part }] });
     const [medium] = carriedMedia(sheet({ equipment: [root] }));
     expect(medium.itemName).toBe('Arm');
@@ -82,32 +85,59 @@ describe('Mitgeführte Medien', () => {
   it('ignores lost and broken carriers — a shattered item takes its engraving with it', () => {
     const s = sheet({
       inventory: [
-        item({ name: 'Verloren', lost: true, embeddedSpells: [inscribed('A', 'a', 9)] }),
-        item({ name: 'Kaputt', broken: true, embeddedSpells: [inscribed('B', 'b', 9)] }),
+        item({ name: 'Verloren', lost: true, embeddedSpells: [inscribed('A', 'a')] }),
+        item({ name: 'Kaputt', broken: true, embeddedSpells: [inscribed('B', 'b')] }),
       ],
     });
     expect(carriedMedia(s)).toEqual([]);
   });
 
-  it('marks spent and burnt inscriptions unusable', () => {
+  it('reports the carrying item Haltbarkeit, shared by every spell written on it', () => {
     const s = sheet({
       inventory: [item({
-        embeddedSpells: [inscribed('Leer', 'a', 0), inscribed('Verbrannt', 'b', 9, true), inscribed('Gut', 'c', 9)],
+        durability: 25, maxDurability: 40,
+        embeddedSpells: [inscribed('Eins', 'a'), inscribed('Zwei', 'b')],
       })],
     });
-    expect(carriedMedia(s).map(m => m.usable)).toEqual([false, false, true]);
+    const media = carriedMedia(s);
+    expect(media.map(m => m.durability)).toEqual([25, 25]);
+    expect(media.map(m => m.maxDurability)).toEqual([40, 40]);
   });
 
-  it('treats an inscription with no Haltbarkeit as unbegrenzt', () => {
-    const s = sheet({ inventory: [item({ embeddedSpells: [inscribed('Ewig', 'a', undefined)] })] });
+  it('marks a burnt inscription unusable while the item still has Haltbarkeit', () => {
+    const s = sheet({
+      inventory: [item({ embeddedSpells: [inscribed('Verbrannt', 'a', true), inscribed('Gut', 'b')] })],
+    });
+    expect(carriedMedia(s).map(m => m.usable)).toEqual([false, true]);
+  });
+
+  it('marks everything on a worn-out item unusable', () => {
+    const s = sheet({
+      inventory: [item({ durability: 0, embeddedSpells: [inscribed('Leer', 'a')] })],
+    });
+    expect(carriedMedia(s)[0].usable).toBe(false);
+  });
+
+  it('keeps a legacy magic item with no Haltbarkeit stat working, and never wears it', () => {
+    // GM-authored wands predate this rule. New inscriptions need Haltbarkeit
+    // (canCarryInscription), but an existing one must not go dark.
+    const s = sheet({
+      equipment: [item({
+        name: 'Zauberstab', hasDurability: false, durability: undefined, maxDurability: undefined,
+        embeddedSpells: [inscribed('Funke', 'a')],
+      })],
+    });
     const [medium] = carriedMedia(s);
-    expect(medium.durability).toBeUndefined();
+    expect(medium.wears).toBe(false);
     expect(medium.usable).toBe(true);
   });
 
   it('only returns usable media for a given spell', () => {
     const s = sheet({
-      inventory: [item({ embeddedSpells: [inscribed('Feuer', 'fb', 0), inscribed('Feuer', 'fb', 8)] })],
+      inventory: [
+        item({ durability: 0, embeddedSpells: [inscribed('Feuer', 'fb')] }),
+        item({ durability: 8, embeddedSpells: [inscribed('Feuer', 'fb')] }),
+      ],
     });
     expect(mediaForSpell(s, { id: 'fb', name: 'Feuer' })).toHaveLength(1);
   });
@@ -134,7 +164,7 @@ describe('Wirkbare Zauber', () => {
   it('makes a gelernt spell castable once its medium is carried', () => {
     const s = sheet({
       spells: [spell({ id: 'a', name: 'Licht' })],
-      inventory: [item({ name: 'Rolle', embeddedSpells: [inscribed('Licht', 'a', 15)] })],
+      inventory: [item({ name: 'Rolle', embeddedSpells: [inscribed('Licht', 'a')] })],
     });
     const [entry] = castableSpells(s);
     expect(entry.castable).toBe(true);
@@ -143,7 +173,7 @@ describe('Wirkbare Zauber', () => {
 
   it("casts a stranger's scroll for a spell the character has never learned", () => {
     const s = sheet({
-      inventory: [item({ name: 'Fremde Rolle', embeddedSpells: [inscribed('Blitz', 'z', 40)] })],
+      inventory: [item({ name: 'Fremde Rolle', embeddedSpells: [inscribed('Blitz', 'z')] })],
     });
     const [entry] = castableSpells(s);
     expect(entry.knowledge).toBe('unbekannt');
@@ -153,7 +183,7 @@ describe('Wirkbare Zauber', () => {
   it('shows a spell that is both known and inscribed exactly once, with the book definition', () => {
     const s = sheet({
       spells: [spell({ id: 'a', name: 'Licht', costMana: 9 })],
-      inventory: [item({ embeddedSpells: [{ ...inscribed('Licht', 'a', 15), costMana: 3 }] })],
+      inventory: [item({ embeddedSpells: [{ ...inscribed('Licht', 'a'), costMana: 3 }] })],
     });
     const all = castableSpells(s);
     expect(all).toHaveLength(1);
@@ -161,17 +191,17 @@ describe('Wirkbare Zauber', () => {
     expect(all[0].media).toHaveLength(1);
   });
 
-  it('does not count a spent medium as a medium', () => {
+  it('does not count a worn-out medium as a medium', () => {
     const s = sheet({
       spells: [spell({ id: 'a', name: 'Licht' })],
-      inventory: [item({ embeddedSpells: [inscribed('Licht', 'a', 0)] })],
+      inventory: [item({ durability: 0, embeddedSpells: [inscribed('Licht', 'a')] })],
     });
     expect(castableSpells(s)[0].castable).toBe(false);
   });
 
   it('still resolves a spell whose medium has broken, so sustained casts survive', () => {
     const s = sheet({
-      inventory: [item({ embeddedSpells: [inscribed('Blitz', 'z', 0, true)] })],
+      inventory: [item({ durability: 0, embeddedSpells: [inscribed('Blitz', 'z', true)] })],
     });
     expect(castableSpells(s)).toEqual([]);
     expect(resolveSpellByKey(s, 'z')?.name).toBe('Blitz');
@@ -198,7 +228,7 @@ describe('Einschreiben', () => {
   });
 
   it('counts a burnt-out inscription as still occupying its slot', () => {
-    const buch = item({ inscriptionSlots: 2, embeddedSpells: [inscribed('Tot', 'a', 0, true)] });
+    const buch = item({ inscriptionSlots: 2, embeddedSpells: [inscribed('Tot', 'a', true)] });
     expect(freeInscriptionSlots(buch)).toBe(1);
   });
 
@@ -206,7 +236,7 @@ describe('Einschreiben', () => {
     const s = sheet({
       inventory: [
         item({ name: 'Leer' }),
-        item({ name: 'Buch', inscriptionSlots: 3, embeddedSpells: [inscribed('A', 'a', 5)] }),
+        item({ name: 'Buch', inscriptionSlots: 3, embeddedSpells: [inscribed('A', 'a')] }),
       ],
     });
     const list = inscribableItems(s);
@@ -220,12 +250,26 @@ describe('Einschreiben', () => {
     expect(inscribableItems(s)).toEqual([]);
   });
 
+  it('excludes material with no Haltbarkeit — there would be nothing to wear down', () => {
+    const s = sheet({
+      inventory: [
+        item({ name: 'Ring', hasDurability: false, maxDurability: 0, durability: 0 }),
+        item({ name: 'Rolle' }),
+      ],
+    });
+    expect(inscribableItems(s).map(e => e.item.name)).toEqual(['Rolle']);
+    expect(canCarryInscription(item({ hasDurability: false }))).toBe(false);
+    expect(canCarryInscription(item({ maxDurability: 0 }))).toBe(false);
+    expect(canCarryInscription(item({ maxDurability: 30 }))).toBe(true);
+  });
+
   it('keeps the id so the scroll stays tied to its Zauberbuch entry', () => {
     const book = spell({ id: 'a', name: 'Licht', knowledge: 'verinnerlicht' });
-    const copy = buildInscription(book, 'Rolle', 30);
+    const copy = buildInscription(book, 'Rolle');
     expect(copy.id).toBe('a');
     expect(copy.knowledge).toBeUndefined();
-    expect(copy.binding).toEqual({ type: 'item', itemName: 'Rolle', durability: 30, maxDurability: 30 });
+    // No Haltbarkeit on the inscription — that belongs to the item it is written on.
+    expect(copy.binding).toEqual({ type: 'item', itemName: 'Rolle' });
     expect(sameSpell(book, copy)).toBe(true);
   });
 });

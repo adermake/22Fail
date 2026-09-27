@@ -31,6 +31,8 @@ import {
   NpcStatblock, NpcStatKey, distributeByRatio, hasNpcVariation, soulPointBudget,
 } from '../model/npc-statblock.model';
 import { rollCetris, rollNpcInstance } from '../utils/npc-roll.util';
+import { QUICK_NPC_STATBLOCK_ID, buildQuickNpcTemplate } from '../utils/quick-npc.util';
+import { LobbyQuickNpcComponent, QuickNpcRequest } from './lobby-quick-npc/lobby-quick-npc.component';
 import { Currency, isEmptyCurrency } from '../model/current-events.model';
 import { NpcGeneratorService } from '../services/npc-generator.service';
 import { ForgeLibraryService } from '../services/forge-library.service';
@@ -70,6 +72,7 @@ const ROLL_HISTORY_LIMIT = 100;
     LobbyStatusStripComponent,
     LobbyActiveColumnComponent,
     LobbyAbilitiesDockComponent,
+    LobbyQuickNpcComponent,
     BattleTracker,
   ],
   templateUrl: './lobby.component.html',
@@ -283,6 +286,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private lastTurnKey = '';
   selectedTokenId = signal<string | null>(null);
   pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
+  /** Open Schnell-NSC panel: where the token goes, and where the panel sits on screen. */
+  quickNpcDraft = signal<{ name: string; position: HexCoord; screen: { x: number; y: number } } | null>(null);
+  /** The party's average level — the Schnell-NSC panel starts there, so a fair fight is one Enter away. */
+  partyLevel = computed(() => {
+    const levels = this.worldCharacters().map(c => c.sheet.level || 1);
+    return levels.length ? Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) : 1;
+  });
 
   /** Every fieldable summon: each character's Begleiter (always available — no spell check) plus any
    *  legacy inline summons still sitting in active spells. Used to resolve a dropped token's
@@ -357,7 +367,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   /** Level/Neu würfeln im Panel: nur für den GM und nur für NSCs aus der Bibliothek (keine Begleiter). */
   selectedNpcRollable = computed(() => {
     const token = this.selectedPanelToken();
-    return this.isGM() && !!token?.statblockId && this.npcStatblocks().some(s => s.id === token.statblockId);
+    return this.isGM() && !!token?.statblockId
+      && (!!token.npcTemplate || this.npcStatblocks().some(s => s.id === token.statblockId));
   });
 
   ngOnInit(): void {
@@ -919,6 +930,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
         event.preventDefault();
         break;
       case 'delete':
+        // The grid handles Entf first (lasso selection, token group) and marks it handled.
+        if (event.defaultPrevented) break;
         // Players move tokens freely, but removing one is the GM's call.
         if (!this.isGM()) break;
         if (this.selectedTokenId()) {
@@ -1113,6 +1126,72 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.store.removeToken(tokenId);
   }
 
+  onTokensMove(data: { tokenIds: string[]; delta: HexCoord }): void {
+    this.store.moveTokensBy(data.tokenIds, data.delta);
+  }
+
+  onTokensRemove(tokenIds: string[]): void {
+    if (!this.isGM()) return;
+    this.store.removeTokens(tokenIds);
+    if (tokenIds.includes(this.selectedTokenId() ?? '')) this.selectedTokenId.set(null);
+  }
+
+  /**
+   * Strg+V: the grid hands over copies with new ids and positions. Each copy is a new creature —
+   * own battle-tracker id, full resources, no running effects — and an NSC is rolled again from its
+   * template, so five pasted goblins are five different goblins.
+   */
+  async onTokensPaste(tokens: Token[]): Promise<void> {
+    if (!this.isGM()) return;
+    const stamp = Date.now().toString(36);
+    const fresh = await Promise.all(tokens.map(async (t, i): Promise<Token> => {
+      const copy: Token = {
+        ...t,
+        currentHealth: undefined,
+        currentMana: undefined,
+        currentEnergy: undefined,
+        activeStatusEffects: undefined,
+        activeSkillNames: undefined,
+        activeSkillEntries: undefined,
+        castingSpells: undefined,
+      };
+      const suffix = stamp + '-' + i;
+      if (t.statblockId) {
+        copy.characterId = 'npc-' + t.statblockId + '-' + suffix;
+        const template = t.npcTemplate ?? this.resolveStatblock(t.statblockId);
+        if (template) Object.assign(copy, await this.npcSpawnFields(template, t.npcLevel));
+      } else {
+        copy.characterId = (t.characterId.startsWith('npc-linked-') ? 'npc-linked-' : 'quick-') + suffix;
+      }
+      return copy;
+    }));
+    this.store.addTokens(fresh);
+    this.cdr.markForCheck();
+  }
+
+  /** Schnell-NSC panel confirmed: build the template, roll it like a library NSC, place it. */
+  async onQuickNpcCreate(position: HexCoord, request: QuickNpcRequest): Promise<void> {
+    this.quickNpcDraft.set(null);
+    if (!this.isGM()) return;
+    const weaponTypes = await this.weaponTypes.load();
+    const template = buildQuickNpcTemplate({
+      ...request,
+      weaponTypes: weaponTypes.map(w => ({ name: w.name, category: w.category })),
+    });
+    this.store.addToken({
+      characterId: 'npc-' + QUICK_NPC_STATBLOCK_ID + '-' + Date.now().toString(36),
+      name: template.name,
+      position,
+      team: 'red',
+      isQuickToken: true,
+      statblockId: QUICK_NPC_STATBLOCK_ID,
+      npcTemplate: template,
+      ...(await this.npcSpawnFields(template, undefined)),
+    });
+    this.currentTool.set('cursor');
+    this.cdr.markForCheck();
+  }
+
   onTokenCombatAdd(data: { tokenId: string; team?: string }): void {
     const token = this.enrichedTokens().find(t => t.id === data.tokenId);
     if (!token) return;
@@ -1256,13 +1335,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // Die Startbeute wird KOPIERT, nicht verlinkt: der Statblock ist ein geteiltes Asset, und
     // drei Goblins vom selben Statblock sollen nicht denselben Beutel haben.
     const statblock = this.npcStatblocks().find(s => s.id === data.statblockId)?.statblock;
-
-    // Mit Variation — oder mit Level-Override aus der Sidebar — würfelt jedes Ablegen ein eigenes
-    // NSC; das Token trägt diesen Schnappschuss.
     const npcLevel = data.level && data.level > 0 ? Math.floor(data.level) : undefined;
-    const npcInstance = statblock && (hasNpcVariation(statblock) || npcLevel !== undefined)
-      ? await this.rollNpc(statblock, npcLevel)
-      : undefined;
 
     this.store.addToken({
       characterId,
@@ -1272,14 +1345,34 @@ export class LobbyComponent implements OnInit, OnDestroy {
       team: 'red',
       isQuickToken: true,
       statblockId: data.statblockId,
+      ...(statblock
+        ? await this.npcSpawnFields(statblock, npcLevel)
+        : { npcLevel, inventory: [] }),
+    });
+  }
+
+  /**
+   * What a freshly spawned NSC token carries — shared by the drop, the Schnell-NSC and paste.
+   *
+   * Mit Variation — oder mit Level-Override — würfelt jedes Ablegen ein eigenes NSC; das Token
+   * trägt diesen Schnappschuss. Die Startbeute wird kopiert, nicht verlinkt.
+   */
+  private async npcSpawnFields(
+    statblock: NpcStatblock, npcLevel: number | undefined,
+  ): Promise<Pick<Token, 'npcLevel' | 'inventory' | 'currency' | 'npcInstance'>> {
+    const npcInstance = hasNpcVariation(statblock) || npcLevel !== undefined
+      ? await this.rollNpc(statblock, npcLevel)
+      : undefined;
+    return {
       // Bleibt am Token, damit „Neu würfeln" das gewählte Level behält.
       npcLevel,
-      inventory: structuredClone((npcInstance ?? statblock)?.inventory ?? []),
+      inventory: structuredClone((npcInstance ?? statblock).inventory ?? []),
       currency: this.purseOrNone(npcInstance
         ? npcInstance.purse
-        : rollCetris(statblock?.cetris, false, 0, 0, Math.random)),
-      ...(npcInstance ? { npcInstance } : {}),
-    });
+        : rollCetris(statblock.cetris, false, 0, 0, Math.random)),
+      // Explicit even when absent: a pasted copy of an old snapshot must not keep it.
+      npcInstance,
+    };
   }
 
   /** An empty purse is stored as nothing, so tokens without Cetris don't carry a row of zeros. */
@@ -1306,7 +1399,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   async onNpcRoll(event: { level?: number }): Promise<void> {
     const token = this.selectedPanelToken();
     if (!this.isGM() || !token?.statblockId) return;
-    const statblock = this.npcStatblocks().find(s => s.id === token.statblockId)?.statblock;
+    const statblock = token.npcTemplate
+      ?? this.npcStatblocks().find(s => s.id === token.statblockId)?.statblock;
     if (!statblock) return;
 
     const npcLevel = event.level !== undefined ? Math.max(1, Math.floor(event.level) || 1) : token.npcLevel;

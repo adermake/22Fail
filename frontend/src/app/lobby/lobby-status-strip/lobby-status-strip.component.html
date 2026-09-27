@@ -72,7 +72,7 @@
       <div class="lbp-fx-mods">
         @for (mod of def!.statModifiers!; track $index) {
           <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
-            {{ svc.getStatModLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
+            @if (svc.getStatModIcon(mod.stat); as ic) { <span class="app-icon {{ ic }}" [title]="svc.getStatModLabel(mod.stat)"></span> } @else { {{ svc.getStatModLabel(mod.stat) }} } {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
           </span>
         }
       </div>
@@ -222,7 +222,7 @@
             <span class="lbp-fx-mods">
               @for (mod of def!.statModifiers!; track $index) {
                 <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
-                  {{ svc.getStatModLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
+                  @if (svc.getStatModIcon(mod.stat); as ic) { <span class="app-icon {{ ic }}" [title]="svc.getStatModLabel(mod.stat)"></span> } @else { {{ svc.getStatModLabel(mod.stat) }} } {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
                 </span>
               }
             </span>

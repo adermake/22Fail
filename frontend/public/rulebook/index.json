@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T22:38:34.390Z",
+  "generatedAt": "2026-09-27T12:11:28.166Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -411,7 +411,7 @@
       "tab": "Magie",
       "icon": "spell",
       "order": 60,
-      "hash": "ee32e15d",
+      "hash": "a6cfd039",
       "outline": [
         {
           "id": "magiesystem",

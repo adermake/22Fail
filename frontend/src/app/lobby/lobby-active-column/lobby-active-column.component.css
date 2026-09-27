@@ -180,3 +180,7 @@
 .ds-bad { background: rgba(239,68,68,0.14); border-color: #ef4444; color: #fca5a5; }
 .ds-info { background: rgba(59,130,246,0.14); border-color: #3b82f6; color: #93c5fd; }
 .ds-neutral { background: rgba(148,163,184,0.12); border-color: #94a3b8; color: #e5e7eb; }
+
+/* Icon + number for resource costs and resource stat modifiers. */
+.lbp-ac-cost { display: inline-flex; align-items: center; gap: 3px; }
+.lbp-ac-cost .app-icon { width: 11px; height: 11px; background-color: currentColor; }

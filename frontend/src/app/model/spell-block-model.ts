@@ -14,7 +14,11 @@ export interface SpellBinding {
   /** Legacy/informational. The real knowledge state is SpellBlock.knowledge. */
   type: 'learned' | 'item';
   itemName?: string;
-  /** Haltbarkeit of THIS inscription. Undefined = unbegrenzt (legacy magic items burn nothing). */
+  /**
+   * LEGACY, not read any more. Haltbarkeit belongs to the carrying ITEM
+   * (`ItemBlock.durability`) — casting wears out the material, and every spell written on one item
+   * draws down the same pool. Kept only so old data still parses.
+   */
   durability?: number;
   maxDurability?: number;
   /**

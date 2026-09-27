@@ -7,6 +7,9 @@ import { NpcStatblock } from '../model/npc-statblock.model';
 import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry, SpellCounter } from '../model/spell-block-model';
 import { carriedMedia, castableSpells, resolveSpellByKey, spellKey } from '../utils/spell-medium.util';
+import {
+  CostChip, chipsToText, resourceChip, resourceIcon, spellBaseCostChips, spellPerTurnChips,
+} from '../utils/resource-chips.util';
 import { SkillBlock } from '../model/skill-block.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { SKILL_DEFINITIONS } from '../data/skill-definitions';
@@ -281,11 +284,24 @@ export class LobbyTokenActionsService implements OnDestroy {
     return skill.actionType ?? this.getSkillDefinition(skill)?.actionType;
   }
 
-  skillCostLabel(skill: SkillBlock): string {
+  /**
+   * A resource cost as the UI shows it: an icon, not an invented abbreviation.
+   *
+   * `public/icons/` already has mana, energy, life and focus, and `styles.css` has the matching
+   * `.i-*` mask rules — so "MP"/"EP"/"LP" were a second vocabulary for things that already had a
+   * symbol. `label` stays for tooltips and aria, where markup cannot go, and spells the resource
+   * out in German rather than abbreviating it.
+   */
+  skillCostChips(skill: SkillBlock): CostChip[] {
     const cost = this.effectiveCost(skill);
-    if (!cost) return '';
-    const unit = cost.type === 'mana' ? 'MP' : cost.type === 'energy' ? 'EP' : 'LP';
-    return `${cost.amount} ${unit}${cost.perRound ? '/Rd' : ''}`;
+    if (!cost?.amount) return [];
+    const chip = resourceChip(cost.type, cost.amount, !!cost.perRound);
+    return chip ? [chip] : [];
+  }
+
+  /** Text form of the same cost, for `title` attributes. 'Nicht genug Mana', never 'MP'. */
+  skillCostText(skill: SkillBlock): string {
+    return chipsToText(this.skillCostChips(skill));
   }
 
   // ── Spell helpers ─────────────────────────────────────────────────────────
@@ -303,18 +319,14 @@ export class LobbyTokenActionsService implements OnDestroy {
     return spell.strokeColor || '#8b5cf6';
   }
 
-  spellCostLabel(spell: SpellBlock): string {
-    const parts: string[] = [];
-    if (spell.costMana)  parts.push(`${spell.costMana}M`);
-    if (spell.costFokus) parts.push(`${spell.costFokus}F`);
-    return parts.join(' ');
+  /** The spell's stored one-off cost, as icons. */
+  spellBaseChips(spell: SpellBlock): CostChip[] {
+    return spellBaseCostChips(spell);
   }
 
-  perTurnLabel(spell: SpellBlock): string {
-    const parts: string[] = [];
-    if (spell.perTurnMana)  parts.push(`${spell.perTurnMana}M/Rd`);
-    if (spell.perTurnFokus) parts.push(`${spell.perTurnFokus}F/Rd`);
-    return parts.join(' ');
+  /** The spell's stored per-round upkeep, as icons. */
+  spellPerTurnChips(spell: SpellBlock): CostChip[] {
+    return spellPerTurnChips(spell);
   }
 
   castProgressPercent(entry: CastingSpellEntry): number {
@@ -455,13 +467,23 @@ export class LobbyTokenActionsService implements OnDestroy {
 
   private static readonly STAT_MOD_LABELS: Record<string, string> = {
     strength: 'STÄ', dexterity: 'GES', speed: 'SPD', intelligence: 'INT',
-    constitution: 'KON', chill: 'WIL', life: 'LP', energy: 'EP', mana: 'MP',
+    constitution: 'KON', chill: 'WIL', life: 'Leben', energy: 'Ausdauer', mana: 'Mana',
     fokus: 'Fokus', armorMalus: 'Rüst.-Malus', armorNegation: 'Rüst.-Neg.',
     grundbonus: 'Grundbonus', reaktion: 'Reaktion', bewegung: 'Bewegung',
   };
 
   getStatModLabel(stat: string): string {
     return LobbyTokenActionsService.STAT_MOD_LABELS[stat] ?? stat.slice(0, 3).toUpperCase();
+  }
+
+  /**
+   * Icon class for the four resources that have one, else null (then show the text label).
+   *
+   * The stat abbreviations (STÄ, GES, …) stay as text — they are the ruleset's own shorthand and
+   * have no symbol. The resources do, so they use it.
+   */
+  getStatModIcon(stat: string): string | null {
+    return resourceIcon(stat);
   }
 
   getTalentName(talentId: string): string {
@@ -1395,13 +1417,16 @@ export class LobbyTokenActionsService implements OnDestroy {
       && fokusFree >= spellFokusCost(spell, this.learnedRunes);
   }
 
-  spellCostSummary(spell: SpellBlock): string {
-    const mana = spellManaCost(spell, this.learnedRunes);
-    const fokus = spellFokusCost(spell, this.learnedRunes);
-    const parts: string[] = [];
-    if (mana > 0) parts.push(`${mana} MP`);
-    if (fokus > 0) parts.push(`${fokus} Fokus`);
-    return parts.join(' · ');
+  spellCostChips(spell: SpellBlock): CostChip[] {
+    return [
+      resourceChip('mana', spellManaCost(spell, this.learnedRunes)),
+      resourceChip('fokus', spellFokusCost(spell, this.learnedRunes)),
+    ].filter((c): c is CostChip => !!c);
+  }
+
+  /** Text form for `title` attributes. */
+  spellCostText(spell: SpellBlock): string {
+    return chipsToText(this.spellCostChips(spell));
   }
 
   /** Spend Mana / Ausdauer / Leben from the character or the NPC token. */

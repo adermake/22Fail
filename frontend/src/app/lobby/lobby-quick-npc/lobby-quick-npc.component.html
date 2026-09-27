@@ -1,0 +1,56 @@
+<div class="quick-npc-backdrop" (mousedown)="cancel.emit()" (contextmenu)="$event.preventDefault(); cancel.emit()"></div>
+<div
+  #panel
+  class="quick-npc-panel"
+  tabindex="-1"
+  [style.left.px]="left"
+  [style.top.px]="top"
+  (keydown)="onKey($event)"
+>
+  <div class="qn-header">
+    <span class="qn-title">Schnell-NSC</span>
+    <input
+      class="qn-name"
+      type="text"
+      placeholder="Name (Gegner)"
+      [value]="name()"
+      (input)="name.set($any($event.target).value)"
+    />
+  </div>
+
+  <div class="qn-traits">
+    @for (trait of traits; track trait.id; let i = $index) {
+      <button
+        type="button"
+        class="qn-trait"
+        [class.on]="isOn(trait.id)"
+        [title]="trait.hint"
+        (click)="toggle(trait.id)"
+      >
+        <span class="qn-key">{{ i + 1 }}</span>{{ trait.label }}
+      </button>
+    }
+  </div>
+
+  <label class="qn-slider">
+    <span class="qn-slider-label">Spezialisierung</span>
+    <input type="range" min="0" max="100" step="5" [value]="specialization()" (input)="onRange('specialization', $event)" />
+    <span class="qn-slider-value">{{ specialization() }} %</span>
+  </label>
+  <label class="qn-slider">
+    <span class="qn-slider-label">Level</span>
+    <input type="range" min="1" [max]="maxLevel" step="1" [value]="level()" (input)="onRange('level', $event)" />
+    <span class="qn-slider-value">{{ level() }}</span>
+  </label>
+
+  <div class="qn-preview">
+    @for (s of statLabels; track s.key) {
+      <span class="qn-stat"><span class="qn-stat-label">{{ s.label }}</span>{{ preview()[s.key] }}</span>
+    }
+  </div>
+
+  <div class="qn-actions">
+    <button type="button" class="qn-cancel" (click)="cancel.emit()">Abbrechen</button>
+    <button type="button" class="qn-create" (click)="submit()">Erstellen <span class="qn-kbd">Enter</span></button>
+  </div>
+</div>

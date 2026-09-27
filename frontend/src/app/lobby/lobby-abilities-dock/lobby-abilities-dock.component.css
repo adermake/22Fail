@@ -120,3 +120,10 @@
   padding: 1px 6px; border-radius: 4px;
   background: rgba(148, 163, 184, 0.16); color: var(--text-muted, #94a3b8);
 }
+
+/* Resource costs read as icon + number — the icons in public/icons/ are the vocabulary, so the
+   dock does not invent MP/EP/LP alongside them. */
+.lad-cost { display: inline-flex; align-items: center; gap: 6px; }
+.lad-cost-chip { display: inline-flex; align-items: center; gap: 3px; }
+.lad-cost-chip .app-icon { width: 11px; height: 11px; background-color: currentColor; }
+.lad-cost-rd { opacity: 0.75; }

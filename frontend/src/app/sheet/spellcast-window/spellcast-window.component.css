@@ -1928,3 +1928,8 @@
 .scw-bruch-roll { color: var(--text-muted, #9ca3af); }
 .scw-bruch-verdict { margin-left: auto; font-weight: 700; }
 .scw-bruch--broken .scw-bruch-verdict { color: #f87171; }
+
+/* Resource costs as icon + number — the same vocabulary the rest of the app uses. */
+.scw-cost-chip { display: inline-flex; align-items: center; gap: 3px; margin-right: 6px; }
+.scw-cost-chip .app-icon { width: 11px; height: 11px; }
+.scw-cost-rd { opacity: 0.75; }

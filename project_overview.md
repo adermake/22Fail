@@ -570,8 +570,13 @@ Zwei **orthogonale** Achsen; Wirkbarkeit wird abgeleitet, nie gespeichert.
 - **Wissen**: `sheet.spells` ist das **Zauberbuch**. `knowledge: 'gelernt' | 'verinnerlicht'`,
   fehlend = gelernt (`spellKnowledge`, Normalise-on-read — keine Migration). *Unbekannt* hat keinen
   Speicher: es ist die Abwesenheit im Buch. Keine Obergrenze — freier Tag, die Gruppe erzwingt die Regel.
-- **Medium**: `item.embeddedSpells`, Haltbarkeit je Inschrift in `binding.durability/maxDurability`
-  (undefined = unbegrenzt), `binding.broken` = ausgebrannt. `item.inscriptionSlots` (fehlend = 1).
+- **Medium**: `item.embeddedSpells`. **Haltbarkeit gehört dem Gegenstand** (`item.durability` /
+  `maxDurability`) — ein Zauber beschädigt das Material, auf dem er steht, also teilen sich alle
+  Zauber eines Gegenstands denselben Vorrat. `binding.durability/maxDurability` sind **Legacy und
+  werden nicht mehr gelesen**; `binding.broken` = diese Inschrift ist ausgebrannt.
+  `item.inscriptionSlots` (fehlend = 1). Einschreiben nur auf Material **mit** Haltbarkeit
+  (`canCarryInscription` = `maxDurability > 0`); ein Altbestand-Zauberstab ohne Haltbarkeitsstat
+  bleibt nutzbar und nutzt sich nie ab (`SpellMedium.wears === false`).
 - **`carriedMedia(sheet)`**: Ausrüstung **und** Inventar (`!lost && !broken`), Konstrukt-Teile per
   eigener Rekursion mit `sockets.<i>.child`-Patchpfaden — *nicht* `flattenConstruct` (liefert keine Pfade).
   Bewusst weiter als `TrueStatsService.grantingItems` (nur Ausrüstung): eine Rolle wirkt aus dem Rucksack,
@@ -582,12 +587,20 @@ Zwei **orthogonale** Achsen; Wirkbarkeit wird abgeleitet, nie gespeichert.
 - **Identität**: eine Inschrift **erbt die ID** des Bucheintrags → „derselbe Zauber" ist ID-Gleichheit,
   Umbenennen verwaist keine Rolle. `resolveSpellByKey` sucht auch **kaputte** Inschriften, damit ein
   gehaltener Zauber nach dem Zerbrechen seines Mediums Fokus, Dauer und Zähler behält.
-- **Haltbarkeit**: Verbrauch = Voraussetzung × `100/(Cast+100)` × Skalierung
-  (`spellVoraussetzung` = höchster Einzelstat, `spellHaltbarkeitsKosten`).
+- **Haltbarkeit**: Verbrauch **am Gegenstand** = Voraussetzung × `100/(Cast+100)` × Skalierung
+  (`spellVoraussetzung` = höchster Einzelstat, `spellHaltbarkeitsKosten`). Der Zauber bestimmt nur
+  die Höhe des Verlusts, nicht den Vorrat. Nur *ein* Haltbarkeitsbalken — der des Items.
 - **Bruchprobe**: Rest < 10 → W20 + `(5 − Haltbarkeit)`; **niedriger ist besser**, also ≤ 10 hält,
   > 10 kaputt. Der Zauber gelingt **zuerst**, das Medium bricht danach. Bruch setzt
   `binding.broken` **und** `item.lost` (`breakInscriptionPatches` — die einzige Stelle dieser Policy).
 - **Einschreiben**: `sheet/spell-inscribe-dialog/`, aufgerufen aus dem Kontextmenü im Zauberbuch.
+  Entfernen geht über das × an der Inschrift auf der Item-Karte (`removeInscription`) — gibt den
+  Platz wieder frei; eine **ausgebrannte** Inschrift lässt sich nicht entfernen (der Platz bleibt tot).
+- **Ressourcen-Icons** (`utils/resource-chips.util.ts`): `CostChip { amount, icon, label, perRound }`
+  plus `resourceChip/resourceIcon/chipsToText/spellBaseCostChips/spellPerTurnChips`. Mana, Ausdauer,
+  Leben und Fokus haben Icons in `public/icons/` und `.i-*`-Regeln in `styles.css` — deshalb **keine
+  erfundenen Kürzel** mehr (`MP`/`EP`/`LP`/`M`/`F`). `label` ist nur für `title`/aria, ausgeschrieben
+  auf Deutsch. Statkürzel (STÄ, GES, …) bleiben Text: die haben kein Symbol.
 - **NSCs**: `buildNpcSheet` markiert Statblock-Zauber als `verinnerlicht` — die Medium-Regel ist
   spielerseitig, sonst wäre jeder NSC-Zauber „Medium fehlt".
 - **Spell-Editor-Overlay** (`sheet/spell-editor-overlay/`): Vollbild-Overlay im Stil des Item-Editors
@@ -703,6 +716,28 @@ lobby-container
 - Status: activeStatusEffects?: TokenStatusEffect[] (id, name, icon, stacks, duration, isDebuff)
 - Kampfzustand: activeSkillNames?: string[] (aktive Fähigkeiten für NSC-Tokens), castingSpells?: CastingSpellEntry[] (Casting-State für NSC-Tokens)
 - Verknüpfung: parentTokenId?, linkedTokenType? ('free'|'keepDistance'|'keepOffset'), linkedOffset?, linkedDistance?
+- NSC: npcInstance? (gewürfelter Schnappschuss), npcLevel?, npcTemplate? (nur Schnell-NSC, s. u.)
+
+### Mehrfachauswahl & Kopieren (Cursor-Tool, `lobby-grid`)
+- Rahmen auf leerem Boden ziehen = Auswahl (`selectedTokenIds`, Umschalt = hinzufügen); Umschalt+Klick auf Token schaltet um.
+  Ein Klick ohne Ziehen bleibt ein `hexClick` (Abwählen, Linked-Token-/Spawn-Platzierung) — wird erst beim Loslassen entschieden.
+- Ziehen eines ausgewählten Tokens bewegt die Gruppe (`store.moveTokensBy`, ein Patch, verknüpfte Kinder kommen mit);
+  im Modus „enforced" ohne Pfad-/Tempoprüfung — die gilt nur für Einzelzüge.
+- Entf: GM entfernt die Gruppe (`store.removeTokens`). Die Lobby-Entf (Panel-Token) steht bei `event.defaultPrevented` zurück.
+- Strg+C/V: nur `isQuickToken` (Spielercharaktere gibt es einmal), kopiert aus `store.tokens` (nicht den angereicherten Input).
+  Einfügen unter der Maus, Layout bleibt, Kinder mit Eltern bleiben verknüpft. `lobby.onTokensPaste` gibt jeder Kopie neue
+  characterId, volle Ressourcen, keine Effekte und würfelt NSCs neu aus (`npcSpawnFields`).
+- Lasso: Entf verwirft die schwebende Auswahl — ihr Inhalt wurde beim Ziehen schon aus der Ebene geschnitten (Strg+Z holt ihn zurück).
+
+### Schnell-NSC (`utils/quick-npc.util.ts`, `lobby/lobby-quick-npc/`)
+- Hex-Kontextmenü: „Erstellen Simpel" (altes Schnell-Token, Enter) / „Erstellen NSC" (nur GM, Umschalt+Enter) → Panel.
+- Panel: 8 Merkmal-Knöpfe (Tasten 1–8), Spezialisierung (0–100 %, Std. 50), Level (1–30, Std. = Party-Schnitt), Live-Vorschau der 6 Werte, Enter erstellt.
+- `buildQuickNpcTemplate`: Verhältnis = (1−s)·gleichmäßig + s·Merkmalsgewichte → `distributeByRatio` auf das **Spieler**-Budget;
+  Seele gesperrt (Level im Panel verteilt entlang des Verhältnisses neu). Variation: Stat-Shuffle ~8 % + Ausrüstung „Zufällig"
+  mit generierten Slots (1 Waffe nach Merkmal: Fernkämpfer→FERNKAMPF, Schadensstark→SCHWER/STR, Geschickt→LEICHT/DEX;
+  Gepanzert = alle 5 Rüstungsteile, sonst Brust/Helm je 30 %). Körper nutzt Waffen-Effizienz und Rüstungs-Stabilität.
+- Token: `statblockId = 'quick-npc'` (kein Bibliothekseintrag), `npcTemplate` = Vorlage, `npcInstance` via `rollNpcInstance`.
+  „Neu würfeln"/Level und Kopieren lesen `npcTemplate ?? Bibliotheks-Statblock`.
 
 ### Token-Ressourcen
 - Token.currentHealth?, currentMana?, currentEnergy? → optionale Felder auf dem Token

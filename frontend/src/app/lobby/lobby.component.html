@@ -203,6 +203,10 @@
         (tokenMove)="onTokenMove($event)"
         (tokenRemove)="onTokenRemove($event)"
         (quickTokenDrop)="onQuickTokenDrop($event)"
+        (quickNpcRequest)="quickNpcDraft.set($event)"
+        (tokensMove)="onTokensMove($event)"
+        (tokensRemove)="onTokensRemove($event)"
+        (tokensPaste)="onTokensPaste($event)"
         (imageSelect)="onSelectImage($event)"
         (imageTransform)="onTransformImage($event)"
         (imageDelete)="onDeleteImage($event)"
@@ -328,6 +332,16 @@
   </div>
 }
 <!-- ── Soul extraction dialog (GM) ─────────────────────────────────────────── -->
+@if (quickNpcDraft(); as draft) {
+  <app-lobby-quick-npc
+    [screen]="draft.screen"
+    [initialName]="draft.name"
+    [defaultLevel]="partyLevel()"
+    (create)="onQuickNpcCreate(draft.position, $event)"
+    (cancel)="quickNpcDraft.set(null)"
+  />
+}
+
 @if (soulExtractStatblock(); as sb) {
   <div class="soul-extract-overlay">
     <div class="soul-extract-modal">

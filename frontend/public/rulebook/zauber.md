@@ -104,8 +104,12 @@ Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen b
 :::card{title="Voraussetzung" color=#22c55e}
 Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
 :::
-:::card{title="Haltbarkeit" color=#ef9533}
-Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber zu wirken verbraucht Haltbarkeit in Höhe der Voraussetzung des Zaubers. Wenn die Haltbarkeit beim Zaubern unter 10 fällt, muss gewürfelt werden, ob der Zauber kaputtgeht. Der Würfelbonus für diesen Wurf lautet
+:::card{title="Haltbarkeitsverbrauch" color=#ef9533}
+Ein Zauber beschädigt das Medium, auf dem er steht. **Die Haltbarkeit gehört dem Gegenstand** — der Zauber bestimmt nur, wie viel davon eine Wirkung kostet, nämlich seine Voraussetzung.
+
+Damit teilen sich alle Zauber auf einem Gegenstand denselben Vorrat: ein Buch mit drei Zaubern nutzt sich dreimal so schnell ab. Wie oft ein Zauber benutzt werden kann, hängt also am Material, nicht am Zauber.
+
+Fällt die Haltbarkeit des Gegenstands beim Zaubern unter 10, muss gewürfelt werden, ob der Zauber kaputtgeht. Der Würfelbonus für diesen Wurf lautet
 :::formula
 +5 - Haltbarkeit
 :::
@@ -168,7 +172,7 @@ Du formst die Runen ohne Hilfsmittel in der Luft um dich herum. Der Zauber ist j
 ### Einschreiben
 Einen gelernten oder verinnerlichten Zauber kannst du auf ein mitgeführtes Material schreiben. Jedes Material hat eine begrenzte Anzahl an Plätzen: eine Schriftrolle trägt in der Regel einen Zauber, ein gebundenes Buch mehrere. Wie viele es sind, legt der Spielleiter je Gegenstand fest.
 
-Beim Einschreiben bestimmt ihr die [Haltbarkeit](zauber#zauber) der Inschrift — wie viel Material dem Zauber mitgegeben wird und damit, wie oft er sich nutzen lässt.
+Beschreiben lässt sich nur Material, das eine **Haltbarkeit** hat — es muss etwas da sein, das der Zauber abnutzen kann. Wie viele Wirkungen darin stecken, ergibt sich aus der Haltbarkeit des Gegenstands geteilt durch die [Voraussetzung](zauber#zauber) des Zaubers.
 
 :::note{type=info}
 Ein Medium zählt, solange du es bei dir trägst — ausgerüstet oder im Inventar. Eine Schriftrolle braucht keinen Ausrüstungsplatz.

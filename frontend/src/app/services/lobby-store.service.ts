@@ -637,26 +637,66 @@ export class LobbyStoreService {
    * erste rückwirkend die 1, sonst stünde "Kultist" neben "Kultist 2".
    */
   addToken(token: Omit<Token, 'id'>): void {
+    this.addTokens([token]);
+  }
+
+  /**
+   * Several tokens in one patch (paste). A token may bring its own `id` — the paster needs it to
+   * select the copies and to re-link children to their copied parents.
+   */
+  addTokens(newTokens: (Omit<Token, 'id'> & { id?: string })[]): void {
     let tokens = [...this.tokens];
-    const sameName = tokens.filter(t => t.name === token.name);
+    for (const token of newTokens) {
+      const sameName = tokens.filter(t => t.name === token.name);
 
-    let tag = token.tag;
-    if (!tag && sameName.length > 0) {
-      if (sameName.length === 1 && !sameName[0].tag) {
-        tokens = tokens.map(t => (t.id === sameName[0].id ? { ...t, tag: '1' } : t));
+      let tag = token.tag;
+      if (!tag && sameName.length > 0) {
+        if (sameName.length === 1 && !sameName[0].tag) {
+          tokens = tokens.map(t => (t.id === sameName[0].id ? { ...t, tag: '1' } : t));
+        }
+        const used = new Set(
+          tokens.filter(t => t.name === token.name)
+                .map(t => Number(t.tag))
+                .filter(n => Number.isFinite(n)),
+        );
+        let next = 1;
+        while (used.has(next)) next++;
+        tag = String(next);
       }
-      const used = new Set(
-        tokens.filter(t => t.name === token.name)
-              .map(t => Number(t.tag))
-              .filter(n => Number.isFinite(n)),
-      );
-      let next = 1;
-      while (used.has(next)) next++;
-      tag = String(next);
-    }
 
-    tokens.push({ ...token, id: generateId(), tag });
+      tokens.push({ ...token, id: token.id ?? generateId(), tag });
+    }
     this.applyPatch({ path: 'tokens', value: tokens });
+  }
+
+  /**
+   * Shift a group of tokens by one hex offset, in one patch. Linked children of a moved token come
+   * along even when they weren't selected: a translation keeps every offset and distance intact,
+   * so the link constraints hold without being re-solved.
+   */
+  moveTokensBy(tokenIds: string[], delta: HexCoord): void {
+    if (!delta.q && !delta.r) return;
+    const moving = new Set(tokenIds);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const t of this.tokens) {
+        if (!moving.has(t.id) && t.parentTokenId && moving.has(t.parentTokenId) && t.linkedTokenType !== 'free') {
+          moving.add(t.id);
+          grew = true;
+        }
+      }
+    }
+    const tokens = this.tokens.map(t => moving.has(t.id)
+      ? { ...t, position: { q: t.position.q + delta.q, r: t.position.r + delta.r } }
+      : t);
+    this.applyPatch({ path: 'tokens', value: tokens });
+  }
+
+  /** Remove several tokens in one patch. */
+  removeTokens(tokenIds: string[]): void {
+    const gone = new Set(tokenIds);
+    this.applyPatch({ path: 'tokens', value: this.tokens.filter(t => !gone.has(t.id)) });
   }
 
   /** Setzt oder löscht die Kennzeichnung eines Tokens (GM tippt sie von Hand). */

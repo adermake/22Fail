@@ -152,6 +152,12 @@ export interface Token {
    * Statblock erreichen es nicht. Ohne Variation bleibt das Token live mit `statblockId` verknüpft.
    */
   npcInstance?: import('./npc-statblock.model').NpcStatblock;
+  /**
+   * Schnell-NSC: die Vorlage, aus der `npcInstance` gewürfelt wurde. Ein Schnell-NSC hat keinen
+   * Statblock in der Bibliothek (`statblockId` ist `QUICK_NPC_STATBLOCK_ID`), also trägt das Token
+   * die Vorlage selbst — sonst könnten „Neu würfeln" und Kopieren es nicht neu auswürfeln.
+   */
+  npcTemplate?: import('./npc-statblock.model').NpcStatblock;
   /** Vom Spielleiter in der Lobby gesetztes Level. Neu würfeln behält es; ohne es würfelt der Statblock selbst. */
   npcLevel?: number;
   /** Cetris, die dieses NSC bei sich trägt — beim Ablegen aus dem Statblock gewürfelt, danach wie `inventory` pro Token. */

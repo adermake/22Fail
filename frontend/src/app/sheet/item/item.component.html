@@ -332,27 +332,30 @@
         }
   
         <!-- Eingeschriebene Zauber: this item is their Medium. Read-only — casting happens in the
-             Wirkfenster, so there is exactly one place a spell can be cast from. -->
+             Wirkfenster, so there is exactly one place a spell can be cast from.
+             No Haltbarkeit shown per spell: they all wear down this item's own Haltbarkeit, which
+             the bar above already displays. Each cast costs that spell's Voraussetzung. -->
         @if (item.embeddedSpells && item.embeddedSpells.length > 0) {
           <div class="inscribed-section">
             <span class="inscribed-label">Eingeschriebene Zauber</span>
-            @for (spell of item.embeddedSpells; track $index) {
-              <div class="inscribed-row" [class.inscribed-row--broken]="inscriptionBroken(spell)">
-                <span class="inscribed-name">{{ spell.name }}</span>
-                <span class="inscribed-chip"
-                      [class.inscribed-chip--broken]="inscriptionBroken(spell)"
-                      [class.inscribed-chip--low]="inscriptionAtRisk(spell)">
-                  {{ inscriptionLabel(spell) }}
+            <div class="inscribed-rows">
+              @for (spell of item.embeddedSpells; track $index) {
+                <span class="inscribed-row" [class.inscribed-row--broken]="inscriptionBroken(spell)">
+                  <span class="inscribed-name">{{ spell.name }}</span>
+                  @if (inscriptionBroken(spell)) {
+                    <span class="inscribed-chip inscribed-chip--broken"
+                          title="Ausgebrannt — dieses Material nimmt keinen neuen Zauber mehr auf">Kaputt</span>
+                  } @else {
+                    @if (inscriptionCost(spell); as cost) {
+                      <span class="inscribed-chip" title="Haltbarkeitsverbrauch je Wirkung">&minus;{{ cost }}</span>
+                    }
+                    <button class="inscribed-remove"
+                            title="Inschrift entfernen — gibt den Einschreibe-Platz wieder frei"
+                            (click)="removeInscription($index); $event.stopPropagation()">&#10005;</button>
+                  }
                 </span>
-                @if (inscriptionPercent(spell) !== null) {
-                  <span class="inscribed-bar">
-                    <span class="inscribed-bar-fill"
-                          [class.inscribed-bar-fill--low]="inscriptionAtRisk(spell)"
-                          [style.width.%]="inscriptionPercent(spell)"></span>
-                  </span>
-                }
-              </div>
-            }
+              }
+            </div>
           </div>
         }
 

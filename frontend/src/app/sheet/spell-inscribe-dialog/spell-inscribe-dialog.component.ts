@@ -7,7 +7,8 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { spellVoraussetzung } from '../../utils/spell-costs.util';
 import {
-  InscribableItem, buildInscription, inscribableItems, inscriptionSlots, usedInscriptionSlots,
+  InscribableItem, buildInscription, inscribableItems, inscriptionSlots, itemDurability,
+  itemMaxDurability, usedInscriptionSlots,
 } from '../../utils/spell-medium.util';
 
 /**
@@ -32,19 +33,28 @@ export class SpellInscribeDialogComponent {
 
   search = '';
   selectedPath: string | null = null;
-  durability = 0;
 
   private _candidates: InscribableItem[] | null = null;
 
-  ngOnInit(): void {
-    // Ten casts' worth is a round, useful starting point rather than a rule — the GM sets the real
-    // number. A spell with no Voraussetzung burns nothing, so it gets a nominal 10.
-    const voraussetzung = spellVoraussetzung(this.spell, this.learnedRunes);
-    this.durability = Math.max(10, Math.round(voraussetzung * 10));
-  }
-
   private get learnedRunes(): RuneBlock[] {
     return (this.sheet.runes ?? []).filter((r): r is RuneBlock => !!r);
+  }
+
+  /** What one cast will cost the chosen material's Haltbarkeit. */
+  get costPerCast(): number {
+    return spellVoraussetzung(this.spell, this.learnedRunes);
+  }
+
+  /** The material's Haltbarkeit, which casting wears down. */
+  durabilityLabel(entry: InscribableItem): string {
+    return `${itemDurability(entry.item)} / ${itemMaxDurability(entry.item)}`;
+  }
+
+  /** Roughly how many casts this material has left for this spell. */
+  castsLeft(entry: InscribableItem): number | null {
+    const cost = this.costPerCast;
+    if (cost <= 0) return null;
+    return Math.floor(itemDurability(entry.item) / cost);
   }
 
   get candidates(): InscribableItem[] {
@@ -73,13 +83,13 @@ export class SpellInscribeDialogComponent {
 
   get canInscribe(): boolean {
     const target = this.selected;
-    return !!target && target.free > 0 && this.durability > 0;
+    return !!target && target.free > 0;
   }
 
   confirm(): void {
     const target = this.selected;
     if (!target || !this.canInscribe) return;
-    const copy = buildInscription(this.spell, target.item.name, this.durability);
+    const copy = buildInscription(this.spell, target.item.name);
     // Trailing '-' appends; applyJsonPatchTo creates `embeddedSpells` as an array when the item has
     // none yet, because the following segment addresses an array position.
     this.inscribe.emit({ path: `${target.path}.embeddedSpells.-`, value: copy });

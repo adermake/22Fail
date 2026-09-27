@@ -30,8 +30,27 @@
           @if (spell?.description) { <div class="lbp-ac-desc">{{ spell!.description }}</div> }
 
           <div class="lbp-ac-meta-row">
-            @if (spell && svc.spellCostLabel(spell)) { <span class="lbp-ac-cost">{{ svc.spellCostLabel(spell) }}</span> }
-            @if (spell && svc.perTurnLabel(spell)) { <span class="lbp-ac-cost-turn">{{ svc.perTurnLabel(spell) }}</span> }
+            @if (spell) {
+              @if (svc.spellBaseChips(spell); as chips) {
+                @if (chips.length) {
+                  <span class="lbp-ac-cost">
+                    @for (chip of chips; track chip.icon) {
+                      <span class="app-icon {{ chip.icon }}" [title]="chip.label"></span>{{ chip.amount }}
+                    }
+                  </span>
+                }
+              }
+              @if (svc.spellPerTurnChips(spell); as chips) {
+                @if (chips.length) {
+                  <span class="lbp-ac-cost-turn">
+                    @for (chip of chips; track chip.icon) {
+                      <span class="app-icon {{ chip.icon }}" [title]="chip.label"></span>{{ chip.amount }}
+                    }
+                    /Rd
+                  </span>
+                }
+              }
+            }
             @if (entry.skalierung && entry.skalierung > 1) { <span class="lbp-ac-skal">&times;{{ entry.skalierung }}</span> }
           </div>
 
@@ -129,7 +148,11 @@
 
           @if (skill && svc.effectiveCost(skill)) {
             <div class="lbp-ac-meta-row">
-              <span class="lbp-ac-cost lbp-ac-cost--skill">{{ svc.skillCostLabel(skill) }}</span>
+              <span class="lbp-ac-cost lbp-ac-cost--skill">
+                @for (chip of svc.skillCostChips(skill); track chip.icon) {
+                  <span class="app-icon {{ chip.icon }}" [title]="chip.label"></span>{{ chip.amount }}@if (chip.perRound) {/Rd}
+                }
+              </span>
               @if (svc.effectiveCost(skill)!.perRound) {
                 <button class="lbp-ac-pay-btn" (click)="svc.paySkillRoundCost(skill)"><span class="app-icon i-energy"></span> Zahlen</button>
               }
@@ -150,7 +173,7 @@
             <div class="lbp-ac-modifiers">
               @for (mod of skill!.statModifiers!; track $index) {
                 <span class="lbp-ac-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
-                  {{ svc.getStatModLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}
+                  @if (svc.getStatModIcon(mod.stat); as ic) { <span class="app-icon {{ ic }}" [title]="svc.getStatModLabel(mod.stat)"></span> } @else { {{ svc.getStatModLabel(mod.stat) }} } {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}
                 </span>
               }
             </div>

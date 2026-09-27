@@ -221,15 +221,15 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
          : 'Gelernt';
   }
 
-  /** 'Schriftrolle · 12/40', or '· unbegrenzt' for an inscription with no Haltbarkeit. */
+  /** 'Schriftrolle · 12/40' — the carrying item's Haltbarkeit, which casting wears down. */
   mediumLabel(medium: SpellMedium): string {
-    if (medium.durability === undefined) return `${medium.itemName} · unbegrenzt`;
-    return `${medium.itemName} · ${medium.durability}/${medium.maxDurability ?? medium.durability}`;
+    if (!medium.wears) return medium.itemName;
+    return `${medium.itemName} · ${medium.durability}/${medium.maxDurability}`;
   }
 
   /** A nearly-spent Medium is about to force a Bruchprobe — warn before it shatters. */
   mediumAtRisk(medium: SpellMedium): boolean {
-    return medium.durability !== undefined && needsBruchprobe(medium.durability);
+    return medium.wears && needsBruchprobe(medium.durability);
   }
 
   get hasCostSchedule(): boolean {

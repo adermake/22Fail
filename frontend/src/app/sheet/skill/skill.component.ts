@@ -313,8 +313,11 @@ export class SkillComponent {
 
   private shortStat(stat: string): string {
     const map: Record<string, string> = {
+      // Stats keep the ruleset's own shorthand; resources are spelled out rather than given a
+      // second, invented abbreviation (this builds a plain string, so no icon can go here).
       intelligence: 'INT', strength: 'STR', dexterity: 'GES', speed: 'GES',
-      constitution: 'KON', chill: 'WIL', mana: 'MANA', life: 'LP', energy: 'EP', focus: 'FO',
+      constitution: 'KON', chill: 'WIL',
+      mana: 'Mana', life: 'Leben', energy: 'Ausdauer', focus: 'Fokus',
     };
     return map[stat] ?? stat.toUpperCase().slice(0, 3);
   }

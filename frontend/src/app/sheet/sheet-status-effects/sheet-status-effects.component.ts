@@ -15,6 +15,7 @@ import { LibraryStoreService } from '../../services/library-store.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult } from '../../services/unified-macro-executor.service';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
+import { resourceIcon } from '../../utils/resource-chips.util';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { applyStacking } from '../../utils/status-stacking.utils';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/scroll-lock.util';
@@ -80,9 +81,9 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     intelligence: 'INT',
     constitution: 'KON',
     chill: 'WIL',
-    life: 'LP',
-    energy: 'EP',
-    mana: 'MP',
+    life: 'Leben',
+    energy: 'Ausdauer',
+    mana: 'Mana',
     fokus: 'Fokus',
     armorMalus: 'R\u00fcst.-Malus',
     armorNegation: 'R\u00fcst.-Neg.',
@@ -140,6 +141,16 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
 
   getStatLabel(stat: string): string {
     return SheetStatusEffectsComponent.statLabels[stat] ?? stat;
+  }
+
+  /**
+   * Icon class for the four resources that have one, else null (then the text label is shown).
+   *
+   * Stat abbreviations (STÄ, GES, …) stay text — they are the ruleset's shorthand and have no
+   * symbol. The resources do have one, so they use it rather than an invented 'LP'/'EP'/'MP'.
+   */
+  getStatIcon(stat: string): string | null {
+    return resourceIcon(stat);
   }
 
   getTalentName(talentId: string): string {

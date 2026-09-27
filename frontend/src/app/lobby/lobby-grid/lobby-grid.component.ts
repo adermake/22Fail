@@ -160,6 +160,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
   @Output() tokenRemove = new EventEmitter<string>();
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
+  /** „Erstellen NSC" im Hex-Kontextmenü: the lobby opens the Schnell-NSC panel at `screen`. */
+  @Output() quickNpcRequest = new EventEmitter<{ name: string; position: HexCoord; screen: Point }>();
+  @Output() tokensMove = new EventEmitter<{ tokenIds: string[]; delta: HexCoord }>();
+  @Output() tokensRemove = new EventEmitter<string[]>();
+  /** Copies with fresh ids and positions; the lobby reseeds NSCs before adding them. */
+  @Output() tokensPaste = new EventEmitter<Token[]>();
   @Output() tokenCombatAdd = new EventEmitter<{ tokenId: string; team?: string }>();
   @Output() tokenCombatRemove = new EventEmitter<string>(); // Emits tokenId
   @Output() extractSoul = new EventEmitter<string>(); // Emits tokenId (GM: capture an NPC's soul)
@@ -329,6 +335,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   dragPathIsBlocked = signal<boolean>(false); // Is the destination blocked by walls?
   private pathfindingCache = new Map<string, HexCoord[]>(); // Cache for pathfinding results
 
+  // Multi-token selection (cursor tool): box on empty ground, Shift+click toggles.
+  // Dragging a selected token moves the whole group; Entf removes it, Strg+C/V clones it.
+  selectedTokenIds = signal<ReadonlySet<string>>(new Set());
+  /** Tokens riding along with `draggingToken` in a group drag. */
+  groupDragIds: ReadonlySet<string> = new Set();
+  private tokenBoxStart: Point | null = null;
+  private tokenBoxStartScreen: Point | null = null;
+  private tokenBoxAdditive = false;
+  private tokenClipboard: Token[] = [];
+  /** Where Strg+V drops the clipboard: the hex last under the mouse. */
+  private lastHoverHex: HexCoord | null = null;
+
   // Image transform state
   private transformingImageIds: string[] = []; // For group transforms
   private transformingImageId: string | null = null;
@@ -415,6 +433,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
+    // Token copy/paste belongs to the cursor tool; the lasso keeps Strg+C/V everywhere else.
+    if (event.ctrlKey && this.currentTool === 'cursor') {
+      const key = event.key.toLowerCase();
+      if (key === 'c' && this.copySelectedTokens()) {
+        event.preventDefault();
+        return;
+      }
+      if (key === 'v' && this.tokenClipboard.length && this.isGM) {
+        event.preventDefault();
+        this.pasteTokens();
+        return;
+      }
+    }
+
     if (event.ctrlKey && event.key === 'c' && this.floatingSelection) {
       event.preventDefault();
       this.copyFloatingSelection();
@@ -440,6 +472,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     if (event.key === 'Escape') {
+      if (this.selectedTokenIds().size) this.selectedTokenIds.set(new Set());
       if (this.floatingSelection || this.lassoPoints.length > 0) {
         event.preventDefault();
         this.floatingSelection = null;
@@ -473,8 +506,29 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
     
-    // Delete key to delete selected images (supports multi-select)
+    // Delete key: lasso selection, then a token group, then selected images (supports multi-select).
+    // Every branch that handles it calls preventDefault — the lobby's own Entf (remove the panel's
+    // token) runs after this one and stands down on `defaultPrevented`.
     if (event.key === 'Delete') {
+      if (this.floatingSelection) {
+        // The lasso already cut its content out of the layer when it was drawn; the floating copy
+        // is all that is left of it, so dropping it deletes the selection.
+        event.preventDefault();
+        this.floatingSelection = null;
+        this.floatingSelectionImgSrc = '';
+        this.lassoPoints = [];
+        this.scheduleDrawRender();
+        return;
+      }
+      if (this.currentTool === 'cursor' && this.selectedTokenIds().size) {
+        event.preventDefault();
+        // Players move tokens freely, but removing one is the GM's call.
+        if (this.isGM) {
+          this.tokensRemove.emit([...this.selectedTokenIds()]);
+          this.selectedTokenIds.set(new Set());
+        }
+        return;
+      }
       const selected = this.selectedImages();
       if (selected.length > 0) {
         event.preventDefault();
@@ -529,6 +583,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['currentTool'] && this.currentTool !== 'cursor' && this.selectedTokenIds().size) {
+      this.selectedTokenIds.set(new Set());
+    }
+
     // Preload texture when inputs change
     if (changes['selectedTextureId'] || changes['textureColorBlend'] || changes['textureHue']) {
       // Preload texture when selected to prevent lag when drawing starts
@@ -4033,6 +4091,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     const world = this.screenToWorld(screenX, screenY);
     const hex = HexMath.pixelToHex(world);
+    this.lastHoverHex = hex;
 
     if (this.isZooming) {
       // CTRL+middle-mouse drag to zoom (both horizontal and vertical movement)
@@ -4313,17 +4372,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Cursor tool is ONLY for tokens - no image interaction
     const token = this.findTokenAtHex(hex);
     if (token) {
-      this.startTokenDrag(token, hex, world);
+      this.beginTokenPointer(token, event, world);
       return;
     }
-    // Clicked on empty hex — notify lobby (for linked token placement etc.)
-    this.hexClick.emit(hex);
+    // Empty ground: a drag becomes a selection box, a plain click is resolved on mouseup.
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    this.tokenBoxStart = world;
+    this.tokenBoxStartScreen = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    this.tokenBoxAdditive = event.shiftKey;
   }
 
   private handleCursorMove(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (this.draggingToken) {
       this.updateTokenDrag(world);
       return;
+    }
+    if (this.tokenBoxStart && this.tokenBoxStartScreen) {
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      const moved = Math.hypot(
+        event.clientX - rect.left - this.tokenBoxStartScreen.x,
+        event.clientY - rect.top - this.tokenBoxStartScreen.y,
+      );
+      // A few pixels of jitter is still a click.
+      if (this.selectionBox() || moved > 4) {
+        this.selectionBox.set({ start: this.tokenBoxStart, end: world });
+        this.scheduleRender();
+      }
     }
   }
 
@@ -4332,6 +4406,112 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.finishTokenDrag(hex);
       return;
     }
+    if (!this.tokenBoxStart) return;
+    const box = this.selectionBox();
+    const additive = this.tokenBoxAdditive;
+    this.tokenBoxStart = null;
+    this.tokenBoxStartScreen = null;
+
+    if (!box) {
+      // Clicked on empty hex — notify lobby (for linked token placement etc.)
+      if (!additive) this.selectedTokenIds.set(new Set());
+      this.hexClick.emit(hex);
+      return;
+    }
+
+    this.selectionBox.set(null);
+    const minX = Math.min(box.start.x, box.end.x);
+    const maxX = Math.max(box.start.x, box.end.x);
+    const minY = Math.min(box.start.y, box.end.y);
+    const maxY = Math.max(box.start.y, box.end.y);
+    const hits = this.tokens.filter(t => {
+      const c = HexMath.hexToPixel(t.position);
+      return c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY;
+    });
+    const next = new Set(additive ? this.selectedTokenIds() : []);
+    for (const t of hits) next.add(t.id);
+    this.selectedTokenIds.set(next);
+    // A box around a single token is just a roundabout click on it — open it in the panel.
+    if (next.size === 1) this.tokenClick.emit([...next][0]!);
+    this.scheduleRender();
+  }
+
+  /**
+   * Mousedown on a token, from the grid's hit test or the token element itself.
+   * Shift toggles it in the selection; otherwise it starts a drag — of the whole group when the
+   * token is part of a multi-selection, of just this token (dropping the selection) when not.
+   */
+  private beginTokenPointer(token: Token, event: MouseEvent, world: Point): void {
+    if (event.shiftKey) {
+      const next = new Set(this.selectedTokenIds());
+      if (next.has(token.id)) next.delete(token.id);
+      else next.add(token.id);
+      this.selectedTokenIds.set(next);
+      return;
+    }
+    const selected = this.selectedTokenIds();
+    if (selected.has(token.id) && selected.size > 1) {
+      this.groupDragIds = new Set(selected);
+    } else {
+      this.groupDragIds = new Set();
+      if (selected.size) this.selectedTokenIds.set(new Set());
+    }
+    this.startTokenDrag(token, token.position, world);
+  }
+
+  private copySelectedTokens(): boolean {
+    const ids = this.selectedTokenIds().size
+      ? this.selectedTokenIds()
+      : new Set(this.selectedTokenId ? [this.selectedTokenId] : []);
+    // Player characters exist once; only map-made tokens (quick tokens, NSCs) can be cloned.
+    // Copied from the store, not the `tokens` input: that one is enriched with tracker team and
+    // derived speed, which must not be written back as the copy's own values.
+    const copies = this.store.tokens.filter(t => ids.has(t.id) && t.isQuickToken);
+    if (!copies.length) return false;
+    this.tokenClipboard = structuredClone(copies);
+    return true;
+  }
+
+  /**
+   * Drops the clipboard under the mouse (or mid-screen), keeping the group's layout. Children
+   * copied together with their parent stay linked to the copy; a child copied alone becomes free.
+   * The copies become the new selection, so they can be dragged into place right away.
+   */
+  private pasteTokens(): void {
+    const clip = this.tokenClipboard;
+    if (!clip.length) return;
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    let target = this.lastHoverHex;
+    if (target) {
+      const c = HexMath.hexToPixel(target);
+      const s = this.worldToScreen(c.x, c.y);
+      if (s.x < 0 || s.y < 0 || s.x > rect.width || s.y > rect.height) target = null;
+    }
+    target ??= HexMath.pixelToHex(this.screenToWorld(rect.width / 2, rect.height / 2));
+
+    const anchor = clip[0]!.position;
+    const delta = { q: target.q - anchor.q, r: target.r - anchor.r };
+    const idMap = new Map(clip.map(t => [t.id, generateId()]));
+    const pasted: Token[] = clip.map(t => {
+      const copy: Token = {
+        ...structuredClone(t),
+        id: idMap.get(t.id)!,
+        position: { q: t.position.q + delta.q, r: t.position.r + delta.r },
+        tag: undefined,
+      };
+      const parent = t.parentTokenId ? idMap.get(t.parentTokenId) : undefined;
+      if (parent) {
+        copy.parentTokenId = parent;
+      } else if (t.parentTokenId) {
+        copy.parentTokenId = undefined;
+        copy.linkedTokenType = undefined;
+        copy.linkedOffset = undefined;
+        copy.linkedDistance = undefined;
+      }
+      return copy;
+    });
+    this.tokensPaste.emit(pasted);
+    this.selectedTokenIds.set(new Set(pasted.map(t => t.id)));
   }
 
   private handleDrawDown(event: MouseEvent, world: Point): void {
@@ -5155,8 +5335,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const hex = HexMath.pixelToHex(adjustedWorld);
     this.dragHoverHex.set(hex);
     
-    // In enforced mode, calculate path with walls and speed limits
-    if (this.dragMode === 'enforced') {
+    // In enforced mode, calculate path with walls and speed limits. A group moves as one block —
+    // one path and one speed would only describe the token under the mouse, so groups move freely.
+    if (this.dragMode === 'enforced' && !this.groupDragIds.size) {
       const startHex = this.dragStartHex();
       const waypoints = this.dragWaypoints();
       
@@ -5201,11 +5382,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.draggingToken) return;
 
     const startHex = this.dragStartHex();
-    
+
     // In enforced mode, if path exceeds speed OR is blocked, snap back to start
     if (this.dragMode === 'enforced' && (this.dragPathExceedsSpeed() || this.dragPathIsBlocked())) {
       // Don't move - just cancel
       this.draggingToken = null;
+      this.groupDragIds = new Set();
       this.dragStartHex.set(null);
       this.dragHoverHex.set(null);
       this.dragPath.set([]);
@@ -5217,20 +5399,29 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.scheduleRender();
       return;
     }
-    
-    const targetHex = hex;
-    
-    if (startHex && targetHex && (startHex.q !== targetHex.q || startHex.r !== targetHex.r)) {
+
+    // The hex the dragged token is drawn over (grab offset applied), not the one under the mouse —
+    // otherwise a token grabbed near its edge lands one hex away from where it was shown.
+    const targetHex = this.dragHoverHex() ?? hex;
+    const moved = !!startHex && (startHex.q !== targetHex.q || startHex.r !== targetHex.r);
+
+    if (moved && this.groupDragIds.size) {
+      this.tokensMove.emit({
+        tokenIds: [...this.groupDragIds],
+        delta: { q: targetHex.q - startHex!.q, r: targetHex.r - startHex!.r },
+      });
+    } else if (moved) {
       this.tokenMove.emit({
         tokenId: this.draggingToken.id,
         position: targetHex,
       });
-    } else if (startHex && targetHex && startHex.q === targetHex.q && startHex.r === targetHex.r) {
+    } else if (startHex) {
       // No movement — treat as a click for quick view
       this.tokenClick.emit(this.draggingToken.id);
     }
 
     this.draggingToken = null;
+    this.groupDragIds = new Set();
     this.dragStartHex.set(null);
     this.dragHoverHex.set(null);
     this.dragPath.set([]);
@@ -5831,8 +6022,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   getTokenScreenPosition(token: Token): Point {
     // If this token is being dragged, use the current drag position
-    if (this.draggingToken && this.draggingToken.id === token.id && this.dragCurrentPosition()) {
-      return this.worldToScreen(this.dragCurrentPosition()!.x, this.dragCurrentPosition()!.y);
+    const dragPos = this.dragCurrentPosition();
+    if (this.draggingToken && dragPos) {
+      if (this.draggingToken.id === token.id) {
+        return this.worldToScreen(dragPos.x, dragPos.y);
+      }
+      // Group drag: everyone else shifts by the lead token's offset.
+      if (this.groupDragIds.has(token.id)) {
+        const lead = HexMath.hexToPixel(this.draggingToken.position);
+        const own = HexMath.hexToPixel(token.position);
+        return this.worldToScreen(own.x + dragPos.x - lead.x, own.y + dragPos.y - lead.y);
+      }
     }
     // Otherwise use the token's actual position
     const center = HexMath.hexToPixel(token.position);
@@ -5863,13 +6063,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.currentTool !== 'cursor') {
       return;
     }
-    this.draggingToken = token;
-    this.dragStartHex.set(token.position);
-    
+    // The token element swallows the mousedown, so the grid's own onMouseDown never runs:
+    // close the context menu and track the release outside the map here instead.
+    this.showContextMenu.set(false);
+    this.addDocumentListeners();
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const world = this.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
+    this.beginTokenPointer(token, event, world);
+    if (this.draggingToken?.id !== token.id) return; // Shift+click only toggled the selection
+
     // Set ghost at the token's start position
     const startCenter = HexMath.hexToPixel(token.position);
     this.dragGhostPosition.set(startCenter);
-    
+
     // Set current drag position to start
     this.dragCurrentPosition.set(startCenter);
   }
@@ -5990,6 +6196,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         name: this.quickTokenName() || 'Quick Token',
         portrait: '',
         position: hex
+      });
+      this.quickTokenName.set('');
+    }
+    this.closeContextMenu();
+  }
+
+  /** „Erstellen NSC": hands the hex and the menu's viewport position to the Schnell-NSC panel. */
+  onCreateQuickNpc(): void {
+    const hex = this.contextMenuHex();
+    if (hex) {
+      this.quickNpcRequest.emit({
+        name: this.quickTokenName(),
+        position: hex,
+        screen: this.contextMenuPosition(),
       });
       this.quickTokenName.set('');
     }
