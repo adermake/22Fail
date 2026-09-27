@@ -731,13 +731,28 @@ lobby-container
 
 ### Schnell-NSC (`utils/quick-npc.util.ts`, `lobby/lobby-quick-npc/`)
 - Hex-Kontextmenü: „Erstellen Simpel" (altes Schnell-Token, Enter) / „Erstellen NSC" (nur GM, Umschalt+Enter) → Panel.
-- Panel: 8 Merkmal-Knöpfe (Tasten 1–8), Spezialisierung (0–100 %, Std. 50), Level (1–30, Std. = Party-Schnitt), Live-Vorschau der 6 Werte, Enter erstellt.
+- Panel: 9 Merkmale (Tasten 1–9) — Stark/Zäh/Schnell/Geschickt/Klug/Willensstark gewichten je einen Stat;
+  Gepanzert (+Stabilität), Aggressiv (+Effektivität), Aufmerksam (Reaktion −2, niedriger = besser) sind Kampfwerte, kein Stat.
+  Spezialisierung (0–100 %, Std. 50), Level (1–30, Std. = Party-Schnitt), Live-Vorschau der 6 Werte, Enter erstellt.
 - `buildQuickNpcTemplate`: Verhältnis = (1−s)·gleichmäßig + s·Merkmalsgewichte → `distributeByRatio` auf das **Spieler**-Budget;
-  Seele gesperrt (Level im Panel verteilt entlang des Verhältnisses neu). Variation: Stat-Shuffle ~8 % + Ausrüstung „Zufällig"
-  mit generierten Slots (1 Waffe nach Merkmal: Fernkämpfer→FERNKAMPF, Schadensstark→SCHWER/STR, Geschickt→LEICHT/DEX;
-  Gepanzert = alle 5 Rüstungsteile, sonst Brust/Helm je 30 %). Körper nutzt Waffen-Effizienz und Rüstungs-Stabilität.
+  Seele gesperrt (Level im Panel verteilt entlang des Verhältnisses neu). Variation: Stat-Shuffle ~8 %.
+- **Ohne Ausrüstung (Standard, Tiere)**: Effektivität/Stabilität angeboren (`quickNpcInnate`, ~10 Eff. auf Level 8; Aggressiv ×1,5,
+  Gepanzert +10+1,5·Level Stab.).
+- **Mit Ausrüstung** (Taste A → zweites Fenster): Archetyp (Krieger, Wächter, Barbar, Klingentänzer, Schurke, Bogenschütze, Magier;
+  Tasten 1–7) mit geordneter Teileliste, Menge = die ersten N Teile, Wert = Materialpool nach Kosten-Rang (`materialPoolForValue`,
+  Fenster ±25 % um den Wert; Generator fällt pro Slot auf alle Materialien zurück), Schmiedepunkte je Teil (Std. `quickGearBudget` = 6+Level/2,
+  10 auf Level 8). Werte kommen aus der Ausrüstung; Aggressiv/Gepanzert als `body.effizienzBonus`/`stabilitaetBonus` obendrauf.
 - Token: `statblockId = 'quick-npc'` (kein Bibliothekseintrag), `npcTemplate` = Vorlage, `npcInstance` via `rollNpcInstance`.
   „Neu würfeln"/Level und Kopieren lesen `npcTemplate ?? Bibliotheks-Statblock`.
+
+### NSC-Bearbeiten im Panel (`utils/npc-edit.util.ts`)
+- GM, NSC-Token: Stift im Panel-Kopf → Aktionen-Ansicht mit Eingabefeldern statt Würfelknöpfen: Name, 6 Grundwerte (vor Fertigkeiten/Effekten),
+  Effektivität, Stabilität, Grundbonus, Reaktion, Bewegung.
+- Eingegeben wird das **Ergebnis**; `applyNpcEdit` rechnet zurück: Grundwert → Seele (abzgl. Körper-Add, bzw. Override-Mod), Pools neu;
+  Eff./Stab. angeboren = direkt, mit Ausrüstung = Bonus über Waffe/Rüstung; Reaktion/Grundbonus/Bewegung = Delta in `statblock.adjust`
+  (→ `reaktionswertBonus`/`grundbonusBonus`/`bewegungBonus` im NSC-Blatt).
+- Geschrieben wird in `Token.npcInstance`; ein live verknüpfter Bibliotheks-NSC bekommt dabei seinen Schnappschuss. Neu würfeln verwirft Bearbeitungen.
+- Kriegsnebel hat keine Taste mehr (V kollidierte mit Strg+V).
 
 ### Token-Ressourcen
 - Token.currentHealth?, currentMana?, currentEnergy? → optionale Felder auf dem Token

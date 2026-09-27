@@ -49,13 +49,18 @@
   border-color: var(--accent);
 }
 
-.qn-traits {
+.qn-traits,
+.qn-archetypes {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
 }
 
-.qn-trait {
+.qn-archetypes {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.qn-chip {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -70,14 +75,66 @@
   transition: background 0.1s, border-color 0.1s;
 }
 
-.qn-trait:hover {
+.qn-chip:hover {
   border-color: var(--accent);
 }
 
-.qn-trait.on {
+.qn-chip.on {
   background: color-mix(in srgb, var(--accent) 30%, var(--bg));
   border-color: var(--accent);
   font-weight: 600;
+}
+
+/* Gepanzert / Aggressiv / Aufmerksam: combat values, not stats — set apart by a dashed edge. */
+.qn-chip.qn-combat {
+  border-style: dashed;
+}
+
+.qn-gear-row {
+  display: flex;
+  gap: 6px;
+}
+
+.qn-gear-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.qn-gear-btn .qn-kbd {
+  margin-left: auto;
+}
+
+.qn-gear-btn:hover,
+.qn-gear-btn.open {
+  border-color: var(--accent);
+}
+
+.qn-gear-btn.on {
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg));
+  border-color: var(--accent);
+}
+
+.qn-gear-clear {
+  padding: 0 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.qn-gear-window {
+  width: 300px;
 }
 
 .qn-key {

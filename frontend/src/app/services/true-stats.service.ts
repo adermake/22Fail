@@ -1224,7 +1224,7 @@ export class TrueStatsService {
    */
   calculateMovementSpeed(sheet: CharacterSheet): number {
     const spd = this.calculateEffectiveSpeed(sheet);
-    return Math.max(0, this.derivedTotal(sheet, 'bewegung', Math.floor(8 + spd / 4)));
+    return Math.max(0, this.derivedTotal(sheet, 'bewegung', Math.floor(8 + spd / 4) + (sheet.bewegungBonus || 0)));
   }
 
   /**

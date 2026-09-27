@@ -42,6 +42,8 @@ import { LobbyTokenActionsService } from '../lobby-token-actions.service';
 import { LobbyMapManagerComponent, MapManagerPlayer } from '../lobby-map-manager/lobby-map-manager.component';
 import { formatCurrencyAsUnits, isEmptyCurrency } from '../../model/current-events.model';
 import { NpcSheetTokenState, buildNpcSheet, npcSkillBlocks } from '../../utils/npc-sheet.util';
+import { NpcEdit, NpcGearValues } from '../../utils/npc-edit.util';
+import { NpcDerivedAdjust, NpcStatKey } from '../../model/npc-statblock.model';
 
 interface StatDisplay {
   label: string;
@@ -118,8 +120,19 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       } @else {
         <div class="token-portrait-placeholder">{{ (token.name || '?').charAt(0).toUpperCase() }}</div>
       }
-      <span class="token-name">{{ tokenLabel(token) }}</span>
-      @if (npcRollable && npc) {
+      @if (editMode()) {
+        <input class="token-name-input" type="text" [value]="token.name" title="Name"
+               (change)="editName($event)" (keydown.enter)="$any($event.target).blur()" />
+      } @else {
+        <span class="token-name">{{ tokenLabel(token) }}</span>
+      }
+      @if (npcEditable) {
+        <button class="npc-reroll-btn" [class.active]="editMode()" (click)="toggleEditMode()"
+                [title]="editMode() ? 'Bearbeiten beenden' : 'Werte bearbeiten — Name, Grundwerte, Effektivität, Stabilität, Reaktion, Bewegung'">
+          <span class="app-icon i-draw"></span>
+        </button>
+      }
+      @if (npcRollable && npc && !editMode()) {
         <label class="npc-level" title="Level — eine Änderung würfelt das NSC auf diesem Level neu">
           <span>Lv</span>
           <input class="npc-level-input" type="number" min="1" [value]="npc.level"
@@ -256,6 +269,31 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
     </div>
 
     <!-- Key Stats: icon-only so all fit in the narrow panel (tooltip has the full label). -->
+    @if (editMode()) {
+    <!-- Edit mode: same row, every value an input. Effektivität/Stabilität show even at 0. -->
+    <div class="key-stats-row editing">
+      <label class="key-stat-item" [title]="npc?.body?.useWeaponEffizienz ? 'Effektivität (Waffe + Bonus)' : 'Effektivität (angeboren)'">
+        <span class="app-icon i-effektivity key-stat-ico"></span>
+        <input class="key-stat-input" type="number" min="0" [value]="weaponEfficiency" (change)="editEffizienz($event)" />
+      </label>
+      <label class="key-stat-item" [title]="npc?.body?.useArmorStabilitaet ? 'Stabilität (Rüstung + Bonus)' : 'Stabilität (angeboren)'">
+        <span class="app-icon i-stability key-stat-ico"></span>
+        <input class="key-stat-input" type="number" min="0" [value]="totalStability" (change)="editStabilitaet($event)" />
+      </label>
+      <label class="key-stat-item" title="Grundbonus">
+        <span class="app-icon i-grundbonus key-stat-ico"></span>
+        <input class="key-stat-input" type="number" [value]="panelGrundbonus" (change)="editDerived('grundbonus', $event)" />
+      </label>
+      <label class="key-stat-item" title="Reaktionswert (niedriger ist besser)">
+        <span class="app-icon i-reaction key-stat-ico"></span>
+        <input class="key-stat-input" type="number" [value]="panelReaktion" (change)="editDerived('reaktion', $event)" />
+      </label>
+      <label class="key-stat-item" title="Bewegungsgeschwindigkeit">
+        <span class="app-icon i-movement key-stat-ico"></span>
+        <input class="key-stat-input" type="number" min="0" [value]="panelMovement" (change)="editDerived('bewegung', $event)" />
+      </label>
+    </div>
+    } @else {
     <div class="key-stats-row">
       @if (weaponEfficiency > 0) {
         <div class="key-stat-item" title="Waffeneffizienz der gewählten Waffe">
@@ -282,6 +320,7 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
         <span class="key-stat-val">{{ panelMovement }}</span>
       </div>
     </div>
+    }
 
     <!-- Weapon picker: the weapon slot stacks, so choose which blade the Effektivität refers to. -->
     @if (wieldedWeapons.length > 1) {
@@ -305,6 +344,22 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       @if (canViewStats && activeTab() === 'actions') {
 
         <!-- Schnellwürfe -->
+        @if (editMode()) {
+        <!-- Edit mode: the base values (before skills and effects), editable in place. -->
+        <div class="section-header"><span class="app-icon i-draw"></span> Grundwerte bearbeiten</div>
+        <div class="stats-grid">
+          @for (stat of baseStats; track stat.key) {
+            <label class="stat-roll-btn stat-edit">
+              <span class="stat-lbl">{{ stat.label }}</span>
+              <input class="stat-edit-input" type="number" min="1" [value]="stat.value"
+                     (change)="editStat(stat.key, $event)" (keydown.enter)="$any($event.target).blur()" />
+              <span class="stat-mod" [class.mod-good]="diceBonus(stat.value) < 0" [class.mod-bad]="diceBonus(stat.value) > 0">
+                {{ diceBonus(stat.value) >= 0 ? '+' : '' }}{{ diceBonus(stat.value) }}
+              </span>
+            </label>
+          }
+        </div>
+        } @else {
         <div class="section-header"><span class="app-icon i-effektivity"></span> Schnellwürfe</div>
         <div class="stats-grid">
           @for (stat of stats; track stat.label) {
@@ -318,6 +373,7 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
             </button>
           }
         </div>
+        }
 
         <!-- Freier Wurf -->
         <div class="section-header"><span class="app-icon i-dice"></span> Freier Wurf</div>
@@ -798,6 +854,26 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       transition: background 0.15s, color 0.15s;
     }
     .npc-reroll-btn:hover { background: #374151; color: var(--accent, #8b5cf6); }
+    .npc-reroll-btn.active { background: var(--accent, #8b5cf6); border-color: var(--accent, #8b5cf6); color: #fff; }
+    .token-name-input {
+      flex: 1; min-width: 0; padding: 3px 6px;
+      background: #0f172a; border: 1px solid var(--accent, #8b5cf6); border-radius: 4px;
+      color: #f1f5f9; font-size: 14px; font-weight: 700;
+    }
+    .token-name-input:focus { outline: none; }
+    /* Edit mode: same tiles, values become inputs. */
+    .key-stats-row.editing .key-stat-item { border-color: var(--accent, #8b5cf6); cursor: text; }
+    .key-stat-input, .stat-edit-input {
+      width: 100%; min-width: 0; padding: 0; margin-left: auto;
+      background: transparent; border: none; text-align: right;
+      color: #f1f5f9; font-size: 14px; font-weight: 800;
+      -moz-appearance: textfield;
+    }
+    .stat-edit-input { text-align: center; font-size: 15px; font-weight: 700; }
+    .key-stat-input:focus, .stat-edit-input:focus { outline: none; background: #0f172a; border-radius: 3px; }
+    .key-stat-input::-webkit-inner-spin-button, .stat-edit-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .stat-roll-btn.stat-edit { cursor: text; border-color: var(--accent, #8b5cf6); }
+    .stat-roll-btn.stat-edit:hover { transform: none; }
 
     /* ---- Resources ---- */
     .resources {
@@ -1525,6 +1601,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   /** Reroll the NSC; `level` set = the GM changed the level field. */
   @Output() npcRoll = new EventEmitter<{ level?: number }>();
+  /** Edit mode changed one NSC value — with what the gear gives, so a geared value becomes a bonus. */
+  @Output() npcEdit = new EventEmitter<{ edit: NpcEdit; gear: NpcGearValues }>();
   @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
   @Output() deselect = new EventEmitter<void>();
   @Output() requestTokenDraw = new EventEmitter<string>(); // Emits tokenId
@@ -1618,6 +1696,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     // Switch to actions tab and sync local state whenever the selected token changes
     if (changes['token'] && this.token?.id !== changes['token'].previousValue?.id) {
       this.syncCosmeticLocals();
+      this.editMode.set(false);
       this.showAddEffectForm.set(false);
       this.showDrawCanvas.set(false);
       this.showDiceRoller.set(false);
@@ -1789,6 +1868,84 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return isEmptyCurrency(purse) ? '' : formatCurrencyAsUnits(purse!);
   }
 
+  // ---- Edit mode (GM, NSC tokens): the actions view with inputs instead of roll buttons ----
+
+  editMode = signal(false);
+
+  get npcEditable(): boolean {
+    return this.isGM && !!this.npc && this.canViewStats;
+  }
+
+  toggleEditMode(): void {
+    this.editMode.set(!this.editMode());
+    if (this.editMode()) this.setTab('actions');
+  }
+
+  /** The base values the edit grid shows — before skills and effects, the ones that are stored. */
+  get baseStats(): { key: NpcStatKey; label: string; value: number }[] {
+    const npc = this.npc;
+    if (!npc) return [];
+    return [
+      { key: 'strength', label: 'STR', value: npc.strength },
+      { key: 'dexterity', label: 'GES', value: npc.dexterity },
+      { key: 'speed', label: 'SPD', value: npc.speed },
+      { key: 'intelligence', label: 'INT', value: npc.intelligence },
+      { key: 'constitution', label: 'KON', value: npc.constitution },
+      { key: 'wille', label: 'WIL', value: npc.wille },
+    ];
+  }
+
+  private emitEdit(edit: NpcEdit): void {
+    const sheet = this.diceSheet;
+    this.npcEdit.emit({
+      edit,
+      gear: {
+        weapon: this.chosenWeaponEfficiency,
+        armor: sheet ? this.trueStats.calculateTotalStability(sheet) : 0,
+      },
+    });
+  }
+
+  private numberFrom(event: Event): number | null {
+    const value = Number((event.target as HTMLInputElement).value);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  editName(event: Event): void {
+    const name = (event.target as HTMLInputElement).value.trim();
+    if (name && name !== this.token?.name) this.emitEdit({ name });
+  }
+
+  editStat(key: NpcStatKey, event: Event): void {
+    const value = this.numberFrom(event);
+    if (value !== null) this.emitEdit({ stat: { key, value } });
+  }
+
+  editEffizienz(event: Event): void {
+    const value = this.numberFrom(event);
+    if (value !== null && value !== this.weaponEfficiency) this.emitEdit({ effizienz: value });
+  }
+
+  editStabilitaet(event: Event): void {
+    const value = this.numberFrom(event);
+    if (value !== null && value !== this.totalStability) this.emitEdit({ stabilitaet: value });
+  }
+
+  /**
+   * Reaktion / Grundbonus / Bewegung are formulas; the typed number is turned into a delta on top
+   * (old delta + the difference to what is shown now), so the field then shows exactly that.
+   */
+  editDerived(kind: keyof NpcDerivedAdjust, event: Event): void {
+    const value = this.numberFrom(event);
+    if (value === null) return;
+    const shown = kind === 'reaktion' ? this.panelReaktion
+      : kind === 'grundbonus' ? this.panelGrundbonus
+      : this.panelMovement;
+    if (value === shown) return;
+    const delta = (this.npc?.adjust?.[kind] ?? 0) + Math.round(value) - shown;
+    this.emitEdit({ adjust: { [kind]: delta } });
+  }
+
   /** Level field in the header: a real change rerolls the NSC at that level. */
   onNpcLevelInput(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -1870,7 +2027,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   get weaponEfficiency(): number {
     const weaponEff = this.chosenWeaponEfficiency;
     if (this.npc) {
-      return this.npc.body?.useWeaponEffizienz ? weaponEff : (this.npc.body?.effizienz ?? 0);
+      const body = this.npc.body;
+      return body?.useWeaponEffizienz ? weaponEff + (body.effizienzBonus ?? 0) : (body?.effizienz ?? 0);
     }
     return weaponEff;
   }
@@ -1881,7 +2039,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     const sheet = this.diceSheet;
     const armorBased = sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
     if (this.npc) {
-      return this.npc.body?.useArmorStabilitaet ? armorBased : (this.npc.body?.stabilitaet ?? 0);
+      const body = this.npc.body;
+      return body?.useArmorStabilitaet ? armorBased + (body.stabilitaetBonus ?? 0) : (body?.stabilitaet ?? 0);
     }
     return armorBased;
   }

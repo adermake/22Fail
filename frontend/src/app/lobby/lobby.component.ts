@@ -32,6 +32,7 @@ import {
 } from '../model/npc-statblock.model';
 import { rollCetris, rollNpcInstance } from '../utils/npc-roll.util';
 import { QUICK_NPC_STATBLOCK_ID, buildQuickNpcTemplate } from '../utils/quick-npc.util';
+import { NpcEdit, NpcGearValues, applyNpcEdit } from '../utils/npc-edit.util';
 import { LobbyQuickNpcComponent, QuickNpcRequest } from './lobby-quick-npc/lobby-quick-npc.component';
 import { Currency, isEmptyCurrency } from '../model/current-events.model';
 import { NpcGeneratorService } from '../services/npc-generator.service';
@@ -912,13 +913,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
         this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
-      // V (not G — G is held to arm the radial ping wheel in lobby-grid).
-      case 'v':
-        if (!this.isGM()) break;
-        this.currentTool.set('fog');
-        this.isEraserMode.set(false);
-        event.preventDefault();
-        break;
+      // No fog shortcut: V clashed with Strg+V (paste) — the fog tool is toolbar-only now.
       case 's':
         this.currentTool.set('cursor');
         this.isEraserMode.set(false);
@@ -1173,10 +1168,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
   async onQuickNpcCreate(position: HexCoord, request: QuickNpcRequest): Promise<void> {
     this.quickNpcDraft.set(null);
     if (!this.isGM()) return;
-    const weaponTypes = await this.weaponTypes.load();
+    const [weaponTypes, forge] = request.gear
+      ? await Promise.all([this.weaponTypes.load(), this.forgeLibrary.load()])
+      : [[], { materials: [] }];
     const template = buildQuickNpcTemplate({
       ...request,
       weaponTypes: weaponTypes.map(w => ({ name: w.name, category: w.category })),
+      materials: forge.materials,
     });
     this.store.addToken({
       characterId: 'npc-' + QUICK_NPC_STATBLOCK_ID + '-' + Date.now().toString(36),
@@ -1413,6 +1411,24 @@ export class LobbyComponent implements OnInit, OnDestroy {
       currentHealth: undefined,
       currentMana: undefined,
       currentEnergy: undefined,
+    });
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Edit mode in the panel: one value into the token's own snapshot. A token still live-linked
+   * to a library statblock gets its snapshot here — the edit is for this goblin, not every goblin.
+   * „Neu würfeln" replaces the snapshot, edits included: a reroll is a new creature.
+   */
+  onNpcEdit(event: { edit: NpcEdit; gear: NpcGearValues }): void {
+    const token = this.selectedPanelToken();
+    if (!this.isGM() || !token) return;
+    const current = this.statblockForToken(token);
+    if (!current) return;
+    const npcInstance = applyNpcEdit(structuredClone(current), event.edit, this.npcGen, event.gear);
+    this.store.updateToken(token.id, {
+      npcInstance,
+      ...(event.edit.name?.trim() ? { name: event.edit.name.trim() } : {}),
     });
     this.cdr.markForCheck();
   }

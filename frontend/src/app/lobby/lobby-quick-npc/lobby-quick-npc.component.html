@@ -1,56 +1,107 @@
 <div class="quick-npc-backdrop" (mousedown)="cancel.emit()" (contextmenu)="$event.preventDefault(); cancel.emit()"></div>
-<div
-  #panel
-  class="quick-npc-panel"
-  tabindex="-1"
-  [style.left.px]="left"
-  [style.top.px]="top"
-  (keydown)="onKey($event)"
->
-  <div class="qn-header">
-    <span class="qn-title">Schnell-NSC</span>
-    <input
-      class="qn-name"
-      type="text"
-      placeholder="Name (Gegner)"
-      [value]="name()"
-      (input)="name.set($any($event.target).value)"
-    />
-  </div>
+<div class="qn-root" (keydown)="onKey($event)">
+  <div
+    #panel
+    class="quick-npc-panel"
+    tabindex="-1"
+    [style.left.px]="left"
+    [style.top.px]="top"
+  >
+    <div class="qn-header">
+      <span class="qn-title">Schnell-NSC</span>
+      <input
+        class="qn-name"
+        type="text"
+        placeholder="Name (Gegner)"
+        [value]="name()"
+        (input)="name.set($any($event.target).value)"
+      />
+    </div>
 
-  <div class="qn-traits">
-    @for (trait of traits; track trait.id; let i = $index) {
-      <button
-        type="button"
-        class="qn-trait"
-        [class.on]="isOn(trait.id)"
-        [title]="trait.hint"
-        (click)="toggle(trait.id)"
-      >
-        <span class="qn-key">{{ i + 1 }}</span>{{ trait.label }}
+    <div class="qn-traits">
+      @for (trait of traits; track trait.id; let i = $index) {
+        <button
+          type="button"
+          class="qn-chip"
+          [class.on]="isOn(trait.id)"
+          [class.qn-combat]="isCombat(trait)"
+          [title]="trait.hint"
+          (click)="toggle(trait.id)"
+        >
+          <span class="qn-key">{{ i + 1 }}</span>{{ trait.label }}
+        </button>
+      }
+    </div>
+
+    <label class="qn-slider">
+      <span class="qn-slider-label">Spezialisierung</span>
+      <input type="range" min="0" max="100" step="5" [value]="specialization()" (input)="onRange('specialization', $event)" />
+      <span class="qn-slider-value">{{ specialization() }} %</span>
+    </label>
+    <label class="qn-slider">
+      <span class="qn-slider-label">Level</span>
+      <input type="range" min="1" [max]="maxLevel" step="1" [value]="level()" (input)="onLevel($event)" />
+      <span class="qn-slider-value">{{ level() }}</span>
+    </label>
+
+    <div class="qn-gear-row">
+      <button type="button" class="qn-gear-btn" [class.on]="!!gear()" [class.open]="gearOpen()"
+              (click)="gearOpen() ? closeGear() : openGear()"
+              title="Ausrüstung schmieden lassen (A). Ohne Ausrüstung sind Effektivität und Stabilität angeboren.">
+        <span class="app-icon i-equipment"></span>
+        @if (gear()) { {{ gearSummary() }} } @else { Ohne Ausrüstung }
+        <span class="qn-kbd">A</span>
       </button>
-    }
+      @if (gear()) {
+        <button type="button" class="qn-gear-clear" (click)="removeGear()" title="Ausrüstung entfernen">✕</button>
+      }
+    </div>
+
+    <div class="qn-preview">
+      @for (s of statLabels; track s.key) {
+        <span class="qn-stat"><span class="qn-stat-label">{{ s.label }}</span>{{ preview()[s.key] }}</span>
+      }
+    </div>
+
+    <div class="qn-actions">
+      <button type="button" class="qn-cancel" (click)="cancel.emit()">Abbrechen</button>
+      <button type="button" class="qn-create" (click)="submit()">Erstellen <span class="qn-kbd">Enter</span></button>
+    </div>
   </div>
 
-  <label class="qn-slider">
-    <span class="qn-slider-label">Spezialisierung</span>
-    <input type="range" min="0" max="100" step="5" [value]="specialization()" (input)="onRange('specialization', $event)" />
-    <span class="qn-slider-value">{{ specialization() }} %</span>
-  </label>
-  <label class="qn-slider">
-    <span class="qn-slider-label">Level</span>
-    <input type="range" min="1" [max]="maxLevel" step="1" [value]="level()" (input)="onRange('level', $event)" />
-    <span class="qn-slider-value">{{ level() }}</span>
-  </label>
+  @if (gearOpen()) {
+    <div class="quick-npc-panel qn-gear-window" [style.left.px]="gearLeft" [style.top.px]="top">
+      <div class="qn-header"><span class="qn-title">Ausrüstung</span></div>
 
-  <div class="qn-preview">
-    @for (s of statLabels; track s.key) {
-      <span class="qn-stat"><span class="qn-stat-label">{{ s.label }}</span>{{ preview()[s.key] }}</span>
-    }
-  </div>
+      <div class="qn-archetypes">
+        @for (a of archetypes; track a.id; let i = $index) {
+          <button type="button" class="qn-chip" [class.on]="draftArchetype() === a.id"
+                  [title]="a.hint" (click)="pickArchetype(a.id)">
+            <span class="qn-key">{{ i + 1 }}</span>{{ a.label }}
+          </button>
+        }
+      </div>
 
-  <div class="qn-actions">
-    <button type="button" class="qn-cancel" (click)="cancel.emit()">Abbrechen</button>
-    <button type="button" class="qn-create" (click)="submit()">Erstellen <span class="qn-kbd">Enter</span></button>
-  </div>
+      <label class="qn-slider">
+        <span class="qn-slider-label">Menge</span>
+        <input type="range" min="1" [max]="maxPieces" step="1" [value]="draftAmount()" (input)="onRange('draftAmount', $event)" />
+        <span class="qn-slider-value">{{ draftAmount() }}</span>
+      </label>
+      <label class="qn-slider" title="Welche Materialien: billig und häufig bis selten und wertvoll">
+        <span class="qn-slider-label">Wert</span>
+        <input type="range" min="0" max="100" step="5" [value]="draftValue()" (input)="onRange('draftValue', $event)" />
+        <span class="qn-slider-value">{{ valueLabel() }}</span>
+      </label>
+      <label class="qn-slider" title="Schmiedepunkte je Teil — 10 ist das Werk eines gewöhnlichen Schmieds">
+        <span class="qn-slider-label">Schmiedepunkte</span>
+        <input type="range" min="1" max="40" step="1" [value]="draftBudget()" (input)="onBudget($event)" />
+        <span class="qn-slider-value">{{ draftBudget() }}</span>
+      </label>
+
+      <div class="qn-actions">
+        <button type="button" class="qn-cancel" (click)="removeGear()">Ohne</button>
+        <button type="button" class="qn-create" (click)="applyGear()">Übernehmen <span class="qn-kbd">Enter</span></button>
+      </div>
+    </div>
+  }
 </div>

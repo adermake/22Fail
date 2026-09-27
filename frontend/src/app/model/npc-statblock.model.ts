@@ -182,7 +182,26 @@ export interface NpcBody {
   useWeaponEffizienz: boolean;
   /** Use the equipped armor's stability instead of the flat `stabilitaet` above. */
   useArmorStabilitaet: boolean;
+  /**
+   * Flat bonus on top of the weapon's Effizienz — only read while `useWeaponEffizienz`. Lets a
+   * geared NSC still be „Aggressiv", and lets the GM nudge a geared NSC without dropping its gear.
+   */
+  effizienzBonus?: number;
+  /** Flat bonus on top of the armour's Stabilität — only read while `useArmorStabilitaet`. */
+  stabilitaetBonus?: number;
   mods: NpcBodyStatMod[];
+}
+
+/**
+ * Hand adjustments to derived values, as deltas on top of the formula (the GM's lobby edit mode,
+ * or a Schnell-NSC trait). Deltas rather than fixed values, so they keep working when the stats
+ * underneath change.
+ */
+export interface NpcDerivedAdjust {
+  /** Lower is better. */
+  reaktion?: number;
+  grundbonus?: number;
+  bewegung?: number;
 }
 
 /**
@@ -492,6 +511,8 @@ export interface NpcStatblock {
   // fields stay populated so existing consumers (lobby tokens, scripting, tracker) keep working.
   soul?: NpcSoul;
   body?: NpcBody;
+  /** Deltas on Reaktion / Grundbonus / Bewegung — see `NpcDerivedAdjust`. */
+  adjust?: NpcDerivedAdjust;
 
   /**
    * Variation beim Ablegen: welche Listen gewürfelt werden, mit welcher Chance, und wie die Werte

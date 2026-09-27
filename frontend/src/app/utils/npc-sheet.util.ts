@@ -148,6 +148,9 @@ export function buildNpcSheet(npc: NpcStatblock, state: NpcSheetTokenState = {})
   sheet.inventory = npc.inventory ?? [];
   sheet.fokusMultiplier = 1;
   sheet.fokusBonus = fokusBridge(npc);
+  sheet.reaktionswertBonus = npc.adjust?.reaktion ?? 0;
+  sheet.grundbonusBonus = npc.adjust?.grundbonus ?? 0;
+  sheet.bewegungBonus = npc.adjust?.bewegung ?? 0;
 
   // A skill counts as active from either channel: the cast window's toggle list or the dock's
   // entries. TrueStatsService merges the same two, so both agree on what is running.

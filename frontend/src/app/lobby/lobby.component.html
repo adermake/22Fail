@@ -264,6 +264,7 @@
           [players]="mapPlayers()"
           [currentMapId]="currentMapId()"
           (npcRoll)="onNpcRoll($event)"
+          (npcEdit)="onNpcEdit($event)"
           (tokenUpdate)="onTokenResourceChange($event)"
           (deselect)="selectedTokenId.set(null)"
           (requestTokenDraw)="onRequestTokenDraw($event)"

@@ -76,7 +76,7 @@ export class LobbyToolbarComponent {
    * always an accident (a stray V used to wipe the fog for the whole table), so they are not
    * rendered at all rather than merely dimmed.
    */
-  tools: { id: ToolType; icon: string; label: string; shortcut: string; gmOnly?: boolean }[] = [
+  tools: { id: ToolType; icon: string; label: string; shortcut?: string; gmOnly?: boolean }[] = [
     { id: 'cursor', icon: 'i-token-drag', label: 'Auswählen/Bewegen', shortcut: 'S' },
     { id: 'lasso', icon: 'i-lasso', label: 'Lasso', shortcut: 'F' },
     { id: 'draw', icon: 'i-draw', label: 'Zeichnen', shortcut: 'B' },
@@ -84,11 +84,11 @@ export class LobbyToolbarComponent {
     { id: 'measure', icon: 'i-ruler', label: 'Messen', shortcut: 'R' },
     { id: 'image', icon: 'i-image', label: 'Bilder', shortcut: 'I', gmOnly: true },
     { id: 'texture', icon: 'i-texture', label: 'Textur Pinsel', shortcut: 'T', gmOnly: true },
-    { id: 'fog', icon: 'i-fog', label: 'Kriegsnebel', shortcut: 'V', gmOnly: true },
+    { id: 'fog', icon: 'i-fog', label: 'Kriegsnebel', gmOnly: true },
   ];
 
   /** The tools this viewer may actually pick up. */
-  get visibleTools(): { id: ToolType; icon: string; label: string; shortcut: string; gmOnly?: boolean }[] {
+  get visibleTools(): { id: ToolType; icon: string; label: string; shortcut?: string; gmOnly?: boolean }[] {
     return this.isGM ? this.tools : this.tools.filter(t => !t.gmOnly);
   }
 
