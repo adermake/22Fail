@@ -31,6 +31,8 @@ export class PingController {
     private onChange: () => void,
     private broadcast: (p: PingBroadcast) => void,
     private selfId: () => string,
+    /** Name shown under this client's pings; optional so older hosts keep working. */
+    private selfName: () => string = () => '',
   ) {}
 
   destroy(): void {
@@ -76,11 +78,12 @@ export class PingController {
     const type = this.wheelType;
     const { x: worldX, y: worldY } = this.wheelWorld;
     const createdBy = this.selfId();
+    const name = this.selfName() || undefined;
     this.wheelOpen = false;
     this.downScreen = null;
 
-    this.addPing({ id, type, worldX, worldY, createdBy, createdAt: Date.now() }, true);
-    this.broadcast({ id, type, worldX, worldY, createdBy });
+    this.addPing({ id, type, worldX, worldY, createdBy, name, createdAt: Date.now() }, true);
+    this.broadcast({ id, type, worldX, worldY, createdBy, name });
     return true;
   }
 

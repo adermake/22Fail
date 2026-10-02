@@ -85,6 +85,13 @@ export interface ActivePing {
   worldX: number;
   worldY: number;
   createdBy: string;
+  /**
+   * Display name of whoever pinged, shown under the marker.
+   *
+   * Separate from `createdBy` because that is an *identity* (the lobby uses the socket id),
+   * which says nothing to the people looking at the map.
+   */
+  name?: string;
   createdAt: number;
 }
 
@@ -95,6 +102,7 @@ export interface PingBroadcast {
   worldX: number;
   worldY: number;
   createdBy: string;
+  name?: string;
 }
 
 /** Pick a ping type from a drag vector (screen space, y pointing down). */

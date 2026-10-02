@@ -240,10 +240,13 @@ export class MapEditorGateway implements OnGatewayDisconnect {
     if (!worldName || !ping) return;
     if (!Number.isFinite(ping.worldX) || !Number.isFinite(ping.worldY)) return;
 
+    // Both stamped from the handshake: `name` is shown under the marker, and taken from the
+    // body it would let anyone ping under somebody else's name.
+    const user = this.userId(client);
     this.server
       .to(this.gmRoom(worldName))
       .to(this.room(worldName))
-      .emit('mapEditorPing', { ...ping, createdBy: this.userId(client) });
+      .emit('mapEditorPing', { ...ping, createdBy: user, name: user });
   }
 
   @SubscribeMessage('mapEditorMeasure')

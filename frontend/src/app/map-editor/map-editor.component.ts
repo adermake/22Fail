@@ -82,6 +82,8 @@ import {
 } from './map-secrets';
 import { FogView } from './fog-view';
 import { PassageView } from './passage-view';
+import { PartyPanelComponent } from './party-panel.component';
+import { TravelLegendComponent } from './travel-legend.component';
 import { ERASER_COLOR, SketchView } from './sketch-view';
 import { MeasureLine, PlayAidsView } from './play-aids';
 
@@ -158,7 +160,14 @@ import {
 @Component({
   selector: 'app-map-editor',
   standalone: true,
-  imports: [CommonModule, PingLayerComponent, PingWheelComponent, LobbyTokenComponent],
+  imports: [
+    CommonModule,
+    PingLayerComponent,
+    PingWheelComponent,
+    LobbyTokenComponent,
+    PartyPanelComponent,
+    TravelLegendComponent,
+  ],
   templateUrl: './map-editor.component.html',
   styleUrls: ['./map-editor.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -813,23 +822,38 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private fogRevision = 0;
 
   /**
-   * Pings reuse the shared subsystem the lobby and the old world map already use —
-   * `PingController` for the G-chord state machine, `app-ping-layer` for the animation,
-   * `app-ping-wheel` for the radial selector, and its sounds. Rebuilding any of that would
-   * have produced a second kind of ping that looked and sounded wrong next to the first.
+   * Pings reuse the shared subsystem the lobby uses — `PingController` for the G-chord state
+   * machine, `app-ping-layer` for the animation, `app-ping-wheel` for the radial selector, and
+   * its sounds. Rebuilding any of that would have produced a second kind of ping that looked
+   * and sounded wrong next to the first.
    */
   readonly pingCtl = new PingController(
-    () => this.cdr.markForCheck(),
+    () => {
+      this.pingVersion.update(n => n + 1);
+      this.cdr.markForCheck();
+    },
     broadcast => this.store.sendPing(broadcast),
     () => this.auth.currentUser()?.name ?? 'unbekannt',
+    () => this.auth.currentUser()?.name ?? '',
   );
+
+  /**
+   * Bumped whenever the controller's ping list changes.
+   *
+   * The controller keeps its pings in a plain array, which a `computed` cannot see into. So
+   * `renderedPings` recomputed only when the *camera* moved: the first ping showed because
+   * the overlay mounted fresh, and every later one appeared, moved or vanished only when you
+   * next zoomed. This is the signal that tells it the list changed.
+   */
+  private readonly pingVersion = signal(0);
 
   /** Pings mapped into screen space for the overlay, recomputed as the camera moves. */
   readonly renderedPings = computed<RenderedPing[]>(() => {
     void this.viewEpoch();
+    void this.pingVersion();
     return this.pingCtl.activePings.map(p => {
       const s = this.renderer.camera.worldToScreen(p.worldX, p.worldY);
-      return { id: p.id, type: p.type, x: s.x, y: s.y };
+      return { id: p.id, type: p.type, x: s.x, y: s.y, name: p.name };
     });
   });
 
@@ -4045,7 +4069,16 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     host.addEventListener('pointerdown', this.onPointerDown);
     host.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
-    host.addEventListener('wheel', this.onWheel, { passive: false });
+    /*
+     * On the wrapper, not the canvas.
+     *
+     * Figures, pings and the context menu are HTML layered *over* the canvas as its siblings,
+     * so a wheel over a token never reached a listener on the canvas: zooming simply stopped
+     * whenever the pointer rested on a figure. The wrapper is the common parent of all of
+     * them, so the event arrives wherever it starts.
+     */
+    this.wheelTarget = host.parentElement ?? host;
+    this.wheelTarget.addEventListener('wheel', this.onWheel, { passive: false });
     host.addEventListener('contextmenu', this.onContextMenu);
     window.addEventListener('keydown', this.onKeyDown);
     // Alt and G are held modifiers, so their release matters as much as their press.
@@ -4056,11 +4089,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     host.removeEventListener('pointerdown', this.onPointerDown);
     host.removeEventListener('pointermove', this.onPointerMove);
     window.removeEventListener('pointerup', this.onPointerUp);
-    host.removeEventListener('wheel', this.onWheel);
+    this.wheelTarget?.removeEventListener('wheel', this.onWheel);
     host.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
   }
+
+  /** Where the wheel listener lives; see `attachInput`. */
+  private wheelTarget?: HTMLElement;
 
   private localPoint(e: PointerEvent | WheelEvent): { x: number; y: number } {
     const rect = (this.pixiHost!.nativeElement as HTMLElement).getBoundingClientRect();

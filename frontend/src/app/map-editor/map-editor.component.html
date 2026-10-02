@@ -187,6 +187,16 @@
       ></div>
 
       @if (inGame()) {
+        <!-- Gruppe und Reisekosten: im Spiel für alle sichtbar, einklappbar und gemerkt. -->
+        <div class="map-overlay map-overlay-top-left">
+          <app-party-panel [worldName]="worldName()" [isGM]="isGM()" />
+        </div>
+        <div class="map-overlay map-overlay-bottom-right">
+          <app-travel-legend />
+        </div>
+      }
+
+      @if (inGame()) {
         <!-- Figuren sind dieselbe Komponente wie in Lobby und alter Weltkarte, als HTML
              über der Karte. In den Canvas gemalte Kreise sahen daneben schlicht falsch aus. -->
         <div class="token-layer">
@@ -249,7 +259,7 @@
            Nur gerendert, solange wirklich ein Ping läuft: die Bindung liest `viewEpoch`, und
            eine dauerhaft gerenderte Bindung darauf zog bei jedem Kameraschritt eine
            Change-Detection über diese ganze Vorlage. -->
-      @if (pingCtl.activePings.length) {
+      @if (renderedPings().length) {
         <app-ping-layer [pings]="renderedPings()" />
       }
       @if (pingCtl.wheelOpen) {

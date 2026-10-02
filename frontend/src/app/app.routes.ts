@@ -23,13 +23,16 @@ export const routes: Routes = [
         loadComponent: () => import('./lobby/lobby.component').then(m => m.LobbyComponent)
     },
     {
+        // The world map *is* the map editor (format v2): edit mode for the GM, game mode for
+        // the table. The v1 viewer (Wonderdraft tiles in OpenSeadragon) was retired once v2
+        // reached parity; every link in the app already pointed at this URL.
         path: 'world-map/:worldName',
-        loadComponent: () => import('./world-map/world-map.component').then(m => m.WorldMapComponent)
+        loadComponent: () => import('./map-editor/map-editor.component').then(m => m.MapEditorComponent)
     },
     {
-        // Map editor (format v2). Takes over 'world-map' once it reaches parity in Phase 3.
+        // Old bookmarks from the v2 development period.
         path: 'map-editor/:worldName',
-        loadComponent: () => import('./map-editor/map-editor.component').then(m => m.MapEditorComponent)
+        redirectTo: 'world-map/:worldName',
     },
     {
         path: 'library/:libraryId',

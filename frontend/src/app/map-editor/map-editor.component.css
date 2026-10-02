@@ -891,3 +891,23 @@
   transform: translate(-50%, -50%);
   z-index: 45;
 }
+
+/* ── game mode: floating cards (party, travel legend) ── */
+
+/* Above the figures, below pings and the context menu: a ping landing under a card should
+   still be seen, and a card should never hide the menu it was opened from. */
+.map-overlay {
+  position: absolute;
+  z-index: 48;
+}
+
+.map-overlay-top-left {
+  top: 10px;
+  left: 10px;
+}
+
+/* Bottom-right, not bottom-left: the cursor readout already owns that corner. */
+.map-overlay-bottom-right {
+  bottom: 10px;
+  right: 10px;
+}

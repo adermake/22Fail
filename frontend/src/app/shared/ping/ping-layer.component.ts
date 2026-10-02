@@ -8,6 +8,8 @@ export interface RenderedPing {
   type: PingType;
   x: number;
   y: number;
+  /** Who pinged. Shown under the marker when present. */
+  name?: string;
 }
 
 /**
@@ -33,6 +35,9 @@ export interface RenderedPing {
           <span class="ping-ring ping-ring-2"></span>
           <span class="ping-ring ping-ring-3"></span>
           <span class="ping-icon">{{ icon(p.type) }}</span>
+          @if (p.name) {
+            <span class="ping-name">{{ p.name }}</span>
+          }
         </div>
       }
     </div>
@@ -80,6 +85,35 @@ export interface RenderedPing {
         filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
         animation: ping-icon 2.4s ease-out forwards;
         text-shadow: 0 0 6px var(--ping-color, #e2e8f0);
+      }
+      /* Under the marker, fading with it. Outlined rather than boxed so it reads over any
+         terrain without hiding what is being pointed at. */
+      .ping-name {
+        position: absolute;
+        left: 50%;
+        top: 22px;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 600;
+        color: #fff;
+        text-shadow:
+          0 0 3px rgba(0, 0, 0, 0.9),
+          0 1px 2px rgba(0, 0, 0, 0.9);
+        animation: ping-name 2.4s ease-out forwards;
+      }
+      @keyframes ping-name {
+        0%,
+        8% {
+          opacity: 0;
+        }
+        16%,
+        82% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
       }
       @keyframes ping-ring {
         0% {

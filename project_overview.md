@@ -1404,5 +1404,24 @@ GM-only.
 zwischen Nachbarn (der ist `√3·R`, in allen sechs Richtungen gleich — das macht ein Hexgitter
 aus). Betraf auch die Größenangabe beim Landmassen-Import, die jede Karte ~15 % zu groß meldete.
 
-**`/world-map` leitet noch nicht um.** Der Plan koppelt das an praktisch bestätigte Parität, und
-die steht aus — der alte Betrachter bleibt bis dahin der Rückfallweg.
+**`/world-map` *ist* jetzt der Karteneditor.** Die Route lädt `MapEditorComponent`;
+`/map-editor/:world` leitet für alte Lesezeichen dorthin um. Der v1-Betrachter (Wonderdraft-Kacheln
+in OpenSeadragon) ist entfernt: `world-map/`-Ordner, `world-map-{api,socket,store}.service.ts` und
+`model/world-map.model.ts`. Alle Links in der App zeigten schon auf `/world-map/` und brauchten
+keine Änderung. **Noch nicht entfernt:** die v1-Handler im Backend (`worldMapPing`,
+`updateWorldMapMeasurement`, `patchWorldMap` in `battlemap.gateway.ts`, `applyPatchToWorldOvermap`)
+und die Abhängigkeit `openseadragon` in `package.json` — beide ungenutzt, aber außerhalb dieses
+Schnitts.
+
+**Gruppe und Reisekosten** (`party-panel.component.ts`, `travel-legend.component.ts`,
+`utils/travel.util.ts`): zwei einklappbare Karten über der Karte im Spielmodus, für alle sichtbar.
+Die Gruppe zeigt Porträt und Ausdauer (`ENERGY`-Status, Maximum über `TrueStatsService`) jedes
+Mitglieds aus `world.partyIds`; der GM zieht allen auf einmal Ausdauer ab (vorbelegt: 2 = eine
+Stunde zu Fuß). **Geschrieben wird über den Socket (`patchCharacter`), nicht REST** — die REST-Route
+speichert, sendet aber an niemanden, offene Charakterbögen blieben stehen. Der Socket spiegelt nicht
+an den Absender, daher wird zusätzlich lokal angewandt. Ausdauer geht wie im Bogen selbst unter null.
+Die Reisestufen stehen als Daten in `TRAVEL_TIERS`, nicht im Template.
+
+**Pings tragen einen Namen** (`PingBroadcast.name`), angezeigt unter der Markierung — in Lobby und
+Karte. In der Karte stempelt der Server den Namen aus dem Handshake; in der Lobby kommt er vom
+Absender (Anzeige-Label, nicht fälschungssicher).

@@ -1,10 +1,10 @@
 /**
  * Flat-top hex grid in *global* world-pixel space.
  *
- * v1's hex math (`world-map/world-map-hex.utils.ts`) was tile-local: coordinates were
+ * v1's hex math (since removed with the old viewer) was tile-local: coordinates were
  * relative to a macro tile's top-left, with a `+4` centring fudge baked into the origin.
  * v2 has no tiles, so the grid is one continuous odd-q lattice over the whole world with a
- * clean origin. That file still serves the old viewer and is removed with it in Phase 3.
+ * clean origin.
  *
  * Rounding here is true cube rounding rather than v1's rectangular `Math.round`, which
  * picked the wrong hex near shared edges — tolerable for a fog brush you drag, but wrong

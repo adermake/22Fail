@@ -48,6 +48,7 @@ import {
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { LobbySocketService } from '../../services/lobby-socket.service';
 import { ImageService } from '../../services/image.service';
+import { AuthService } from '../../services/auth.service';
 import { TextureService } from '../../services/texture.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { FormulaType } from '../../model/formula-type.enum';
@@ -198,12 +199,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private textureService = inject(TextureService);
   private trueStats = inject(TrueStatsService);
   private cdr = inject(ChangeDetectorRef);
+  private auth = inject(AuthService);
 
   /** Radial ping state machine (hold G + left-click). */
   pingCtl = new PingController(
     () => this.cdr.markForCheck(),
     p => this.socket.sendPing(this.store.currentMapId, p),
     () => this.socket.socketId ?? 'local',
+    () => this.auth.currentUser()?.name ?? '',
   );
 
   // Remote measurements from other users
@@ -555,7 +558,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const out: RenderedPing[] = [];
     for (const p of this.pingCtl.activePings) {
       const s = this.worldToScreen(p.worldX, p.worldY);
-      out.push({ id: p.id, type: p.type, x: s.x, y: s.y });
+      out.push({ id: p.id, type: p.type, x: s.x, y: s.y, name: p.name });
     }
     return out;
   }
