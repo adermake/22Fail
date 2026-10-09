@@ -24,6 +24,7 @@ import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { LibraryStoreService } from '../services/library-store.service';
 import { tokenLabel } from '../utils/entry-preview.util';
+import { DEFAULT_WORLD_CLOCK, formatWorldClock, shiftFantasyClock } from '../utils/world-clock.util';
 import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
 import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
@@ -184,6 +185,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   penBrushSize = signal(4);
   eraserBrushSize = signal(12);
   fogBrushSize = signal(30); // Fog of war brush size
+  /** GM-only, local and deliberately not remembered: hide the fog while building the map. */
+  fogHidden = signal(false);
   textureBrushSize = signal(30);
   textureBrushStrength = signal(1.0); // 0-1
   textureScale = signal(0.1); // Default 10x smaller tiles
@@ -363,7 +366,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   /** Darf der Betrachter die Werte des ausgewählten Tokens sehen? (ohne Auswahl: ja) */
   selectedPanelCanView = computed(() => {
     const token = this.selectedPanelToken();
-    return !token || this.canViewTokenStats(token.characterId);
+    return !token || this.canViewTokenStats(token);
   });
   /** Level/Neu würfeln im Panel: nur für den GM und nur für NSCs aus der Bibliothek (keine Begleiter). */
   selectedNpcRollable = computed(() => {
@@ -610,15 +613,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   get worldClock() {
-    return this.worldStore.worldValue?.worldClock ?? { year: 321, day: 1, hour: 8, minute: 0 };
+    return this.worldStore.worldValue?.worldClock ?? DEFAULT_WORLD_CLOCK;
   }
 
   get worldClockLabel(): string {
-    const clock = this.worldClock;
-    const day = String(clock.day).padStart(3, '0');
-    const hour = String(clock.hour).padStart(2, '0');
-    const minute = String(clock.minute).padStart(2, '0');
-    return `Jahr: ${clock.year}  |  Tag: ${day}  |  ${hour}:${minute} Uhr`;
+    return formatWorldClock(this.worldClock);
   }
 
   get encounterTimerSettings() {
@@ -654,7 +653,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   shiftWorldClock(minutesDelta: number): void {
     if (!this.isGM()) return;
-    const next = this.shiftFantasyClock(this.worldClock, minutesDelta);
+    const next = shiftFantasyClock(this.worldClock, minutesDelta);
     this.worldStore.applyPatch({ path: 'worldClock', value: next });
     this.syncClockInputsFromWorld();
     this.maybeTriggerEncounterReminder(next, true);
@@ -691,21 +690,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   acknowledgeEncounterReminder(): void {
     this.encounterReminderText.set(null);
-  }
-
-  private shiftFantasyClock(clock: { year: number; day: number; hour: number; minute: number }, minutesDelta: number) {
-    const minutesPerDay = 24 * 60;
-    const minutesPerYear = 360 * minutesPerDay;
-    const base = ((clock.year - 1) * minutesPerYear) + ((clock.day - 1) * minutesPerDay) + (clock.hour * 60) + clock.minute;
-    const shifted = Math.max(0, base + minutesDelta);
-
-    const year = Math.floor(shifted / minutesPerYear) + 1;
-    const restYear = shifted % minutesPerYear;
-    const day = Math.floor(restYear / minutesPerDay) + 1;
-    const restDay = restYear % minutesPerDay;
-    const hour = Math.floor(restDay / 60);
-    const minute = restDay % 60;
-    return { year, day, hour, minute };
   }
 
   private toAbsoluteHour(clock: { year: number; day: number; hour: number; minute: number }): number {
@@ -790,10 +774,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  canViewTokenStats(characterId: string): boolean {
+  canViewTokenStats(token: Pick<Token, 'characterId' | 'statblockId'>): boolean {
     if (this.isGM()) return true;
     const ids = this.viewingCharacterIds();
-    return ids.size > 0 && ids.has(characterId);
+    if (ids.has(token.characterId)) return true;
+    // A Begleiter token belongs to whoever controls its owner. Its owner lives only in the
+    // statblock id (`companion-<ownerId>-<companionId>`, legacy `summon-<ownerId>-<nodeId>`);
+    // ids can contain dashes, so match each controlled id as a prefix rather than splitting.
+    const sb = token.statblockId;
+    if (!sb) return false;
+    for (const id of ids) {
+      if (sb.startsWith('companion-' + id + '-') || sb.startsWith('summon-' + id + '-')) return true;
+    }
+    return false;
   }
 
   private characterHasActiveEffects(characterId: string): boolean {
@@ -1009,6 +1002,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   onClearFog(): void {
     if (!this.isGM()) return;
     this.store.clearFog();
+  }
+
+  onFogCoveredChange(covered: boolean): void {
+    if (!this.isGM()) return;
+    this.store.setFogCovered(covered);
   }
 
   onClearWalls(): void {

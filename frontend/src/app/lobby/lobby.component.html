@@ -79,6 +79,8 @@
     [worldClockLabel]="worldClockLabel"
     [showClockDialog]="showClockDialog()"
     [fogBrushSize]="fogBrushSize()"
+    [fogCovered]="!currentMap()?.fogOff"
+    [fogHidden]="fogHidden()"
     (toolChange)="onToolChange($event)"
     (brushColorChange)="onBrushColorChange($event)"
     (penBrushSizeChange)="onPenBrushSizeChange($event)"
@@ -107,6 +109,8 @@
     (openClockDialog)="showClockDialog.set(true)"
     (fogBrushSizeChange)="onFogBrushSizeChange($event)"
     (clearFog)="onClearFog()"
+    (fogCoveredChange)="onFogCoveredChange($event)"
+    (fogHiddenChange)="fogHidden.set($event)"
   />
 
   <!-- Kampfrunde top bar (compact, shown when GM enables Kampfrunde mode) -->
@@ -199,6 +203,7 @@
         [selectedImageId]="selectedImageId()"
         [isGM]="isGM()"
         [fogBrushSize]="fogBrushSize()"
+        [fogHidden]="fogHidden()"
         (tokenDrop)="onTokenDrop($event)"
         (tokenMove)="onTokenMove($event)"
         (tokenRemove)="onTokenRemove($event)"
@@ -258,7 +263,7 @@
           [rolls]="rollHistory()"
           [worldName]="worldName()"
           [isGM]="isGM()"
-          [canViewStats]="selectedPanelToken() ? canViewTokenStats(selectedPanelToken()!.characterId) : true"
+          [canViewStats]="selectedPanelCanView()"
           [allTokens]="enrichedTokens()"
           [npcRollable]="selectedNpcRollable()"
           [players]="mapPlayers()"

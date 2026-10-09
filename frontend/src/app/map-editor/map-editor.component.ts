@@ -83,6 +83,7 @@ import {
 import { FogView } from './fog-view';
 import { PassageView } from './passage-view';
 import { PartyPanelComponent } from './party-panel.component';
+import { MapWorldClockComponent } from './map-world-clock.component';
 import { TravelLegendComponent } from './travel-legend.component';
 import { ERASER_COLOR, SketchView } from './sketch-view';
 import { MeasureLine, PlayAidsView } from './play-aids';
@@ -166,6 +167,7 @@ import {
     PingWheelComponent,
     LobbyTokenComponent,
     PartyPanelComponent,
+    MapWorldClockComponent,
     TravelLegendComponent,
   ],
   templateUrl: './map-editor.component.html',

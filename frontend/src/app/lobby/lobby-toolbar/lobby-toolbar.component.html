@@ -299,10 +299,23 @@
       </div>
       <div class="toolbar-divider" style="margin: 0 4px;"></div>
       <button
+        class="tool-btn"
+        [class.active]="fogCovered"
+        [class.gm-locked]="!isGM"
+        (click)="fogCoveredChange.emit(!fogCovered)"
+        [title]="fogCovered
+          ? 'Karte ist ganz verdeckt — Radierer (E) deckt auf. Klicken schaltet die Grunddecke für alle ab.'
+          : 'Nur gemalter Nebel ist sichtbar. Klicken verdeckt die ganze Karte für alle.'"
+      >
+        Verdeckt: {{ fogCovered ? 'An' : 'Aus' }}
+      </button>
+      <button
         class="tool-btn danger"
         [class.gm-locked]="!isGM"
         (click)="clearFog.emit()"
-        title="Gesamten Kriegsnebel entfernen"
+        [title]="fogCovered
+          ? 'Alle Nebelstriche entfernen — die Karte ist danach wieder ganz verdeckt'
+          : 'Gesamten Kriegsnebel entfernen'"
       >
         <span class="app-icon i-restore-trash"></span> Nebel
       </button>
@@ -341,11 +354,25 @@
       class="tool-btn layer-toggle" 
       [class.layer-hidden]="!drawLayerVisible"
       (click)="drawLayerVisibleChange.emit(!drawLayerVisible)"
-      [title]="drawLayerVisible ? 'Hide Drawing Layer' : 'Show Drawing Layer'"
+      [title]="drawLayerVisible ? 'Zeichenebene ausblenden' : 'Zeichenebene einblenden'"
     >
       <span class="layer-icon app-icon" [class.i-visibility-on]="drawLayerVisible" [class.i-visibility-off]="!drawLayerVisible"></span>
-      <span class="layer-label">Draw</span>
+      <span class="layer-label">Zeichnung</span>
     </button>
+
+    @if (isGM) {
+      <!-- Nur die eigene Ansicht: beim Bauen der Karte stört die Dunkelheit. Spieler sehen den
+           Nebel weiterhin. -->
+      <button
+        class="tool-btn layer-toggle"
+        [class.layer-hidden]="fogHidden"
+        (click)="fogHiddenChange.emit(!fogHidden)"
+        [title]="fogHidden ? 'Kriegsnebel wieder anzeigen' : 'Kriegsnebel nur für dich ausblenden — Spieler sehen ihn weiterhin'"
+      >
+        <span class="layer-icon app-icon" [class.i-visibility-on]="!fogHidden" [class.i-visibility-off]="fogHidden"></span>
+        <span class="layer-label">Nebel</span>
+      </button>
+    }
 
     <!-- Map Settings Button (GM only) -->
     <button

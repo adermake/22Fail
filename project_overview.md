@@ -219,6 +219,8 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - Lobby-Topbar zeigt lesbare Fantasy-Zeit (`Jahr`, `Tag`, `Uhrzeit`) für alle; nur GM darf setzen und fortschreiten (`+10 Min`, `+1 Stunde`)
 - Encounter-Timer: GM stellt Intervall in Stunden ein und aktiviert/deaktiviert den Timer; bei clean hour Trigger erscheint Reminder für Begegnungswurf
 - Änderungen laufen über `WorldStoreService.applyPatch('worldClock')` und `WorldStoreService.applyPatch('encounterTimer')` und sind dadurch synchron
+- Weltkarte zeigt dieselbe Uhr (`map-editor/map-world-clock.component.ts`, GM: +10′/+1h); Format/Rechnen in `utils/world-clock.util.ts`, von Lobby und Karte geteilt
+- Weltkarten-Gruppe (`party-panel.component.ts`): GM markiert Mitglieder als „Getragen“ (`WorldData.travelExemptIds`) → „Allen abziehen“ überspringt sie
 
 ### Talent System (DnD-style Proficiencies)
 - **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`,
@@ -753,6 +755,10 @@ lobby-container
   (→ `reaktionswertBonus`/`grundbonusBonus`/`bewegungBonus` im NSC-Blatt).
 - Geschrieben wird in `Token.npcInstance`; ein live verknüpfter Bibliotheks-NSC bekommt dabei seinen Schnappschuss. Neu würfeln verwirft Bearbeitungen.
 - Kriegsnebel hat keine Taste mehr (V kollidierte mit Strg+V).
+- Kriegsnebel deckt jede Lobby-Karte standardmäßig ganz zu (`LobbyMap.fogOff` fehlt = an); Radierer deckt auf.
+  Werkzeugleiste: „Verdeckt: An/Aus“ (synchron, pro Karte) und „Nebel“-Augen-Schalter nur für den GM, lokal (blendet aus; im Nebel-Werkzeug immer sichtbar).
+- Begleiter-Token gehören dem Besitzer des Charakters: `canViewTokenStats` liest den Besitzer aus `statblockId` (`companion-<id>-…`/`summon-<id>-…`).
+- Schnell-Token ohne Blatt würfeln über ein leeres Blatt (`rollerSheet`, id = Token-id für das Wurf-Popup).
 
 ### Token-Ressourcen
 - Token.currentHealth?, currentMana?, currentEnergy? → optionale Felder auf dem Token

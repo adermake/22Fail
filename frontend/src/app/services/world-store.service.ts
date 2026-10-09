@@ -180,6 +180,22 @@ export class WorldStoreService {
     this.socket.joinWorld(name);
   }
 
+  private inFlight?: { name: string; promise: Promise<void> };
+
+  /**
+   * Load `name` unless it is already loaded or on its way — for views where several components
+   * only read the world (Weltkarte: party panel and clock) and would otherwise each load it.
+   */
+  ensureLoaded(name: string): Promise<void> {
+    if (this.inFlight?.name === name) return this.inFlight.promise;
+    if (this.worldName === name && this.worldValue) return Promise.resolve();
+    const promise = this.load(name).finally(() => {
+      if (this.inFlight?.promise === promise) this.inFlight = undefined;
+    });
+    this.inFlight = { name, promise };
+    return promise;
+  }
+
   applyPatch(patch: JsonPatch) {
     // Apply optimistically
     const world = this.worldSubject.value;

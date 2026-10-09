@@ -15,7 +15,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
-import { CharacterSheet } from '../../model/character-sheet-model';
+import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
 import { Token, TokenStatusEffect, LinkedTokenType } from '../../model/lobby.model';
 import { DiceRollEvent, WorldSocketService } from '../../services/world-socket.service';
@@ -685,11 +685,11 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
     </div><!-- /panel-body -->
 
     <!-- ── Würfelansicht Overlay ── -->
-    @if (showDiceRoller() && diceSheet) {
+    @if (showDiceRoller() && rollerSheet) {
       <div class="dice-overlay-backdrop" (click)="showDiceRoller.set(false)">
         <div class="dice-overlay-panel" (click)="$event.stopPropagation()">
           <button class="dice-overlay-close" (click)="showDiceRoller.set(false)" title="Schließen">✕</button>
-          <app-dice-roller [sheet]="diceSheet" (close)="showDiceRoller.set(false)"></app-dice-roller>
+          <app-dice-roller [sheet]="rollerSheet" (close)="showDiceRoller.set(false)"></app-dice-roller>
         </div>
       </div>
     }
@@ -2054,6 +2054,24 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (this.character) return this.character;
     return this._cachedNpcSheet;
   }
+
+  /**
+   * Sheet for the Würfelansicht. A plain Schnell-Token has neither character nor statblock, so
+   * `diceSheet` is null and the overlay never opened — it gets an empty sheet carrying only its
+   * name and the token id (the id is what places the roll popup over the token, as for NSCs).
+   * Kept separate from `diceSheet` so the stat getters don't start reporting zero-stat values.
+   */
+  get rollerSheet(): CharacterSheet | null {
+    if (this.diceSheet || !this.token) return this.diceSheet;
+    if (this._quickSheet?.id !== this.token.id) {
+      this._quickSheet = createEmptySheet();
+      this._quickSheet.id = this.token.id;
+    }
+    this._quickSheet.name = tokenLabel(this.token);
+    if (this.worldName) this._quickSheet.worldName = this.worldName;
+    return this._quickSheet;
+  }
+  private _quickSheet: CharacterSheet | null = null;
 
   /**
    * The NSC as a sheet — built by `buildNpcSheet`, the one builder the Statblock-Berechnung and the

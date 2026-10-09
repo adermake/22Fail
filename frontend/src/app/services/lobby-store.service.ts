@@ -1146,6 +1146,16 @@ export class LobbyStoreService {
     this.applyPatch({ path: 'fogStrokes', value: [] });
   }
 
+  /** Whether the current map starts fully fogged (the default — see `LobbyMap.fogOff`). */
+  get fogCovered(): boolean {
+    return !this.currentMap?.fogOff;
+  }
+
+  setFogCovered(covered: boolean): void {
+    if (this.fogCovered === covered) return;
+    this.applyPatch({ path: 'fogOff', value: !covered });
+  }
+
   // ============================================
   // Image Operations (Map Background)
   // ============================================

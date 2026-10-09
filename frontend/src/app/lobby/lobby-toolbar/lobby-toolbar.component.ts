@@ -40,6 +40,10 @@ export class LobbyToolbarComponent {
   @Input() worldClockLabel = '';
   @Input() showClockDialog = false;
   @Input() fogBrushSize = 30;
+  /** Map-wide, synced: the map starts fully fogged. */
+  @Input() fogCovered = true;
+  /** GM-only, local: the fog is not drawn on this screen. */
+  @Input() fogHidden = false;
   @Input() showLobbyPanels = true;
 
   // Outputs
@@ -70,6 +74,8 @@ export class LobbyToolbarComponent {
   @Output() openClockDialog = new EventEmitter<void>();
   @Output() fogBrushSizeChange = new EventEmitter<number>();
   @Output() clearFog = new EventEmitter<void>();
+  @Output() fogCoveredChange = new EventEmitter<boolean>();
+  @Output() fogHiddenChange = new EventEmitter<boolean>();
 
   /**
    * Tool definitions. `gmOnly` tools shape the map itself — a player reaching for one is almost

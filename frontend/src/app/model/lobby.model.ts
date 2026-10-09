@@ -281,6 +281,12 @@ export interface LobbyMap {
   strokes: Stroke[];
   drawBitmaps?: DrawBitmap[]; // Raster regions on draw layers
   fogStrokes?: Stroke[]; // Fog of war strokes
+  /**
+   * Kriegsnebel deckt jede Karte standardmäßig ganz zu; der GM radiert frei, was zu sehen ist.
+   * `true` schaltet diese Grunddecke ab (dann zählen nur gemalte Nebelstriche). Fehlt das Feld,
+   * ist der Nebel an — so gilt der Standard auch für Karten, die vor dem Feld gespeichert wurden.
+   */
+  fogOff?: boolean;
   textureStrokes: TextureStroke[]; // Legacy - for backward compatibility
   textureTiles?: TextureTile[]; // New tile-based texture storage
   walls: WallHex[];

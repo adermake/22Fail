@@ -67,6 +67,10 @@
 
     <span class="spacer"></span>
 
+    <!-- Dieselbe Weltuhr wie in der Lobby: Reisen kostet Zeit, und beide Ansichten sollen sie
+         gleich anzeigen. -->
+    <app-map-world-clock [worldName]="worldName()" [isGM]="isGM()" />
+
     @if (saving()) {
       <span class="badge saving">Speichert …</span>
     }

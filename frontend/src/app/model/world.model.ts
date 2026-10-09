@@ -70,6 +70,8 @@ export interface WorldData {
   kampfrundeActive?: boolean;
   characterIds: string[]; // All characters in this world
   partyIds: string[]; // Characters currently in the active party
+  /** Party members currently carried (Weltkarte, "Getragen"): "Allen abziehen" skips them. */
+  travelExemptIds?: string[];
   /** Shared party stash — server-authoritative, see WorldGateway.partyStash* handlers. */
   partyStash?: PartyStashEntry[];
   /**

@@ -151,6 +151,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() textureLayer: 'background' | 'foreground' = 'background';
   @Input() selectedTokenId: string | null = null;
   @Input() fogBrushSize = 30; // Fog of war brush size
+  @Input() fogHidden = false; // GM-only, local: don't draw the fog on this screen
 
   // Outputs
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
@@ -613,7 +614,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['backgroundTexture']) {
       this.loadBackgroundTexture();
     }
-    if (changes['map'] || changes['tokens'] || changes['selectedImageId']) {
+    if (changes['map'] || changes['tokens'] || changes['selectedImageId'] || changes['fogHidden'] || changes['currentTool']) {
       this.scheduleRender();
     }
     if (changes['imageLayerVisible']) {
@@ -1871,8 +1872,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     ctx.clearRect(0, 0, w, h);
 
+    // GM-only view toggle: hides the fog on this screen while building the map. Players never
+    // get to skip it — the input is ignored for them. The fog tool shows it regardless, or the
+    // GM would be painting blind.
+    if (this.isGM && this.fogHidden && this.currentTool !== 'fog') return;
+
+    const covered = this.store.fogCovered;
     const fogStrokes = this.store.fogStrokes;
-    if ((fogStrokes.length === 0) && (!this.isDrawingFog || this.currentFogPoints.length < 2)) return;
+    if (!covered && (fogStrokes.length === 0) && (!this.isDrawingFog || this.currentFogPoints.length < 2)) return;
 
     // Render fog into an offscreen canvas to avoid alpha accumulation when strokes overlap
     const offscreen = document.createElement('canvas');
@@ -1880,6 +1887,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     offscreen.height = canvas.height;
     const off = offscreen.getContext('2d')!;
     off.scale(dpr, dpr);
+
+    // Default cover: the whole visible area starts dark; eraser strokes below cut it open.
+    if (covered) {
+      off.fillStyle = 'rgba(0,0,0,1)';
+      off.fillRect(0, 0, w, h);
+    }
 
     off.save();
     off.translate(this.panX, this.panY);
