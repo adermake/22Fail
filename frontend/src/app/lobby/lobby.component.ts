@@ -53,6 +53,8 @@ import { LobbyAbilitiesDockComponent } from './lobby-abilities-dock/lobby-abilit
 import { LobbyTokenActionsService } from './lobby-token-actions.service';
 import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
+import { applyTurnStartUpkeep, characterTurnUpkeep } from '../utils/spell-upkeep.util';
+import { spellKey } from '../utils/spell-medium.util';
 
 // Tool types
 export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image' | 'texture' | 'fog' | 'lasso';
@@ -383,6 +385,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     // Connect battle engine to world store for persistence (mirrors world view)
     this.battleEngine.setWorldStore(this.worldStore);
+    this.battleEngine.setTurnStartCallback(ids => this.applyTurnStartUpkeep(ids));
     
     // Subscribe to world changes to keep battle tracker in sync
     this.subscriptions.push(
@@ -503,13 +506,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
       })
     );
 
-    // Subscribe to world patches to refresh character data when sheets are updated
+    // Re-read the roster only when it changes. This used to refetch every sheet over REST on ANY
+    // world patch (each turn advance, clock tick, event…), racing the character socket: a REST read
+    // that landed after a newer socket patch silently rolled the lobby's sheets back.
     this.subscriptions.push(
       this.worldSocket.patches$.subscribe(async (patch) => {
-        console.log('[Lobby] Received world patch, refreshing character data');
-        // Refresh character data to sync resource bars
-        await this.loadWorldCharacters();
+        const path = patch.path.replace(/^\//, '').split(/[./]/)[0];
+        if (path === 'characterIds' || path === 'partyIds') await this.loadWorldCharacters();
       })
+    );
+
+    // Patches sent while this tab was disconnected are gone — reload the sheets after a reconnect.
+    this.subscriptions.push(
+      this.characterSocket.reconnected$.subscribe(() => void this.loadWorldCharacters())
     );
 
     // Subscribe to character patches for real-time resource bar updates
@@ -741,6 +750,60 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     this.syncEffectRemindersForCurrentTurn();
     this.cdr.markForCheck();
+  }
+
+  /**
+   * A turn just began for `characterIds`: running spells age a round and pay their per-round Mana.
+   * Runs only on the GM client that advanced the turn, then syncs as ordinary patches. Upkeep that
+   * can't be paid is skipped and announced in the roll log — the spell keeps running (GM's call).
+   */
+  private applyTurnStartUpkeep(characterIds: string[]): void {
+    for (const id of characterIds) {
+      const char = this.worldCharacters().find(c => c.id === id);
+      if (char) {
+        const { patches, unpaid } = characterTurnUpkeep(char.sheet);
+        for (const patch of patches) {
+          this.onPanelSheetPatched({ characterId: id, patch });
+          this.characterSocket.sendPatch(id, patch);
+        }
+        if (unpaid.length) this.announceUnpaidUpkeep(id, char.sheet.name, unpaid);
+        continue;
+      }
+
+      const token = this.enrichedTokens().find(t => t.characterId === id);
+      if (!token?.castingSpells?.length) continue;
+      const npc = this.statblockForToken(token);
+      const mana = token.currentMana ?? npc?.maxMana ?? 0;
+      const res = applyTurnStartUpkeep(
+        token.castingSpells,
+        key => (npc?.spells ?? []).find(s => spellKey(s) === key),
+        mana,
+      );
+      if (!res.changed) continue;
+      this.store.updateToken(token.id, {
+        castingSpells: res.castingSpells,
+        ...(res.manaSpent > 0 ? { currentMana: mana - res.manaSpent } : {}),
+      });
+      if (res.unpaid.length) this.announceUnpaidUpkeep(token.characterId, tokenLabel(token), res.unpaid);
+    }
+  }
+
+  private announceUnpaidUpkeep(characterId: string, name: string, spells: string[]): void {
+    this.worldSocket.sendDiceRoll({
+      id: `upkeep-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      worldName: this.worldName(),
+      characterName: name,
+      characterId,
+      diceType: 0,
+      diceCount: 0,
+      bonuses: [],
+      result: 0,
+      rolls: [],
+      timestamp: new Date(),
+      isSecret: false,
+      actionName: `Nicht genug Mana für den Unterhalt: ${spells.join(', ')}`,
+      actionColor: '#ef4444',
+    });
   }
 
   onKampfrundeToggle(): void {

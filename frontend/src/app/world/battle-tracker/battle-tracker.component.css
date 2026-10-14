@@ -693,9 +693,12 @@
 .compact-tile.team-purple { border-color: rgba(155, 89, 182, 0.95); }
 .compact-tile.team-orange { border-color: rgba(230, 126, 34, 0.95); }
 
+/* Current turn: accent outline + glow on top of the team border. Not yellow — that read as
+   the "neutral"/yellow team colour. */
 .compact-group.first-group .compact-tile {
-  border-color: #fbbf24;
-  box-shadow: 0 0 6px rgba(251,191,36,0.4);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .compact-tile {

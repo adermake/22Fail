@@ -58,12 +58,17 @@ export interface StatusEffect {
  *  - Derived values: fokus, armorMalus (Rüstungsmalus), armorNegation (Rüstungsnegation),
  *    grundbonus, reaktion (Reaktionsbonus), bewegung (flat movement, added to movement
  *    steps directly — NOT to speed).
+ *  - Load & speed chain: carryCapacity (Tragkraft), carryWeight (getragenes Gewicht),
+ *    encumbrance (Beladung in %), armorDebuff (Rüstungs-Geschw.-Malus der Gegenstände),
+ *    effectiveSpeed (Geschwindigkeit nach allen Mali). Each feeds the next, so a change to
+ *    Tragkraft moves the Beladung and with it the speed malus.
  */
 export type StatusModifierTarget =
   | 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill'
   | 'life' | 'energy' | 'mana'
   | 'fokus' | 'armorMalus' | 'armorNegation' | 'grundbonus' | 'reaktion' | 'bewegung'
-  | 'stability';
+  | 'stability'
+  | 'carryCapacity' | 'carryWeight' | 'encumbrance' | 'armorDebuff' | 'effectiveSpeed';
 
 /**
  * Stat modifier applied by a status effect

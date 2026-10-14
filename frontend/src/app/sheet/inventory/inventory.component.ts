@@ -246,13 +246,14 @@ getCurrencyWeight(): number {
   return totalCoins * COIN_WEIGHT;
 }
 
+  // Both from the calculator, so Stärke buffs and Tragkraft/Beladung effects show up here too —
+  // this used to read raw `strength.current` and ignored every effect.
   get maxCapacity(): number {
-    const strength = this.sheet.strength?.current * 8 || 10;
-    return Math.floor(strength * this.sheet.carryCapacityMultiplier + this.sheet.carryCapacityBonus);
+    return this.trueStats.getMaxCapacity(this.sheet);
   }
 
   get encumbrancePercentage(): number {
-    return (this.totalWeight / this.maxCapacity) * 100;
+    return this.trueStats.getEncumbrancePercentage(this.sheet);
   }
 
   get encumbranceColor(): string {

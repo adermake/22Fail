@@ -21,6 +21,7 @@ import {
   resolveActiveConstructs,
 } from '../utils/construct.util';
 import { carriedMedia, resolveSpellByKey } from '../utils/spell-medium.util';
+import { skillsInEffect } from '../utils/skill-active.util';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
 export interface DerivedModifier {
@@ -134,7 +135,7 @@ export interface StatModifierSource {
   type: 'skill' | 'equipment' | 'status_effect';
 }
 
-type StatKey = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
+export type StatKey = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
 type StatKeyDisplay = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'wille';
 
 /**
@@ -375,7 +376,7 @@ export class TrueStatsService {
     }
     // Skills/spells that feed effectActive also change the derived result — toggling one must recompute.
     const activeNames = activeSkillNames(sheet);
-    for (const skill of sheet.skills ?? []) {
+    for (const skill of skillsInEffect(sheet)) {
       if (skill.script && (skill.type === 'passive' || activeNames.has(skill.name))) {
         s += `|SK:${skill.name}#${skill.script}`;
       }
@@ -466,7 +467,7 @@ export class TrueStatsService {
       };
 
       const activeNames = activeSkillNames(sheet);
-      for (const skill of sheet.skills ?? []) {
+      for (const skill of skillsInEffect(sheet)) {
         if (!skill.script) continue;
         if (skill.type === 'passive' || activeNames.has(skill.name)) runCollect(skill.script, skill.name);
       }
@@ -577,7 +578,7 @@ export class TrueStatsService {
       stat === 'movement' ? 'bewegung' : stat === 'focus' ? 'fokus' : stat;
 
     let total = 0;
-    for (const skill of sheet.skills ?? []) {
+    for (const skill of skillsInEffect(sheet)) {
       for (const mod of skill.statModifiers ?? []) {
         if (normalise(mod.stat) === target) total += mod.amount * (skill.level || 1);
       }
@@ -650,8 +651,8 @@ export class TrueStatsService {
     let total = 0;
 
     // Add bonuses from skills (multiplied by skill level)
-    if (sheet.skills) {
-      for (const skill of sheet.skills) {
+    {
+      for (const skill of skillsInEffect(sheet)) {
         if (skill.statModifiers) {
           for (const modifier of skill.statModifiers) {
             if (modifier.stat === statKey) {
@@ -760,8 +761,8 @@ export class TrueStatsService {
     const sources: StatModifierSource[] = [];
 
     // Collect sources from skills
-    if (sheet.skills) {
-      for (const skill of sheet.skills) {
+    {
+      for (const skill of skillsInEffect(sheet)) {
         if (skill.statModifiers) {
           for (const modifier of skill.statModifiers) {
             if (modifier.stat === statKey) {
@@ -1173,7 +1174,8 @@ export class TrueStatsService {
     const bonus = (sheet.fokusBonus || 0)
       + this.getStatusModifierTotal(sheet, 'fokus')
       + this.getSkillItemModifierTotal(sheet, 'fokus');
-    return Math.floor((base + bonus) * (sheet.fokusMultiplier || 1));
+    // The pipeline makes `effectActive { fokusMax += 2 }` work like the other maxima.
+    return Math.floor(this.applyEffectPipeline(sheet, 'fokus', (base + bonus) * (sheet.fokusMultiplier || 1)));
   }
 
   /** Clamp resource current; life may go negative, others floor at 0. */
@@ -1213,8 +1215,8 @@ export class TrueStatsService {
     const negation = this.calculateSpeedPenaltyNegation(sheet);
     const finalPenalty = Math.max(0, totalPenalty - negation);
 
-    // Apply penalty to base speed
-    return Math.max(0, baseSpeed - finalPenalty);
+    // Apply penalty to base speed; effects may still move the result itself (`effectiveSpeed`).
+    return Math.max(0, this.derivedTotal(sheet, 'effectiveSpeed', baseSpeed - finalPenalty));
   }
 
   /**
@@ -1261,8 +1263,9 @@ export class TrueStatsService {
     const totalWeight = this.getTotalWeight(sheet);
     const maxCapacity = this.getMaxCapacity(sheet);
     
-    if (maxCapacity === 0) return 100; // Avoid division by zero
-    return (totalWeight / maxCapacity) * 100;
+    // Avoid division by zero; effects may still move the percentage itself (`encumbrance`).
+    const percentage = maxCapacity <= 0 ? 100 : (totalWeight / maxCapacity) * 100;
+    return Math.max(0, this.derivedTotal(sheet, 'encumbrance', percentage));
   }
 
   /**
@@ -1290,13 +1293,16 @@ export class TrueStatsService {
 
     // Rounded, not floored: flooring hid the float artefacts but also reported a 0.9 kg load
     // as 0. Encumbrance now moves with the fractional weights the items actually carry.
-    return roundTo(itemWeight + equipmentWeight + currencyWeight);
+    // Effects may lighten or weigh down the whole load (`carryWeight`), never below zero.
+    const weight = itemWeight + equipmentWeight + currencyWeight;
+    return roundTo(Math.max(0, this.derivedTotal(sheet, 'carryWeight', weight)));
   }
 
   /**
    * Calculate maximum carry capacity.
-   * Formula: (strength * 8) * multiplier + bonus
-   * 
+   * Formula: (strength * 8) * multiplier + bonus, then status/skill/item modifiers and the
+   * effectActive pipeline (`carryCapacity`) on the whole value.
+   *
    * @param sheet The character sheet
    * @returns Maximum carry capacity
    */
@@ -1305,8 +1311,8 @@ export class TrueStatsService {
     const baseCapacity = strength * 8;
     const multiplier = sheet.carryCapacityMultiplier || 1;
     const bonus = sheet.carryCapacityBonus || 0;
-    
-    return Math.floor(baseCapacity * multiplier + bonus);
+
+    return Math.max(0, Math.floor(this.derivedTotal(sheet, 'carryCapacity', baseCapacity * multiplier + bonus)));
   }
 
   /**
@@ -1326,7 +1332,7 @@ export class TrueStatsService {
         brokenPenalty += 5;
       }
     }
-    return Math.round(sumOfArmorDebuffs / 5) + brokenPenalty;
+    return this.derivedTotal(sheet, 'armorDebuff', Math.round(sumOfArmorDebuffs / 5) + brokenPenalty);
   }
 
   /**
@@ -1480,7 +1486,7 @@ export class TrueStatsService {
       : 'mana';
     let total = 0;
 
-    for (const skill of (sheet.skills || [])) {
+    for (const skill of skillsInEffect(sheet)) {
       if (skill.statModifiers) {
         for (const mod of skill.statModifiers) {
           if (mod.stat === statKey) total += mod.amount * (skill.level || 1);

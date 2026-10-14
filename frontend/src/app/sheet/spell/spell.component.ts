@@ -10,7 +10,10 @@ import {
   signal,
   OnInit,
   OnDestroy,
+  inject,
 } from '@angular/core';
+import { TrueStatsService, StatKey } from '../../services/true-stats.service';
+import { StatBlock } from '../../model/stat-block.model';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -81,6 +84,8 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   private maxUndoSteps = 20;
   private panStartX = 0;
   private panStartY = 0;
+
+  private trueStats = inject(TrueStatsService);
 
   constructor(private cd: ChangeDetectorRef, private sanitizer: DomSanitizer, private imageService: ImageService) {}
 
@@ -194,7 +199,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
       { key: 'speed',        label: 'SPD' },
       { key: 'intelligence', label: 'INT' },
       { key: 'constitution', label: 'KON' },
-      { key: 'chill',        label: 'CHR' },
+      { key: 'chill',        label: 'WIL' },
     ];
     return map
       .filter(m => (req as Record<string,number>)[m.key] > 0)
@@ -202,9 +207,9 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   meetsStatRequirement(key: string, value: number): boolean {
-    const stat = (this.sheet as any)[key];
-    const current = stat?.current ?? 0;
-    return current >= value;
+    // Calculator, not the render-cached `stat.current` (stale unless the stat card drew first).
+    const block = (this.sheet as unknown as Record<string, StatBlock | undefined>)[key];
+    return this.trueStats.calculateStat(this.sheet, block, key as StatKey) >= value;
   }
 
   /**

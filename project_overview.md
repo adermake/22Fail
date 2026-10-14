@@ -200,6 +200,8 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - **Backend**: `battlemap.gateway.ts` hält `activeMeasurements: Map<mapId, Map<socketId, MeasurementLine>>`. Auf `updateMeasurement` Event: speichern/löschen + broadcast aller aktuellen Messungen (`measurementUpdate`) an den Map-Raum. Bei Client-Disconnect: Messung entfernen + neu-broadcasten.
 - **Empfang**: `LobbySocketService.measurements$` Observable → `remoteMeasurements` Signal in lobby-grid → `renderRemoteMeasurements()` overlay-Pass (blau `#60a5fa` statt gelb)
 - **Eigene Messung**: Lokal gerendert (gelb), remote Messungen anderer Nutzer gefiltert nach `socketId ≠ eigenem`
+- **Ebene**: eigener `#rulerCanvas` (z-index 15) über der Token-Ebene, unter dem Nebel — Lineale werden nie von Tokens verdeckt.
+- **Pings außerhalb des Bildes**: `app-ping-layer` zeigt am Bildrand einen Pfeil-Marker Richtung Ping (Lobby + Karteneditor).
 
 ### Linked Tokens (Lobby)
 - `LinkedTokenType`: `free | keepOffset | keepDistance`
@@ -212,6 +214,15 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - `world.component.ts` synchronisiert den Engine-Zustand bei jedem `world$` Update via `battleEngine.syncFromWorldStore()` nach `loadPartyCharacters()`
 - `lobby.component.ts` synchronisiert nach Character-Refresh erneut via `battleEngine.syncFromWorldStore()`, damit Team-Gruppierungen/Turn-Tiles im Lobby-Tracker konsistent mit der Welt bleiben
 - Lobby Token-Kontextmenü unterstützt Team-Join direkt beim Kampfbeitritt (`Feind=red`, `Neutral=yellow`, `Verbündet=blue`)
+- `addCharacter` startet mit **zufälligem Turn-Meter** (0–999), damit gleich schnelle Kämpfer nicht im Gleichschritt Gruppenzüge bilden.
+- `setTurnStartCallback(ids)`: feuert nur auf dem Client, der „Nächster Zug" drückt → Zugbeginn-Effekte genau einmal (Zauber-Unterhalt, s. Zauberwirken).
+- `BattleTrackerEngine.currentTurnIdsFromSaved(world.battleParticipants)`: aktuelle Gruppe ohne laufenden Tracker — Blatt-Leuchten (lila = eigener Zug, gelb = Gruppenzug). `nextTurnAt` ist seit dem Meter-System immer 0, nicht verwenden.
+- Aktuelle Gruppe im Kompakt-Tracker: `--accent`-Umriss, nicht gelb (= Team Neutral).
+
+### Raum-Mitgliedschaft & Reconnect
+- Socket.IO vergisst Räume beim Verbindungsabbruch. `CharacterSocketService` und `WorldSocketService` merken sich beigetretene Räume und treten bei jedem `connect` erneut bei; `CharacterSocketService.reconnected$` → Character-Store und Lobby laden Blätter neu (verpasste Patches).
+- Lobby lädt Charaktere nur bei `characterIds`/`partyIds`-Patches per REST neu (nicht mehr bei jedem Welt-Patch — das überschrieb neuere Socket-Patches).
+- `PATCH /api/characters/:id` broadcastet jetzt in den Character-Raum.
 
 ### Weltuhr (synchronisiert)
 - Persistente Felder: `WorldData.worldClock` (`year/day/hour/minute`) und `WorldData.encounterTimer` (`enabled/intervalHours/nextTriggerAtHour`)
@@ -536,6 +547,12 @@ interface SkillDefinition {
 }
 ```
 
+### Wann eine Fähigkeit zählt (`utils/skill-active.util.ts`)
+`isSkillInEffect` / `skillsInEffect` ist die EINE Regel für ausgegraute Karte und alle Rechner
+(TrueStats, Stat-/Ressourcen-Karten, Talentboni, Würfelboni, Rast, aktive Listen): manuell aus → nie;
+erleuchtet/Rasse → immer; sonst nur solange die Klasse (oder ein Nachfahre) Primär-/Sekundärklasse
+ist. Klassenlose Blätter (NSC) haben kein Gate. Vorher rechnete TrueStats abgelegte Klassen weiter (+10 Mana blieb).
+
 ### Klassen-Hierarchie (CLASS_DEFINITIONS)
 - Tier 1: Magier, Kämpfer, Techniker
 - Tier 2: Kampfzauberer, Heiler, Schütze, Dieb, Krieger, Barbar
@@ -635,6 +652,12 @@ Zwei **orthogonale** Achsen; Wirkbarkeit wird abgeleitet, nie gespeichert.
 - **Cast-Level**: +/- Buttons in Aktiv-Liste; Reduktion: `Math.min(90, floor(cl/10)*10)`%
 - **Fokus-Formel (korrekt)**: `Math.floor((Math.floor(int/2) + 5 + bonus) * mult)` (aus `sheet.statuses` Intelligenz lesen)
 - **Patch-Pattern**: `(patch)="store.applyPatch($any($event))"` in sheet.component.html
+- **Stat-Anforderungen**: über `TrueStatsService.calculateStat`, NIE `stat.current` (das setzt nur die Stat-Karte im Blatt beim Rendern — in der Lobby war es veraltet/1).
+- **Laufzeit & Unterhalt** (`utils/spell-upkeep.util.ts`, eine Regel für Fenster, Lobby-Spalte, Zugbeginn):
+  Dauer skaliert mit Skalierung; **Dauer 0 + Rundenkosten = läuft bis zum Lösen** (∞). Bei Zugbeginn
+  (`setTurnStartCallback`) altern laufende Zauber um eine Runde und zahlen `perTurnMana`; reicht das
+  Mana nicht, läuft der Zauber weiter ohne Abzug + Warnung im Wurf-Log. Fokus wird gebunden, nicht bezahlt.
+  NSC-Zauber nur, wenn der Zug in der Lobby weitergeschaltet wird (Tokens liegen in Lobby-Daten).
 
 ## Lobby-Architektur (lobby/)
 
@@ -758,12 +781,15 @@ lobby-container
 - Kriegsnebel deckt jede Lobby-Karte standardmäßig ganz zu (`LobbyMap.fogOff` fehlt = an); Radierer deckt auf.
   Werkzeugleiste: „Verdeckt: An/Aus“ (synchron, pro Karte) und „Nebel“-Augen-Schalter nur für den GM, lokal (blendet aus; im Nebel-Werkzeug immer sichtbar).
 - Begleiter-Token gehören dem Besitzer des Charakters: `canViewTokenStats` liest den Besitzer aus `statblockId` (`companion-<id>-…`/`summon-<id>-…`).
+- Effekte können die ganze Lade-/Tempo-Kette verändern: Ziele `carryCapacity`, `carryWeight`, `encumbrance`, `armorDebuff`, `effectiveSpeed` (Statuseffekt-Editor + FailScript `maxCapacity`, `totalWeight`, `encumbrancePercent`, `totalArmorDebuff`, `effectiveSpeed`; `fokusMax`, `baseSpeed`, `speedPenaltyNegation` als Aliase). Skripte lesen Werte vor der Pipeline — keine Rekursion.
 - Schnell-Token ohne Blatt würfeln über ein leeres Blatt (`rollerSheet`, id = Token-id für das Wurf-Popup).
 
 ### Token-Ressourcen
-- Token.currentHealth?, currentMana?, currentEnergy? → optionale Felder auf dem Token
-- Falls undefined: Wert wird aus CharacterSheet.statuses (FormulaType.LIFE/MANA/ENERGY) gelesen
-- Beim Bearbeiten über Panel: via store.updateToken() auf Token gespeichert
+- **Spieler**: Leben/Mana/Ausdauer leben NUR in `CharacterSheet.statuses` — Lesen und Schreiben
+  (Panel, Bottom-Panel, Karte) gehen über das Blatt (`statuses`-Patch per Character-Socket +
+  `sheetPatched`). Token-Felder werden für Spieler ignoriert; früher gewannen sie und verdeckten
+  Rast/Schaden aus dem Blatt.
+- **NSC**: `Token.currentHealth?/currentMana?/currentEnergy?`; undefined = Maximum. Speichern via `store.updateToken()`.
 
 ### Battle-Tracker Integration
 - `BattleTrackerEngine.registerCharacter(id, {name, portrait, speed})` muss vor `addCharacter(id)` aufgerufen werden für NSC-Tokens (deren IDs nicht in setAvailableCharacters() enthalten sind)

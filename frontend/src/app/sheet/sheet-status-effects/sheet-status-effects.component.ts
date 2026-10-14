@@ -89,7 +89,13 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     armorNegation: 'R\u00fcst.-Neg.',
     grundbonus: 'Grundbonus',
     reaktion: 'Reaktion',
-    bewegung: 'Bewegung'
+    bewegung: 'Bewegung',
+    stability: 'Stabilität',
+    carryCapacity: 'Tragkraft',
+    carryWeight: 'Gewicht',
+    encumbrance: 'Beladung',
+    armorDebuff: 'Rüst.-Geschw.',
+    effectiveSpeed: 'Eff. SPD'
   };
 
   ngOnInit() {

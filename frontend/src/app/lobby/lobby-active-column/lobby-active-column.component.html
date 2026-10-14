@@ -68,7 +68,11 @@
               <button class="lbp-ac-rd-btn" (click)="svc.decrementRound(entry)">&minus;</button>
               <input class="lbp-ac-rd-input" type="number" min="0"
                      [ngModel]="entry.roundsActive ?? 0" (ngModelChange)="svc.setRoundsActive(entry, $event)" />
-              @if (spell?.durationTurns) { <span class="lbp-ac-rd-max">/ {{ spell!.durationTurns }}</span> }
+              @if (svc.isSpellEndless(entry)) {
+                <span class="lbp-ac-rd-max" title="Läuft, bis der Zauber gelöst wird">/ ∞</span>
+              } @else if (svc.spellDuration(entry); as dur) {
+                <span class="lbp-ac-rd-max">/ {{ dur }}</span>
+              }
               <button class="lbp-ac-rd-btn lbp-ac-rd-btn--plus" (click)="svc.advanceRound(entry)">+</button>
             </div>
           }

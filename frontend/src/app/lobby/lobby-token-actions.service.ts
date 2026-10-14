@@ -8,6 +8,10 @@ import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry, SpellCounter } from '../model/spell-block-model';
 import { carriedMedia, castableSpells, resolveSpellByKey, spellKey } from '../utils/spell-medium.util';
 import {
+  entryDuration, isCastingEntryFinished, isSustainedUntilReleased,
+} from '../utils/spell-upkeep.util';
+import { isSkillInEffect } from '../utils/skill-active.util';
+import {
   CostChip, chipsToText, resourceChip, resourceIcon, spellBaseCostChips, spellPerTurnChips,
 } from '../utils/resource-chips.util';
 import { SkillBlock } from '../model/skill-block.model';
@@ -171,7 +175,7 @@ export class LobbyTokenActionsService implements OnDestroy {
     if (this.character) {
       const own = (this.character.skills ?? []).filter(s => {
         const effectiveType = this.getSkillDefinition(s)?.type ?? s.type;
-        return effectiveType === 'active' && !s.disabled;
+        return effectiveType === 'active' && isSkillInEffect(s, this.character!);
       });
       // Effect-bound skills granted by active effectActive blocks — derived on demand, so
       // they appear while the source effect is active and vanish when it is removed. Never
@@ -336,10 +340,17 @@ export class LobbyTokenActionsService implements OnDestroy {
   }
 
   isSpellFinished(entry: CastingSpellEntry): boolean {
-    if (entry.remainingCast > 0) return false;
-    const spell = this.getSpell(entry.spellId);
-    if (!spell?.durationTurns) return true;
-    return (entry.roundsActive ?? 0) >= spell.durationTurns;
+    return isCastingEntryFinished(entry, this.getSpell(entry.spellId));
+  }
+
+  /** Dauer 0 with upkeep: runs until released. */
+  isSpellEndless(entry: CastingSpellEntry): boolean {
+    return isSustainedUntilReleased(this.getSpell(entry.spellId));
+  }
+
+  /** Scaled duration in rounds (0 = instant). */
+  spellDuration(entry: CastingSpellEntry): number {
+    return entryDuration(entry, this.getSpell(entry.spellId));
   }
 
   // ── Status effects ────────────────────────────────────────────────────────
@@ -470,6 +481,8 @@ export class LobbyTokenActionsService implements OnDestroy {
     constitution: 'KON', chill: 'WIL', life: 'Leben', energy: 'Ausdauer', mana: 'Mana',
     fokus: 'Fokus', armorMalus: 'Rüst.-Malus', armorNegation: 'Rüst.-Neg.',
     grundbonus: 'Grundbonus', reaktion: 'Reaktion', bewegung: 'Bewegung',
+    stability: 'Stabilität', carryCapacity: 'Tragkraft', carryWeight: 'Gewicht',
+    encumbrance: 'Beladung', armorDebuff: 'Rüst.-Geschw.', effectiveSpeed: 'Eff. SPD',
   };
 
   getStatModLabel(stat: string): string {

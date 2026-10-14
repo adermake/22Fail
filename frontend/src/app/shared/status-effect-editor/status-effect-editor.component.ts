@@ -43,7 +43,8 @@ export class StatusEffectEditorComponent implements OnInit {
   stats: StatusModifierTarget[] = [
     'strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill',
     'life', 'energy', 'mana',
-    'fokus', 'armorMalus', 'armorNegation', 'grundbonus', 'reaktion', 'bewegung', 'stability'
+    'fokus', 'armorMalus', 'armorNegation', 'grundbonus', 'reaktion', 'bewegung', 'stability',
+    'carryCapacity', 'carryWeight', 'encumbrance', 'armorDebuff', 'effectiveSpeed',
   ];
 
   statLabels: Record<string, string> = {
@@ -63,6 +64,11 @@ export class StatusEffectEditorComponent implements OnInit {
     reaktion: 'Reaktionsbonus',
     bewegung: 'Bewegung',
     stability: 'Stabilität',
+    carryCapacity: 'Tragkraft',
+    carryWeight: 'Getragenes Gewicht',
+    encumbrance: 'Beladung (%)',
+    armorDebuff: 'Rüstungs-Geschw.-Malus (Gegenstände)',
+    effectiveSpeed: 'Effektive Geschwindigkeit',
   };
 
   // Talents available for talent modifiers

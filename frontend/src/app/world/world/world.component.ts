@@ -32,6 +32,7 @@ import { ContextMenuComponent, ContextMenuItem } from '../../shared/context-menu
 import { BattleTracker } from '../battle-tracker/battle-tracker.component';
 import { CurrentEventsManagerComponent } from '../current-events-manager/current-events-manager.component';
 import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
+import { characterTurnUpkeep } from '../../utils/spell-upkeep.util';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { CharacterGeneratorComponent } from '../character-generator/character-generator.component';
 import { SoundVolumeControlComponent } from '../../shared/sound/sound-volume-control.component';
@@ -516,6 +517,19 @@ export class WorldComponent implements OnInit, OnDestroy {
   ngOnInit() {
     // Connect battle engine to world store for persistence
     this.battleEngine.setWorldStore(this.store);
+    // Turn start (advanced from this dashboard): spell rounds + per-round Mana for party members.
+    // NPC tokens live in the lobby map and are only handled when the turn is advanced there.
+    this.battleEngine.setTurnStartCallback(ids => {
+      for (const id of ids) {
+        const sheet = this.partyCharacters.get(id);
+        if (!sheet) continue;
+        for (const patch of characterTurnUpkeep(sheet).patches) {
+          this.applyJsonPatch(sheet, patch);
+          this.characterSocket.sendPatch(id, patch);
+        }
+      }
+      this.cdr.markForCheck();
+    });
     
     // Load all libraries for context menu usage
     this.libraryStoreService.loadAllLibraries();

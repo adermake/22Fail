@@ -367,6 +367,9 @@ export class AppController {
       return { success: false, error: 'Character not found' };
     }
 
+    // Open sheets / lobbies only learn about a change through the character room.
+    this.characterGateway.broadcastPatch(id, patch);
+
     return {
       success: true,
       patch,

@@ -13,8 +13,13 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
-import { TrueStatsService } from '../../services/true-stats.service';
+import { TrueStatsService, StatKey } from '../../services/true-stats.service';
+import { StatBlock } from '../../model/stat-block.model';
+import { isSkillInEffect } from '../../utils/skill-active.util';
 import { spellBaseCosts, spellHaltbarkeitsKosten } from '../../utils/spell-costs.util';
+import {
+  entryDuration, isCastingEntryFinished, isSustainedUntilReleased,
+} from '../../utils/spell-upkeep.util';
 import { CostChip, spellBaseCostChips, spellPerTurnChips } from '../../utils/resource-chips.util';
 import {
   CastableSpell, SpellMedium, carriedMedia, castableSpells, resolveSpellByKey, spellKey,
@@ -345,16 +350,21 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
       .map(m => ({ key: m.key, label: m.label, value: (req as Record<string, number>)[m.key] }));
   }
 
+  /**
+   * Live stat value from the calculator. NOT `stat.current`: that field is only written when the
+   * sheet's stat component renders, so in the lobby it was stale/1 and every requirement failed.
+   */
+  private statValue(key: string): number {
+    const block = (this.sheet as unknown as Record<string, StatBlock | undefined>)[key];
+    return this._trueStats.calculateStat(this.sheet, block, key as StatKey);
+  }
+
   spellMeetsStat(key: string, value: number): boolean {
-    const stat = (this.sheet as any)[key];
-    const current = stat?.current ?? 0;
-    return current >= value;
+    return this.statValue(key) >= value;
   }
 
   castLevelMeetsReq(key: string, value: number): boolean {
-    const stat = (this.sheet as any)[key];
-    const current = stat?.current ?? 0;
-    return current >= this.castLevelReducedReq(value);
+    return this.statValue(key) >= this.castLevelReducedReq(value);
   }
 
   /** Effective stat requirement: base × 100/(Cast+100) */
@@ -363,9 +373,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
   }
 
   castLevelForReq(key: string, value: number): number {
-    const stat = (this.sheet as any)[key];
-    const current = stat?.current ?? 0;
-    const needed = castLevelForStatRequirement(value, current);
+    const needed = castLevelForStatRequirement(value, this.statValue(key));
     return Number.isFinite(needed) ? needed : 9999;
   }
 
@@ -794,19 +802,16 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
 
   /** Whether a spell has exceeded its scaled round duration */
   isSpellFinished(entry: CastingSpellEntry): boolean {
-    if (entry.remainingCast > 0) return false;
-    const spell = this.getSpell(entry.spellId);
-    const baseDur = spell?.durationTurns ?? 0;
-    if (!baseDur) return true;
-    const sk = entry.skalierung ?? 1;
-    const scaledDur = scaledBySkalierung(baseDur, sk);
-    return (entry.roundsActive ?? 0) >= scaledDur;
+    return isCastingEntryFinished(entry, this.getSpell(entry.spellId));
   }
 
+  /** Scaled rounds; Infinity for a Dauer-0 spell with upkeep (runs until released). */
   entryScaledDauer(entry: CastingSpellEntry): number {
-    const spell = this.getSpell(entry.spellId);
-    const base = spell?.durationTurns ?? 0;
-    return scaledBySkalierung(base, entry.skalierung ?? 1);
+    return entryDuration(entry, this.getSpell(entry.spellId));
+  }
+
+  isEndless(entry: CastingSpellEntry): boolean {
+    return isSustainedUntilReleased(this.getSpell(entry.spellId));
   }
 
   entryScaledEffektivitaet(entry: CastingSpellEntry): number {
@@ -893,7 +898,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
   /** Active skills (type === 'active') available on the sheet, plus effect-granted temporary
    * skills derived from active effectActive blocks (they appear/vanish with their source effect). */
   get availableSkills(): SkillBlock[] {
-    const own = (this.sheet.skills || []).filter(s => s.type === 'active' && !s.disabled);
+    const own = (this.sheet.skills || []).filter(s => s.type === 'active' && isSkillInEffect(s, this.sheet));
     return [...own, ...this._trueStats.getDerivedSkillBlocks(this.sheet)];
   }
 

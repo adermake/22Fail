@@ -24,7 +24,7 @@ const SOUND_BASE = '/ping-sounds';
 export const PING_TYPES: Record<PingType, PingTypeConfig> = {
   danger: {
     type: 'danger',
-    label: 'Danger',
+    label: 'Gefahr',
     color: '#ef4444',
     icon: '❗',
     sound: `${SOUND_BASE}/Caution_ping_SFX.ogg`,
@@ -32,7 +32,7 @@ export const PING_TYPES: Record<PingType, PingTypeConfig> = {
   },
   onmyway: {
     type: 'onmyway',
-    label: 'On My Way',
+    label: 'Unterwegs',
     color: '#22c55e',
     icon: '🏃',
     sound: `${SOUND_BASE}/On_My_Way_ping_SFX.ogg`,
@@ -40,7 +40,7 @@ export const PING_TYPES: Record<PingType, PingTypeConfig> = {
   },
   assist: {
     type: 'assist',
-    label: 'Assist Me',
+    label: 'Hilfe',
     color: '#3b82f6',
     icon: '🚩',
     sound: `${SOUND_BASE}/Assist_Me_ping_SFX.ogg`,
@@ -48,7 +48,7 @@ export const PING_TYPES: Record<PingType, PingTypeConfig> = {
   },
   enemy: {
     type: 'enemy',
-    label: 'Enemy Missing',
+    label: 'Gegner verschwunden',
     color: '#eab308',
     icon: '❓',
     sound: `${SOUND_BASE}/Enemy_Missing_ping_SFX.ogg`,

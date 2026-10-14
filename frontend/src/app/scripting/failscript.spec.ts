@@ -29,6 +29,18 @@ describe('FailScript checker', () => {
     expect(compileScript('effectActive { speed += 2 speed *= 2 speed -= 1 speed /= 2 speed = 0 }').ok).toBe(true);
   });
 
+  it('allows every derived value to be modified inside effectActive', () => {
+    const names = [
+      'maxCapacity', 'totalWeight', 'encumbrancePercent', 'effectiveSpeed', 'baseSpeed',
+      'totalArmorDebuff', 'speedPenaltyNegation', 'fokusMax',
+    ];
+    for (const n of names) expect(compileScript(`effectActive { ${n} += 1 }`).ok).toBe(true);
+  });
+
+  it('still rejects modifying a derived value outside effectActive', () => {
+    expect(errs('maxCapacity += 10').some(m => m.includes('Stat-Leak'))).toBe(true);
+  });
+
   it('keeps untilNextTurn as an alias for effectActive', () => {
     expect(compileScript('untilNextTurn { speed += 5 }').ok).toBe(true);
   });

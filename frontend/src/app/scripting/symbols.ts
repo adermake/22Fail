@@ -106,7 +106,7 @@ export const SYMBOLS: SymbolInfo[] = [
   { name: 'mana', category: 'resource', type: 'number', description: 'Aktuelles Mana' },
   { name: 'manaMax', category: 'resource', type: 'number', description: 'Maximales Mana', assignable: true, modifierTarget: 'mana' },
   { name: 'fokus', category: 'resource', type: 'number', description: 'Verfügbarer Fokus' },
-  { name: 'fokusMax', category: 'resource', type: 'number', description: 'Maximaler Fokus' },
+  { name: 'fokusMax', category: 'resource', type: 'number', description: 'Maximaler Fokus', assignable: true, modifierTarget: 'fokus' },
 
   // Derived values
   { name: 'durability', category: 'derived', type: 'number', description: 'Haltbarkeit des Gegenstands (nur im Item-Skript)' },
@@ -119,13 +119,16 @@ export const SYMBOLS: SymbolInfo[] = [
   { name: 'stability', category: 'derived', type: 'number', description: 'Stabilität (Verteidigung gegen Schaden)', assignable: true, modifierTarget: 'stability' },
   { name: 'armorMalus', category: 'derived', type: 'number', description: 'Rüstungsmalus (Geschw.)', assignable: true, modifierTarget: 'armorMalus' },
   { name: 'armorNegation', category: 'derived', type: 'number', description: 'Rüstungsnegation', assignable: true, modifierTarget: 'armorNegation' },
-  { name: 'effectiveSpeed', category: 'derived', type: 'number', description: 'Effektive Geschwindigkeit (nach Malus)' },
-  { name: 'baseSpeed', category: 'derived', type: 'number', description: 'Basis-Geschwindigkeit (ohne Malus)' },
-  { name: 'totalArmorDebuff', category: 'derived', type: 'number', description: 'Rüstungs-Geschw.-Malus (Items)' },
-  { name: 'speedPenaltyNegation', category: 'derived', type: 'number', description: 'Geschw.-Malus-Negation' },
-  { name: 'encumbrancePercent', category: 'derived', type: 'number', description: 'Beladung in %' },
-  { name: 'totalWeight', category: 'derived', type: 'number', description: 'Getragenes Gewicht' },
-  { name: 'maxCapacity', category: 'derived', type: 'number', description: 'Maximale Tragkraft' },
+  // The load/speed chain: Tragkraft + Gewicht → Beladung → Malus → effektive Geschwindigkeit.
+  // Each step is assignable; scripts read the values from BEFORE any effectActive applied
+  // (see `collectingEffectActive` in TrueStatsService), so a script cannot feed on itself.
+  { name: 'effectiveSpeed', category: 'derived', type: 'number', description: 'Effektive Geschwindigkeit (nach Malus)', assignable: true, modifierTarget: 'effectiveSpeed' },
+  { name: 'baseSpeed', category: 'derived', type: 'number', description: 'Basis-Geschwindigkeit (ohne Malus) — Alias für speed', assignable: true, modifierTarget: 'speed' },
+  { name: 'totalArmorDebuff', category: 'derived', type: 'number', description: 'Rüstungs-Geschw.-Malus (Items)', assignable: true, modifierTarget: 'armorDebuff' },
+  { name: 'speedPenaltyNegation', category: 'derived', type: 'number', description: 'Geschw.-Malus-Negation — Alias für armorNegation', assignable: true, modifierTarget: 'armorNegation' },
+  { name: 'encumbrancePercent', category: 'derived', type: 'number', description: 'Beladung in %', assignable: true, modifierTarget: 'encumbrance' },
+  { name: 'totalWeight', category: 'derived', type: 'number', description: 'Getragenes Gewicht', assignable: true, modifierTarget: 'carryWeight' },
+  { name: 'maxCapacity', category: 'derived', type: 'number', description: 'Maximale Tragkraft', assignable: true, modifierTarget: 'carryCapacity' },
 
   // Currency
   { name: 'copper', category: 'currency', type: 'number', description: 'Kupfer-Cetris' },

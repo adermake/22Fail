@@ -382,10 +382,10 @@
                            min="0"
                            [ngModel]="entry.roundsActive ?? 0"
                            (ngModelChange)="setRoundsActive(entry, $event)" />
-                    @if (entryScaledDauer(entry); as dur) {
-                      @if (dur > 0) {
-                        <span class="scw-round-of">/ {{ dur }}</span>
-                      }
+                    @if (isEndless(entry)) {
+                      <span class="scw-round-of" title="Läuft, bis der Zauber gelöst wird">/ ∞</span>
+                    } @else if (entryScaledDauer(entry); as dur) {
+                      <span class="scw-round-of">/ {{ dur }}</span>
                     }
                     <button class="scw-advance-btn" (click)="advanceRound(entry)" title="Runde voranbringen">+</button>
                   </div>

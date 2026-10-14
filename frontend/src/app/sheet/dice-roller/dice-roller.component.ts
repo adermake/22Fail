@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
+import { skillsInEffect } from '../../utils/skill-active.util';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { TALENT_DEFINITIONS, TalentStatKey, talentStatLabel } from '../../data/talent-definitions';
 import { computeSkillTalentBonuses } from '../../utils/skill-talent-bonus.utils';
@@ -124,7 +125,8 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     const bonuses: DiceBonus[] = [];
     
     // Get all dice_bonus skills that the character has
-    const characterSkills = this.sheet.skills || [];
+    // Only skills that count right now (class still held, not switched off).
+    const characterSkills = skillsInEffect(this.sheet);
     
     characterSkills.forEach(skill => {
       // Check if this skill is a dice_bonus type (either from the skill itself or the definition)

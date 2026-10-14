@@ -32,6 +32,15 @@ export class CharacterStoreService {
         this.sheetSubject.next({ ...sheet });
       }
     });
+
+    // Patches sent while we were offline never reach us — re-read the file after a reconnect.
+    this.socket.reconnected$.subscribe(async () => {
+      if (!this.characterId || !this.sheetSubject.value) return;
+      const fresh = await this.api.loadCharacter(this.characterId);
+      if (!fresh) return;
+      fresh.id = this.characterId;
+      this.sheetSubject.next(fresh);
+    });
   }
 
   async save(): Promise<void> {

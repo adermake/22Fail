@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Input,
+  OnDestroy,
+  ViewChild,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PingType, PING_TYPES } from './ping.model';
 
@@ -23,7 +33,21 @@ export interface RenderedPing {
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="ping-layer">
+    <div class="ping-layer" #layer>
+      @for (e of edgeIndicators(); track e.id) {
+        <div
+          class="ping-edge"
+          [style.left.px]="e.x"
+          [style.top.px]="e.y"
+          [style.--ping-color]="color(e.type)"
+        >
+          <span class="ping-edge-arrow" [style.transform]="'rotate(' + e.angle + 'rad)'"></span>
+          <span class="ping-edge-dot"></span>
+          @if (e.name) {
+            <span class="ping-edge-name">{{ e.name }}</span>
+          }
+        </div>
+      }
       @for (p of pings; track p.id) {
         <div
           class="ping"
@@ -102,6 +126,75 @@ export interface RenderedPing {
           0 1px 2px rgba(0, 0, 0, 0.9);
         animation: ping-name 2.4s ease-out forwards;
       }
+      /* Off-screen marker: a dot pinned to the viewport edge, arrow pointing at the ping. */
+      .ping-edge {
+        position: absolute;
+        width: 0;
+        height: 0;
+        animation: ping-edge 2.4s ease-out forwards;
+      }
+      .ping-edge-dot {
+        position: absolute;
+        left: -9px;
+        top: -9px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--ping-color, #e2e8f0);
+        border: 2px solid rgba(0, 0, 0, 0.55);
+        box-shadow: 0 0 10px var(--ping-color, #e2e8f0);
+        animation: ping-edge-pulse 0.8s ease-in-out 3;
+      }
+      .ping-edge-arrow {
+        position: absolute;
+        left: -22px;
+        top: -22px;
+        width: 44px;
+        height: 44px;
+        transform-origin: 50% 50%;
+      }
+      .ping-edge-arrow::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 50%;
+        margin-top: -7px;
+        border-left: 11px solid var(--ping-color, #e2e8f0);
+        border-top: 7px solid transparent;
+        border-bottom: 7px solid transparent;
+        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+      }
+      .ping-edge-name {
+        position: absolute;
+        left: 0;
+        top: 14px;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        font-size: 11px;
+        font-weight: 600;
+        color: #fff;
+        text-shadow:
+          0 0 3px rgba(0, 0, 0, 0.9),
+          0 1px 2px rgba(0, 0, 0, 0.9);
+      }
+      @keyframes ping-edge {
+        0%,
+        85% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+      @keyframes ping-edge-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.3);
+        }
+      }
       @keyframes ping-name {
         0%,
         8% {
@@ -149,8 +242,55 @@ export interface RenderedPing {
     `,
   ],
 })
-export class PingLayerComponent {
+export class PingLayerComponent implements AfterViewInit, OnDestroy {
   @Input() pings: RenderedPing[] = [];
+
+  @ViewChild('layer') private layerRef?: ElementRef<HTMLDivElement>;
+  private readonly cdr = inject(ChangeDetectorRef);
+  private resizeObserver: ResizeObserver | null = null;
+  private width = 0;
+  private height = 0;
+
+  ngAfterViewInit(): void {
+    const el = this.layerRef?.nativeElement;
+    if (!el) return;
+    this.resizeObserver = new ResizeObserver(() => {
+      this.width = el.clientWidth;
+      this.height = el.clientHeight;
+      this.cdr.markForCheck();
+    });
+    this.resizeObserver.observe(el);
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
+  /**
+   * Pings outside the visible area, projected onto the viewport edge along the line from the
+   * centre, so you can see which way to scroll. Recomputed whenever the parent hands a new
+   * (pan/zoom-adjusted) ping list.
+   */
+  edgeIndicators(): (RenderedPing & { angle: number })[] {
+    const w = this.width;
+    const h = this.height;
+    if (!w || !h) return [];
+    const margin = 26;
+    const cx = w / 2;
+    const cy = h / 2;
+    const out: (RenderedPing & { angle: number })[] = [];
+    for (const p of this.pings) {
+      if (p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h) continue;
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      // Scale the centre→ping vector down until it touches the inset rectangle.
+      const sx = dx !== 0 ? (cx - margin) / Math.abs(dx) : Infinity;
+      const sy = dy !== 0 ? (cy - margin) / Math.abs(dy) : Infinity;
+      const s = Math.min(sx, sy, 1);
+      out.push({ ...p, x: cx + dx * s, y: cy + dy * s, angle: Math.atan2(dy, dx) });
+    }
+    return out;
+  }
 
   color(type: PingType): string {
     return PING_TYPES[type].color;

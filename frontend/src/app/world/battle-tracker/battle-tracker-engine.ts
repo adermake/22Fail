@@ -509,6 +509,25 @@ export class BattleTrackerEngine {
     return ids;
   }
 
+  /**
+   * Current turn group straight from persisted `world.battleParticipants`, for views that
+   * don't run a tracker (the sheet's turn glow). Uses the saved speed snapshot.
+   */
+  static currentTurnIdsFromSaved(saved: BattleParticipant[] | undefined | null): string[] {
+    if (!saved?.length) return [];
+    const engine = new BattleTrackerEngine();
+    for (const bp of saved) {
+      engine.participants.set(bp.characterId, {
+        characterId: bp.characterId,
+        name: bp.name,
+        speed: bp.speed ?? 10,
+        team: bp.team || 'blue',
+        turnMeter: bp.turnFrequency ?? 0,
+      });
+    }
+    return engine.getCurrentTurnCharacterIds();
+  }
+
   /** Check if there are any participants */
   hasParticipants(): boolean {
     return this.participants.size > 0;
@@ -554,7 +573,9 @@ export class BattleTrackerEngine {
       portrait: char.portrait,
       speed: char.speed,
       team: 'blue',
-      turnMeter: 0, // Start at 0
+      // Random start so equal-speed combatants don't tick in lockstep and clump into
+      // one big group turn every cycle. Same speed keeps the offset stable afterwards.
+      turnMeter: Math.floor(Math.random() * TURN_METER_MAX),
     });
 
     this.notifyChange();
@@ -616,6 +637,16 @@ export class BattleTrackerEngine {
     this.advanceToNextTurn();
     this.notifyChange();
     this.saveToWorldStore();
+    // Only the client that pressed "Nächster Zug" runs this, so turn-start effects (spell upkeep,
+    // round counters) are applied exactly once and then sync like any other patch.
+    this.onTurnStart?.(this.getCurrentTurnCharacterIds());
+  }
+
+  private onTurnStart: ((characterIds: string[]) => void) | null = null;
+
+  /** Called with the ids whose turn just began, after a local `nextTurn()`. */
+  setTurnStartCallback(callback: ((characterIds: string[]) => void) | null): void {
+    this.onTurnStart = callback;
   }
 
   /** Reset battle - clear all participants and their turn meters */

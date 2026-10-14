@@ -186,6 +186,72 @@ describe('TrueStatsService', () => {
     });
   });
 
+  // ── Load & speed chain (Tragkraft → Beladung → Malus → effektive Geschwindigkeit) ──
+
+  describe('effectActive pipeline — load and speed chain', () => {
+    /** Stärke 10 → Tragkraft 80; 70 kg in the pack is 87.5 % — the half-speed band. */
+    const loaded = (): CharacterSheet =>
+      makeSheet({ inventory: [{ name: 'Stein', weight: 70 } as ItemBlock] });
+
+    it('starts from Stärke × 8', () => {
+      expect(svc.getMaxCapacity(makeSheet())).toBe(80);
+    });
+
+    it('lets an effect raise and multiply Tragkraft', () => {
+      expect(svc.getMaxCapacity(withEffect(makeSheet(), 'effectActive { maxCapacity += 20 }'))).toBe(100);
+      expect(svc.getMaxCapacity(withEffect(makeSheet(), 'effectActive { maxCapacity *= 2 }'))).toBe(160);
+    });
+
+    it('takes a flat status-effect modifier on Tragkraft', () => {
+      const sheet = withEffect(makeSheet(), '', {
+        statModifiers: [{ stat: 'carryCapacity', amount: 10 }],
+      });
+      expect(svc.getMaxCapacity(sheet)).toBe(90);
+    });
+
+    it('carries a higher Tragkraft through to Beladung and speed', () => {
+      expect(svc.calculateEffectiveSpeed(loaded())).toBe(5); // 87.5 % → half speed
+      const sheet = withEffect(loaded(), 'effectActive { maxCapacity += 20 }');
+      expect(svc.getEncumbrancePercentage(sheet)).toBe(70);
+      expect(svc.calculateEffectiveSpeed(sheet)).toBe(10);
+    });
+
+    it('lets an effect lighten the carried weight', () => {
+      const sheet = withEffect(loaded(), 'effectActive { totalWeight -= 30 }');
+      expect(svc.getTotalWeight(sheet)).toBe(40);
+      expect(svc.calculateEffectiveSpeed(sheet)).toBe(10);
+    });
+
+    it('lets an effect set the Beladung directly', () => {
+      const sheet = withEffect(makeSheet(), 'effectActive { encumbrancePercent = 100 }');
+      expect(svc.calculateEffectiveSpeed(sheet)).toBe(0);
+    });
+
+    it('lets an effect set the effective speed', () => {
+      const sheet = withEffect(makeSheet(), 'effectActive { effectiveSpeed = 3 }');
+      expect(svc.calculateEffectiveSpeed(sheet)).toBe(3);
+    });
+
+    it('lets an effect raise the maximum Fokus', () => {
+      const base = svc.calculateFokusMax(makeSheet());
+      expect(svc.calculateFokusMax(withEffect(makeSheet(), 'effectActive { fokusMax += 2 }'))).toBe(base + 2);
+    });
+
+    it('stacks two effects that both add — neither is lost', () => {
+      let sheet = withEffect(makeSheet(), 'effectActive { speed += 2 }');
+      sheet = withEffect(sheet, 'effectActive { speed += 2 }');
+      expect(svc.calculateSpeed(sheet)).toBe(14);
+      let cap = withEffect(makeSheet(), 'effectActive { maxCapacity += 10 }');
+      cap = withEffect(cap, 'effectActive { maxCapacity += 10 }');
+      expect(svc.getMaxCapacity(cap)).toBe(100);
+    });
+
+    it('reads pre-effect values inside the script, so a self-referencing buff cannot loop', () => {
+      const sheet = withEffect(makeSheet(), 'effectActive { maxCapacity = maxCapacity + encumbrancePercent + 5 }');
+      expect(svc.getMaxCapacity(sheet)).toBe(85); // 80 + 0 % + 5, evaluated once
+    });
+  });
+
   // ── Derived stats without effects ─────────────────────────────────────────
 
   describe('derived stats', () => {

@@ -42,6 +42,12 @@
   z-index: 6;
 }
 
+/* Rulers - above tokens, below fog */
+.ruler-layer {
+  z-index: 15;
+  pointer-events: none;
+}
+
 /* Fog of war layer - above everything including tokens */
 .fog-layer {
   z-index: 20;

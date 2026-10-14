@@ -8,6 +8,7 @@ import { isItemEquipped } from '../utils/equip-slot.utils';
 import { flattenConstruct } from '../utils/construct.util';
 import { MacroExecutorService } from './macro-executor.service';
 import { TrueStatsService } from './true-stats.service';
+import { isSkillInEffect } from '../utils/skill-active.util';
 
 /** One thing that reacts to resting. */
 export interface RestSource {
@@ -72,7 +73,7 @@ export class RestService {
 
   /** Is this skill "on" right now? Passives always are; actives only while toggled on. */
   isSkillActive(sheet: CharacterSheet, skill: SkillBlock): boolean {
-    if (skill.disabled) return false;
+    if (!isSkillInEffect(skill, sheet)) return false;
     if (skill.type === 'passive') return true;
     const byName = (sheet.activeSkillNames ?? []).includes(skill.name);
     const byEntry = (sheet.activeSkillEntries ?? []).some(e =>

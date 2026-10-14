@@ -54,6 +54,8 @@ import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.co
 import { DamageCalculatorComponent } from '../world/damage-calculator/damage-calculator.component';
 import { RestService, RestSource, RestOutcome, REST_RESOURCES, RestPreviewEntry } from '../services/rest.service';
 import { CharacterSheet } from '../model/character-sheet-model';
+import { BattleParticipant } from '../model/world.model';
+import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
 @Component({
   selector: 'app-sheet',
@@ -264,7 +266,9 @@ export class SheetComponent implements OnInit {
       if (sheet && sheet.name) {
         document.title = sheet.name;
       }
-      if (sheet && sheet.worldName) {
+      // sheet$ emits on every patch — only (re)join and refetch when the world actually changes,
+      // otherwise each keystroke re-read the whole world over REST and raced the socket.
+      if (sheet && sheet.worldName && sheet.worldName !== this.currentWorldName) {
         this.currentWorldName = sheet.worldName;
 
         // Wait for socket connection before joining world room
@@ -279,20 +283,7 @@ export class SheetComponent implements OnInit {
           this.lootPools = this.revealedPools(world?.gmDesk);
           this.cdr.detectChanges();
 
-          if (world && world.battleParticipants && world.battleParticipants.length > 0) {
-            const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-            const currentTurnAt = sorted[0].nextTurnAt;
-            const currentTurnTeam = sorted[0].team;
-
-            // Find all in current group (same time and team)
-            const currentGroup = sorted.filter(p =>
-              Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === currentTurnTeam
-            );
-
-            this.isCurrentTurn = currentGroup.some(p => p.characterId === id);
-            this.isGroupTurn = currentGroup.length > 1 && this.isCurrentTurn;
-            this.cdr.detectChanges();
-          }
+          this.updateTurnGlow(id, world?.battleParticipants);
         } catch (error) {
           console.error('Failed to check initial turn state:', error);
         }
@@ -307,29 +298,7 @@ export class SheetComponent implements OnInit {
 
         // Check if battle participants were updated to determine current turn
         if (normalizedPath === 'battleParticipants') {
-          const participants = patch.value as any[];
-          if (participants && participants.length > 0) {
-            // Find who has the current turn (lowest nextTurnAt)
-            // For groups, check if ANY member of the current group matches this character
-            const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-            const currentTurnAt = sorted[0].nextTurnAt;
-            const currentTurnTeam = sorted[0].team;
-
-            // Find all in current group (same time and team)
-            const currentGroup = sorted.filter(p =>
-              Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === currentTurnTeam
-            );
-
-            const isInCurrentGroup = currentGroup.some(p => p.characterId === id);
-
-            this.isCurrentTurn = isInCurrentGroup;
-            this.isGroupTurn = currentGroup.length > 1 && isInCurrentGroup;
-            this.cdr.detectChanges();
-          } else {
-            this.isCurrentTurn = false;
-            this.isGroupTurn = false;
-            this.cdr.detectChanges();
-          }
+          this.updateTurnGlow(id, patch.value as BattleParticipant[]);
         }
 
         // Check if current events were updated
@@ -357,6 +326,17 @@ export class SheetComponent implements OnInit {
         }
       });
     });
+  }
+
+  /**
+   * Purple glow = solo turn, yellow = shared group turn. Derived from the turn-meter engine
+   * (the old nextTurnAt field is always 0 since the meter rewrite, which killed the glow).
+   */
+  private updateTurnGlow(id: string, participants: BattleParticipant[] | undefined | null): void {
+    const current = BattleTrackerEngine.currentTurnIdsFromSaved(participants);
+    this.isCurrentTurn = current.includes(id);
+    this.isGroupTurn = this.isCurrentTurn && current.length > 1;
+    this.cdr.detectChanges();
   }
 
   /** Loot-pop: notice the player when a new soul lands in their sheet (e.g. GM extraction). */

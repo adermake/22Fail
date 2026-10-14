@@ -118,6 +118,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('foregroundCanvas') foregroundCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
+  /** Rulers only — sits above the DOM token layer (below fog) so tokens never hide a measurement. */
+  @ViewChild('rulerCanvas') rulerCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('fogCanvas') fogCanvas!: ElementRef<HTMLCanvasElement>; // Fog of war canvas (on top of everything)
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
@@ -259,6 +261,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private textureCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
+  private rulerCtx: CanvasRenderingContext2D | null = null;
   private fogCtx: CanvasRenderingContext2D | null = null; // Fog of war canvas
 
   // Image cache
@@ -704,6 +707,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       { el: this.textureCanvas?.nativeElement, name: 'texture' },
       { el: this.drawCanvas?.nativeElement, name: 'draw' },
       { el: this.overlayCanvas?.nativeElement, name: 'overlay' },
+      { el: this.rulerCanvas?.nativeElement, name: 'ruler' },
       { el: this.fogCanvas?.nativeElement, name: 'fog' },
     ];
 
@@ -716,6 +720,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         if (name === 'texture') this.textureCtx = ctx;
         if (name === 'draw') this.drawCtx = ctx;
         if (name === 'overlay') this.overlayCtx = ctx;
+        if (name === 'ruler') this.rulerCtx = ctx;
         if (name === 'fog') this.fogCtx = ctx;
         this.resizeCanvas(el);
       }
@@ -766,7 +771,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       if (this.resizeRenderTimer) clearTimeout(this.resizeRenderTimer);
       this.resizeRenderTimer = setTimeout(() => {
         this.resizeRenderTimer = null;
-        [this.gridCanvas, this.imageCanvas, this.textureCanvas, this.drawCanvas, this.overlayCanvas, this.fogCanvas].forEach(ref => {
+        [this.gridCanvas, this.imageCanvas, this.textureCanvas, this.foregroundCanvas, this.drawCanvas, this.overlayCanvas, this.rulerCanvas, this.fogCanvas].forEach(ref => {
           if (ref?.nativeElement) {
             this.resizeCanvas(ref.nativeElement);
           }
@@ -930,6 +935,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.overlayCtx && this.overlayCanvas) {
       const canvas = this.overlayCanvas.nativeElement;
       this.overlayCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+    if (this.rulerCtx && this.rulerCanvas) {
+      const canvas = this.rulerCanvas.nativeElement;
+      this.rulerCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     }
     
     // Clear draw canvas
@@ -3718,11 +3727,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.renderSpawnPoint(ctx);
     this.renderLinkedTokenLines(ctx);
-    this.renderMeasurement(ctx);
-    this.renderRemoteMeasurements(ctx);
     this.renderDragPath(ctx);
     this.renderSelectionBox(ctx);
     this.renderBrushSizeCircle(ctx);
+
+    const rulerCanvas = this.rulerCanvas?.nativeElement;
+    if (this.rulerCtx && rulerCanvas) {
+      this.rulerCtx.clearRect(0, 0, rulerCanvas.width / dpr, rulerCanvas.height / dpr);
+      this.renderMeasurement(this.rulerCtx);
+      this.renderRemoteMeasurements(this.rulerCtx);
+    }
   }
 
   /** Spawn point (GM only): where players sent to this map appear. */

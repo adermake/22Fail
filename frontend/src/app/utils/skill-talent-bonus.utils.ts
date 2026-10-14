@@ -3,6 +3,7 @@ import { CharacterSheet } from '../model/character-sheet-model';
 import { SkillBlock } from '../model/skill-block.model';
 import { SkillDefinition } from '../model/skill-definition.model';
 import { TalentId } from '../data/talent-definitions';
+import { isSkillInEffect } from './skill-active.util';
 
 export interface SkillTalentBonusSource {
   skillName: string;
@@ -25,7 +26,7 @@ export function computeSkillTalentBonuses(sheet: CharacterSheet): Map<TalentId, 
   const totals = new Map<TalentId, number>();
 
   for (const skill of sheet.skills ?? []) {
-    if (skill.disabled) continue;
+    if (!isSkillInEffect(skill, sheet)) continue;
 
     const def = resolveSkillDefinition(skill);
     if (!def || def.type !== 'talent_bonus') continue;
@@ -50,7 +51,7 @@ export function computeSkillTalentBonusBreakdown(sheet: CharacterSheet): Map<Tal
   const breakdown = new Map<TalentId, SkillTalentBonusBreakdown>();
 
   for (const skill of sheet.skills ?? []) {
-    if (skill.disabled) continue;
+    if (!isSkillInEffect(skill, sheet)) continue;
 
     const def = resolveSkillDefinition(skill);
     if (!def || def.type !== 'talent_bonus') continue;

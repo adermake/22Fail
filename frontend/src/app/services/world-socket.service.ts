@@ -69,6 +69,8 @@ export class WorldSocketService {
     this.socket.on('connect', () => {
       console.log('[WORLD SOCKET] Connected! Socket ID:', this.socket?.id);
       this.isConnected = true;
+      // Rooms are lost on disconnect — re-join, or this tab stops hearing world patches.
+      for (const name of this.joinedWorlds) this.socket?.emit('joinWorld', name);
       this.connectionReadySubject.next();
     });
 
@@ -113,8 +115,11 @@ export class WorldSocketService {
       });
     }
     console.log('[WORLD SOCKET] Joining world:', worldName);
+    this.joinedWorlds.add(worldName);
     this.socket?.emit('joinWorld', worldName);
   }
+
+  private joinedWorlds = new Set<string>();
 
   sendPatch(worldName: string, patch: JsonPatch) {
     // Don't log full patches - they can be huge with base64 data

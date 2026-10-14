@@ -19,6 +19,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { StatusEffect, StatusModifierTarget } from '../../model/status-effect.model';
+import { skillsInEffect } from '../../utils/skill-active.util';
 
 @Component({
   selector: 'app-stat',
@@ -57,8 +58,8 @@ export class StatComponent {
     let total = 0;
 
     // Add bonuses from skills
-    if (this.sheet.skills) {
-      for (const skill of this.sheet.skills) {
+    {
+      for (const skill of skillsInEffect(this.sheet)) {
         if (skill.statModifiers) {
           for (const modifier of skill.statModifiers) {
             if (modifier.stat === statKey) {
@@ -117,8 +118,8 @@ export class StatComponent {
     const sources: string[] = [];
 
     // Collect sources from skills
-    if (this.sheet.skills) {
-      for (const skill of this.sheet.skills) {
+    {
+      for (const skill of skillsInEffect(this.sheet)) {
         if (skill.statModifiers) {
           for (const modifier of skill.statModifiers) {
             if (modifier.stat === statKey) {

@@ -42,6 +42,7 @@ import { LobbyTokenActionsService } from '../lobby-token-actions.service';
 import { LobbyMapManagerComponent, MapManagerPlayer } from '../lobby-map-manager/lobby-map-manager.component';
 import { formatCurrencyAsUnits, isEmptyCurrency } from '../../model/current-events.model';
 import { NpcSheetTokenState, buildNpcSheet, npcSkillBlocks } from '../../utils/npc-sheet.util';
+import { isSkillInEffect } from '../../utils/skill-active.util';
 import { NpcEdit, NpcGearValues } from '../../utils/npc-edit.util';
 import { NpcDerivedAdjust, NpcStatKey } from '../../model/npc-statblock.model';
 
@@ -1741,12 +1742,12 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   // ---- Resource getters ----
 
+  // Players: the sheet is the only truth (a stale token value used to win here). NPCs: the token.
   get currentHealth(): number {
-    if (this.token?.currentHealth !== undefined) return this.token.currentHealth;
     if (this.character) {
       return this.character.statuses?.find(s => s.formulaType === FormulaType.LIFE)?.statusCurrent ?? 0;
     }
-    return this.npc?.maxHealth ?? 0;
+    return this.token?.currentHealth ?? this.npc?.maxHealth ?? 0;
   }
 
   get maxHealth(): number {
@@ -1757,11 +1758,10 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   get currentMana(): number {
-    if (this.token?.currentMana !== undefined) return this.token.currentMana;
     if (this.character) {
       return this.character.statuses?.find(s => s.formulaType === FormulaType.MANA)?.statusCurrent ?? 0;
     }
-    return this.npc?.maxMana ?? 0;
+    return this.token?.currentMana ?? this.npc?.maxMana ?? 0;
   }
 
   get maxMana(): number {
@@ -1772,11 +1772,10 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   get currentEnergy(): number {
-    if (this.token?.currentEnergy !== undefined) return this.token.currentEnergy;
     if (this.character) {
       return this.character.statuses?.find(s => s.formulaType === FormulaType.ENERGY)?.statusCurrent ?? 0;
     }
-    return this.npc?.maxEnergy ?? 0;
+    return this.token?.currentEnergy ?? this.npc?.maxEnergy ?? 0;
   }
 
   get maxEnergy(): number {
@@ -1831,7 +1830,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   get activeSkills(): SkillBlock[] {
-    if (this.character) return (this.character.skills || []).filter(s => s.type === 'active' && !s.disabled);
+    if (this.character) return (this.character.skills || []).filter(s => s.type === 'active' && isSkillInEffect(s, this.character!));
     if (this.npc) return npcSkillBlocks(this.npc).filter(s => s.type === 'active');
     return [];
   }
@@ -1844,7 +1843,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     const sortByType = (skills: SkillBlock[]) =>
       [...skills].sort((a, b) => (TYPE_ORDER[a.type] ?? 99) - (TYPE_ORDER[b.type] ?? 99));
 
-    if (this.character) return sortByType((this.character.skills || []).filter(s => !s.disabled));
+    if (this.character) return sortByType((this.character.skills || []).filter(s => isSkillInEffect(s, this.character!)));
     if (this.npc) {
       // Shared materialisation: a Klassenbaum-Fertigkeit keeps its `statModifiers` here, the way
       // learning it does on a player sheet.
@@ -2232,7 +2231,25 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     this.emitResource(resource, value);
   }
 
+  /**
+   * A player's Leben/Mana/Ausdauer live on the character sheet — write there, like the bottom
+   * panel does. Writing the token instead meant lobby damage never reached the sheet, and the token
+   * value then shadowed every later change from the sheet (rests, potions) in this panel.
+   */
   private emitResource(resource: 'health' | 'mana' | 'energy', value: number): void {
+    if (this.character) {
+      const ft = resource === 'health' ? FormulaType.LIFE : resource === 'mana' ? FormulaType.MANA : FormulaType.ENERGY;
+      const idx = (this.character.statuses ?? []).findIndex(s => s.formulaType === ft);
+      const charId = this._charId;
+      if (idx < 0 || !charId) return;
+      const statuses = this.character.statuses.map((s, i) => (i === idx ? { ...s, statusCurrent: value } : s));
+      this.character.statuses = statuses;
+      const patch = { path: 'statuses', value: statuses };
+      this.sheetPatched.emit({ characterId: charId, patch });
+      this.charSocket.sendPatch(charId, patch);
+      this.cdr.markForCheck();
+      return;
+    }
     if (resource === 'health')  this.tokenUpdate.emit({ currentHealth: value });
     else if (resource === 'mana')   this.tokenUpdate.emit({ currentMana: value });
     else                            this.tokenUpdate.emit({ currentEnergy: value });
@@ -2294,6 +2311,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       }
       const charId = this.character.id;
       if (charId) {
+        // Mirror into the lobby's own character list too — the server does not echo to the sender.
+        this.sheetPatched.emit({ characterId: charId, patch });
         this.charSocket.sendPatch(charId, patch);
         this.charSocket.notifyLocalUpdate();
       }

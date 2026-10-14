@@ -5,7 +5,7 @@ import { StatusBlock } from '../../model/status-block.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
-import { ClassTree } from '../class-tree-model';
+import { isSkillInEffect } from '../../utils/skill-active.util';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitions';
@@ -230,11 +230,9 @@ export class SkillComponent {
     return t ? (map[t] ?? String(t)) : '';
   }
 
+  /** Same rule the calculators use — a greyed-out card must never still count. */
   get isDisabled(): boolean {
-    if (this.skill.disabled) return true; // user-set always wins
-    if (this.skill.enlightened) return false;
-    if (this.skill.sourceRaceId) return false; // Rassenfähigkeiten sind immer aktiv
-    return !ClassTree.isClassEnabled(this.skill.class, this.sheet.primary_class, this.sheet.secondary_class);
+    return !isSkillInEffect(this.skill, this.sheet);
   }
 
   get typeIcon(): string {
