@@ -755,7 +755,9 @@ lobby-container
 - Lasso: Entf verwirft die schwebende Auswahl — ihr Inhalt wurde beim Ziehen schon aus der Ebene geschnitten (Strg+Z holt ihn zurück).
 - Zeichen-Ebenen rendern über `lobby/draw-tile-cache.ts`: 512-px-Kacheln je Ebene und Zoomstufe (Halb-Oktaven), nur Kacheln
   unter geänderten Strichen/Bitmaps werden neu gerastert (Diff über Objekt-Referenzen; Version = Map-Objekt, das der Store
-  bei jedem Patch ersetzt). Live-Strich zeichnet nur den Draw-Canvas neu; Punkte < 1 Bildschirmpixel werden verworfen.
+  bei jedem Patch ersetzt). Rastern ist pro Frame zeitbegrenzt (8 ms, Kacheln von der Mitte aus); unfertige Kacheln zeigen
+  die nächste fertige Zoomstufe. Kacheln mit noch ladender Bitmap warten auf `notifyBitmapLoaded` statt jeden Frame neu
+  zu rendern. Live-Strich zeichnet nur den Draw-Canvas neu; Punkte < 1 Bildschirmpixel werden verworfen.
   Raster-Farbe: eine verkleinerte Rücklesung pro Frame statt `getImageData` pro Hex; normale Hex-Linien gebündelt (je Hex nur
   die unteren drei Kanten).
 

@@ -322,6 +322,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     scaleY: number;
   } | null = null;
   private bitmapImageCache = new Map<string, HTMLImageElement>();
+  private bitmapImageSrc = new Map<string, string>();
   private floatingSelectionImg: HTMLImageElement | null = null;
   private floatingSelectionImgSrc = '';
 
@@ -850,6 +851,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const sync = loadDataUrlImage(bmp.dataUrl);
       if (sync) {
         this.bitmapImageCache.set(bmp.id, sync);
+        this.bitmapImageSrc.set(bmp.id, bmp.dataUrl);
       }
     }
   }
@@ -1725,8 +1727,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // The store swaps the map object on every patch, so its identity is the content version
     this.drawTiles.sync(this.store.currentMap, strokes, bitmaps, defaultDrawId);
+    // Tiles not yet rasterised fill in over the next frames instead of freezing this one
+    this.drawTiles.beginFrame(8);
     const view: DrawTileView = { panX: this.panX, panY: this.panY, scale: this.scale, dpr, width: w, height: h };
     const drawBitmap: TileBitmapDrawFn = (c, bmp) => this.drawBitmapOnContext(c, bmp);
+    let tilesComplete = true;
 
     const composite = this.getDrawCompositeCanvas(canvas.width, canvas.height);
     const compCtx = composite.getContext('2d')!;
@@ -1735,11 +1740,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     compCtx.clearRect(0, 0, w, h);
 
     const drawLayer = (layerId: string, withPreview = false) => {
-      if (withPreview) {
-        this.blitActiveLayerWithPreview(compCtx, canvas, layerId, view, drawBitmap);
-      } else {
-        this.drawTiles.drawLayer(compCtx, layerId, view, drawBitmap);
-      }
+      const done = withPreview
+        ? this.blitActiveLayerWithPreview(compCtx, canvas, layerId, view, drawBitmap)
+        : this.drawTiles.drawLayer(compCtx, layerId, view, drawBitmap);
+      tilesComplete &&= done;
     };
 
     if (!hasPreview || !activeDrawLayerId) {
@@ -1768,6 +1772,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.drawImage(composite, 0, 0, w, h);
     ctx.globalCompositeOperation = 'source-over';
 
+    if (!tilesComplete) this.scheduleDrawRender();
+
     if (this.currentTool === 'lasso') {
       this.renderLassoOverlay(ctx);
     }
@@ -1791,7 +1797,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     layerId: string,
     view: DrawTileView,
     drawBitmap: TileBitmapDrawFn
-  ): void {
+  ): boolean {
     if (!this.drawPreviewCanvas) {
       this.drawPreviewCanvas = document.createElement('canvas');
     }
@@ -1804,7 +1810,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     offCtx.setTransform(1, 0, 0, 1, 0, 0);
     offCtx.globalCompositeOperation = 'source-over';
     offCtx.clearRect(0, 0, off.width, off.height);
-    this.drawTiles.drawLayer(offCtx, layerId, view, drawBitmap);
+    const complete = this.drawTiles.drawLayer(offCtx, layerId, view, drawBitmap);
 
     offCtx.save();
     const k = view.scale * view.dpr;
@@ -1826,6 +1832,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     offCtx.restore();
 
     mainCtx.drawImage(off, 0, 0, view.width, view.height);
+    return complete;
   }
 
   private drawBitmapForCut(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): void {
@@ -1849,16 +1856,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private ensureBitmapLoaded(bmp: DrawBitmap): HTMLImageElement | null {
     let img = this.bitmapImageCache.get(bmp.id);
-    if (!img || img.src !== bmp.dataUrl) {
-      const sync = loadDataUrlImage(bmp.dataUrl);
-      if (sync) {
-        this.bitmapImageCache.set(bmp.id, sync);
-        return sync;
-      }
+    // Compare against the string we loaded, not `img.src`: that getter copies the whole
+    // multi-megabyte data URL on every call.
+    if (!img || this.bitmapImageSrc.get(bmp.id) !== bmp.dataUrl) {
       img = new Image();
-      img.onload = () => this.scheduleDrawRender();
+      img.onload = () => {
+        this.drawTiles.notifyBitmapLoaded();
+        this.scheduleDrawRender();
+      };
       img.src = bmp.dataUrl;
       this.bitmapImageCache.set(bmp.id, img);
+      this.bitmapImageSrc.set(bmp.id, bmp.dataUrl);
     }
     return img.complete && img.naturalWidth > 0 ? img : null;
   }
