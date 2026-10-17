@@ -43,8 +43,8 @@ import {
   loadDataUrlImage,
   normalizeLassoPolygon,
   removeLayerContentInPolygon,
-  renderDrawLayerContent,
 } from '../draw-layer.utils';
+import { DrawTileCache, DrawTileView, TileBitmapDrawFn } from '../draw-tile-cache';
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { LobbySocketService } from '../../services/lobby-socket.service';
 import { ImageService } from '../../services/image.service';
@@ -272,6 +272,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private renderPending = false;
   private drawRenderPending = false;
   private drawCompositeCanvas: HTMLCanvasElement | null = null;
+  private drawPreviewCanvas: HTMLCanvasElement | null = null;
+  private drawTiles = new DrawTileCache();
+  private fogOffscreenCanvas: HTMLCanvasElement | null = null;
+  private gridSampleCanvas: HTMLCanvasElement | null = null;
   private lastContainerWidth = 0;
   private lastContainerHeight = 0;
   private resizeRenderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1174,27 +1178,63 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
     const shouldSkipGrid = hexCount > 10000 || this.scale < 0.15; // Raised limit for better visibility
 
+    const sampleColor = this.createGridColorSampler();
+    // Plain grid lines are batched into one path per colour: thousands of stroke() calls per
+    // frame were a large part of the lag on big maps.
+    const gridPaths = new Map<string, Path2D>();
+    const special: { hex: HexCoord; isHover: boolean; isWall: boolean; isInPath: boolean }[] = [];
+
     // Always render all hexes (grid or walls)
     for (let q = minQ; q <= maxQ; q++) {
       for (let r = minR; r <= maxR; r++) {
         const hexKey = `${q},${r}`;
-        const isHover = hoverHex && hoverHex.q === q && hoverHex.r === r;
+        const isHover = !!hoverHex && hoverHex.q === q && hoverHex.r === r;
         const isWall = wallSet.has(hexKey);
         const isInPath = pathSet.has(hexKey);
-        
-        // Skip non-wall hexes when zoomed out (but always show walls, hover, and path)
-        if (shouldSkipGrid && !isWall && !isHover && !isInPath) {
+
+        if (isHover || isWall || isInPath) {
+          special.push({ hex: { q, r }, isHover, isWall, isInPath });
           continue;
         }
-        
-        this.drawHexagon(ctx, { q, r }, isHover || false, isWall, isInPath, pathIsInvalid);
+        // Skip non-wall hexes when zoomed out (but always show walls, hover, and path)
+        if (shouldSkipGrid) continue;
+
+        const center = HexMath.hexToPixel({ q, r });
+        const color = this.getComplementaryGridColor(sampleColor(center));
+        let path = gridPaths.get(color);
+        if (!path) {
+          path = new Path2D();
+          gridPaths.set(color, path);
+        }
+        // Each hex owns its lower three edges (corners 0..3); the upper three belong to its
+        // neighbours, so every edge is stroked exactly once.
+        const corners = HexMath.getHexCorners(center);
+        path.moveTo(corners[0].x, corners[0].y);
+        for (let i = 1; i <= 3; i++) path.lineTo(corners[i].x, corners[i].y);
       }
+    }
+
+    ctx.lineWidth = Math.max(1, 1.5 / this.scale);
+    for (const [color, path] of gridPaths) {
+      ctx.strokeStyle = color;
+      ctx.stroke(path);
+    }
+    for (const s of special) {
+      this.drawHexagon(ctx, s.hex, s.isHover, s.isWall, s.isInPath, pathIsInvalid, sampleColor);
     }
 
     ctx.restore();
   }
 
-  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover: boolean, isWall: boolean, isInPath: boolean, pathIsInvalid: boolean): void {
+  private drawHexagon(
+    ctx: CanvasRenderingContext2D,
+    hex: HexCoord,
+    isHover: boolean,
+    isWall: boolean,
+    isInPath: boolean,
+    pathIsInvalid: boolean,
+    sampleColor: (worldPos: Point) => [number, number, number]
+  ): void {
     const center = HexMath.hexToPixel(hex);
     const corners = HexMath.getHexCorners(center);
 
@@ -1225,7 +1265,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.lineWidth = 2;
     } else if (isWall) {
       // Use adaptive color for walls - more subtle with red tint
-      const wallColor = this.getComplementaryWallColor(center);
+      const wallColor = this.getComplementaryWallColor(sampleColor(center));
       ctx.fillStyle = wallColor.fill;
       ctx.fill();
       ctx.strokeStyle = wallColor.stroke;
@@ -1249,71 +1289,59 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.lineWidth = Math.max(1, 1.2 / this.scale);
       ctx.stroke();
       return; // Skip normal stroke (already drawn)
-    } else {
-      // Smart grid color based on pixel under hex center (30% more visible)
-      const gridColor = this.getComplementaryGridColor(center);
-      ctx.strokeStyle = gridColor;
-      ctx.lineWidth = Math.max(1, 1.5 / this.scale); // Thicker lines
     }
     ctx.stroke();
   }
 
   /**
-   * Sample the pixel color under a hex center from rendered layers
-   * Returns RGB array [r, g, b]
+   * Build a sampler for the colour under a world point (texture canvas first, then the image
+   * canvas, then the map background).
+   *
+   * This used to call getImageData once or twice PER HEX, and every call stalls on a GPU
+   * readback — with thousands of hexes on screen that alone could eat most of a frame. Now both
+   * canvases are shrunk on the GPU and read back once per grid render.
    */
-  private samplePixelColor(worldPos: Point): [number, number, number] {
-    // Convert world position to screen position
-    const screenPos = this.worldToScreen(worldPos.x, worldPos.y);
-    
-    // Sample from texture canvas first (has actual texture content), fallback to image canvas
+  private createGridColorSampler(): (worldPos: Point) => [number, number, number] {
+    const fallback = this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
     const textureCanvas = this.textureCanvas?.nativeElement;
     const imageCanvas = this.imageCanvas?.nativeElement;
-    
-    if (!textureCanvas || !imageCanvas) {
-      // Fallback to map background color if canvases not available
-      return this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
+    if (!textureCanvas || !imageCanvas) return () => fallback;
+
+    const STEP = 4; // CSS pixels per sample
+    const dpr = window.devicePixelRatio || 1;
+    const sw = Math.max(1, Math.ceil(imageCanvas.width / dpr / STEP));
+    const sh = Math.max(1, Math.ceil(imageCanvas.height / dpr / STEP));
+    if (!this.gridSampleCanvas) {
+      this.gridSampleCanvas = document.createElement('canvas');
     }
-
-    // Canvas coordinates are in logical pixels (already DPR-scaled by context.scale() in resizeCanvas)
-    const x = Math.floor(screenPos.x);
-    const y = Math.floor(screenPos.y);
-
-    // Check bounds to avoid errors
-    if (x < 0 || y < 0 || x >= textureCanvas.width || y >= textureCanvas.height) {
-      return this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
+    const sample = this.gridSampleCanvas;
+    if (sample.width !== sw || sample.height !== sh) {
+      sample.width = sw;
+      sample.height = sh;
     }
-
-    // Try texture canvas first
-    try {
-      const textureCtx = textureCanvas.getContext('2d', { willReadFrequently: true });
-      if (textureCtx) {
-        const pixel = textureCtx.getImageData(x, y, 1, 1).data;
-        // If texture pixel has content (not fully transparent), use it
-        if (pixel[3] > 10) {
-          return [pixel[0], pixel[1], pixel[2]];
-        }
+    const sctx = sample.getContext('2d')!;
+    const read = (src: HTMLCanvasElement): Uint8ClampedArray | null => {
+      try {
+        sctx.clearRect(0, 0, sw, sh);
+        sctx.drawImage(src, 0, 0, sw, sh);
+        return sctx.getImageData(0, 0, sw, sh).data;
+      } catch {
+        return null; // tainted by a cross-origin image
       }
-    } catch (e) {
-      // Ignore errors from cross-origin canvas access
-    }
+    };
+    const texture = read(textureCanvas);
+    const image = read(imageCanvas);
 
-    // Fallback to image canvas (background)
-    try {
-      const imageCtx = imageCanvas.getContext('2d', { willReadFrequently: true });
-      if (imageCtx) {
-        const pixel = imageCtx.getImageData(x, y, 1, 1).data;
-        // Check if we got actual pixel data (not transparent background)
-        if (pixel[3] > 0) {
-          return [pixel[0], pixel[1], pixel[2]];
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-
-    // Final fallback to background color
-    return this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
+    return (worldPos: Point) => {
+      const screen = this.worldToScreen(worldPos.x, worldPos.y);
+      const x = Math.floor(screen.x / STEP);
+      const y = Math.floor(screen.y / STEP);
+      if (x < 0 || y < 0 || x >= sw || y >= sh) return fallback;
+      const i = (y * sw + x) * 4;
+      if (texture && texture[i + 3] > 10) return [texture[i], texture[i + 1], texture[i + 2]];
+      if (image && image[i + 3] > 0) return [image[i], image[i + 1], image[i + 2]];
+      return fallback;
+    };
   }
 
   /**
@@ -1330,24 +1358,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   /**
    * Calculate complementary color for grid lines based on sampled pixel
    */
-  private getComplementaryGridColor(worldPos: Point): string {
-    const [r, g, b] = this.samplePixelColor(worldPos);
-    
+  private getComplementaryGridColor([r, g, b]: [number, number, number]): string {
     // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    
-    // IMPROVED VISIBILITY: 30% more visible grid (0.15 → 0.2 opacity)
-    // Slightly darker than background (if light) or slightly lighter (if dark)
+
+    // Slightly darker than background (if light) or slightly lighter (if dark).
+    // Quantised so neighbouring hexes share a colour and batch into the same path.
     const adjustment = luminance < 128 ? 30 : -30;
-    const newLuminance = Math.max(0, Math.min(255, luminance + adjustment));
-    return `rgba(${newLuminance}, ${newLuminance}, ${newLuminance}, 0.2)`; // 30% more visible
+    const newLuminance = Math.round(Math.max(0, Math.min(255, luminance + adjustment)) / 16) * 16;
+    // 0.36 = what the old per-hex outlines reached where two of them overlapped on a shared edge
+    return `rgba(${newLuminance}, ${newLuminance}, ${newLuminance}, 0.36)`;
   }
 
   /**
    * Calculate complementary color for walls based on sampled pixel
    */
-  private getComplementaryWallColor(worldPos: Point): { fill: string; stroke: string } {
-    const [r, g, b] = this.samplePixelColor(worldPos);
+  private getComplementaryWallColor([r, g, b]: [number, number, number]): { fill: string; stroke: string } {
     
     // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -1697,6 +1723,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const activeDrawLayerId = this.isDrawing ? this.store.getActiveDrawLayerId() : null;
     const hasPreview = this.isDrawing && this.currentStrokePoints.length > 1;
 
+    // The store swaps the map object on every patch, so its identity is the content version
+    this.drawTiles.sync(this.store.currentMap, strokes, bitmaps, defaultDrawId);
+    const view: DrawTileView = { panX: this.panX, panY: this.panY, scale: this.scale, dpr, width: w, height: h };
+    const drawBitmap: TileBitmapDrawFn = (c, bmp) => this.drawBitmapOnContext(c, bmp);
+
     const composite = this.getDrawCompositeCanvas(canvas.width, canvas.height);
     const compCtx = composite.getContext('2d')!;
     compCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1705,9 +1736,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     const drawLayer = (layerId: string, withPreview = false) => {
       if (withPreview) {
-        this.blitActiveLayerWithPreview(compCtx, canvas, dpr, layerId, strokes, bitmaps, defaultDrawId);
+        this.blitActiveLayerWithPreview(compCtx, canvas, layerId, view, drawBitmap);
       } else {
-        this.blitDrawLayer(compCtx, canvas, dpr, layerId, strokes, bitmaps, defaultDrawId);
+        this.drawTiles.drawLayer(compCtx, layerId, view, drawBitmap);
       }
     };
 
@@ -1753,55 +1784,31 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     return this.drawCompositeCanvas;
   }
 
-  /** Blit one draw layer isolated so erasers don't affect layers below */
-  private blitDrawLayer(
-    mainCtx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement,
-    dpr: number,
-    layerId: string,
-    strokes: Stroke[],
-    bitmaps: DrawBitmap[],
-    defaultDrawId: string | null
-  ): void {
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
-    const off = document.createElement('canvas');
-    off.width = canvas.width;
-    off.height = canvas.height;
-    const offCtx = off.getContext('2d')!;
-    offCtx.scale(dpr, dpr);
-
-    offCtx.save();
-    offCtx.translate(this.panX, this.panY);
-    offCtx.scale(this.scale, this.scale);
-    this.renderDrawLayerStrokes(offCtx, layerId, strokes, bitmaps, defaultDrawId);
-    offCtx.restore();
-
-    mainCtx.drawImage(off, 0, 0, w, h);
-  }
-
-  /** Blit active draw layer + in-progress stroke without double-transform artifact */
+  /** Active draw layer + in-progress stroke, isolated so a live eraser only cuts this layer */
   private blitActiveLayerWithPreview(
     mainCtx: CanvasRenderingContext2D,
     canvas: HTMLCanvasElement,
-    dpr: number,
     layerId: string,
-    strokes: Stroke[],
-    bitmaps: DrawBitmap[],
-    defaultDrawId: string | null
+    view: DrawTileView,
+    drawBitmap: TileBitmapDrawFn
   ): void {
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
-    const off = document.createElement('canvas');
-    off.width = canvas.width;
-    off.height = canvas.height;
+    if (!this.drawPreviewCanvas) {
+      this.drawPreviewCanvas = document.createElement('canvas');
+    }
+    const off = this.drawPreviewCanvas;
+    if (off.width !== canvas.width || off.height !== canvas.height) {
+      off.width = canvas.width;
+      off.height = canvas.height;
+    }
     const offCtx = off.getContext('2d')!;
-    offCtx.scale(dpr, dpr);
+    offCtx.setTransform(1, 0, 0, 1, 0, 0);
+    offCtx.globalCompositeOperation = 'source-over';
+    offCtx.clearRect(0, 0, off.width, off.height);
+    this.drawTiles.drawLayer(offCtx, layerId, view, drawBitmap);
 
     offCtx.save();
-    offCtx.translate(this.panX, this.panY);
-    offCtx.scale(this.scale, this.scale);
-    this.renderDrawLayerStrokes(offCtx, layerId, strokes, bitmaps, defaultDrawId);
+    const k = view.scale * view.dpr;
+    offCtx.setTransform(k, 0, 0, k, view.panX * view.dpr, view.panY * view.dpr);
 
     const isEraser = this.isEraserMode;
     offCtx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
@@ -1818,7 +1825,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     offCtx.globalCompositeOperation = 'source-over';
     offCtx.restore();
 
-    mainCtx.drawImage(off, 0, 0, w, h);
+    mainCtx.drawImage(off, 0, 0, view.width, view.height);
   }
 
   private drawBitmapForCut(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): void {
@@ -1831,24 +1838,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.drawBitmapOnContext(ctx, bmp);
   }
 
-  private drawBitmapOnContext(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): void {
+  /** Returns false while the bitmap is still decoding (its onload schedules a redraw) */
+  private drawBitmapOnContext(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): boolean {
     const img = this.ensureBitmapLoaded(bmp);
-    if (img) {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
-    }
-  }
-
-  private renderDrawLayerStrokes(
-    ctx: CanvasRenderingContext2D,
-    layerId: string,
-    strokes: Stroke[],
-    bitmaps: DrawBitmap[],
-    defaultDrawId: string | null
-  ): void {
-    renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultDrawId, (c, bmp) => {
-      this.drawBitmapOnContext(c, bmp);
-    });
+    if (!img) return false;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
+    return true;
   }
 
   private ensureBitmapLoaded(bmp: DrawBitmap): HTMLImageElement | null {
@@ -1891,10 +1887,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!covered && (fogStrokes.length === 0) && (!this.isDrawingFog || this.currentFogPoints.length < 2)) return;
 
     // Render fog into an offscreen canvas to avoid alpha accumulation when strokes overlap
-    const offscreen = document.createElement('canvas');
-    offscreen.width = canvas.width;
-    offscreen.height = canvas.height;
+    if (!this.fogOffscreenCanvas) {
+      this.fogOffscreenCanvas = document.createElement('canvas');
+    }
+    const offscreen = this.fogOffscreenCanvas;
+    if (offscreen.width !== canvas.width || offscreen.height !== canvas.height) {
+      offscreen.width = canvas.width;
+      offscreen.height = canvas.height;
+    }
     const off = offscreen.getContext('2d')!;
+    off.setTransform(1, 0, 0, 1, 0, 0);
+    off.globalCompositeOperation = 'source-over';
+    off.clearRect(0, 0, offscreen.width, offscreen.height);
     off.scale(dpr, dpr);
 
     // Default cover: the whole visible area starts dark; eraser strokes below cut it open.
@@ -4585,13 +4589,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     if (!this.isDrawing) return;
 
+    // Points closer than ~1 screen pixel add nothing visible but bloat the map file and every redraw
+    const last = this.currentStrokePoints[this.currentStrokePoints.length - 1];
+    if (last && Math.hypot(world.x - last.x, world.y - last.y) * this.scale < 1) return;
     this.currentStrokePoints.push(world);
-    
-    // Throttle render calls during drawing - only render every 16ms (60fps)
+
+    // Throttle render calls during drawing - only render every 16ms (60fps).
+    // Only the draw canvas changes while a line is drawn — grid, images and tokens stay put.
     const now = performance.now();
     if (now - this.lastRenderTime >= this.renderThrottleMs) {
       this.lastRenderTime = now;
-      this.scheduleRender();
+      this.scheduleDrawRender();
     }
   }
 

@@ -753,6 +753,11 @@ lobby-container
   Einfügen unter der Maus, Layout bleibt, Kinder mit Eltern bleiben verknüpft. `lobby.onTokensPaste` gibt jeder Kopie neue
   characterId, volle Ressourcen, keine Effekte und würfelt NSCs neu aus (`npcSpawnFields`).
 - Lasso: Entf verwirft die schwebende Auswahl — ihr Inhalt wurde beim Ziehen schon aus der Ebene geschnitten (Strg+Z holt ihn zurück).
+- Zeichen-Ebenen rendern über `lobby/draw-tile-cache.ts`: 512-px-Kacheln je Ebene und Zoomstufe (Halb-Oktaven), nur Kacheln
+  unter geänderten Strichen/Bitmaps werden neu gerastert (Diff über Objekt-Referenzen; Version = Map-Objekt, das der Store
+  bei jedem Patch ersetzt). Live-Strich zeichnet nur den Draw-Canvas neu; Punkte < 1 Bildschirmpixel werden verworfen.
+  Raster-Farbe: eine verkleinerte Rücklesung pro Frame statt `getImageData` pro Hex; normale Hex-Linien gebündelt (je Hex nur
+  die unteren drei Kanten).
 
 ### Schnell-NSC (`utils/quick-npc.util.ts`, `lobby/lobby-quick-npc/`)
 - Hex-Kontextmenü: „Erstellen Simpel" (altes Schnell-Token, Enter) / „Erstellen NSC" (nur GM, Umschalt+Enter) → Panel.

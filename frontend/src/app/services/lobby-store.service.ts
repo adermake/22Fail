@@ -153,7 +153,9 @@ export class LobbyStoreService {
   private captureDrawSnapshot(): void {
     this.drawUndoHistory.push({
       strokes: [...this.strokes],
-      drawBitmaps: JSON.parse(JSON.stringify(this.drawBitmaps)),
+      // Shallow is enough: bitmaps are always replaced, never edited in place. The old deep clone
+      // re-serialised every base64 PNG on the map for each line drawn.
+      drawBitmaps: [...this.drawBitmaps],
     });
     if (this.drawUndoHistory.length > this.MAX_UNDO) {
       this.drawUndoHistory.shift();

@@ -60,11 +60,11 @@ export function getStrokeLayerId(stroke: Stroke, defaultLayerId: string | null):
   return stroke.layerId || defaultLayerId;
 }
 
-function strokeDrawOrder(stroke: Stroke, index: number): number {
+export function strokeDrawOrder(stroke: Stroke, index: number): number {
   return stroke.drawOrder ?? index;
 }
 
-function bitmapDrawOrder(bmp: DrawBitmap, index: number, strokeCount: number): number {
+export function bitmapDrawOrder(bmp: DrawBitmap, index: number, strokeCount: number): number {
   return bmp.drawOrder ?? strokeCount + index;
 }
 
@@ -151,7 +151,7 @@ export function drawBitmapFromDataUrl(ctx: CanvasRenderingContext2D, bmp: DrawBi
   }
 }
 
-function getStrokeBounds(stroke: Stroke): { minX: number; minY: number; maxX: number; maxY: number } {
+export function getStrokeBounds(stroke: Stroke): { minX: number; minY: number; maxX: number; maxY: number } {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -605,7 +605,7 @@ function bitmapIntersectsPolygon(bmp: DrawBitmap, polygon: Point[]): boolean {
   return corners.some(c => pointInPolygon(c, polygon));
 }
 
-function getBitmapBounds(bmp: DrawBitmap): {
+export function getBitmapBounds(bmp: DrawBitmap): {
   minX: number;
   minY: number;
   maxX: number;
