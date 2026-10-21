@@ -69,7 +69,9 @@ export type ItemType =
    * Konstrukt: an item with Anschlüsse that other Konstrukte plug into, recursively. The assembled
    * tree rolls its stats up into the root — see `utils/construct.util.ts`.
    */
-  | 'construct';
+  | 'construct'
+  /** Munition: forged in stacks of 7, no Haltbarkeit; damage comes from the launching weapon. */
+  | 'ammo';
 
 /**
  * One Anschluss on a Konstrukt. A socket holds at most one child.

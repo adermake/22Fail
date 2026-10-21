@@ -69,6 +69,15 @@
   border-color: var(--accent, #3b82f6);
 }
 
+/* Labelled buttons: the 40px square would clip the text. */
+.tool-btn.text-btn {
+  width: auto;
+  padding: 0 10px;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .tool-btn.inactive {
   opacity: 0.5;
 }

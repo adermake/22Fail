@@ -74,6 +74,11 @@ export class ItemComponent implements OnChanges {
 
   /** Maps armorType/itemType to short slot label */
   get slotLabel(): string | null {
+    // A Konstrukt names what it was forged as, not the slot it happens to land in.
+    if (this.item.itemType === 'construct') {
+      const armor = this.item.constructMaterialKind === 'armor';
+      return armor ? 'RÜSTUNG (KONSTRUKT)' : 'WAFFE (KONSTRUKT)';
+    }
     const slot = getEquipSlot(this.item);
     const map: Record<string, string> = {
       helmet: 'HELM', chestplate: 'BRUST', armschienen: 'ARME',

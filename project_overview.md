@@ -432,6 +432,8 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - **Rarität-Farbcodierung**: COMMON = Standard, RARE = Blauer Glow, LEGENDARY = Goldener Glow (in wissen + forging + material-editor)
 - **Material-Editor** (`shared/material-editor/`): Kompaktes me-* CSS-Klassen-Schema — eine Zeile für Name/Rarität/Kosten, Checkboxen-Reihe, Stats in 4-Spalten-Grid (`26px 1fr 34px 1fr`)
 - **Blaue Icon-Box**: `.sr-icon.sr-icon-eff` — `background: #1e1b4b; border: 1px solid #6366f1; color: #a5b4fc` — für ⚔/⛊ Effektivitäts-Icons in forging + wissen
+- **Munition** (`itemType: 'ammo'`, Regeln in `forge-calc.util` `ammoStats`/`AMMO_BATCH`): dritter Typ neben Waffe/Rüstung. Liest Waffenmaterialien, nur Primär-Slot, immer Mittel (×1), halbe Effektivität, keine Haltbarkeit, kein Waffentyp/keine Anforderung (kommt von der verschießenden Waffe), kein Konstrukt. Ergebnis: stapelbarer Stapel à 7, Gewicht je Stück = Gewicht/100. Merkmale: `appliesTo: 'ammo'` — `'all'` heißt Waffe + Rüstung und gilt für Munition NICHT.
+- **Kopfleiste**: zwei Zeilen — Zeile 1 (Name, Typ, Bauart, Anschlüsse, Modus, SP) ändert ihre Form nie, alles Typabhängige steht in Zeile 2. Vorher sprang die Leiste beim Typwechsel, weil `flex-wrap` + `align-items: flex-end` die Felder neu verteilte.
 
 ## Konstrukt-System (`utils/construct.util.ts`, `model/item-block.model.ts`)
 - **Was**: Itemtyp `'construct'` — ein Gegenstand mit **Anschlüssen** (`sockets: ConstructSocket[]`), in die weitere Konstrukte gesteckt werden. Rekursiv. Der zusammengebaute Baum verhält sich wie EIN Item.
@@ -447,6 +449,10 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - **Effektivität** wird NICHT summiert — jedes schneidende Teil ist eine eigene Waffe (`getConstructWeapons`, Label `Kernkörper / Arm / Säge`).
 - **Stat-Rollups gehen über `resolveItemStat`**, nie über `item.efficiency` direkt — sonst zählen Merkmale der Teile nicht.
 - **Ids**: `attachChild` vergibt jedem eintretenden Teil eine Id. `itemKey` fällt sonst auf den Namen zurück und zwei gleichnamige Arme würden ihre Merkmale vermischen.
+- **Duplikate**: Duplizieren nutzt `cloneWithFreshIds` (neue Id auf jedem Knoten). Die Zyklusprüfung in `attachChild` vergleicht **Objektidentität**, nicht Ids — eine identische Kopie ist ein anderes Item. Kollidiert eine Id trotzdem (alte Duplikate), bekommt das eintretende Teil neue Ids; `openBauplan` macht Ids im ganzen Inventar eindeutig, weil `saveBauplan` per Id zurückordnet.
+- **Platz**: Rüstungs-Konstrukte gehen in den Slot ihres Rüstungstyps (ohne Typ: Extra); `isItemEquipped` zählt Konstrukte in jedem Slot. Label „Rüstung (Konstrukt)" / „Waffe (Konstrukt)".
+- **Fokus beim Zaubern**: Lobby-Dock, Charakterpanel und Zauberfenster ziehen `constructFokus(sheet)` vom freien Fokus ab.
+- **Bauplan-Ansicht**: Mausrad zoomt zum Cursor, Mitteltaste oder Ziehen auf leerer Fläche verschiebt (wie Runen-Editor). Alle Zeigerpositionen laufen über `toWorld`. Rechts: zusammengefasste Merkmale (`constructMerkmale`, nach Name gruppiert, mit Quellteil), Materialeffekte, Waffen, Anforderungen.
 - **Löschen**: eine Wurzel zu löschen nimmt den ganzen Baum mit → `constructContents()` liefert die Teile für Rückfrage + Papierkorb-Label.
 - **TrueStatsService**: nichts iteriert `sheet.equipment` mehr direkt — alles läuft über `withConstructParts()`.
 - **Schmieden**: Der Waffe/Rüstung-Schalter ist jetzt die *Materialwahl*; daneben steht „Bauart: Normal | Konstrukt" plus Anschlusszahl. In `buildForgedItem` sind das `isWeapon` (Material) und `producesConstruct` + `socketCount` (Ergebnis) — vorher war beides derselbe Boolean, weshalb ein Konstrukt gar nicht schmiedbar war.
@@ -715,8 +721,8 @@ lobby-container
   - **Aussehen ist für alle offen**, auch bei fremden Token und für Nicht-GMs (`canViewStats` gilt nur für die anderen Reiter);
     bei verborgenen Statistiken ist Aussehen der einzige und damit automatisch aktive Reiter. Zeichnen war schon frei
     (`gmOnlyTools` im Grid kennt nur walls/image/texture/fog).
-  - Aktionen: Schnellwürfe, Freier Wurf, Schaden, „Fertigkeiten & Zauber (Vollansicht)" (spellcast-window). Die Listen selbst stehen im Dock.
-  - Aussehen: Name umbenennen, Skalierung (X/Y unabhängig oder uniform), Rotation (Quick ±90°), Bildmodus (Fill/Stretch), Custom-Portrait löschen, Token zeichnen (aktiviert Draw-Tool)
+  - Aktionen: Schnellwürfe, Freier Wurf, Schaden, „Fertigkeiten & Zauber (Vollansicht)" (spellcast-window), „Ich möchte was tun" (`Token.wantsToAct`: Token leuchtet bernstein, nur für GM + Steuernden via `canSeeWantsToAct` = `canViewTokenStats`; beide Seiten schalten ab). Die Listen selbst stehen im Dock.
+  - Aussehen: Name umbenennen, Skalierung (X/Y unabhängig oder uniform), Rotation (Quick ±90°), Bildmodus (Fill/Stretch), „Zurück zum Original", Token zeichnen → `lobby/token-draw-editor/` (Vollbild, 512px PNG in `customPortraitData`: Pinsel/Radierer/Füllen/Pipette, Deckkraft, Undo, Originalbild laden/Hochladen, Hex-Maske). Tasten laufen über das eigene Root-Element mit `stopPropagation`, sonst schalten B/E/G/Strg+Z die Lobby-Werkzeuge dahinter.
   - Verknüpfte Token: Zeigt Parent-Info wenn verknüpft; Kinder-Liste; neues verlinktes Token erstellen
   - @Output() tokenUpdate → Lobby ruft store.updateToken(tokenId, updates)
   - @Output() deselect → selectedTokenId.set(null)
@@ -738,6 +744,7 @@ lobby-container
 - Basis: position, characterId, name, portrait, team, isQuickToken, statblockId
 - Ressourcen: currentHealth?, currentMana?, currentEnergy?
 - Kosmetik: scaleX?, scaleY?, rotation?, imageMode? ('fill'|'stretch'), customPortraitData? (Base64)
+- Meldung: wantsToAct? („Ich möchte was tun" — im UI nur GM/Steuernder, auf der Leitung aber für alle)
 - Status: activeStatusEffects?: TokenStatusEffect[] (id, name, icon, stacks, duration, isDebuff)
 - Kampfzustand: activeSkillNames?: string[] (aktive Fähigkeiten für NSC-Tokens), castingSpells?: CastingSpellEntry[] (Casting-State für NSC-Tokens)
 - Verknüpfung: parentTokenId?, linkedTokenType? ('free'|'keepDistance'|'keepOffset'), linkedOffset?, linkedDistance?

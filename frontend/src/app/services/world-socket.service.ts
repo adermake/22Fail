@@ -18,6 +18,8 @@ export interface DiceRollEvent {
   rolls: number[];
   timestamp: Date;
   isSecret: boolean; // If true, only GM sees the result
+  /** Vorteil/Nachteil label ("Vorteil+", …); absent on a plain roll. */
+  rollMode?: string;
   // Action macro details (optional)
   actionName?: string;
   actionIcon?: string;

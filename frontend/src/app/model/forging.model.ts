@@ -174,8 +174,8 @@ export interface ForgeTrait {
   isPublic: boolean;
   /** Wissensstufe: geheim | unbekannt | bekannt (fällt auf isPublic zurück). */
   knowledgeTier?: KnowledgeTier;
-  /** What type of equipment this trait can be applied to. */
-  appliesTo?: 'weapon' | 'armor' | 'all';
+  /** What type of equipment this trait can be applied to. 'all' = weapon + armor, not ammo. */
+  appliesTo?: 'weapon' | 'armor' | 'ammo' | 'all';
   libraryOrigin?: string;
   libraryOriginName?: string;
 }
@@ -251,7 +251,7 @@ export interface ForgedTraitRecord {
 
 export interface ForgingData {
   createdAt: number;
-  itemType: 'weapon' | 'armor';
+  itemType: 'weapon' | 'armor' | 'ammo';
   primaryMaterials?: ForgedMaterialRecord[];
   secondaryMaterials?: ForgedMaterialRecord[];
   bonusMaterials?: ForgedMaterialRecord[];

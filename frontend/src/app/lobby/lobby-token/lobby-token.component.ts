@@ -28,6 +28,7 @@ export interface TokenResources {
       [class.dragging]="isDragging"
       [class.non-interactive]="!isInteractive"
       [class.show-resources]="showResources"
+      [class.wants-to-act]="showWantsToAct && !!token.wantsToAct"
       [style.left.px]="position.x"
       [style.top.px]="position.y"
       [style.--team-color]="getTeamColor(token.team || 'default')"
@@ -65,6 +66,10 @@ export interface TokenResources {
         }
       </div>
       
+      @if (showWantsToAct && token.wantsToAct) {
+        <div class="wants-to-act-badge" title="Möchte etwas tun">!</div>
+      }
+
       <!-- Resource Bars (only for party members) -->
       @if (resources && showResources) {
         <!-- Health Bar (bottom) -->
@@ -156,6 +161,39 @@ export interface TokenResources {
 
     .token-wrapper.selected {
       z-index: 3;
+    }
+
+    /* "Ich möchte was tun" — amber, so it never reads as the purple selection glow. */
+    .token-wrapper.wants-to-act .token-border {
+      background: #f59e0b;
+      animation: token-wants-pulse 1.2s ease-in-out infinite;
+    }
+
+    .token-wrapper.wants-to-act.selected .token-border {
+      background: #f59e0b !important;
+    }
+
+    @keyframes token-wants-pulse {
+      0%, 100% { filter: drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 14px rgba(245, 158, 11, 0.7)); }
+      50%      { filter: drop-shadow(0 0 12px #fcd34d) drop-shadow(0 0 28px rgba(251, 191, 36, 1)); }
+    }
+
+    .wants-to-act-badge {
+      position: absolute;
+      top: -4px;
+      right: 4px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #f59e0b;
+      color: #1c1206;
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 18px;
+      text-align: center;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.9);
+      pointer-events: none;
+      z-index: 2;
     }
 
     .token-portrait {
@@ -256,6 +294,8 @@ export class LobbyTokenComponent {
   @Input() resources: TokenResources | null = null; // Character resources
   @Input() showResources = false; // Only show for party members
   @Input() isSelected = false;
+  /** May this viewer see the "Ich möchte was tun" signal? GM and the token's controller only. */
+  @Input() showWantsToAct = false;
 
   @Output() dragStart = new EventEmitter<MouseEvent>();
   @Output() contextMenu = new EventEmitter<MouseEvent>();

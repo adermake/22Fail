@@ -837,6 +837,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** "Ich möchte was tun" is for the GM's eyes and the player's own — the same rule as the stats. */
+  readonly canSeeWantsToAct = (token: Token): boolean => this.canViewTokenStats(token);
+
   canViewTokenStats(token: Pick<Token, 'characterId' | 'statblockId'>): boolean {
     if (this.isGM()) return true;
     const ids = this.viewingCharacterIds();
@@ -1058,18 +1061,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.eraserBrushSize.set(size);
   }
 
-  onFogBrushSizeChange(size: number): void {
-    this.fogBrushSize.set(size);
-  }
-
-  onClearFog(): void {
+  onFogEverywhere(covered: boolean): void {
     if (!this.isGM()) return;
-    this.store.clearFog();
-  }
-
-  onFogCoveredChange(covered: boolean): void {
-    if (!this.isGM()) return;
-    this.store.setFogCovered(covered);
+    this.store.setFogEverywhere(covered);
   }
 
   onClearWalls(): void {

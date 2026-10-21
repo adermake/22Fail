@@ -123,6 +123,12 @@
               title="Hat Anschlüsse, in die weitere Konstrukte gesteckt werden">
               <span class="app-icon i-equipment"></span> Konstrukt
             </button>
+            <button
+              [class.active]="editItem.itemType === 'ammo'"
+              (click)="setItemType('ammo')"
+              title="Munition: stapelbar, ohne Haltbarkeit — Schaden kommt von der Waffe, die sie verschießt">
+              <span class="app-icon i-range"></span> Munition
+            </button>
           </div>
 
           <!-- Konstrukt-specific options -->
@@ -139,6 +145,11 @@
                 <label>Platz</label>
                 <select [(ngModel)]="editItem.armorType" class="armor-type-select">
                   <option [ngValue]="'weapon'">Waffenhand</option>
+                  <option [ngValue]="'helmet'">Helm</option>
+                  <option [ngValue]="'chestplate'">Brustpanzer</option>
+                  <option [ngValue]="'armschienen'">Armschienen</option>
+                  <option [ngValue]="'leggings'">Beinschienen</option>
+                  <option [ngValue]="'boots'">Stiefel</option>
                   <option [ngValue]="'extra'">Extra</option>
                 </select>
               </div>

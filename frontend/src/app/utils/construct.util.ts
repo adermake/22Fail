@@ -117,10 +117,25 @@ export function hasAttachments(item: ItemBlock | null | undefined): boolean {
  * tree gets a real id first.
  */
 export function ensureItemId(item: ItemBlock): string {
-  if (!item.id) {
-    item.id = `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-  }
+  if (!item.id) item.id = newItemId();
   return item.id;
+}
+
+function newItemId(): string {
+  return `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/**
+ * A deep copy of an item with a fresh id on it and on every part below it.
+ *
+ * Duplicating used to keep the ids, so a copy looked like the original to every id lookup: the
+ * Bauplan refused to plug it into its twin ("kann sich nicht selbst enthalten") and Merkmal
+ * bookkeeping merged the two. Identical items are still separate items.
+ */
+export function cloneWithFreshIds(item: ItemBlock): ItemBlock {
+  const copy = JSON.parse(JSON.stringify(item)) as ItemBlock;
+  for (const node of flattenConstruct(copy)) node.item.id = newItemId();
+  return copy;
 }
 
 // ── Walking ───────────────────────────────────────────────────────────────────
@@ -288,6 +303,54 @@ export function constructSpells(root: ItemBlock | null | undefined): SpellBlock[
   return out;
 }
 
+/** One Merkmal of the whole machine, summed over every part that carries it. */
+export interface ConstructMerkmal {
+  name: string;
+  /** Levels added up across parts. */
+  totalLevel: number;
+  sources: { trail: string; level: number; effect?: string; inactive: boolean }[];
+}
+
+/**
+ * Schmiedemerkmale of the assembled machine, grouped by name, each with the parts it comes from.
+ *
+ * Structural walk, so broken parts are listed too — flagged `inactive` and left out of
+ * `totalLevel`, the same rule the functional roll-ups follow. The per-part effect line comes from
+ * `secondaryEffect`, which the Schmiede writes one line per applied trait in the same order.
+ */
+export function constructMerkmale(root: ItemBlock | null | undefined): ConstructMerkmal[] {
+  const working = new Set(flattenConstruct(root, { functional: true }).map(n => n.item));
+  const byName = new Map<string, ConstructMerkmal>();
+  for (const node of flattenConstruct(root)) {
+    const traits = node.item.forgingData?.appliedTraits ?? [];
+    const lines = (node.item.secondaryEffect ?? '').split('\n');
+    const inactive = !working.has(node.item);
+    traits.forEach((t, i) => {
+      const entry = byName.get(t.name) ?? { name: t.name, totalLevel: 0, sources: [] };
+      if (!inactive) entry.totalLevel += t.level;
+      entry.sources.push({
+        trail: node.trail.join(' / '), level: t.level, effect: lines[i]?.trim() || undefined, inactive,
+      });
+      byName.set(t.name, entry);
+    });
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Material extra effects (`primaryEffect`) of every part, with the part they sit on. */
+export function constructMaterialEffects(
+  root: ItemBlock | null | undefined,
+): { effect: string; trail: string; inactive: boolean }[] {
+  const working = new Set(flattenConstruct(root, { functional: true }).map(n => n.item));
+  const out: { effect: string; trail: string; inactive: boolean }[] = [];
+  for (const node of flattenConstruct(root)) {
+    for (const effect of (node.item.primaryEffect ?? '').split(' | ').map(s => s.trim()).filter(Boolean)) {
+      out.push({ effect, trail: node.trail.join(' / '), inactive: !working.has(node.item) });
+    }
+  }
+  return out;
+}
+
 // ── Assembly ──────────────────────────────────────────────────────────────────
 
 /** Why an attachment was refused, for the Bauplan to explain. */
@@ -345,14 +408,18 @@ export function attachChild(
 
   // Containment makes a true cycle impossible — a child comes out of the inventory, so it cannot
   // already hold its own future parent. Cheap to check anyway, and it catches a UI bug loudly.
-  if (findConstructNode(child, parentItemId)) return { root, refused: 'cycle' };
+  // By identity, not id: a duplicated part shares its twin's ids and is still a different item.
+  if (flattenConstruct(child).some(n => n.item === parent.item)) return { root, refused: 'cycle' };
 
   if (parent.depth + 1 + constructDepth(child) > MAX_CONSTRUCT_DEPTH) {
     return { root, refused: 'too-deep' };
   }
 
   // Every node entering the tree needs a stable id, or Merkmal bookkeeping merges same-named parts.
-  const attached: ItemBlock = { ...child };
+  // A part copied before duplicates got fresh ids collides with its twin — it gets new ones here.
+  const taken = new Set(flattenConstruct(root).map(n => n.item.id).filter((id): id is string => !!id));
+  const collides = flattenConstruct(child).some(n => !!n.item.id && taken.has(n.item.id));
+  const attached: ItemBlock = collides ? cloneWithFreshIds(child) : { ...child };
   ensureItemId(attached);
   for (const node of flattenConstruct(attached)) ensureItemId(node.item);
 

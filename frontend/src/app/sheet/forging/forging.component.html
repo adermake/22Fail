@@ -8,42 +8,65 @@
 
     <!-- Config bar -->
     <div class="forge-config-bar">
+      <!-- Row 1 never changes shape with the type, so switching Waffe/Rüstung/Munition does not
+           shove the bar around. Everything type-specific lives in row 2. -->
+      <div class="config-row">
       <div class="config-field name-field">
         <label>Gegenstandsname</label>
-        <input type="text" [(ngModel)]="itemName" placeholder="z.B. Eisenschwert des Nordens" />
+        <input type="text" [(ngModel)]="itemName"
+               [placeholder]="isAmmo ? 'z.B. Eisenpfeile' : 'z.B. Eisenschwert des Nordens'" />
       </div>
       <div class="config-field type-field">
         <label>{{ producesConstruct ? 'Material' : 'Typ' }}</label>
         <div class="type-toggle">
-          <button [class.active]="itemType === 'weapon'" (click)="itemType='weapon'; onItemTypeChange()">&#x2694; Waffe</button>
-          <button [class.active]="itemType === 'armor'" (click)="itemType='armor'; onItemTypeChange()">&#x1F6E1; Rustung</button>
+          <button [class.active]="itemType === 'weapon'" (click)="setItemType('weapon')"><span class="app-icon i-effektivity"></span> Waffe</button>
+          <button [class.active]="itemType === 'armor'" (click)="setItemType('armor')"><span class="app-icon i-stability"></span> R&#xFC;stung</button>
+          <button [class.active]="itemType === 'ammo'" (click)="setItemType('ammo')"
+                  title="Wie eine Waffe, aber nur Prim&#xE4;r, halbe Effektivit&#xE4;t, {{ ammoBatch }} St&#xFC;ck, ohne Haltbarkeit">
+            <span class="app-icon i-range"></span> Munition
+          </button>
         </div>
       </div>
       <div class="config-field type-field">
         <label>Bauart</label>
         <div class="type-toggle">
           <button type="button" [class.active]="!producesConstruct" (click)="producesConstruct = false">Normal</button>
-          <button type="button" [class.active]="producesConstruct" (click)="producesConstruct = true"
-                  title="Ein Konstrukt hat Anschl&#xFC;sse, in die weitere Konstrukte gesteckt werden">
+          <button type="button" [class.active]="producesConstruct" [disabled]="isAmmo" (click)="producesConstruct = true"
+                  [title]="isAmmo ? 'Munition kann kein Konstrukt sein' : 'Ein Konstrukt hat Anschlüsse, in die weitere Konstrukte gesteckt werden'">
             Konstrukt
           </button>
         </div>
       </div>
-      @if (producesConstruct) {
-        <div class="config-field socket-field">
-          <label title="Jeder belegte Anschluss kostet Nutzungskomplexit&#xE4;t - je tiefer, desto mehr">
-            Anschl&#xFC;sse
-          </label>
-          <input type="number" min="0" max="12" [(ngModel)]="socketCount" />
-        </div>
-      }
+      <div class="config-field socket-field" [class.field-hidden]="!producesConstruct">
+        <label title="Jeder belegte Anschluss kostet Nutzungskomplexit&#xE4;t - je tiefer, desto mehr">
+          Anschl&#xFC;sse
+        </label>
+        <input type="number" min="0" max="12" [(ngModel)]="socketCount" [disabled]="!producesConstruct" />
+      </div>
       <div class="config-field mode-field">
         <label>Modus</label>
         <div class="type-toggle">
-          <button type="button" [class.active]="accessMode === 'enforced'" (click)="setAccessMode('enforced')">&#x1F512; Erzwungen</button>
-          <button type="button" [class.active]="accessMode === 'free'" (click)="setAccessMode('free')">&#x1F513; Frei</button>
+          <button type="button" [class.active]="accessMode === 'enforced'" (click)="setAccessMode('enforced')"><span class="app-icon i-lock"></span> Erzwungen</button>
+          <button type="button" [class.active]="accessMode === 'free'" (click)="setAccessMode('free')">Frei</button>
         </div>
       </div>
+      <div class="config-field sp-combined-field">
+        <label>Schmiedepunkte</label>
+        <div class="sp-control-row">
+          <input type="number" class="sp-max-input" [(ngModel)]="schmiedepunkte" min="0" />
+          <div class="sp-status">
+            <span class="sp-used-val"><strong>{{ spentSP }}</strong> / {{ schmiedepunkte }} SP</span>
+            <span class="sp-remaining" [class.warning]="remainingSP < 10">{{ remainingSP }} verbl.</span>
+          </div>
+        </div>
+        <div class="sp-track">
+          <div class="sp-fill" [style.width.%]="spProgress" [class.full]="spProgress >= 100"></div>
+        </div>
+      </div>
+      </div>
+
+      @if (!isAmmo) {
+      <div class="config-row config-row-type">
       @if (itemType === 'weapon') {
         <div class="config-field stat-req-field">
           <label>Stat-Anforderung</label>
@@ -173,28 +196,28 @@
         </div>
       } @else {
         <div class="config-field armor-type-field">
-          <label>Rustungstyp</label>
+          <label>R&#xFC;stungstyp</label>
           <select class="armor-type-select" [(ngModel)]="selectedArmorType" (ngModelChange)="onArmorTypeChange()">
             <option [ngValue]="null">– Kein Typ –</option>
             @for (at of armorTypes; track at.name) {
               <option [ngValue]="at">{{ at.name }} ({{ at.weight }}, &#xD7;{{ at.weight === 'LEICHT' ? '0.8' : at.weight === 'MITTEL' ? '1.0' : '1.2' }})</option>
             }
           </select>
+          @if (producesConstruct) {
+            <div class="wt-extra">Bestimmt den R&#xFC;stungsplatz des Konstrukts &mdash; ohne Typ landet es in Extra.</div>
+          }
         </div>
       }
-      <div class="config-field sp-combined-field">
-        <label>Schmiedepunkte</label>
-        <div class="sp-control-row">
-          <input type="number" class="sp-max-input" [(ngModel)]="schmiedepunkte" min="0" />
-          <div class="sp-status">
-            <span class="sp-used-val"><strong>{{ spentSP }}</strong> / {{ schmiedepunkte }} SP</span>
-            <span class="sp-remaining" [class.warning]="remainingSP < 10">{{ remainingSP }} verbl.</span>
+      </div>
+      } @else {
+        <div class="config-row config-row-type">
+          <div class="ammo-note">
+            Munition: nur Prim&#xE4;r, immer Mittel (&#xD7;1), halbe Effektivit&#xE4;t, keine Haltbarkeit.
+            Ergibt {{ ammoBatch }} St&#xFC;ck zu je 1/100 des Gewichts. Reichweite, Anforderung und
+            Waffentyp kommen von der verschie&#xDF;enden Waffe.
           </div>
         </div>
-        <div class="sp-track">
-          <div class="sp-fill" [style.width.%]="spProgress" [class.full]="spProgress >= 100"></div>
-        </div>
-      </div>
+      }
     </div>
 
     <!-- Main 2-col layout -->
@@ -212,11 +235,13 @@
               </div>
               @if (slot.entries.length > 0 && preview && !isBonusSlot(slotCfg.key)) {
                 <div class="slot-mini-stats">
-                  <span class="sms-icon">&#x2390;</span>
-                  <span class="mini-val halt">{{ preview.haltbarkeit }}</span>
-                  <span class="mini-sep"> / </span>
-                  <span class="sms-icon"><span class="app-icon" [class.i-effektivity]="itemType === 'weapon'" [class.i-stability]="itemType !== 'weapon'"></span></span>
-                  <span class="mini-val effk">{{ preview.effektivitaet }}</span>
+                  @if (!isAmmo) {
+                    <span class="sms-icon" title="Haltbarkeit">&#x2390;</span>
+                    <span class="mini-val halt">{{ preview.haltbarkeit }}</span>
+                    <span class="mini-sep"> / </span>
+                  }
+                  <span class="sms-icon"><span class="app-icon" [class.i-effektivity]="usesWeaponStats" [class.i-stability]="!usesWeaponStats"></span></span>
+                  <span class="mini-val effk">{{ isAmmo ? finalEffektivitaet : preview.effektivitaet }}</span>
                 </div>
               }
             </div>
@@ -237,7 +262,10 @@
                           <div class="forg-gain-block">
                             <span class="forg-cost" [class.forg-cost-warn]="!canForge(entry)">{{ nextForgeCostFor(entry) }}&thinsp;SP</span>
                             <span class="forg-arrow">&#x2192;</span>
-                            <span class="forg-gain">+{{ sc.halt | number:'1.0-2' }}&thinsp;&#x2390; +{{ sc.eff | number:'1.0-2' }}&thinsp;{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
+                            <span class="forg-gain">
+                              @if (!isAmmo) { +{{ sc.halt | number:'1.0-2' }}&thinsp;&#x2390; }
+                              +{{ sc.eff | number:'1.0-2' }}&thinsp;<span class="app-icon" [class.i-effektivity]="usesWeaponStats" [class.i-stability]="!usesWeaponStats"></span>
+                            </span>
                           </div>
                           <button class="forg-btn forg-plus" (click)="forge(entry)" [disabled]="!canForge(entry)">Schmieden</button>
                         </div>
@@ -254,17 +282,19 @@
             @if (slot.entries.length > 0 && preview) {
               <div class="slot-preview-stats">
                 @if (!isBonusSlot(slotCfg.key)) {
-                  <div class="stat-col-title" [class.col-title-w]="itemType === 'weapon'" [class.col-title-a]="itemType !== 'weapon'">
-                    {{ itemType === 'weapon' ? 'Waffenwerte' : 'Rustungswerte' }}
+                  <div class="stat-col-title" [class.col-title-w]="usesWeaponStats" [class.col-title-a]="!usesWeaponStats">
+                    {{ isAmmo ? 'Munitionswerte' : itemType === 'weapon' ? 'Waffenwerte' : 'R&#xFC;stungswerte' }}
                   </div>
                   <div class="stat-rows">
+                    @if (!isAmmo) {
+                      <div class="sr">
+                        <span class="sr-icon">&#x2390;</span>
+                        <span class="sr-val">{{ preview.haltbarkeit }}</span>
+                      </div>
+                    }
                     <div class="sr">
-                      <span class="sr-icon">&#x2390;</span>
-                      <span class="sr-val">{{ preview.haltbarkeit }}</span>
-                    </div>
-                    <div class="sr">
-                      <span class="sr-icon sr-icon-eff">{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
-                      <span class="sr-val">{{ preview.effektivitaet }}</span>
+                      <span class="sr-icon sr-icon-eff"><span class="app-icon" [class.i-effektivity]="usesWeaponStats" [class.i-stability]="!usesWeaponStats"></span></span>
+                      <span class="sr-val">{{ isAmmo ? finalEffektivitaet : preview.effektivitaet }}</span>
                     </div>
                     @if (itemType === 'armor' && preview.ruestungsmalus) {
                       <div class="sr">
@@ -273,8 +303,12 @@
                       </div>
                     }
                     <div class="sr">
-                      <span class="sr-icon">&#x2696;&#xFE0E;</span>
-                      <span class="sr-val">{{ preview.weight | number:'1.1-1' }}&thinsp;kg</span>
+                      <span class="sr-icon">kg</span>
+                      @if (isAmmo) {
+                        <span class="sr-val">{{ finalWeight | number:'1.0-3' }}&thinsp;kg / St&#xFC;ck</span>
+                      } @else {
+                        <span class="sr-val">{{ preview.weight | number:'1.1-1' }}&thinsp;kg</span>
+                      }
                     </div>
                   </div>
                 }
@@ -283,7 +317,7 @@
                 }
               </div>
             }
-            <button class="add-mat-btn" (click)="openPicker(slotCfg.key)">+ Material hinzufugen</button>
+            <button class="add-mat-btn" (click)="openPicker(slotCfg.key)">+ Material hinzuf&#xFC;gen</button>
           </div>
         }
       </div>
@@ -294,7 +328,7 @@
         <!-- Applied traits -->
         <div class="forge-section">
           <div class="section-header">
-            <span class="section-title">&#x2699; Schmiedemerkmale</span>
+            <span class="section-title"><span class="app-icon i-settings"></span> {{ isAmmo ? 'Munitionsmerkmale' : 'Schmiedemerkmale' }}</span>
             <span class="section-hint">{{ appliedTraits.length }} aktiv</span>
           </div>
           @if (appliedTraits.length > 0) {
@@ -323,27 +357,34 @@
           } @else {
             <p class="no-traits">Noch keine Merkmale eingraviert.</p>
           }
-          <button class="open-trait-btn" (click)="openTraitPicker()">+ Merkmal hinzufugen</button>
+          <button class="open-trait-btn" (click)="openTraitPicker()">+ Merkmal hinzuf&#xFC;gen</button>
         </div>
 
         <!-- Final stats -->
         @if (primarySlot.entries.length > 0 || secondarySlot.entries.length > 0) {
           <div class="forge-section stats-section">
             <div class="section-header">
-              <span class="section-title">&#x1F4CA; Gesamtwerte</span>
+              <span class="section-title"><span class="app-icon i-stat"></span> Gesamtwerte</span>
             </div>
             <div class="final-stats-grid">
+              @if (isAmmo) {
+                <div class="fst-block">
+                  <span class="fst-label">Menge</span>
+                  <span class="fst-value">{{ ammoBatch }}&#xD7;</span>
+                </div>
+              } @else {
+                <div class="fst-block">
+                  <div class="fst-label-row"><span class="si-inline durability-c fst-ico">&#x2390;</span><span class="fst-label">Haltbarkeit</span></div>
+                  <span class="fst-value halt">{{ finalHaltbarkeit }}</span>
+                </div>
+              }
               <div class="fst-block">
-                <div class="fst-label-row"><span class="si-inline durability-c fst-ico">&#x2390;</span><span class="fst-label">Haltbarkeit</span></div>
-                <span class="fst-value halt">{{ finalHaltbarkeit }}</span>
-              </div>
-              <div class="fst-block">
-                <div class="fst-label-row"><span class="stat-icon fst-si" [class.si-sword]="itemType === 'weapon'" [class.si-shield-ic]="itemType !== 'weapon'"></span><span class="fst-label">{{ itemType === 'weapon' ? 'Effektivitat' : 'Stabilitat' }}</span></div>
+                <div class="fst-label-row"><span class="stat-icon fst-si" [class.si-sword]="usesWeaponStats" [class.si-shield-ic]="!usesWeaponStats"></span><span class="fst-label">{{ usesWeaponStats ? 'Effektivit&#xE4;t' : 'Stabilit&#xE4;t' }}</span></div>
                 <span class="fst-value effk">{{ finalEffektivitaet }}</span>
               </div>
               @if (itemType === 'armor' && finalRuestungsmalus > 0) {
                 <div class="fst-block">
-                  <span class="fst-label">Rustungsmalus</span>
+                  <span class="fst-label">R&#xFC;stungsmalus</span>
                   <span class="fst-value malus">-{{ finalRuestungsmalus }}</span>
                 </div>
               }
@@ -354,8 +395,8 @@
                 </div>
               }
               <div class="fst-block">
-                <span class="fst-label">Gewicht</span>
-                <span class="fst-value weight">{{ finalWeight | number:'1.1-1' }} kg</span>
+                <span class="fst-label">{{ isAmmo ? 'Gewicht je St&#xFC;ck' : 'Gewicht' }}</span>
+                <span class="fst-value weight">{{ finalWeight | number:(isAmmo ? '1.0-3' : '1.1-1') }} kg</span>
               </div>
             </div>
             @if (allExtraEffects.length > 0) {
@@ -371,10 +412,10 @@
         <!-- Finish -->
         <div class="forge-finish">
           <button class="finish-btn" (click)="finishForging()" [disabled]="!canFinish()">
-            &#x2692; Schmieden abschliessen &amp; zum Inventar
+            {{ isAmmo ? ammoBatch + ' Stück schmieden & zum Inventar' : 'Schmieden abschließen & zum Inventar' }}
           </button>
           @if (!canFinish()) {
-            <span class="finish-hint">{{ !itemName.trim() ? 'Bitte einen Namen eingeben' : 'Primarmaterial wird benotigt' }}</span>
+            <span class="finish-hint">{{ !itemName.trim() ? 'Bitte einen Namen eingeben' : 'Primärmaterial wird benötigt' }}</span>
           }
         </div>
 
@@ -436,7 +477,7 @@
 
               <!-- Stats: only show relevant type for current forge mode -->
               <div class="mat-stats">
-                @if (mat.canBeWeaponMaterial && mat.weaponStats && itemType === 'weapon') {
+                @if (mat.canBeWeaponMaterial && mat.weaponStats && usesWeaponStats) {
                   <div class="stat-col">
                     <div class="stat-col-title col-title-w">Waffenwerte</div>
                     <div class="stat-rows">

@@ -25,6 +25,8 @@ import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
 import { CharacterSocketService } from '../../services/character-socket.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
+import { ImageService } from '../../services/image.service';
+import { TokenDrawEditorComponent } from '../token-draw-editor/token-draw-editor.component';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { DiceRollerComponent } from '../../sheet/dice-roller/dice-roller.component';
 import { DamageCalculatorComponent } from '../../world/damage-calculator/damage-calculator.component';
@@ -58,7 +60,7 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
 @Component({
   selector: 'app-lobby-character-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe, DiceRollerComponent, DamageCalculatorComponent, SpellcastWindowComponent, LobbyMapManagerComponent],
+  imports: [CommonModule, FormsModule, ImageUrlPipe, DiceRollerComponent, DamageCalculatorComponent, SpellcastWindowComponent, LobbyMapManagerComponent, TokenDrawEditorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
 <div class="char-panel">
@@ -391,6 +393,18 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
           </div>
         }
 
+        <!-- Leise melden: nur GM und der Spieler selbst sehen das Leuchten. -->
+        <div class="free-roll-section">
+          <button class="open-dice-btn wants-act-btn" [class.active]="!!token.wantsToAct"
+                  (click)="toggleWantsToAct()"
+                  [title]="token.wantsToAct
+                    ? 'Meldung zurücknehmen'
+                    : 'Der Spielleitung leise zeigen, dass du etwas tun möchtest — nur sie sieht es'">
+            <span class="app-icon i-active"></span>
+            {{ token.wantsToAct ? (isGM ? 'Meldung erledigt' : 'Meldung zurücknehmen') : 'Ich möchte was tun' }}
+          </button>
+        </div>
+
         @if (stats.length === 0) {
           <div class="empty-rolls">Keine Daten für diesen Token</div>
         }
@@ -504,7 +518,8 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
           @if (token.customPortraitData) {
             <div class="portrait-preview-row">
               <img [src]="token.customPortraitData" class="portrait-preview" alt="Portrait" />
-              <button class="quick-btn danger-btn" (click)="clearCustomPortrait()">Löschen</button>
+              <button class="quick-btn danger-btn" (click)="clearCustomPortrait()"
+                      title="Eigenes Bild entfernen — der Token zeigt wieder sein Originalbild">Zurück zum Original</button>
             </div>
           }
           <!-- Upload portrait -->
@@ -514,37 +529,17 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
               <input type="file" accept="image/*" style="display:none" (change)="uploadPortrait($event)" />
             </label>
           </div>
-          <!-- Draw portrait -->
-          @if (!showDrawCanvas()) {
-            <button class="add-fx-btn draw-btn" (click)="openDrawCanvas()">
-              <span class="app-icon i-draw"></span> Auf Token zeichnen
-            </button>
-          } @else {
-            <div class="draw-canvas-container">
-              <div class="draw-canvas-toolbar">
-                <label class="fx-check" style="gap:4px">
-                  Farbe: <input type="color" [(ngModel)]="drawColor" style="width:28px;height:22px;padding:0;border:none;cursor:pointer;background:none;" />
-                </label>
-                <label class="fx-check" style="gap:4px">
-                  Pinsel:
-                  <input type="range" min="2" max="40" step="1" [(ngModel)]="drawBrushSize" class="slider" style="width:60px" />
-                  <span class="slider-val">{{ drawBrushSize }}</span>
-                </label>
-                <button class="quick-btn" (click)="clearDrawCanvas()" title="Leinwand leeren"><span class="app-icon i-restore-trash"></span></button>
-              </div>
-              <canvas #tokenDrawCanvas
-                class="draw-canvas"
-                width="256" height="256"
-                (mousedown)="onDrawCanvasMouseDown($event)"
-                (mousemove)="onDrawCanvasMouseMove($event)"
-                (mouseup)="onDrawCanvasMouseUp()"
-                (mouseleave)="onDrawCanvasMouseUp()"
-              ></canvas>
-              <div class="draw-canvas-actions">
-                <button class="action-btn" (click)="saveDrawCanvas()">Speichern</button>
-                <button class="quick-btn" (click)="closeDrawCanvas()">Abbrechen</button>
-              </div>
-            </div>
+          <!-- Draw portrait: full-screen painter -->
+          <button class="add-fx-btn draw-btn" (click)="openDrawCanvas()">
+            <span class="app-icon i-draw"></span> {{ token.customPortraitData ? 'Zeichnung bearbeiten' : 'Auf Token zeichnen' }}
+          </button>
+          @if (showDrawCanvas()) {
+            <app-token-draw-editor
+              [title]="token.name"
+              [initialImage]="token.customPortraitData ?? null"
+              [originalSrc]="drawOriginalSrc"
+              (save)="saveDrawCanvas($event)"
+              (cancel)="closeDrawCanvas()" />
           }
 
         </div>
@@ -1366,35 +1361,6 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
     .upload-portrait-label {
       display: flex; align-items: center; justify-content: center; gap: 6px;
     }
-    .draw-canvas-container {
-      margin: 2px 8px 6px;
-      background: #1a2130;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .draw-canvas-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 8px;
-      background: #1e293b;
-      border-bottom: 1px solid #334155;
-      flex-wrap: wrap;
-    }
-    .draw-canvas {
-      display: block;
-      width: 100%;
-      aspect-ratio: 1;
-      cursor: crosshair;
-      image-rendering: pixelated;
-    }
-    .draw-canvas-actions {
-      display: flex;
-      gap: 6px;
-      padding: 6px 8px;
-      border-top: 1px solid #334155;
-    }
     /* ---- Aussehen Tab ---- */
     .aussehen-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
     .uniform-row { justify-content: space-between; }
@@ -1482,6 +1448,9 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
     .open-dice-btn.dmg-btn:hover { background: rgba(220,38,38,0.2); border-color: #ef4444; color: #fecaca; }
     .open-dice-btn.abilities-btn { background: rgba(99,102,241,0.1); border-color: #4f46e5; color: #c7d2fe; }
     .open-dice-btn.abilities-btn:hover { background: rgba(99,102,241,0.2); border-color: #6366f1; color: #e0e7ff; }
+    .open-dice-btn.wants-act-btn { background: rgba(245,158,11,0.08); border-color: #92400e; color: #fcd34d; }
+    .open-dice-btn.wants-act-btn:hover { background: rgba(245,158,11,0.16); border-color: #f59e0b; }
+    .open-dice-btn.wants-act-btn.active { background: #f59e0b; border-color: #fbbf24; color: #1c1206; font-weight: 700; }
 
     /* ---- Lobby Skill Cards ---- */
     .skill-cards-list { display: flex; flex-direction: column; gap: 4px; padding: 2px 8px 8px; }
@@ -1614,6 +1583,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   private worldSocket = inject(WorldSocketService);
   private trueStats = inject(TrueStatsService);
+  private imageService = inject(ImageService);
   private charSocket = inject(CharacterSocketService);
   private libraryStore = inject(LibraryStoreService);
   private cdr = inject(ChangeDetectorRef);
@@ -1672,12 +1642,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   newEffectDuration: number | null = null;
 
   // Draw canvas state
-  @ViewChild('tokenDrawCanvas') tokenDrawCanvasRef?: ElementRef<HTMLCanvasElement>;
+  /** The full-screen token painter is open. */
   showDrawCanvas = signal(false);
-  drawColor = '#000000';
-  drawBrushSize = 8;
-  private _drawingActive = false;
-  private _drawCtx: CanvasRenderingContext2D | null = null;
 
   // Cosmetic state (local mirrors of token values)
   localName = '';
@@ -2157,7 +2123,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     const sheet = this.diceSheet;
     if (!sheet) return 0;
     const runes = (sheet.runes ?? []).filter((r): r is NonNullable<typeof r> => !!r);
-    return Math.max(0, this.fokusMax - committedFokus(sheet.spells ?? [], this.characterCastingSpells, runes));
+    return Math.max(0, this.fokusMax - this.trueStats.constructFokus(sheet)
+      - committedFokus(sheet.spells ?? [], this.characterCastingSpells, runes));
   }
 
   fokusPct(): number { const m = this.fokusMax; return m > 0 ? Math.max(0, Math.min(100, (this.fokusAvailable / m) * 100)) : 0; }
@@ -2283,6 +2250,12 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   openDamageRoller(): void {
     this.showDamageRoller.set(true);
+  }
+
+  /** "Ich möchte was tun" an/aus — the player raises it, either side can lower it. */
+  toggleWantsToAct(): void {
+    if (!this.token || !this.canViewStats) return;
+    this.tokenUpdate.emit({ wantsToAct: !this.token.wantsToAct || undefined });
   }
 
   openAbilitiesOverlay(): void {
@@ -2769,82 +2742,25 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   openDrawCanvas(): void {
     this.showDrawCanvas.set(true);
     this.cdr.markForCheck();
-    // Init canvas on next tick after it's rendered
-    setTimeout(() => this.initDrawCanvas(), 0);
   }
 
   closeDrawCanvas(): void {
     this.showDrawCanvas.set(false);
-    this._drawCtx = null;
+    this.cdr.markForCheck();
   }
 
-  saveDrawCanvas(): void {
-    if (!this._drawCtx || !this.token) return;
-    const dataUrl = this._drawCtx.canvas.toDataURL('image/png');
+  saveDrawCanvas(dataUrl: string): void {
+    if (!this.token) return;
     this.tokenUpdate.emit({ customPortraitData: dataUrl });
-    this.showDrawCanvas.set(false);
-    this._drawCtx = null;
+    this.closeDrawCanvas();
   }
 
-  clearDrawCanvas(): void {
-    if (!this._drawCtx) return;
-    const c = this._drawCtx.canvas;
-    this._drawCtx.clearRect(0, 0, c.width, c.height);
-    this._drawCtx.fillStyle = '#ffffff';
-    this._drawCtx.fillRect(0, 0, c.width, c.height);
-  }
-
-  private initDrawCanvas(): void {
-    if (!this.tokenDrawCanvasRef) return;
-    const canvas = this.tokenDrawCanvasRef.nativeElement;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    this._drawCtx = ctx;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // If token already has a custom portrait, load it
-    if (this.token?.customPortraitData) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      img.src = this.token.customPortraitData;
-    }
-  }
-
-  onDrawCanvasMouseDown(event: MouseEvent): void {
-    if (!this._drawCtx) return;
-    this._drawingActive = true;
-    const pos = this.getCanvasPos(event);
-    this._drawCtx.beginPath();
-    this._drawCtx.moveTo(pos.x, pos.y);
-  }
-
-  onDrawCanvasMouseMove(event: MouseEvent): void {
-    if (!this._drawingActive || !this._drawCtx) return;
-    const pos = this.getCanvasPos(event);
-    this._drawCtx.lineWidth = this.drawBrushSize;
-    this._drawCtx.lineCap = 'round';
-    this._drawCtx.lineJoin = 'round';
-    this._drawCtx.strokeStyle = this.drawColor;
-    this._drawCtx.lineTo(pos.x, pos.y);
-    this._drawCtx.stroke();
-    this._drawCtx.beginPath();
-    this._drawCtx.moveTo(pos.x, pos.y);
-  }
-
-  onDrawCanvasMouseUp(): void {
-    this._drawingActive = false;
-    if (this._drawCtx) {
-      this._drawCtx.beginPath();
-    }
-  }
-
-  private getCanvasPos(event: MouseEvent): { x: number; y: number } {
-    if (!this.tokenDrawCanvasRef) return { x: 0, y: 0 };
-    const rect = this.tokenDrawCanvasRef.nativeElement.getBoundingClientRect();
-    return {
-      x: (event.clientX - rect.left) * (this.tokenDrawCanvasRef.nativeElement.width / rect.width),
-      y: (event.clientY - rect.top) * (this.tokenDrawCanvasRef.nativeElement.height / rect.height),
-    };
+  /**
+   * The picture the token had before anyone drew on it: its own portrait, else the character's.
+   * Offered in the painter as "Originalbild laden".
+   */
+  get drawOriginalSrc(): string | null {
+    return this.imageService.getImageUrl(this.token?.portrait || this.character?.portrait || null);
   }
 
   // ============================================================

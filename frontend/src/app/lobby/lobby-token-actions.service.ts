@@ -1413,9 +1413,12 @@ export class LobbyTokenActionsService implements OnDestroy {
     return this.trueStats.calculateFokusMax(this.sheetForMacros ?? buildNpcSheet(this.npc));
   }
 
-  /** Fokus not bound by running spells. */
+  /** Fokus not bound by running spells or equipped Konstrukte. */
   get fokusAvailable(): number {
-    return Math.max(0, this.fokusMax - committedFokus(this.availableSpells, this.castingSpells, this.learnedRunes));
+    const sheet = this.character ?? (this.npc ? (this.sheetForMacros ?? buildNpcSheet(this.npc)) : null);
+    const machines = sheet ? this.trueStats.constructFokus(sheet) : 0;
+    return Math.max(0,
+      this.fokusMax - machines - committedFokus(this.availableSpells, this.castingSpells, this.learnedRunes));
   }
 
   canAffordSkill(skill: SkillBlock): boolean {

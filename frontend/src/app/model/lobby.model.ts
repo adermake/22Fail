@@ -138,6 +138,12 @@ export interface Token {
   rotation?: number; // Rotation in degrees (default 0)
   imageMode?: TokenImageMode; // How image fills token (default 'fill' = cover, no stretch)
   customPortraitData?: string; // Base64 hand-drawn portrait (overrides portrait if set)
+  /**
+   * "Ich möchte was tun": the player quietly signals the GM without interrupting. The token glows
+   * only for the GM and whoever controls it — see `canViewTokenStats` in the lobby. Synced like
+   * any token field, so it is hidden in the UI rather than secret on the wire.
+   */
+  wantsToAct?: boolean;
 
   /**
    * Per-token inventory (NPC loot). Seeded from the statblock's `inventory` when the token is

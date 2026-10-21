@@ -252,6 +252,23 @@ export function buildForgedItem(input: ForgedItemInput): ItemBlock {
   return item;
 }
 
+/**
+ * Munition: forged like a weapon from weapon materials, but only through Primär, always at
+ * Mittel (×1), with half the Effektivität. One session yields a stack of `AMMO_BATCH` pieces,
+ * each weighing a hundredth of what the weapon would, and none of them has Haltbarkeit.
+ */
+export const AMMO_BATCH = 7;
+export const AMMO_WEIGHT_DIVISOR = 100;
+
+export function ammoStats(primaryEffektivitaet: number, primaryWeight: number): {
+  efficiency: number; weightPerPiece: number;
+} {
+  return {
+    efficiency: Math.round(primaryEffektivitaet / 2),
+    weightPerPiece: Math.round((primaryWeight / AMMO_WEIGHT_DIVISOR) * 1000) / 1000,
+  };
+}
+
 /** A material usable for the given item kind. */
 export function materialFits(material: MaterialBlock, isWeapon: boolean): boolean {
   return isWeapon ? !!material.canBeWeaponMaterial : !!material.canBeArmorMaterial;

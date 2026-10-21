@@ -4,14 +4,6 @@
     <div class="dialog-header">
       <h2><span class="app-icon i-dice"></span> Würfel Werfen</h2>
       <div class="header-controls">
-        <label class="secret-toggle" [class.active]="isSecretRoll()">
-          <input type="checkbox" [checked]="isSecretRoll()" (change)="isSecretRoll.set($any($event.target).checked)" />
-          <span class="secret-label">Geheim</span>
-        </label>
-        <label class="secret-toggle advantage-toggle" [class.active]="useAdvantage()">
-          <input type="checkbox" [checked]="useAdvantage()" (change)="useAdvantage.set($any($event.target).checked)" />
-          <span class="secret-label">Vorteil</span>
-        </label>
         <button class="close-btn" (click)="onClose()">&times;</button>
       </div>
     </div>
@@ -74,8 +66,33 @@
           </span>
         </div>
 
+        <!-- Vorteil / Nachteil + Geheim, right where the roll happens -->
+        <div class="roll-options">
+          <div class="roll-mode-row" role="radiogroup" aria-label="Vorteil oder Nachteil">
+            @for (m of rollModes; track m.id) {
+              <button type="button" class="roll-mode-btn"
+                      [class.selected]="rollMode() === m.id"
+                      [class.mode-good]="m.id.startsWith('vorteil')"
+                      [class.mode-bad]="m.id.startsWith('nachteil')"
+                      [attr.aria-checked]="rollMode() === m.id"
+                      [title]="m.id === 'normal' ? 'Ein Wurf'
+                        : (m.id.endsWith('+') ? 'Drei Würfe, ' : 'Zwei Würfe, ')
+                          + (m.id.startsWith('vorteil') ? 'der niedrigste zählt' : 'der höchste zählt')"
+                      (click)="rollMode.set(m.id)">
+                {{ m.label }}
+              </button>
+            }
+          </div>
+          <label class="secret-toggle" [class.active]="isSecretRoll()"
+                 title="Nur die Spielleitung sieht das Ergebnis">
+            <input type="checkbox" [checked]="isSecretRoll()" (change)="isSecretRoll.set($any($event.target).checked)" />
+            <span class="app-icon" [class.i-visibility-off]="isSecretRoll()" [class.i-visibility-on]="!isSecretRoll()"></span>
+            <span class="secret-label">Geheim</span>
+          </label>
+        </div>
+
         <!-- Roll Button -->
-        <button 
+        <button
           class="roll-btn"
           [class.rolling]="isRolling()"
           [class.secret]="isSecretRoll()"
@@ -91,6 +108,9 @@
             <div class="result-breakdown">
               @if (rollResult.advantage && rollResult.advantageRolls) {
                 <div class="advantage-rolls">
+                  @if (rollResult.rollMode) {
+                    <span class="advantage-mode">{{ rollModeLabel(rollResult.rollMode) }}</span>
+                  }
                   @for (set of rollResult.advantageRolls; track $index) {
                     <span class="advantage-set" [class.chosen]="$index === rollResult.chosenAdvantageIndex">
                       Wurf {{ $index + 1 }}: [{{ set.join('+') }}] = {{ rollResult.advantageTotals?.[$index] }}
@@ -117,7 +137,7 @@
             [(ngModel)]="newConfigName"
             placeholder="Konfiguration speichern..." 
           />
-          <button class="save-config-btn" (click)="saveConfiguration()" [disabled]="!newConfigName">💾</button>
+          <button class="save-config-btn" (click)="saveConfiguration()" [disabled]="!newConfigName">Speichern</button>
         </div>
       </div>
 
@@ -269,7 +289,7 @@
                   @if (roll.actionName) {
                     <span class="received-action">{{ roll.actionName }}</span>
                   } @else {
-                    <span class="received-formula">{{ roll.diceCount }}d{{ roll.diceType }}</span>
+                    <span class="received-formula">{{ roll.diceCount }}d{{ roll.diceType }}@if (roll.rollMode) { · {{ roll.rollMode }}}</span>
                   }
                   <span class="received-result">{{ roll.finalDamage ?? roll.result }}</span>
                 </div>

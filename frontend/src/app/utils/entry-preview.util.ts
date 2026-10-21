@@ -20,6 +20,7 @@ export const ITEM_TYPE_LABEL: Record<ItemType, string> = {
   'ingredient': 'Wirkstoff',
   'extractor': 'Extraktor',
   'construct': 'Konstrukt',
+  'ammo': 'Munition',
 };
 
 /** Die Rüstungsplätze, ausgeschrieben. */
@@ -45,8 +46,11 @@ export function isUnidentified(data: unknown): boolean {
 
 /** Kurzes Etikett für die Art des Dings — bei Gegenständen die Item-Art, sonst leer. */
 export function kindLabel(data: unknown): string {
-  const d = data as { itemType?: ItemType; armorType?: string } | null;
+  const d = data as { itemType?: ItemType; armorType?: string; constructMaterialKind?: string } | null;
   if (!d?.itemType) return '';
+  if (d.itemType === 'construct') {
+    return d.constructMaterialKind === 'armor' ? 'Rüstung (Konstrukt)' : 'Waffe (Konstrukt)';
+  }
   const base = ITEM_TYPE_LABEL[d.itemType] ?? d.itemType;
   const slot = d.armorType ? ARMOR_SLOT_LABEL[d.armorType] : '';
   return slot ? `${base} · ${slot}` : base;

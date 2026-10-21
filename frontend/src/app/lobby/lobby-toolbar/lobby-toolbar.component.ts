@@ -39,9 +39,6 @@ export class LobbyToolbarComponent {
   @Input() kampfrundeMode = false;
   @Input() worldClockLabel = '';
   @Input() showClockDialog = false;
-  @Input() fogBrushSize = 30;
-  /** Map-wide, synced: the map starts fully fogged. */
-  @Input() fogCovered = true;
   /** GM-only, local: the fog is not drawn on this screen. */
   @Input() fogHidden = false;
   @Input() showLobbyPanels = true;
@@ -72,9 +69,8 @@ export class LobbyToolbarComponent {
   @Output() shiftClockBy10 = new EventEmitter<void>();
   @Output() shiftClockBy60 = new EventEmitter<void>();
   @Output() openClockDialog = new EventEmitter<void>();
-  @Output() fogBrushSizeChange = new EventEmitter<number>();
-  @Output() clearFog = new EventEmitter<void>();
-  @Output() fogCoveredChange = new EventEmitter<boolean>();
+  /** true = fog the whole map, false = reveal it; either way painted fog is wiped. */
+  @Output() fogEverywhere = new EventEmitter<boolean>();
   @Output() fogHiddenChange = new EventEmitter<boolean>();
 
   /**
@@ -101,7 +97,6 @@ export class LobbyToolbarComponent {
   // Brush sizes
   penBrushSizes = [2, 4, 8, 12, 20];
   eraserBrushSizes = [8, 12, 20, 32, 48];
-  fogBrushSizes = [20, 40, 60, 80, 120, 200];
   textureBrushSizes = [10, 20, 30, 50, 80, 120];
   textureScales = [0.05, 0.1, 0.2, 0.5, 1.0];
 

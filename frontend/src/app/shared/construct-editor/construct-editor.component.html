@@ -100,12 +100,18 @@
     </div>
 
     <!-- ── Canvas ───────────────────────────────────────────────────────── -->
-    <div class="ce-canvas-wrap">
+    <!-- The wrap takes the pointer, the canvas is a pannable/zoomable layer inside it — same feel as
+         the Runen editor: wheel zooms towards the cursor, middle mouse or empty-space drag pans. -->
+    <div class="ce-canvas-wrap" #canvasWrap
+         [class.ce-panning]="isPanning"
+         (wheel)="onWheel($event)" (mousedown)="onWrapMouseDown($event)"
+         (mousemove)="onCanvasMove($event)" (mouseup)="endNodeDrag()"
+         (mouseleave)="endNodeDrag()" (click)="onCanvasClick($event)"
+         (auxclick)="$event.preventDefault()"
+         (dragover)="$event.preventDefault()" (drop)="onCanvasDrop($event)">
       <div class="ce-canvas" [class.ce-dragging]="isDraggingNode"
-           [style.width.px]="canvasWidth" [style.height.px]="canvasHeight"
-           (mousemove)="onCanvasMove($event)" (mouseup)="endNodeDrag()"
-           (mouseleave)="endNodeDrag()" (click)="onCanvasClick($event)"
-           (dragover)="$event.preventDefault()" (drop)="onCanvasDrop($event)">
+           [style.transform]="transformStyle"
+           [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
 
         <svg class="ce-wires" [attr.width]="canvasWidth" [attr.height]="canvasHeight"
              xmlns="http://www.w3.org/2000/svg">
@@ -203,6 +209,70 @@
               }
               @if (staged.item.broken) { <span class="ce-chip ce-chip-bad">Defekt</span> }
             </div>
+          </div>
+        }
+      </div>
+
+      <div class="ce-zoom" (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
+        <button class="ce-zoom-btn" (click)="zoomBy(1 / 1.2)" title="Herauszoomen">&minus;</button>
+        <button class="ce-zoom-val" (click)="resetView()" title="Ansicht zur&#xFC;cksetzen">{{ zoomPercent }}%</button>
+        <button class="ce-zoom-btn" (click)="zoomBy(1.2)" title="Hineinzoomen">+</button>
+      </div>
+    </div>
+
+    <!-- ── Side panel: what the whole machine adds up to ─────────────────── -->
+    <div class="ce-side">
+      <div class="ce-rail-head">
+        <span class="ce-rail-title">Merkmale</span>
+        <span class="ce-rail-count">{{ merkmale.length }}</span>
+      </div>
+      <div class="ce-side-body">
+        @if (!merkmale.length && !materialEffects.length) {
+          <div class="ce-rail-empty">Keine Merkmale an diesem Konstrukt.</div>
+        }
+        @for (m of merkmale; track m.name) {
+          <div class="ce-merkmal">
+            <div class="ce-merkmal-head">
+              <span class="ce-merkmal-name">{{ m.name }}</span>
+              @if (m.totalLevel > 1) { <span class="ce-chip">Stufe {{ m.totalLevel }}</span> }
+              @if (m.totalLevel === 0) { <span class="ce-chip ce-chip-bad">inaktiv</span> }
+            </div>
+            @for (src of m.sources; track $index) {
+              <div class="ce-merkmal-src" [class.ce-src-off]="src.inactive">
+                <span class="ce-src-trail">{{ src.trail }}</span>
+                @if (src.level > 1) { <span class="ce-src-level">&#xD7;{{ src.level }}</span> }
+                @if (src.effect) { <div class="ce-src-effect">{{ src.effect }}</div> }
+              </div>
+            }
+          </div>
+        }
+
+        @if (materialEffects.length) {
+          <div class="ce-side-sub">Materialeffekte</div>
+          @for (e of materialEffects; track $index) {
+            <div class="ce-merkmal-src" [class.ce-src-off]="e.inactive">
+              <div class="ce-src-effect">{{ e.effect }}</div>
+              <span class="ce-src-trail">{{ e.trail }}</span>
+            </div>
+          }
+        }
+
+        @if (weapons.length) {
+          <div class="ce-side-sub">Waffen</div>
+          @for (w of weapons; track $index) {
+            <div class="ce-merkmal-src">
+              <span class="ce-src-trail">{{ w.label }}</span>
+              <span class="ce-chip"><span class="app-icon i-effektivity"></span>{{ w.effectivity }}</span>
+            </div>
+          }
+        }
+
+        @if (requirements.length) {
+          <div class="ce-side-sub">Anforderungen</div>
+          <div class="ce-merkmal-src">
+            @for (r of requirements; track r.label) {
+              <span class="ce-chip">{{ r.label }} {{ r.value }}</span>
+            }
           </div>
         }
       </div>

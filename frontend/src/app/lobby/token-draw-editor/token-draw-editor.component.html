@@ -1,0 +1,161 @@
+<div class="tde-overlay" #root tabindex="-1" (keydown)="onKeyDown($event)">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="tde-header">
+    <div class="tde-title">
+      <span class="app-icon i-draw"></span>
+      <span class="tde-title-label">Token zeichnen</span>
+      @if (title) { <span class="tde-subtitle">{{ title }}</span> }
+    </div>
+
+    <div class="tde-actions">
+      <button class="tde-btn tde-icon-btn" (click)="undo()" [disabled]="!canUndo()" title="Rückgängig (Strg+Z)">
+        <span class="app-icon i-undo"></span>
+      </button>
+      <button class="tde-btn tde-icon-btn" (click)="redo()" [disabled]="!canRedo()" title="Wiederholen (Strg+Y)">
+        <span class="app-icon i-redo"></span>
+      </button>
+      <span class="tde-divider"></span>
+      <button class="tde-btn" (click)="loadOriginal()" [disabled]="!originalSrc"
+              [title]="originalSrc ? 'Das ursprüngliche Bild des Tokens laden — darauf weiterzeichnen' : 'Dieser Token hat kein Ursprungsbild'">
+        <span class="app-icon i-image"></span> Originalbild laden
+      </button>
+      <label class="tde-btn" title="Eigenes Bild hochladen und darauf zeichnen">
+        <span class="app-icon i-folder"></span> Bild hochladen
+        <input type="file" accept="image/*" hidden (change)="onUpload($event)" />
+      </label>
+      <button class="tde-btn" (click)="clearCanvas()" title="Alles entfernen (transparent)">
+        <span class="app-icon i-restore-trash"></span> Leeren
+      </button>
+      <span class="tde-divider"></span>
+      <button class="tde-btn tde-ghost" (click)="requestClose()">Abbrechen</button>
+      <button class="tde-btn tde-primary" (click)="onSave()" title="Speichern (Strg+S)">Speichern</button>
+    </div>
+  </header>
+
+  @if (message()) {
+    <div class="tde-message">{{ message() }}</div>
+  }
+
+  <div class="tde-body">
+
+    <!-- ── Tools ────────────────────────────────────────────────────────── -->
+    <nav class="tde-tools" aria-label="Werkzeuge">
+      @for (t of tools; track t.id) {
+        <button class="tde-tool" [class.active]="tool() === t.id" (click)="tool.set(t.id)"
+                [title]="t.label + ' (' + t.key + ')'">
+          <span class="app-icon" [class]="t.icon"></span>
+          <span class="tde-tool-label">{{ t.label }}</span>
+          <kbd>{{ t.key }}</kbd>
+        </button>
+      }
+    </nav>
+
+    <!-- ── Canvas ───────────────────────────────────────────────────────── -->
+    <main class="tde-stage-wrap">
+      <div class="tde-stage">
+        <canvas #canvas
+                [width]="size" [height]="size"
+                [class.tde-cursor-none]="tool() === 'brush' || tool() === 'eraser'"
+                [class.tde-cursor-cross]="tool() === 'fill' || tool() === 'pipette'"
+                (pointerdown)="onPointerDown($event)"
+                (pointermove)="onPointerMove($event)"
+                (pointerup)="onPointerUp($event)"
+                (pointercancel)="onPointerUp($event)"
+                (pointerleave)="onPointerLeave()"
+                (contextmenu)="$event.preventDefault()"></canvas>
+
+        @if (showHexGuide()) {
+          <!-- What the token actually shows: everything outside the hex is cut off on the map. -->
+          <svg class="tde-hex" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path fill-rule="evenodd" class="tde-hex-shade"
+                  d="M0 0H100V100H0Z M25 6.7 L75 6.7 L100 50 L75 93.3 L25 93.3 L0 50 Z" />
+            <polygon class="tde-hex-line" points="25,6.7 75,6.7 100,50 75,93.3 25,93.3 0,50" />
+          </svg>
+        }
+
+        @if (cursor(); as c) {
+          <div class="tde-brush-cursor" [class.tde-eraser-cursor]="tool() === 'eraser'"
+               [style.left.px]="c.x" [style.top.px]="c.y"
+               [style.width.px]="c.d" [style.height.px]="c.d"></div>
+        }
+      </div>
+    </main>
+
+    <!-- ── Settings ─────────────────────────────────────────────────────── -->
+    <aside class="tde-panel">
+      <section class="tde-section">
+        <div class="tde-section-title">Farbe</div>
+        <div class="tde-color-row">
+          <input type="color" class="tde-color-input" [value]="color()"
+                 (input)="setColor($any($event.target).value)" />
+          <span class="tde-color-hex">{{ color() }}</span>
+        </div>
+        <div class="tde-swatches">
+          @for (c of presets; track c) {
+            <button class="tde-swatch" [style.background]="c" [class.active]="color() === c"
+                    (click)="setColor(c)" [title]="c"></button>
+          }
+        </div>
+        @if (recentColors().length) {
+          <div class="tde-section-sub">Zuletzt</div>
+          <div class="tde-swatches">
+            @for (c of recentColors(); track c) {
+              <button class="tde-swatch" [style.background]="c" [class.active]="color() === c"
+                      (click)="setColor(c)" [title]="c"></button>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="tde-section">
+        <div class="tde-section-title">
+          Größe <span class="tde-value">{{ brushSize() }} px</span>
+        </div>
+        <input type="range" min="1" max="120" [value]="brushSize()"
+               (input)="setBrushSize(+$any($event.target).value)" />
+        <div class="tde-size-presets">
+          @for (s of [2, 6, 14, 30, 60]; track s) {
+            <button class="tde-size-btn" [class.active]="brushSize() === s" (click)="setBrushSize(s)" [title]="s + ' px'">
+              <span class="tde-size-dot" [style.width.px]="4 + s / 3" [style.height.px]="4 + s / 3"></span>
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="tde-section">
+        <div class="tde-section-title">
+          Deckkraft <span class="tde-value">{{ opacity() }} %</span>
+        </div>
+        <input type="range" min="5" max="100" [value]="opacity()"
+               (input)="setOpacity(+$any($event.target).value)" />
+      </section>
+
+      <section class="tde-section">
+        <label class="tde-check">
+          <input type="checkbox" [checked]="showHexGuide()" (change)="showHexGuide.set($any($event.target).checked)" />
+          Token-Form anzeigen (H)
+        </label>
+      </section>
+
+      <section class="tde-section tde-hints">
+        <div><kbd>[</kbd> <kbd>]</kbd> Pinselgröße</div>
+        <div><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Strg</kbd>+<kbd>Y</kbd> Rückgängig / Wiederholen</div>
+        <div>Radierer macht transparent — der Token zeigt dort seinen Rand.</div>
+      </section>
+    </aside>
+  </div>
+
+  @if (confirmDiscard()) {
+    <div class="tde-confirm-backdrop" (click)="keepDrawing()">
+      <div class="tde-confirm" (click)="$event.stopPropagation()" role="alertdialog" aria-label="Änderungen verwerfen?">
+        <div class="tde-confirm-title">Änderungen verwerfen?</div>
+        <p>Die Zeichnung wurde noch nicht gespeichert.</p>
+        <div class="tde-confirm-actions">
+          <button class="tde-btn tde-ghost" (click)="keepDrawing()">Weiterzeichnen</button>
+          <button class="tde-btn tde-danger" (click)="discard()">Verwerfen</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -192,14 +192,95 @@
 
 /* ── Canvas ──────────────────────────────────────────────────────────────── */
 .ce-canvas-wrap {
+  position: relative;
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
+  cursor: default;
   background:
     radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.045) 1px, transparent 0) 0 0 / 22px 22px,
     #070a10;
 }
-.ce-canvas { position: relative; margin: 0 auto; min-width: 100%; }
+.ce-canvas-wrap.ce-panning { cursor: grabbing; user-select: none; }
+.ce-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: visible; }
+
+/* ── Zoom controls ───────────────────────────────────────────────────────── */
+.ce-zoom {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: rgba(14, 16, 24, 0.92);
+  border: 1px solid rgba(217, 160, 74, 0.25);
+  z-index: 5;
+}
+.ce-zoom-btn,
+.ce-zoom-val {
+  min-width: 28px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ce-zoom-val { min-width: 52px; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+.ce-zoom-btn:hover,
+.ce-zoom-val:hover { background: rgba(217, 160, 74, 0.16); }
+
+/* ── Side panel: combined Merkmale ───────────────────────────────────────── */
+.ce-side {
+  width: 260px;
+  flex-shrink: 0;
+  background: rgba(12, 14, 20, 0.98);
+  border-left: 1px solid rgba(217, 160, 74, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ce-side-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ce-side-sub {
+  margin-top: 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #d9a04a;
+  opacity: 0.8;
+}
+.ce-merkmal {
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ce-merkmal-head { display: flex; align-items: center; gap: 6px; }
+.ce-merkmal-name { font-size: 0.84rem; font-weight: 600; flex: 1; min-width: 0; }
+.ce-merkmal-src {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  font-size: 0.72rem;
+  padding-left: 8px;
+  border-left: 2px solid rgba(217, 160, 74, 0.35);
+}
+.ce-src-trail { opacity: 0.6; }
+.ce-src-level { font-weight: 700; color: #e8c48a; }
+.ce-src-effect { width: 100%; line-height: 1.35; }
+.ce-src-off { opacity: 0.45; text-decoration: line-through; }
+
+@media (max-width: 900px) {
+  .ce-side { display: none; }
+}
 /* While a node is being moved: no text selection, and no hover affordances fighting the drag. */
 .ce-canvas.ce-dragging { user-select: none; cursor: grabbing; }
 .ce-canvas.ce-dragging .ce-node,

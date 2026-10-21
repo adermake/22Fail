@@ -149,6 +149,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() selectedImageId: string | null = null;
   @Input() selectedTextureId: string | null = null;
   @Input() isGM = false;
+  /** Who sees a token's "Ich möchte was tun" glow — the lobby passes its GM-or-controller rule. */
+  @Input() canSeeWantsToAct: ((token: Token) => boolean) | null = null;
   @Input() isEraserMode = false; // E key toggles this
   @Input() textureLayer: 'background' | 'foreground' = 'background';
   @Input() selectedTokenId: string | null = null;

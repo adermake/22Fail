@@ -279,12 +279,14 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy, D
     return this._trueStats.calculateFokusMax(this.sheet);
   }
 
+  /** Running spells plus the Komplexität of every equipped Konstrukt. */
   get fokusUsed(): number {
-    return this.castingSpells.reduce((sum, entry) => {
+    const spells = this.castingSpells.reduce((sum, entry) => {
       const spell = this.getSpell(entry.spellId);
       if (!spell) return sum;
       return sum + this.computeFokusCost(spell, entry.castLevel || 0);
     }, 0);
+    return spells + this._trueStats.constructFokus(this.sheet);
   }
 
   get fokusPercent(): number {

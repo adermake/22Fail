@@ -1,5 +1,6 @@
 import {
-  MAX_CONSTRUCT_DEPTH, attachChild, constructArmorDebuff, constructComplexity, constructContents,
+  MAX_CONSTRUCT_DEPTH, attachChild, cloneWithFreshIds, constructArmorDebuff, constructMaterialEffects,
+  constructMerkmale, constructComplexity, constructContents,
   constructDepth, constructRequirements, constructSkills, constructSpells, constructStability,
   constructValue, constructWeapons, constructWeight, detachChild, findConstructNode,
   flattenConstruct, isConstruct, resolveActiveConstructs, usedSockets,
@@ -321,6 +322,25 @@ describe('Konstrukte', () => {
       expect(attachChild(core, 'id_Kernkörper', 'c1', impossible).refused).toBe('cycle');
     });
 
+    it('accepts an identical copy of the parent — same ids, different item', () => {
+      const core = part('Kernkörper', { sockets: [socket('c1')] });
+      const twin = JSON.parse(JSON.stringify(core)) as ItemBlock;
+      const result = attachChild(core, 'id_Kernkörper', 'c1', twin);
+      expect(result.refused).toBeUndefined();
+      const ids = flattenConstruct(result.root).map(n => n.item.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('cloneWithFreshIds re-ids every part of the tree', () => {
+      const original = sketch();
+      const copy = cloneWithFreshIds(original);
+      const before = new Set(flattenConstruct(original).map(n => n.item.id));
+      const after = flattenConstruct(copy).map(n => n.item.id);
+      expect(after.length).toBe(before.size);
+      expect(after.some(id => before.has(id))).toBe(false);
+      expect(flattenConstruct(original).map(n => n.item.id)).toContain('id_Kernkörper');
+    });
+
     it('refuses to nest past the depth ceiling', () => {
       let chain = part('N0');
       for (let i = 1; i <= MAX_CONSTRUCT_DEPTH; i++) {
@@ -419,6 +439,44 @@ describe('Konstrukte', () => {
 
     it('is empty for an unassembled Konstrukt', () => {
       expect(constructContents(part('Kernkörper', { sockets: [socket('c1')] }))).toEqual([]);
+    });
+  });
+
+  describe('Merkmale', () => {
+    const forged = (traits: { name: string; level: number }[], lines: string[]) => ({
+      forgingData: { createdAt: 0, itemType: 'weapon' as const, appliedTraits: traits, totalSP: 0, spentSP: 0 },
+      secondaryEffect: lines.join('\n'),
+    });
+
+    it('sums one Merkmal across parts and names each source', () => {
+      const machine = sketch({
+        core: forged([{ name: 'Scharf', level: 1 }], ['+1 Schaden']),
+        saw: forged([{ name: 'Scharf', level: 2 }, { name: 'Leicht', level: 1 }], ['+2 Schaden', '-1 kg']),
+      });
+      const merkmale = constructMerkmale(machine);
+      expect(merkmale.map(m => m.name)).toEqual(['Leicht', 'Scharf']);
+      const scharf = merkmale.find(m => m.name === 'Scharf')!;
+      expect(scharf.totalLevel).toBe(3);
+      expect(scharf.sources.map(s => s.trail)).toEqual(['Kernkörper', 'Kernkörper / Arm / Säge']);
+      expect(scharf.sources[1].effect).toBe('+2 Schaden');
+    });
+
+    it('lists a broken part but does not count it', () => {
+      const machine = sketch({
+        arm: { broken: true },
+        saw: forged([{ name: 'Scharf', level: 2 }], ['+2 Schaden']),
+      });
+      const [scharf] = constructMerkmale(machine);
+      expect(scharf.totalLevel).toBe(0);
+      expect(scharf.sources[0].inactive).toBe(true);
+    });
+
+    it('collects material effects with their part', () => {
+      const machine = sketch({ shield: { primaryEffect: 'Feuerfest | Leuchtet' } });
+      expect(constructMaterialEffects(machine)).toEqual([
+        { effect: 'Feuerfest', trail: 'Kernkörper / Schild', inactive: false },
+        { effect: 'Leuchtet', trail: 'Kernkörper / Schild', inactive: false },
+      ]);
     });
   });
 });

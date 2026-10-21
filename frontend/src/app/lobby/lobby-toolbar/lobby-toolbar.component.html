@@ -222,7 +222,7 @@
     <!-- Clear textures button -->
     <div class="tool-group">
       <button 
-        class="tool-btn danger" 
+        class="tool-btn text-btn danger"
         [class.gm-locked]="!isGM"
         (click)="clearTextures.emit()"
         title="Alle Texturen entfernen"
@@ -241,7 +241,7 @@
         (click)="setDragMode('free')"
         title="Freie Bewegung (ohne Einschränkung)"
       >
-        🆓
+        <span class="app-icon i-token-drag"></span>
       </button>
       <button 
         class="tool-btn" 
@@ -258,7 +258,7 @@
   @if (currentTool === 'walls') {
     <div class="tool-group">
       <button 
-        class="tool-btn danger" 
+        class="tool-btn text-btn danger"
         [class.gm-locked]="!isGM"
         (click)="clearWalls.emit()"
         title="Alle Wände entfernen"
@@ -278,46 +278,32 @@
         </span>
         <div class="toolbar-divider" style="margin: 0 4px;"></div>
       }
-      <!-- Fog brush sizes -->
-      <span class="option-label">Größe:</span>
-      <div class="brush-sizes">
-        @for (size of fogBrushSizes; track size) {
-          <button
-            class="size-btn"
-            [class.active]="fogBrushSize === size"
-            (click)="fogBrushSizeChange.emit(size)"
-            [title]="size + 'px'"
-          >
-            <span
-              class="size-dot"
-              [style.width.px]="clampSize(size)"
-              [style.height.px]="clampSize(size)"
-              [style.background]="isEraserMode ? '#94a3b8' : 'rgba(0,0,0,0.7)'"
-            ></span>
-          </button>
-        }
-      </div>
-      <div class="toolbar-divider" style="margin: 0 4px;"></div>
+      <!-- Pinselgröße läuft über das Tastenkürzel, deshalb hier nur die Ganz-Karte-Aktionen. -->
       <button
-        class="tool-btn"
-        [class.active]="fogCovered"
+        class="tool-btn text-btn"
         [class.gm-locked]="!isGM"
-        (click)="fogCoveredChange.emit(!fogCovered)"
-        [title]="fogCovered
-          ? 'Karte ist ganz verdeckt — Radierer (E) deckt auf. Klicken schaltet die Grunddecke für alle ab.'
-          : 'Nur gemalter Nebel ist sichtbar. Klicken verdeckt die ganze Karte für alle.'"
+        (click)="fogEverywhere.emit(true)"
+        title="Ganze Karte für alle verdecken — gemalter und radierter Nebel wird verworfen"
       >
-        Verdeckt: {{ fogCovered ? 'An' : 'Aus' }}
+        <span class="app-icon i-fog"></span> Alles verdecken
       </button>
       <button
-        class="tool-btn danger"
+        class="tool-btn text-btn"
         [class.gm-locked]="!isGM"
-        (click)="clearFog.emit()"
-        [title]="fogCovered
-          ? 'Alle Nebelstriche entfernen — die Karte ist danach wieder ganz verdeckt'
-          : 'Gesamten Kriegsnebel entfernen'"
+        (click)="fogEverywhere.emit(false)"
+        title="Ganze Karte für alle aufdecken — gemalter Nebel wird verworfen"
       >
-        <span class="app-icon i-restore-trash"></span> Nebel
+        <span class="app-icon i-visibility-on"></span> Alles aufdecken
+      </button>
+      <div class="toolbar-divider" style="margin: 0 4px;"></div>
+      <button
+        class="tool-btn text-btn"
+        [class.active]="fogHidden"
+        (click)="fogHiddenChange.emit(!fogHidden)"
+        [title]="fogHidden ? 'Kriegsnebel wieder anzeigen' : 'Kriegsnebel nur für dich ausblenden — Spieler sehen ihn weiterhin'"
+      >
+        <span class="app-icon" [class.i-visibility-on]="!fogHidden" [class.i-visibility-off]="fogHidden"></span>
+        {{ fogHidden ? 'Nebel ausgeblendet' : 'Nebel ausblenden (nur ich)' }}
       </button>
     </div>
   }

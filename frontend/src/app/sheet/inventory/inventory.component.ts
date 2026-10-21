@@ -25,7 +25,8 @@ import { PartyStashService } from '../../services/party-stash.service';
 import { DragSplitService } from '../../services/drag-split.service';
 import { canMerge, stackAmount, withAmount } from '../../utils/item-stack.util';
 import {
-  constructComplexity, constructContents, ensureItemId, flattenConstruct, isConstruct,
+  cloneWithFreshIds, constructComplexity, constructContents, ensureItemId, flattenConstruct,
+  isConstruct,
 } from '../../utils/construct.util';
 import { ConstructEditorComponent } from '../../shared/construct-editor/construct-editor.component';
 import { PartyStashEntry } from '../../model/world.model';
@@ -418,7 +419,8 @@ getCurrencyWeight(): number {
   duplicateItem(index: number): void {
     const source = this.sheet.inventory[index];
     if (!source) return;
-    const copy = JSON.parse(JSON.stringify(source)) as ItemBlock;
+    // Fresh ids on the copy and every part inside it — see `cloneWithFreshIds`.
+    const copy = cloneWithFreshIds(source);
     copy.name = `${source.name} (Kopie)`;
 
     const inventory = [...(this.sheet.inventory || [])];
@@ -825,11 +827,16 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     // Give every Konstrukt an id before the Bauplan opens. Parts are matched back into the
     // inventory by id on save, and item-modifier bookkeeping keys on `id || name` — two hand-made
     // parts sharing a name would otherwise be indistinguishable in both places.
+    // Ids must also be UNIQUE: items duplicated before duplicates got fresh ids share their
+    // twin's, and would be matched back onto the wrong slot. The later twin gets a new one.
     let changed = false;
+    const seen = new Set<string>();
     for (const entry of this.sheet.inventory ?? []) {
       if (!isConstruct(entry)) continue;
       for (const node of flattenConstruct(entry)) {
+        if (node.item.id && seen.has(node.item.id)) { delete node.item.id; }
         if (!node.item.id) { ensureItemId(node.item); changed = true; }
+        seen.add(node.item.id!);
       }
     }
     if (changed) {

@@ -266,6 +266,10 @@ export class ItemEditorComponent implements OnInit {
       if (!this.editItem.sockets) this.setSocketCount(2);
       if (!this.editItem.armorType) this.editItem.armorType = 'extra';
       if (!this.editItem.constructMaterialKind) this.editItem.constructMaterialKind = 'armor';
+    } else if (type === 'ammo') {
+      this.editItem.stackable = true;
+      if (!this.editItem.amount) this.editItem.amount = 7;
+      this.editItem.hasDurability = false;
     }
   }
 

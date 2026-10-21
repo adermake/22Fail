@@ -1158,6 +1158,15 @@ export class LobbyStoreService {
     this.applyPatch({ path: 'fogOff', value: !covered });
   }
 
+  /**
+   * Uniform fog everywhere: `covered` fogs the whole map, otherwise reveals it. Strokes go too —
+   * left over, painted fog would survive "alles aufdecken" and erased holes "alles verdecken".
+   */
+  setFogEverywhere(covered: boolean): void {
+    this.setFogCovered(covered);
+    this.clearFog();
+  }
+
   // ============================================
   // Image Operations (Map Background)
   // ============================================

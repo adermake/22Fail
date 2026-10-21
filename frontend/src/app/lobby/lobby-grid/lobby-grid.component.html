@@ -79,6 +79,7 @@
         [isDragging]="draggingToken?.id === token.id || groupDragIds.has(token.id)"
         [resources]="getTokenResources(token.characterId)"
         [showResources]="isPartyMember(token.characterId)"
+        [showWantsToAct]="!!canSeeWantsToAct && canSeeWantsToAct(token)"
         (dragStart)="onTokenDragStart(token, $event)"
         (contextMenu)="onTokenContextMenu(token, $event)"
       />

@@ -12,6 +12,7 @@ import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.s
 import { LibraryStoreService } from '../../services/library-store.service';
 import { StatusEffect } from '../../model/status-effect.model';
 import { Subscription } from 'rxjs';
+import { ROLL_MODES, RollMode, chooseRollSet, rollModeLabel, rollSetCount } from '../../utils/dice-roll-mode.util';
 
 export interface DiceRoll {
   id: string;
@@ -23,8 +24,9 @@ export interface DiceRoll {
   rolls: number[];
   timestamp: Date;
   isSecret?: boolean;
-  /** Advantage: two full roll sets; lower total wins. */
+  /** Vorteil/Nachteil: two or three full roll sets; see `chooseRollSet`. */
   advantage?: boolean;
+  rollMode?: RollMode;
   advantageRolls?: number[][];
   advantageTotals?: number[];
   chosenAdvantageIndex?: number;
@@ -75,7 +77,9 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   selectedBonuses = signal<Set<string>>(new Set());
   manualBonus = signal<number>(0);
   isSecretRoll = signal<boolean>(false); // Secret roll - only GM sees
-  useAdvantage = signal<boolean>(false);
+  rollMode = signal<RollMode>('normal');
+  readonly rollModes = ROLL_MODES;
+  readonly rollModeLabel = rollModeLabel;
   
   // Animation state
   isRolling = signal<boolean>(false);
@@ -241,13 +245,17 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       { name: 'Geschwindigkeit', key: 'speed' },
     ];
     
-    return statKeys
+    const stats: DiceBonus[] = statKeys
       .map(({ name, key }) => ({
         name,
         value: this.trueStats.calculateStatDiceModifier(this.sheet, key),
         source: 'stat' as const,
       }))
       .filter(b => b.value !== 0);
+    // Always listed, even at 0 — players need to see it. On the sheet higher is better, on the
+    // dice lower is, so it goes in negated.
+    const grundbonus = this.trueStats.calculateGrundbonus(this.sheet);
+    return [{ name: 'Grundbonus', value: grundbonus === 0 ? 0 : -grundbonus, source: 'stat' }, ...stats];
   });
 
   /** Talent bonuses — matches talents tab: -(statModifier + ranks + Charakterbonus + skill bonuses).
@@ -519,14 +527,11 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     let advantageTotals: number[] | undefined;
     let chosenAdvantageIndex: number | undefined;
 
-    if (this.useAdvantage()) {
-      const setA = rollOnce();
-      const setB = rollOnce();
-      const totalA = setA.reduce((a, b) => a + b, 0) + bonus;
-      const totalB = setB.reduce((a, b) => a + b, 0) + bonus;
-      advantageRolls = [setA, setB];
-      advantageTotals = [totalA, totalB];
-      chosenAdvantageIndex = totalA <= totalB ? 0 : 1;
+    const mode = this.rollMode();
+    if (mode !== 'normal') {
+      advantageRolls = Array.from({ length: rollSetCount(mode) }, () => rollOnce());
+      advantageTotals = advantageRolls.map(set => set.reduce((a, b) => a + b, 0) + bonus);
+      chosenAdvantageIndex = chooseRollSet(advantageTotals, mode);
       rolls = advantageRolls[chosenAdvantageIndex];
     } else {
       rolls = rollOnce();
@@ -564,7 +569,8 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       rolls,
       timestamp: new Date(),
       isSecret: this.isSecretRoll(),
-      advantage: this.useAdvantage() || undefined,
+      advantage: mode !== 'normal' || undefined,
+      rollMode: mode !== 'normal' ? mode : undefined,
       advantageRolls,
       advantageTotals,
       chosenAdvantageIndex,
@@ -593,7 +599,8 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
         result: roll.result,
         rolls: roll.rolls,
         timestamp: roll.timestamp,
-        isSecret: roll.isSecret || false
+        isSecret: roll.isSecret || false,
+        rollMode: roll.rollMode ? rollModeLabel(roll.rollMode) : undefined,
       };
       this.worldSocket.sendDiceRoll(rollEvent);
     }

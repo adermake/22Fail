@@ -1,12 +1,17 @@
 import {
-  ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, signal,
+  ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, OnChanges, Output,
+  SimpleChanges, ViewChild, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ConstructSocket, ItemBlock } from '../../model/item-block.model';
 import {
-  AttachRefusal, attachChild, constructComplexity, constructRequirements, constructSockets,
-  constructStability, constructWeapons, constructWeight, detachChild, flattenConstruct, isConstruct,
+  AttachRefusal, ConstructMerkmal, attachChild, constructComplexity, constructMaterialEffects,
+  constructMerkmale, constructRequirements, constructSockets, constructStability, constructWeapons,
+  constructWeight, detachChild, flattenConstruct, isConstruct,
 } from '../../utils/construct.util';
+
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 2.5;
 
 /** One node as drawn on the canvas. */
 interface LaidOutNode {
@@ -177,6 +182,85 @@ export class ConstructEditorComponent implements OnChanges {
   get weapons(): { label: string; effectivity: number }[] {
     return constructWeapons(this.working()).map(w => ({ label: w.label, effectivity: w.effectivity }));
   }
+
+  /** Schmiedemerkmale of the whole machine with where each comes from — the right-hand panel. */
+  get merkmale(): ConstructMerkmal[] {
+    this.revision();
+    return constructMerkmale(this.working());
+  }
+
+  get materialEffects(): { effect: string; trail: string; inactive: boolean }[] {
+    this.revision();
+    return constructMaterialEffects(this.working());
+  }
+
+  // ── View: pan + zoom, the same handling as the Runen editor ─────────────────
+  //
+  // Wheel zooms towards the pointer, middle mouse (or left on empty canvas) pans. Everything that
+  // reads a pointer position goes through `toWorld`, so drops, drags and wires land where the
+  // cursor is at any zoom.
+
+  @ViewChild('canvasWrap') canvasWrapRef?: ElementRef<HTMLElement>;
+  zoom = signal(1);
+  panX = signal(0);
+  panY = signal(0);
+  private pan: { startX: number; startY: number; panX: number; panY: number; moved: boolean } | null = null;
+
+  get transformStyle(): string {
+    return `translate(${this.panX()}px, ${this.panY()}px) scale(${this.zoom()})`;
+  }
+
+  get zoomPercent(): number { return Math.round(this.zoom() * 100); }
+
+  /** Pointer position in canvas (unzoomed) coordinates. */
+  private toWorld(event: MouseEvent): { x: number; y: number } {
+    // Unrendered (unit tests): treat the viewport origin as the canvas corner.
+    const rect = this.canvasWrapRef?.nativeElement.getBoundingClientRect() ?? { left: 0, top: 0 };
+    return {
+      x: (event.clientX - rect.left - this.panX()) / this.zoom(),
+      y: (event.clientY - rect.top - this.panY()) / this.zoom(),
+    };
+  }
+
+  onWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const rect = this.canvasWrapRef?.nativeElement.getBoundingClientRect();
+    if (!rect) return;
+    const mx = event.clientX - rect.left;
+    const my = event.clientY - rect.top;
+    this.zoomAround(event.deltaY < 0 ? 1.1 : 1 / 1.1, mx, my);
+  }
+
+  private zoomAround(factor: number, mx: number, my: number): void {
+    const old = this.zoom();
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, old * factor));
+    this.panX.set(mx - (mx - this.panX()) * (next / old));
+    this.panY.set(my - (my - this.panY()) * (next / old));
+    this.zoom.set(next);
+  }
+
+  zoomBy(factor: number): void {
+    const rect = this.canvasWrapRef?.nativeElement.getBoundingClientRect();
+    this.zoomAround(factor, (rect?.width ?? 0) / 2, (rect?.height ?? 0) / 2);
+  }
+
+  resetView(): void {
+    this.zoom.set(1);
+    this.panX.set(0);
+    this.panY.set(0);
+  }
+
+  /**
+   * Start panning. Middle mouse anywhere; left only on empty canvas — nodes and Anschlüsse stop
+   * their own mousedown, so a left press that reaches here hit the background.
+   */
+  onWrapMouseDown(event: MouseEvent): void {
+    if (event.button !== 1 && event.button !== 0) return;
+    if (event.button === 1) event.preventDefault();
+    this.pan = { startX: event.clientX, startY: event.clientY, panX: this.panX(), panY: this.panY(), moved: false };
+  }
+
+  get isPanning(): boolean { return !!this.pan?.moved; }
 
   /** Anforderungen with the depth decay applied — what the wearer actually has to meet. */
   get requirements(): { label: string; value: number }[] {
@@ -431,8 +515,8 @@ export class ConstructEditorComponent implements OnChanges {
     if (this.suppressClick) { this.suppressClick = false; return; }
     const part = this.picked();
     if (part) {
-      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-      this.stageAt(part, event.clientX - rect.left, event.clientY - rect.top);
+      const p = this.toWorld(event);
+      this.stageAt(part, p.x, p.y);
       return;
     }
     this.clearSelection();
@@ -442,8 +526,8 @@ export class ConstructEditorComponent implements OnChanges {
     event.preventDefault();
     const part = this.picked();
     if (!part) return;
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    this.stageAt(part, event.clientX - rect.left, event.clientY - rect.top);
+    const p = this.toWorld(event);
+    this.stageAt(part, p.x, p.y);
   }
 
   clearSelection(): void {
@@ -452,9 +536,18 @@ export class ConstructEditorComponent implements OnChanges {
   }
 
   onCanvasMove(event: MouseEvent): void {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const px = event.clientX - rect.left;
-    const py = event.clientY - rect.top;
+    const pan = this.pan;
+    if (pan) {
+      const dx = event.clientX - pan.startX;
+      const dy = event.clientY - pan.startY;
+      if (!pan.moved && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD) return;
+      pan.moved = true;
+      this.panX.set(pan.panX + dx);
+      this.panY.set(pan.panY + dy);
+      return;
+    }
+
+    const { x: px, y: py } = this.toWorld(event);
 
     const drag = this.nodeDrag;
     if (drag) {
@@ -484,11 +577,6 @@ export class ConstructEditorComponent implements OnChanges {
   /** Set for one event loop after a drag, so the trailing click does not also attach something. */
   private suppressClick = false;
 
-  private canvasRect(event: MouseEvent): DOMRect | null {
-    const canvas = (event.currentTarget as HTMLElement).closest('.ce-canvas');
-    return canvas ? canvas.getBoundingClientRect() : null;
-  }
-
   /** Move an attached node: what travels is its offset from the tidy-tree position. */
   startNodeDrag(node: LaidOutNode, event: MouseEvent): void {
     if (event.button !== 0) return;
@@ -496,8 +584,7 @@ export class ConstructEditorComponent implements OnChanges {
     // Stops the browser starting a text/image drag out of the node's own label, which otherwise
     // swallows the mousemove stream and leaves the node stuck where it started.
     event.preventDefault();
-    const rect = this.canvasRect(event);
-    if (!rect) return;
+    const p = this.toWorld(event);
 
     // What the node inherits from above: its final position minus its own contribution.
     const inheritedX = node.x - node.autoX - (node.item.bauplanDX ?? 0);
@@ -505,8 +592,8 @@ export class ConstructEditorComponent implements OnChanges {
     this.nodeDrag = {
       item: node.item,
       staged: false,
-      startPX: event.clientX - rect.left,
-      startPY: event.clientY - rect.top,
+      startPX: p.x,
+      startPY: p.y,
       startX: node.item.bauplanDX ?? 0,
       startY: node.item.bauplanDY ?? 0,
       minX: 8 - node.autoX - inheritedX,
@@ -520,13 +607,12 @@ export class ConstructEditorComponent implements OnChanges {
     if (event.button !== 0) return;
     event.stopPropagation();
     event.preventDefault();
-    const rect = this.canvasRect(event);
-    if (!rect) return;
+    const p = this.toWorld(event);
     this.nodeDrag = {
       item: staged.item,
       staged: true,
-      startPX: event.clientX - rect.left,
-      startPY: event.clientY - rect.top,
+      startPX: p.x,
+      startPY: p.y,
       startX: staged.x,
       startY: staged.y,
       minX: 8,
@@ -536,6 +622,11 @@ export class ConstructEditorComponent implements OnChanges {
   }
 
   endNodeDrag(): void {
+    if (this.pan) {
+      // A pan that moved must not also count as a click on the background.
+      this.suppressClick = this.pan.moved;
+      this.pan = null;
+    }
     if (!this.nodeDrag) return;
     this.suppressClick = this.nodeDrag.moved;
     this.nodeDrag = null;

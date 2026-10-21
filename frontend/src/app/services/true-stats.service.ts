@@ -286,8 +286,15 @@ export class TrueStatsService {
    * flicker between states on every recalculation.
    */
   calculateFokusUsed(sheet: CharacterSheet): number {
-    return this.sustainedFokus(sheet)
-      + this.equippedConstructs(sheet).reduce((sum, c) => sum + constructComplexity(c), 0);
+    return this.sustainedFokus(sheet) + this.constructFokus(sheet);
+  }
+
+  /**
+   * Fokus bound by equipped Konstrukte alone (their Komplexität). Spell-casting budgets that track
+   * their own running spells subtract this on top, so a worn machine leaves less room to cast.
+   */
+  constructFokus(sheet: CharacterSheet): number {
+    return this.equippedConstructs(sheet).reduce((sum, c) => sum + constructComplexity(c), 0);
   }
 
   /**

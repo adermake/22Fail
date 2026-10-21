@@ -33,6 +33,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import {
   KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, isKnowledgeVisible,
 } from '../../utils/knowledge-tier.util';
+import { AMMO_BATCH, ammoStats } from '../../utils/forge-calc.util';
 
 export type SlotType = 'primary' | 'secondary' | 'bonus';
 
@@ -82,7 +83,13 @@ export class ForgingComponent implements OnInit {
    * With `producesConstruct` on, weapon materials give a Konstrukt part Effektivität and armor
    * materials give it Stabilität, but the finished item is a Konstrukt either way.
    */
-  itemType: 'weapon' | 'armor' = 'weapon';
+  itemType: 'weapon' | 'armor' | 'ammo' = 'weapon';
+
+  /** Munition reads weapon materials but skips everything else the weapon form offers. */
+  get isAmmo(): boolean { return this.itemType === 'ammo'; }
+  /** Weapon OR Munition: both read `weaponStats` and give Effektivität. */
+  get usesWeaponStats(): boolean { return this.itemType !== 'armor'; }
+  readonly ammoBatch = AMMO_BATCH;
   /** Forge a Konstrukt instead of a plain weapon/Rüstung — an item with Anschlüssen. */
   producesConstruct = false;
   /** How many Anschlüsse the Konstrukt gets. Free to set: Komplexität is the real limit, not SP. */
@@ -134,11 +141,17 @@ export class ForgingComponent implements OnInit {
   secondarySlot: MaterialSlotState = { entries: [] };
   bonusSlot: MaterialSlotState = { entries: [] };
 
-  readonly slots: SlotConfig[] = [
+  private readonly allSlots: SlotConfig[] = [
     { key: 'primary',   label: 'Primär',   subtitle: 'Alle Werte + Extraeffekt' },
     { key: 'secondary', label: 'Sekundär', subtitle: 'Halbe Werte + Extraeffekt' },
     { key: 'bonus',     label: 'Zusatz',   subtitle: 'Nur Extraeffekt' },
   ];
+  private readonly ammoSlots: SlotConfig[] = [
+    { key: 'primary', label: 'Primär', subtitle: 'Halbe Effektivität + Extraeffekt' },
+  ];
+
+  /** Munition is a deliberately simple type: Primär only. */
+  get slots(): SlotConfig[] { return this.isAmmo ? this.ammoSlots : this.allSlots; }
 
   // ── Traits ───────────────────────────────────────────────────────────────────
   appliedTraits: AppliedTraitState[] = [];
@@ -154,7 +167,7 @@ export class ForgingComponent implements OnInit {
   // ── Available materials filtered by knowledge (+ resources in enforced mode) ─
   get availableMaterials(): MaterialBlock[] {
     const knownIds = new Set(this.sheet?.knownMaterialIds ?? []);
-    const isWeapon = this.itemType === 'weapon';
+    const isWeapon = this.usesWeaponStats;
     let list = this.allMaterials.filter(m => {
       const compatible = isWeapon ? m.canBeWeaponMaterial : m.canBeArmorMaterial;
       if (!compatible) return false;
@@ -195,10 +208,7 @@ export class ForgingComponent implements OnInit {
     const q = this.traitFilter.toLowerCase();
     const filtered = this.allForgeTraits.filter(t => {
       if (q && !t.name.toLowerCase().includes(q)) return false;
-      // Filter by appliesTo
-      const applies = t.appliesTo || 'all';
-      if (applies === 'all') return true;
-      return applies === this.itemType;
+      return this.traitFitsType(t);
     });
     // Sort alphabetically by name
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -233,6 +243,7 @@ export class ForgingComponent implements OnInit {
 
   /** Weapon/armor size multiplier based on selected type. */
   get weightMultiplier(): number {
+    if (this.isAmmo) return 1.0; // always Mittel
     if (this.itemType === 'weapon') {
       return this.WEIGHT_MULT[this.weaponSize];
     } else {
@@ -256,7 +267,7 @@ export class ForgingComponent implements OnInit {
     const effectParts: string[] = [];
     const seenMats = new Set<string>();
     for (const entry of slot.entries) {
-      const preview = computeForgedStats(entry.material, entry.forgeCount, this.itemType === 'weapon');
+      const preview = computeForgedStats(entry.material, entry.forgeCount, this.usesWeaponStats);
       if (!preview) continue;
       h += preview.haltbarkeit;
       e += preview.effektivitaet;
@@ -301,11 +312,13 @@ export class ForgingComponent implements OnInit {
   }
 
   get finalEffektivitaet(): number {
+    if (this.isAmmo) return ammoStats(this.primaryPreview?.effektivitaet ?? 0, 0).efficiency;
     return Math.round(((this.primaryPreview?.effektivitaet ?? 0) + (this.secondaryPreview?.effektivitaet ?? 0)) * this.weightMultiplier);
   }
 
   /** Weight from Primär + Sekundär only — Zusatz contributes no weight. */
   get finalWeight(): number {
+    if (this.isAmmo) return ammoStats(0, this.primaryPreview?.weight ?? 0).weightPerPiece;
     return Math.round(((this.primaryPreview?.weight ?? 0) + (this.secondaryPreview?.weight ?? 0)) * this.weightMultiplier * 10) / 10;
   }
 
@@ -317,6 +330,7 @@ export class ForgingComponent implements OnInit {
 
   /** Summed stat requirement from primary + secondary slots, multiplied by weight multiplier. */
   get finalStatRequirement(): number {
+    if (this.isAmmo) return 0; // the launching weapon carries the requirement
     const priReq = this.primaryPreview?.statRequirement ?? 0;
     const secReq = this.secondaryPreview?.statRequirement ?? 0; // Already halved in secondaryPreview
     return Math.round((priReq + secReq) * this.weightMultiplier);
@@ -555,14 +569,15 @@ export class ForgingComponent implements OnInit {
    * the forged item gained half.
    */
   entryScaling(entry: SlotMaterialEntry, slotKey: SlotType): { halt: number; eff: number } {
-    const stats = this.itemType === 'weapon'
+    const stats = this.usesWeaponStats
       ? entry.material.weaponStats
       : entry.material.armorStats;
-    return this.scaleForSlot(
+    const scaled = this.scaleForSlot(
       stats?.haltbarkeitSkalierung ?? 0,
       stats?.effektivitaetSkalierung ?? 0,
       slotKey,
     );
+    return this.isAmmo ? { halt: 0, eff: scaled.eff / 2 } : scaled;
   }
 
   /**
@@ -621,13 +636,36 @@ export class ForgingComponent implements OnInit {
   }
 
   // ── Item type change ─────────────────────────────────────────────────────────
+  setItemType(type: 'weapon' | 'armor' | 'ammo'): void {
+    this.itemType = type;
+    this.onItemTypeChange();
+  }
+
   onItemTypeChange(): void {
     for (const slot of [this.primarySlot, this.secondarySlot, this.bonusSlot]) {
       slot.entries = slot.entries.filter(e => {
-        return this.itemType === 'weapon' ? e.material.canBeWeaponMaterial : e.material.canBeArmorMaterial;
+        return this.usesWeaponStats ? e.material.canBeWeaponMaterial : e.material.canBeArmorMaterial;
       });
     }
+    if (this.isAmmo) {
+      // Primär only, no Konstrukt, no traits that do not fit Munition.
+      this.secondarySlot.entries = [];
+      this.bonusSlot.entries = [];
+      this.producesConstruct = false;
+    }
+    this.appliedTraits = this.appliedTraits.filter(a => this.traitFitsType(a.trait));
     this.cdr.markForCheck();
+  }
+
+  /**
+   * `appliesTo` check. 'all' means weapon + Rüstung: Munition only takes its own Merkmale, weapon
+   * ones make no sense on an arrow.
+   */
+  private traitFitsType(t: ForgeTrait): boolean {
+    const applies = t.appliesTo || 'all';
+    if (this.isAmmo) return applies === 'ammo';
+    if (applies === 'all') return true;
+    return applies === this.itemType;
   }
 
   // ── Finish forging ────────────────────────────────────────────────────────────
@@ -644,7 +682,7 @@ export class ForgingComponent implements OnInit {
     item.name = this.itemName.trim();
     // The material kind and the produced type are two different things: a Konstrukt is forged from
     // weapon OR armor materials and stays a Konstrukt either way.
-    item.itemType = this.producesConstruct ? 'construct' : (isWeapon ? 'weapon' : 'armor');
+    item.itemType = this.producesConstruct ? 'construct' : this.itemType;
     item.description = this.buildDescription();
     item.primaryEffect = this.allExtraEffects.join(' | ') || undefined;
     item.lost = false;
@@ -656,7 +694,16 @@ export class ForgingComponent implements OnInit {
     item.durability = this.finalHaltbarkeit;
     item.maxDurability = this.finalHaltbarkeit;
 
-    if (isWeapon) {
+    if (this.isAmmo) {
+      // A stack of identical pieces; weight is per piece and far below the 0.1 rounding above.
+      item.efficiency = this.finalEffektivitaet;
+      item.weight = this.finalWeight;
+      item.hasDurability = false;
+      item.durability = undefined;
+      item.maxDurability = undefined;
+      item.stackable = true;
+      item.amount = AMMO_BATCH;
+    } else if (isWeapon) {
       item.armorType = 'weapon';
       item.efficiency = this.finalEffektivitaet;
       if (this.finalStatRequirement > 0) {
@@ -697,7 +744,8 @@ export class ForgingComponent implements OnInit {
       // Keep whichever stat the materials produced — the roll-up reads both — and record which
       // material set it came from, so the item editor can show the right one.
       item.constructMaterialKind = isWeapon ? 'weapon' : 'armor';
-      item.armorType = isWeapon ? 'weapon' : 'extra';
+      // An armour Konstrukt is worn where its Rüstungstyp says; without one it falls back to Extra.
+      item.armorType = isWeapon ? 'weapon' : (this.selectedArmorType?.itemBlockType ?? 'extra');
       item.sockets = Array.from({ length: Math.max(0, this.socketCount) }, (_, i) => ({
         id: `sock_${i + 1}_${Math.random().toString(36).substring(2, 7)}`,
         label: `Anschluss ${i + 1}`,
@@ -775,6 +823,8 @@ export class ForgingComponent implements OnInit {
         lines.push(`Typ: ${parts.join('  ·  ')}`);
       }
       lines.push(`Größe: ${sizeLabel} (×${this.WEIGHT_MULT[this.weaponSize]})`);
+    } else if (this.isAmmo) {
+      lines.push(`Munition  ·  ${AMMO_BATCH} Stück  ·  Schaden kommt von der verschießenden Waffe`);
     } else {
       if (this.selectedArmorType) {
         const weightLabel = { LEICHT: 'Leicht', MITTEL: 'Mittel', SCHWER: 'Schwer' }[this.selectedArmorType.weight];

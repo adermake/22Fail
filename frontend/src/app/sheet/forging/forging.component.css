@@ -39,13 +39,37 @@
 /* ── Config bar ───────────────────────────────────────────────────────────── */
 .forge-config-bar {
   display: flex;
-  align-items: flex-end;
-  gap: 0.9rem;
+  flex-direction: column;
+  gap: 0.7rem;
   padding: 0.75rem 1.25rem;
   background: var(--card, #2d3748);
   border-bottom: 1px solid var(--border, #4a5568);
   flex-shrink: 0;
+}
+
+/* Top-aligned and fixed-width where it matters: nothing in row 1 depends on the item type, so a
+   type switch can no longer push the name field or the SP bar around. */
+.config-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
   flex-wrap: wrap;
+}
+
+.config-row-type {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border, #4a5568);
+  min-height: 3.6rem;
+}
+
+/* Keeps its space when hidden, so toggling Konstrukt does not shift the fields after it. */
+.field-hidden { visibility: hidden; }
+
+.ammo-note {
+  font-size: 0.82rem;
+  color: var(--text-muted, #9ca3af);
+  line-height: 1.45;
+  max-width: 70ch;
 }
 
 .config-field {
@@ -62,9 +86,11 @@
   letter-spacing: 0.06em;
 }
 
-.name-field { flex: 2; min-width: 180px; }
+.name-field { flex: 0 1 280px; min-width: 180px; }
 .type-field { flex-shrink: 0; }
-.sp-combined-field { flex: 3; min-width: 260px; }
+.socket-field { flex-shrink: 0; width: 6rem; }
+.socket-field input { width: 100%; box-sizing: border-box; }
+.sp-combined-field { flex: 1 1 260px; min-width: 260px; }
 .weapon-type-field { flex: 1; min-width: 200px; }
 .armor-type-field { flex: 1; min-width: 200px; }
 .stat-req-field { flex-shrink: 0; }
@@ -111,7 +137,8 @@
   color: white;
   font-weight: 700;
 }
-.type-toggle button:not(.active):hover {
+.type-toggle button:disabled { opacity: 0.4; cursor: not-allowed; }
+.type-toggle button:not(.active):not(:disabled):hover {
   background: rgba(255,255,255,0.06);
   color: var(--text, #e5e7eb);
 }
