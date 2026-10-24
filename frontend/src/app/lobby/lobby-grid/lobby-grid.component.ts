@@ -6859,7 +6859,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       // limit (and can exceed the browser's canvas limit, which renders it empty), and the
       // strokes it replaced were deleted anyway. The tile cache makes many fragments cheap.
       this.preloadDrawBitmaps(drawBitmaps);
-      this.store.applyDrawChanges(strokes, drawBitmaps);
+      // A lifted selection already recorded the pre-lift state as an undo step. Placing it is the
+      // second half of the same move, so one Strg+Z must go straight back to before the lift —
+      // recording again made the first Strg+Z show only the hole the lift left behind.
+      // Pasted selections were never lifted and still get their own step.
+      this.store.applyDrawChanges(strokes, drawBitmaps, !sel.sourceCutApplied);
     }
 
     this.floatingSelection = null;

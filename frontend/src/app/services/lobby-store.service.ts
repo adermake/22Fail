@@ -990,9 +990,13 @@ export class LobbyStoreService {
     return true;
   }
 
-  /** Apply multiple draw changes in one undo step (single UI notification) */
-  applyDrawChanges(strokes: Stroke[], drawBitmaps: DrawBitmap[]): void {
-    this.captureDrawSnapshot();
+  /**
+   * Apply multiple draw changes in one undo step (single UI notification).
+   * `recordUndo: false` folds the change into the previous step — used when a lasso move is
+   * placed, so one Strg+Z undoes lift and placement together.
+   */
+  applyDrawChanges(strokes: Stroke[], drawBitmaps: DrawBitmap[], recordUndo = true): void {
+    if (recordUndo) this.captureDrawSnapshot();
     const map = this.currentMap;
     if (!map) return;
 
