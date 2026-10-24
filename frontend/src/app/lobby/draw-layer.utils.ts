@@ -1148,6 +1148,80 @@ export function createLassoRegionFromPolygon(
   return tightCropExtractedRegion(raw);
 }
 
+/** Draw bitmaps wider or taller than this are split into pieces (see `splitBitmapIntoChunks`). */
+export const BITMAP_SPLIT_THRESHOLD = 2048;
+export const BITMAP_CHUNK_SIZE = 1024;
+
+export function isOversizedBitmap(bmp: DrawBitmap): boolean {
+  return bmp.width > BITMAP_SPLIT_THRESHOLD || bmp.height > BITMAP_SPLIT_THRESHOLD;
+}
+
+/**
+ * Source-pixel rectangles covering a width×height image in chunk-sized pieces. Each piece reaches
+ * one pixel into its right/bottom neighbour, so scaled drawing never opens a hairline gap where
+ * two pieces meet.
+ */
+export function bitmapChunkRects(
+  width: number,
+  height: number,
+  chunk = BITMAP_CHUNK_SIZE
+): { sx: number; sy: number; sw: number; sh: number }[] {
+  const rects: { sx: number; sy: number; sw: number; sh: number }[] = [];
+  for (let sy = 0; sy < height; sy += chunk) {
+    for (let sx = 0; sx < width; sx += chunk) {
+      rects.push({
+        sx,
+        sy,
+        sw: Math.min(chunk + 1, width - sx),
+        sh: Math.min(chunk + 1, height - sy),
+      });
+    }
+  }
+  return rects;
+}
+
+/**
+ * Cut one (decoded) bitmap into pieces that render identically. Fully transparent pieces are
+ * dropped — they draw nothing. Throws on any canvas failure; the caller keeps the original then.
+ *
+ * Why: a lasso flatten once produced a 16537×14199 bitmap. Larger than a GPU texture, it forced
+ * a slow software path on every zoom step, and as one array entry it is a 10 MB patch.
+ */
+export async function splitBitmapIntoChunks(bmp: DrawBitmap, img: HTMLImageElement): Promise<DrawBitmap[]> {
+  const nw = img.naturalWidth;
+  const nh = img.naturalHeight;
+  if (!nw || !nh) throw new Error('bitmap not decoded');
+  const scaleX = bmp.width / nw;
+  const scaleY = bmp.height / nh;
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('no 2d context');
+
+  const pieces: DrawBitmap[] = [];
+  const rects = bitmapChunkRects(nw, nh);
+  for (let i = 0; i < rects.length; i++) {
+    const { sx, sy, sw, sh } = rects[i];
+    canvas.width = sw;
+    canvas.height = sh;
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    if (countImageAlpha(ctx.getImageData(0, 0, sw, sh)) === 0) continue;
+    pieces.push({
+      id: generateId(),
+      layerId: bmp.layerId,
+      x: bmp.x + sx * scaleX,
+      y: bmp.y + sy * scaleY,
+      width: sw * scaleX,
+      height: sh * scaleY,
+      dataUrl: canvas.toDataURL('image/png'),
+      drawOrder: bmp.drawOrder,
+    });
+    // Let the page breathe — a big bitmap is a few hundred pieces
+    if (i % 8 === 7) await new Promise(resolve => setTimeout(resolve));
+  }
+  return pieces;
+}
+
 export function imageDataToDataUrl(imageData: ImageData): string {
   const canvas = document.createElement('canvas');
   canvas.width = imageData.width;

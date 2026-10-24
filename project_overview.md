@@ -771,6 +771,8 @@ lobby-container
   entfernt — war > Socket-Limit, Strokes-Patch kam an, Bitmap-Patch nicht → Zeichnungen weg). Draw-Patches senden `drawBitmaps`
   vor `strokes`; Cut-Funktionen brechen bei Canvas > 16 Mpx/16384 px ab statt leer gelesene Canvas als „nichts da“ zu löschen.
   `LobbySocketService.sendPatch` puffert offline (Outbox) statt zu verwerfen; Map-ID wird beim Patch festgehalten.
+  Bitmaps > 2048 px werden beim GM-Client einmalig in 1024-px-Stücke zerlegt (`splitBitmapIntoChunks`, transparente
+  Stücke fallen weg, 1 px Überlappung gegen Nähte, kein Undo-Eintrag) — Riesen-PNGs sprengten GPU-Texturgrenzen (Zoom-Lag).
   Alle Gateways teilen `SOCKET_MAX_BUFFER_BYTES` (backend/src/socket-options.ts) — Nest nimmt die Optionen des ersten Gateways.
 
 ### Schnell-NSC (`utils/quick-npc.util.ts`, `lobby/lobby-quick-npc/`)

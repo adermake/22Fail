@@ -976,6 +976,20 @@ export class LobbyStoreService {
     this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
   }
 
+  /**
+   * Swap one bitmap for pieces that render identically (see `splitBitmapIntoChunks`). Not a user
+   * edit, so no undo entry — Ctrl+Z must not bring the oversized original back. Refuses to drop
+   * a bitmap without replacement.
+   */
+  replaceDrawBitmap(id: string, pieces: DrawBitmap[]): boolean {
+    const index = this.drawBitmaps.findIndex(b => b.id === id);
+    if (index < 0 || pieces.length === 0) return false;
+    const drawBitmaps = [...this.drawBitmaps];
+    drawBitmaps.splice(index, 1, ...pieces);
+    this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
+    return true;
+  }
+
   /** Apply multiple draw changes in one undo step (single UI notification) */
   applyDrawChanges(strokes: Stroke[], drawBitmaps: DrawBitmap[]): void {
     this.captureDrawSnapshot();

@@ -39,6 +39,8 @@ import {
   createLassoRegionFromPolygon,
   getDefaultDrawLayerId,
   imageDataToDataUrl,
+  isOversizedBitmap,
+  splitBitmapIntoChunks,
   loadDataUrlImage,
   normalizeLassoPolygon,
   removeLayerContentInPolygon,
@@ -324,6 +326,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   } | null = null;
   private bitmapImageCache = new Map<string, HTMLImageElement>();
   private bitmapImageSrc = new Map<string, string>();
+  private bitmapSplitRunning = false;
+  private bitmapSplitSkipped = new Set<string>();
   private floatingSelectionImg: HTMLImageElement | null = null;
   private floatingSelectionImgSrc = '';
 
@@ -626,6 +630,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['map'] || changes['tokens'] || changes['selectedImageId'] || changes['fogHidden'] || changes['currentTool']) {
       this.scheduleRender();
     }
+    if (changes['map'] || changes['isGM']) {
+      this.maybeSplitOversizedBitmaps();
+    }
     if (changes['imageLayerVisible']) {
       this.updateLayerVisibility();
     }
@@ -845,6 +852,39 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.renderStrokes();
       }
     });
+  }
+
+  /**
+   * Cut oversized draw bitmaps into pieces, once, persisted. GM client only, so two browsers never
+   * race to rewrite the same list. A failure leaves the original untouched and is not retried.
+   */
+  private maybeSplitOversizedBitmaps(): void {
+    if (!this.isGM || this.bitmapSplitRunning) return;
+    const target = this.store.drawBitmaps.find(b => isOversizedBitmap(b) && !this.bitmapSplitSkipped.has(b.id));
+    if (!target) return;
+
+    this.bitmapSplitRunning = true;
+    void this.splitOversizedBitmap(target).finally(() => {
+      this.bitmapSplitRunning = false;
+      this.maybeSplitOversizedBitmaps();
+    });
+  }
+
+  private async splitOversizedBitmap(bmp: DrawBitmap): Promise<void> {
+    const mapId = this.store.currentMap?.id;
+    try {
+      const img = new Image();
+      img.src = bmp.dataUrl;
+      await img.decode();
+      const pieces = await splitBitmapIntoChunks(bmp, img);
+      // The map or the bitmap changed while we worked — the next check starts over
+      if (this.store.currentMap?.id !== mapId || !this.store.drawBitmaps.includes(bmp)) return;
+      if (!this.store.replaceDrawBitmap(bmp.id, pieces)) this.bitmapSplitSkipped.add(bmp.id);
+      else console.log(`[LobbyGrid] Split ${bmp.width}x${bmp.height} bitmap into ${pieces.length} pieces`);
+    } catch (err) {
+      console.warn('[LobbyGrid] Could not split oversized bitmap, keeping it whole:', err);
+      this.bitmapSplitSkipped.add(bmp.id);
+    }
   }
 
   private preloadDrawBitmaps(bitmaps: DrawBitmap[]): void {
