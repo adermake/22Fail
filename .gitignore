@@ -30,6 +30,14 @@ Thumbs.db
 # Data folder - all data files (root-level only)
 /data/
 
+# Client autosave copies of lobby maps (MapStorageService writes to <cwd>/maps, cwd = backend/).
+# Must stay ignored: the server's deploy.sh runs "git clean -fd", which deletes untracked files
+# but keeps ignored ones — these copies are what recovered lost drawings on 2026-10-24.
+backend/maps/
+
+# Local copies of map backups pulled in for inspection — never commit map data
+/recovery/
+
 
 # graphify knowledge graph (regenerable locally)
 graphify-out/
