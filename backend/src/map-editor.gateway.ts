@@ -14,6 +14,7 @@ import {
   ObjectCollection,
 } from './map-editor.service';
 import { UsersService } from './users.service';
+import { SOCKET_MAX_BUFFER_BYTES } from './socket-options';
 
 /**
  * Realtime channel for the map editor (format v2).
@@ -29,6 +30,7 @@ import { UsersService } from './users.service';
  */
 @WebSocketGateway({
   cors: { origin: '*' },
+  maxHttpBufferSize: SOCKET_MAX_BUFFER_BYTES,
 })
 export class MapEditorGateway implements OnGatewayDisconnect {
   @WebSocketServer() server: Server;

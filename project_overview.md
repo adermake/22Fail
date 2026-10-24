@@ -767,6 +767,11 @@ lobby-container
   zu rendern. Live-Strich zeichnet nur den Draw-Canvas neu; Punkte < 1 Bildschirmpixel werden verworfen.
   Raster-Farbe: eine verkleinerte Rücklesung pro Frame statt `getImageData` pro Hex; normale Hex-Linien gebündelt (je Hex nur
   die unteren drei Kanten).
+- Datenverlust-Schutz Zeichnungen: Lasso-Commit flacht die Ebene NICHT mehr zu einem Riesen-PNG ab (`flattenDrawLayerContent`
+  entfernt — war > Socket-Limit, Strokes-Patch kam an, Bitmap-Patch nicht → Zeichnungen weg). Draw-Patches senden `drawBitmaps`
+  vor `strokes`; Cut-Funktionen brechen bei Canvas > 16 Mpx/16384 px ab statt leer gelesene Canvas als „nichts da“ zu löschen.
+  `LobbySocketService.sendPatch` puffert offline (Outbox) statt zu verwerfen; Map-ID wird beim Patch festgehalten.
+  Alle Gateways teilen `SOCKET_MAX_BUFFER_BYTES` (backend/src/socket-options.ts) — Nest nimmt die Optionen des ersten Gateways.
 
 ### Schnell-NSC (`utils/quick-npc.util.ts`, `lobby/lobby-quick-npc/`)
 - Hex-Kontextmenü: „Erstellen Simpel" (altes Schnell-Token, Enter) / „Erstellen NSC" (nur GM, Umschalt+Enter) → Panel.

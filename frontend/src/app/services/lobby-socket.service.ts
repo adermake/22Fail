@@ -22,6 +22,8 @@ export interface LobbyPatchEvent extends JsonPatch {
 export class LobbySocketService {
   private socket?: Socket;
   private isConnected = false;
+  /** Patches made while disconnected, sent in order on the next connect */
+  private outbox: { worldName: string; battleMapId: string; patch: JsonPatch }[] = [];
 
   // Subjects for observables
   private patchSubject = new Subject<LobbyPatchEvent>();
@@ -81,6 +83,7 @@ export class LobbySocketService {
     this.socket.on('connect', () => {
       console.log('[LobbySocket] ✅ Connected successfully:', this.socket?.id);
       this.isConnected = true;
+      this.flushOutbox();
       this.connectionReadySubject.next();
     });
 
@@ -117,6 +120,7 @@ export class LobbySocketService {
         console.log('[LobbySocket] 🔄 Syncing connection state - socket.connected:', this.socket.connected, 'isConnected:', this.isConnected);
         this.isConnected = this.socket.connected;
         if (this.isConnected) {
+          this.flushOutbox();
           this.connectionReadySubject.next();
         }
       }
@@ -217,43 +221,30 @@ export class LobbySocketService {
   /**
    * Send a patch to be broadcast to other clients.
    */
+  /**
+   * Send a map patch to the server.
+   *
+   * While the socket is down, patches are queued and sent in order on the next connect. They
+   * used to be dropped with a console warning: the change stayed on screen, never reached the
+   * map file, and was gone after a reload.
+   */
   sendPatch(worldName: string, mapId: string, patch: JsonPatch): void {
-    // Check if socket exists
-    if (!this.socket) {
-      console.warn('[LobbySocket] ❌ No socket instance, patch not sent:', patch.path);
-      console.log('[LobbySocket] Attempting to reconnect...');
-      this.connect();
+    if (!this.socket?.connected) {
+      console.warn('[LobbySocket] Not connected — patch queued until reconnect:', patch.path);
+      this.outbox.push({ worldName, battleMapId: mapId, patch });
+      // A live socket is already reconnecting by itself; only a dead one needs a new connection.
+      if (!this.socket?.active) this.connect();
       return;
     }
+    this.socket.emit('patchBattleMap', { worldName, battleMapId: mapId, patch });
+  }
 
-    // Check if socket is connected
-    if (!this.socket.connected) {
-      console.warn('[LobbySocket] ❌ Socket not connected, patch not sent:', patch.path);
-      console.log('[LobbySocket] Socket state - connected:', this.socket.connected, 'id:', this.socket.id);
-      console.log('[LobbySocket] Attempting to reconnect...');
-      this.connect();
-      return;
-    }
-
-    // Check our internal state flag
-    if (!this.isConnected) {
-      console.warn('[LobbySocket] ❌ Internal state shows not connected, syncing with socket state');
-      this.isConnected = this.socket.connected;
-      if (!this.isConnected) {
-        console.log('[LobbySocket] Still not connected, patch not sent:', patch.path);
-        return;
-      }
-    }
-
-    console.log('[LobbySocket] 📤 Sending patch to server:', patch.path, 'for map:', mapId);
-    try {
-      this.socket.emit('patchBattleMap', { worldName, battleMapId: mapId, patch });
-      console.log('[LobbySocket] ✅ Patch emitted successfully');
-    } catch (error) {
-      console.error('[LobbySocket] ❌ Error sending patch:', error);
-      // Reset connection on error
-      this.isConnected = false;
-    }
+  private flushOutbox(): void {
+    if (!this.socket?.connected || this.outbox.length === 0) return;
+    const pending = this.outbox;
+    this.outbox = [];
+    console.log('[LobbySocket] Sending', pending.length, 'queued patch(es)');
+    for (const message of pending) this.socket.emit('patchBattleMap', message);
   }
 
   /**

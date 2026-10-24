@@ -10,9 +10,11 @@ import {
 import { Server, Socket } from 'socket.io';
 import { DataService, JsonPatch } from './data.service';
 import { LobbyIndexOp } from './lobby-index';
+import { SOCKET_MAX_BUFFER_BYTES } from './socket-options';
 
 @WebSocketGateway({
   cors: { origin: '*' }, // for dev, restrict later
+  maxHttpBufferSize: SOCKET_MAX_BUFFER_BYTES,
 })
 export class BattleMapGateway
   implements OnGatewayConnection, OnGatewayDisconnect

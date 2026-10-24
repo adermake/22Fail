@@ -884,7 +884,22 @@ function getItemsBounds(
   return { minX, minY, maxX, maxY };
 }
 
-/** Render overlapping layer content with a rectangular cut-box hole as one bitmap (no strip seams) */
+/*
+ * Conservative cross-browser canvas limits (Safari: 16 Mpx area). A canvas beyond them does not
+ * throw — it silently draws nothing and reads back fully transparent, which the cut code would
+ * take for "nothing left here" and delete the source strokes.
+ */
+const MAX_CANVAS_SIDE = 16384;
+const MAX_CANVAS_AREA = 16_777_216;
+
+function canvasFits(width: number, height: number): boolean {
+  return width <= MAX_CANVAS_SIDE && height <= MAX_CANVAS_SIDE && width * height <= MAX_CANVAS_AREA;
+}
+
+/**
+ * Render overlapping layer content with a rectangular cut-box hole as one bitmap (no strip seams).
+ * Returns null when that render would not fit a canvas — the caller must then not cut at all.
+ */
 function extractExteriorBitmapsForLayerCut(
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
@@ -892,7 +907,7 @@ function extractExteriorBitmapsForLayerCut(
   cutRegion: { minX: number; minY: number; maxX: number; maxY: number },
   defaultLayerId: string | null,
   drawBitmap?: BitmapDrawFn
-): DrawBitmap[] {
+): DrawBitmap[] | null {
   const overlappingStrokes = strokes.filter(
     s => getStrokeLayerId(s, defaultLayerId) === layerId && boundsOverlap(getStrokeBounds(s), cutRegion)
   );
@@ -917,6 +932,7 @@ function extractExteriorBitmapsForLayerCut(
   const y = Math.floor(bounds.minY - pad);
   const w = Math.max(1, Math.ceil(bounds.maxX - bounds.minX + pad * 2));
   const h = Math.max(1, Math.ceil(bounds.maxY - bounds.minY + pad * 2));
+  if (!canvasFits(w, h)) return null;
 
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -944,93 +960,6 @@ function extractExteriorBitmapsForLayerCut(
     minOrder === Infinity ? undefined : minOrder
   );
   return bmp ? [bmp] : [];
-}
-
-function getLayerContentBounds(
-  strokes: Stroke[],
-  bitmaps: DrawBitmap[],
-  layerId: string,
-  defaultLayerId: string | null
-): { minX: number; minY: number; maxX: number; maxY: number } | null {
-  const layerStrokes = strokes.filter(s => getStrokeLayerId(s, defaultLayerId) === layerId);
-  const layerBitmaps = bitmaps.filter(b => b.layerId === layerId);
-  return getItemsBounds(layerStrokes, layerBitmaps);
-}
-
-/** Merge all vectors and bitmaps on one draw layer into a single bitmap (reduces fragment lag) */
-export function flattenDrawLayerContent(
-  strokes: Stroke[],
-  bitmaps: DrawBitmap[],
-  layerId: string,
-  defaultLayerId: string | null,
-  drawBitmap?: BitmapDrawFn
-): { strokes: Stroke[]; drawBitmaps: DrawBitmap[] } {
-  const hasLayerStrokes = strokes.some(s => getStrokeLayerId(s, defaultLayerId) === layerId);
-  const layerBitmaps = bitmaps.filter(b => b.layerId === layerId);
-  if (!hasLayerStrokes && layerBitmaps.length <= 1) {
-    return { strokes, drawBitmaps: bitmaps };
-  }
-
-  const bounds = getLayerContentBounds(strokes, bitmaps, layerId, defaultLayerId);
-  if (!bounds) {
-    return {
-      strokes: strokes.filter(s => getStrokeLayerId(s, defaultLayerId) !== layerId),
-      drawBitmaps: bitmaps.filter(b => b.layerId !== layerId),
-    };
-  }
-
-  let minOrder = Infinity;
-  for (const s of strokes) {
-    if (getStrokeLayerId(s, defaultLayerId) === layerId) {
-      minOrder = Math.min(minOrder, s.drawOrder ?? minOrder);
-    }
-  }
-  for (const b of layerBitmaps) {
-    minOrder = Math.min(minOrder, b.drawOrder ?? minOrder);
-  }
-
-  const pad = 8;
-  const x = Math.floor(bounds.minX - pad);
-  const y = Math.floor(bounds.minY - pad);
-  const w = Math.max(1, Math.ceil(bounds.maxX - bounds.minX + pad * 2));
-  const h = Math.max(1, Math.ceil(bounds.maxY - bounds.minY + pad * 2));
-
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.translate(-x, -y);
-  renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultLayerId, drawBitmap);
-
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const tight = tightAlphaBounds(imageData);
-  if (!tight) {
-    return {
-      strokes: strokes.filter(s => getStrokeLayerId(s, defaultLayerId) !== layerId),
-      drawBitmaps: bitmaps.filter(b => b.layerId !== layerId),
-    };
-  }
-
-  const cropCanvas = document.createElement('canvas');
-  cropCanvas.width = tight.width;
-  cropCanvas.height = tight.height;
-  cropCanvas.getContext('2d')!.putImageData(cropImageData(imageData, tight), 0, 0);
-
-  const merged: DrawBitmap = {
-    id: generateId(),
-    layerId,
-    x: x + tight.minX,
-    y: y + tight.minY,
-    width: tight.width,
-    height: tight.height,
-    dataUrl: cropCanvas.toDataURL('image/png'),
-    drawOrder: minOrder === Infinity ? undefined : minOrder,
-  };
-
-  return {
-    strokes: strokes.filter(s => getStrokeLayerId(s, defaultLayerId) !== layerId),
-    drawBitmaps: [...bitmaps.filter(b => b.layerId !== layerId), merged],
-  };
 }
 
 /** Render layer in a cut bounding box — full frame or clipped to polygon interior */
@@ -1089,6 +1018,18 @@ export function removeLayerContentInPolygon(
   const cutW = Math.max(1, Math.ceil(pb.width + pad * 2));
   const cutH = Math.max(1, Math.ceil(pb.height + pad * 2));
   const cutRegion = { minX: cutX, minY: cutY, maxX: cutX + cutW, maxY: cutY + cutH };
+  const unchanged = { strokes, drawBitmaps: bitmaps };
+  if (!canvasFits(cutW, cutH)) return unchanged;
+
+  const exterior = extractExteriorBitmapsForLayerCut(
+    strokes,
+    bitmaps,
+    layerId,
+    cutRegion,
+    defaultLayerId,
+    drawBitmap
+  );
+  if (!exterior) return unchanged;
 
   const fullData = renderLayerInCutBox(
     cutW, cutH, cutX, cutY, layerId, strokes, bitmaps, defaultLayerId, drawBitmap, null
@@ -1108,16 +1049,7 @@ export function removeLayerContentInPolygon(
     return !boundsOverlap(getBitmapBounds(b), cutRegion);
   });
 
-  keptBitmaps.push(
-    ...extractExteriorBitmapsForLayerCut(
-      strokes,
-      bitmaps,
-      layerId,
-      cutRegion,
-      defaultLayerId,
-      drawBitmap
-    )
-  );
+  keptBitmaps.push(...exterior);
 
   if (countImageAlpha(after) > 0) {
     const tight = tightAlphaBounds(after);
@@ -1175,6 +1107,7 @@ export function extractLassoRegion(
   const y = Math.floor(bounds.minY - pad);
   const width = Math.max(1, Math.ceil(bounds.width + pad * 2));
   const height = Math.max(1, Math.ceil(bounds.height + pad * 2));
+  if (!canvasFits(width, height)) return null;
 
   const imageData = renderLayerInCutBox(
     width, height, x, y, layerId, strokes, bitmaps, defaultLayerId, drawBitmap, poly

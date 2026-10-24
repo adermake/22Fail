@@ -37,7 +37,6 @@ import { Subscription } from 'rxjs';
 import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine, LinkedTokenType, DrawBitmap, isStrokeBy } from '../../model/lobby.model';
 import {
   createLassoRegionFromPolygon,
-  flattenDrawLayerContent,
   getDefaultDrawLayerId,
   imageDataToDataUrl,
   loadDataUrlImage,
@@ -6815,15 +6814,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         drawOrder: this.store.getNextDrawOrder(),
       });
 
-      const flattened = flattenDrawLayerContent(
-        strokes,
-        drawBitmaps,
-        sel.sourceLayerId,
-        defaultDrawId,
-        (c, bmp) => this.drawBitmapForCut(c, bmp)
-      );
-      strokes = flattened.strokes;
-      drawBitmaps = flattened.drawBitmaps;
+      // No whole-layer flatten here any more. It merged every stroke on the layer into ONE PNG
+      // the size of the whole drawing — on a big map that bitmap exceeded the socket message
+      // limit (and can exceed the browser's canvas limit, which renders it empty), and the
+      // strokes it replaced were deleted anyway. The tile cache makes many fragments cheap.
       this.preloadDrawBitmaps(drawBitmaps);
       this.store.applyDrawChanges(strokes, drawBitmaps);
     }

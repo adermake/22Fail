@@ -10,10 +10,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { DataService, JsonPatch } from './data.service';
+import { SOCKET_MAX_BUFFER_BYTES } from './socket-options';
 
 @WebSocketGateway({
   cors: { origin: '*' }, // for dev, restrict later
-  maxHttpBufferSize: 10 * 1024 * 1024, // 10 MB
+  maxHttpBufferSize: SOCKET_MAX_BUFFER_BYTES,
 })
 export class CharacterGateway
   implements OnGatewayConnection, OnGatewayDisconnect

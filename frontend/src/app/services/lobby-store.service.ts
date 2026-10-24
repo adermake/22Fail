@@ -163,8 +163,9 @@ export class LobbyStoreService {
   }
 
   private applyDrawSnapshot(snapshot: DrawLayerSnapshot): void {
-    this.applyPatch({ path: 'strokes', value: snapshot.strokes });
+    // Bitmaps first: if the second patch never lands, content is duplicated, not lost
     this.applyPatch({ path: 'drawBitmaps', value: snapshot.drawBitmaps });
+    this.applyPatch({ path: 'strokes', value: snapshot.strokes });
   }
 
   get strokes(): Stroke[] {
@@ -981,10 +982,17 @@ export class LobbyStoreService {
     const map = this.currentMap;
     if (!map) return;
 
+    /*
+     * Bitmaps BEFORE strokes. A lasso cut replaces strokes with a bitmap; when only the strokes
+     * patch reached the server (the bitmap one was over the socket size limit and dropped), the
+     * strokes were deleted and their replacement never stored — drawings lost on reload. In this
+     * order a lost second patch leaves a duplicate at worst.
+     */
     const patches: JsonPatch[] = [
-      { path: 'strokes', value: strokes },
       { path: 'drawBitmaps', value: drawBitmaps },
+      { path: 'strokes', value: strokes },
     ];
+    const mapId = this.currentMapId;
 
     for (const patch of patches) {
       const patchHash = this.hashPatch(patch);
@@ -1005,7 +1013,7 @@ export class LobbyStoreService {
 
     this.socket.ensureConnected().then(() => {
       for (const patch of patches) {
-        this.socket.sendPatch(this.worldName, this.currentMapId, patch);
+        this.socket.sendPatch(this.worldName, mapId, patch);
       }
     }).catch(() => {
       // Same fallback as `applyPatch`: only when the socket cannot carry the change.
@@ -1779,8 +1787,11 @@ export class LobbyStoreService {
      * Kept only as the fallback for when the socket is unavailable, where a whole-document save
      * is the only way the work survives at all.
      */
+    // Captured now: by the time the socket is ready the user may have switched maps, and the
+    // patch would land on the wrong one.
+    const mapId = this.currentMapId;
     this.socket.ensureConnected().then(() => {
-      this.socket.sendPatch(this.worldName, this.currentMapId, patch);
+      this.socket.sendPatch(this.worldName, mapId, patch);
     }).catch(() => {
       console.warn('[LobbyStore] Socket unavailable — falling back to a full save:', patch.path);
       const lobby = this.lobby;
