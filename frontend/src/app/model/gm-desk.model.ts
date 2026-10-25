@@ -25,6 +25,18 @@ export type GrantType =
 /** Welche Wissensliste ein `knowledge`-Eintrag füllt. */
 export type KnowledgeKind = 'material' | 'forge-trait' | 'ingredient' | 'extractor' | 'brew-trait';
 
+/** In welches Bogen-Feld eine Wissensart einsortiert wird. */
+export const KNOWLEDGE_SHEET_FIELD: Record<
+  KnowledgeKind,
+  'knownMaterialIds' | 'knownForgeTraitIds' | 'knownIngredientIds' | 'knownExtractorIds' | 'knownBrewTraitIds'
+> = {
+  'material': 'knownMaterialIds',
+  'forge-trait': 'knownForgeTraitIds',
+  'ingredient': 'knownIngredientIds',
+  'extractor': 'knownExtractorIds',
+  'brew-trait': 'knownBrewTraitIds',
+};
+
 /** Asset-Typen der Bibliothek, die sich auf dem Schreibtisch ablegen lassen. */
 export const DESK_ASSET_TYPES = [
   'item', 'rune', 'spell', 'skill',

@@ -39,10 +39,9 @@ import {
   MaterialBlock, ForgeTrait,
   createEmptyMaterialBlock, createEmptyForgeTrait,
 } from '../model/forging.model';
-import { 
-  ShopEvent, ShopDeal,
-  createEmptyShopDeal, Currency 
-} from '../model/current-events.model';
+import { ShopEvent, ShopDeal, formatCurrency } from '../model/current-events.model';
+import { dealCategory, formatCustomPrice } from '../utils/shop-deal.util';
+import { ShopDealEditorComponent } from './shop-deal-editor/shop-deal-editor.component';
 
 // Editor Components
 import { ItemEditorComponent } from '../sheet/item-editor/item-editor.component';
@@ -111,6 +110,7 @@ import {
     CraftTableComponent,
     WeaponGeneratorComponent,
     NpcEditorComponent,
+    ShopDealEditorComponent,
   ],
   templateUrl: './library-editor.component.html',
   styleUrls: ['./library-editor.component.css', './library-editor-shop-bundle-editors.css'],
@@ -196,10 +196,8 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
 
   // Shop/Deal editing state
   addingDealToShop = signal<string | null>(null); // shopId currently adding deal to
-  dealMode = signal<'sell' | 'buy' | null>(null); // 'sell' = shop sells to player, 'buy' = shop buys from player
-  editingDealData = signal<Partial<ShopDeal> | null>(null);
-  selectedDealItemType = signal<'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | null>(null);
-  selectedDealItemId = signal<string | null>(null);
+  /** Der Deal, der gerade bearbeitet wird; null beim Neuanlegen. */
+  editingDeal = signal<ShopDeal | null>(null);
 
 
   // Drag and drop state
@@ -392,6 +390,21 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   availableForgeTraits = signal<AssetFile[]>([]);
   availableIngredients = signal<AssetFile[]>([]);
   availableExtractors = signal<AssetFile[]>([]);
+  availableBrewTraits = signal<AssetFile[]>([]);
+
+  /** Alles, was ein Shop verkaufen kann, nach Asset-Typ — für den Deal-Editor. */
+  readonly dealAssets = computed<Partial<Record<AssetType, AssetFile[]>>>(() => ({
+    'item': this.availableItems(),
+    'rune': this.availableRunes(),
+    'spell': this.availableSpells(),
+    'skill': this.availableSkills(),
+    'status-effect': this.availableStatusEffects(),
+    'material': this.availableMaterials(),
+    'forge-trait': this.availableForgeTraits(),
+    'ingredient': this.availableIngredients(),
+    'extractor': this.availableExtractors(),
+    'brew-trait': this.availableBrewTraits(),
+  }));
 
   /**
    * RuneBlock array for the spell-node-editor.
@@ -429,7 +442,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
       const libraryIds = [lib.id, ...(lib.dependencies || [])];
       console.log('Loading items from library IDs:', libraryIds);
 
-      const [items, runes, spells, skills, statusEffects, materials, forgeTraits, ingredients, extractors] = await Promise.all([
+      const [items, runes, spells, skills, statusEffects, materials, forgeTraits, ingredients, extractors, brewTraits] = await Promise.all([
         this.loadItemsByType(libraryIds, 'item'),
         this.loadItemsByType(libraryIds, 'rune'),
         this.loadItemsByType(libraryIds, 'spell'),
@@ -439,9 +452,11 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         this.loadItemsByType(libraryIds, 'forge-trait'),
         this.loadItemsByType(libraryIds, 'ingredient'),
         this.loadItemsByType(libraryIds, 'extractor'),
+        this.loadItemsByType(libraryIds, 'brew-trait'),
       ]);
       this.availableIngredients.set(ingredients);
       this.availableExtractors.set(extractors);
+      this.availableBrewTraits.set(brewTraits);
 
       this.availableItems.set(items);
       this.availableRunes.set(runes);
@@ -954,153 +969,42 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   startAddingDealToShop(): void {
     const file = this.editingFile();
     if (!file || file.type !== 'shop') return;
-    
+    this.editingDeal.set(null);
     this.addingDealToShop.set(file.id);
-    this.dealMode.set(null);
-    this.editingDealData.set(null);
-    this.selectedDealItemType.set(null);
-    this.selectedDealItemId.set(null);
   }
 
-  selectDealMode(mode: 'sell' | 'buy'): void {
-    this.dealMode.set(mode);
-    
-    if (mode === 'buy') {
-      // For reverse deals, initialize with empty data
-      this.editingDealData.set({
-        ...createEmptyShopDeal(),
-        isReverseDeal: true,
-        name: '',
-        reverseDescription: '',
-        price: { copper: 0, silver: 0, gold: 0, platinum: 0 }
-      });
-      this.selectedDealItemType.set(null);
-      this.selectedDealItemId.set(null);
-    } else {
-      // For normal deals, reset to type selection
-      this.editingDealData.set(null);
-      this.selectedDealItemType.set(null);
-      this.selectedDealItemId.set(null);
-    }
-  }
-
-  selectDealItemType(type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'): void {
-    this.selectedDealItemType.set(type);
-    this.selectedDealItemId.set(null);
-    
-    // Debug: Check what items are available
-    console.log(`Selected type: ${type}`, {
-      items: this.availableItems().length,
-      runes: this.availableRunes().length,
-      spells: this.availableSpells().length,
-      skills: this.availableSkills().length,
-      statusEffects: this.availableStatusEffects().length
-    });
-    
-    switch(type) {
-      case 'item':
-        console.log('Available items:', this.availableItems().map(i => ({ id: i.id, name: i.name })));
-        break;
-      case 'spell':
-        console.log('Available spells:', this.availableSpells().map(s => ({ id: s.id, name: s.name })));
-        break;
-      case 'skill':
-        console.log('Available skills:', this.availableSkills().map(s => ({ id: s.id, name: s.name })));
-        break;
-    }
-    
-    // Initialize deal data with empty price (normal sell deal)
-    this.editingDealData.set({
-      ...createEmptyShopDeal(),
-      isReverseDeal: false,
-      name: 'Neuer Deal',
-      price: { copper: 0, silver: 0, gold: 0, platinum: 0 }
-    });
-  }
-
-  selectDealItem(itemFile: AssetFile): void {
-    this.selectedDealItemId.set(itemFile.id);
-    const deal = this.editingDealData();
-    if (!deal) return;
-
-    // Set item data based on type
-    const type = this.selectedDealItemType();
-    switch (type) {
-      case 'item':
-        deal.item = itemFile.data;
-        deal.name = itemFile.data.name || itemFile.name;
-        break;
-      case 'rune':
-        deal.rune = itemFile.data;
-        deal.name = itemFile.data.name || itemFile.name;
-        break;
-      case 'spell':
-        deal.spell = itemFile.data;
-        deal.name = itemFile.data.name || itemFile.name;
-        break;
-      case 'skill':
-        deal.skill = itemFile.data;
-        deal.name = itemFile.data.name || itemFile.name;
-        break;
-      case 'status-effect':
-        deal.statusEffect = itemFile.data;
-        deal.name = itemFile.data.name || itemFile.name;
-        break;
-    }
-    this.editingDealData.set({ ...deal });
-  }
-
-  onDealItemSelected(event: Event): void {
-    const selectElement = event.target as HTMLSelectElement;
-    const selectedIndex = selectElement.selectedIndex - 1; // -1 for placeholder option
-    if (selectedIndex < 0) return;
-
-    const type = this.selectedDealItemType();
-    let itemFile: AssetFile | undefined;
-    
-    switch (type) {
-      case 'item':
-        itemFile = this.availableItems()[selectedIndex];
-        break;
-      case 'rune':
-        itemFile = this.availableRunes()[selectedIndex];
-        break;
-      case 'spell':
-        itemFile = this.availableSpells()[selectedIndex];
-        break;
-      case 'skill':
-        itemFile = this.availableSkills()[selectedIndex];
-        break;
-      case 'status-effect':
-        itemFile = this.availableStatusEffects()[selectedIndex];
-        break;
-    }
-
-    if (itemFile) {
-      this.selectDealItem(itemFile);
-    }
-  }
-
-  async saveDealToShop(): Promise<void> {
+  startEditingDeal(deal: ShopDeal): void {
     const file = this.editingFile();
-    const deal = this.editingDealData();
-    if (!file || !deal || file.type !== 'shop') return;
+    if (!file || file.type !== 'shop') return;
+    this.editingDeal.set(deal);
+    this.addingDealToShop.set(file.id);
+  }
+
+  /** Neuer Deal wird angehängt, ein bearbeiteter ersetzt seinen Vorgänger an derselben Stelle. */
+  async saveDealToShop(deal: ShopDeal): Promise<void> {
+    const file = this.editingFile();
+    if (!file || file.type !== 'shop') return;
 
     const shopData = file.data as ShopEvent;
     if (!shopData.deals) shopData.deals = [];
-    
-    // Add final ID if missing
-    if (!deal.id) {
-      deal.id = `deal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    }
-    
-    shopData.deals.push(deal as ShopDeal);
-    
+
+    const index = shopData.deals.findIndex(d => d.id === deal.id);
+    if (index >= 0) shopData.deals[index] = deal;
+    else shopData.deals.push(deal);
+
     // Save to backend without closing editor
     await this.saveEditor(shopData, false);
-    
-    // Reset state
     this.cancelAddingDeal();
+  }
+
+  /** Eigene Währungen, die in diesem Shop schon benutzt werden — Vorschläge im Deal-Editor. */
+  shopCurrencies(): string[] {
+    const file = this.editingFile();
+    if (!file || file.type !== 'shop') return [];
+    const names = ((file.data as ShopEvent).deals ?? [])
+      .map(d => d.customPrice?.currency?.trim())
+      .filter((c): c is string => !!c);
+    return [...new Set(names)];
   }
 
   async removeDealFromShop(dealId: string): Promise<void> {
@@ -1132,34 +1036,21 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
 
   cancelAddingDeal(): void {
     this.addingDealToShop.set(null);
-    this.dealMode.set(null);
-    this.editingDealData.set(null);
-    this.selectedDealItemType.set(null);
-    this.selectedDealItemId.set(null);
+    this.editingDeal.set(null);
   }
 
-  getDealItemName(deal: ShopDeal): string {
-    return deal.item?.name || deal.rune?.name || deal.spell?.name || 
-           deal.skill?.name || deal.statusEffect?.name || deal.name;
+  /** `.i-*`-Klasse und Art des Deals für die Liste. */
+  dealIcon(deal: ShopDeal): string {
+    return deal.isReverseDeal ? 'i-currency' : dealCategory(deal).icon;
   }
 
-  getDealItemIcon(deal: ShopDeal): string {
-    if (deal.isReverseDeal) return '💰';
-    if (deal.item) return getAssetTypeIcon('item');
-    if (deal.rune) return getAssetTypeIcon('rune');
-    if (deal.spell) return getAssetTypeIcon('spell');
-    if (deal.skill) return getAssetTypeIcon('skill');
-    if (deal.statusEffect) return getAssetTypeIcon('status-effect');
-    return '💼';
+  dealKind(deal: ShopDeal): string {
+    return deal.isReverseDeal ? 'Ankauf' : dealCategory(deal).label;
   }
 
-  formatCurrency(currency: Currency): string {
-    const parts: string[] = [];
-    if (currency.platinum > 0) parts.push(`${currency.platinum}p`);
-    if (currency.gold > 0) parts.push(`${currency.gold}g`);
-    if (currency.silver > 0) parts.push(`${currency.silver}s`);
-    if (currency.copper > 0) parts.push(`${currency.copper}c`);
-    return parts.length > 0 ? parts.join(' ') : '0c';
+  dealPrice(deal: ShopDeal): string {
+    if (deal.customPrice) return formatCustomPrice(deal.customPrice);
+    return deal.price ? formatCurrency(deal.price) : '';
   }
 
   // ==================== CONTEXT MENU ====================

@@ -11,6 +11,7 @@ import {
 } from '../../model/current-events.model';
 import { DeskEntry, DeskTab, GRANT_TYPE_ICON, GRANT_TYPE_LABEL } from '../../model/gm-desk.model';
 import { PartyStashService } from '../../services/party-stash.service';
+import { formatCustomPrice } from '../../utils/shop-deal.util';
 import { PartyStashEntry } from '../../model/world.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
@@ -188,6 +189,8 @@ import { Library } from '../../model/library.model';
                   <span class="deal-name">{{ deal.name }}</span>
                   @if (deal.isNegotiable) {
                     <span class="deal-price negotiable">Verhandelbar</span>
+                  } @else if (deal.customPrice) {
+                    <span class="deal-price">{{ formatCustomPrice(deal.customPrice) }}</span>
                   } @else if (deal.price) {
                     <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
                   }
@@ -726,6 +729,7 @@ export class CurrentEventsManagerComponent {
   }
 
   formatCurrency = formatCurrency;
+  formatCustomPrice = formatCustomPrice;
 
   /** Anzeigename eines Schreibtisch-Eintrags; Münzen werden als Betrag geschrieben. */
   deskEntryName(entry: DeskEntry): string {

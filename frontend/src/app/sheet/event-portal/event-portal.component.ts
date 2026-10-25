@@ -1,10 +1,23 @@
 ﻿import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CurrentEvent, ShopEvent, ShopDeal, formatCurrency, getCoinParts, CoinPart, formatCurrencyAsGold, convertToCopper, copperToCurrency, Currency } from '../../model/current-events.model';
+import { CurrentEvent, ShopEvent, ShopDeal, CustomPrice, getCoinParts, CoinPart, formatCurrencyAsGold, convertToCopper, Currency } from '../../model/current-events.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { ItemBlock } from '../../model/item-block.model';
+import {
+  canAffordDeal, dealCategory, dealContentData, formatCustomPrice, hasFixedPrice,
+  knowsDealKnowledge, maxDealQuantity,
+} from '../../utils/shop-deal.util';
+import { kindLabel, previewText } from '../../utils/entry-preview.util';
 
 type PriceMode = 'highest-units' | 'total-gold';
+
+/** Ein Spieler will `quantity` Stück eines Deals kaufen (oder an den Handel verkaufen). */
+export interface ShopBuyRequest {
+  eventId: string;
+  dealIndex: number;
+  quantity: number;
+}
 
 @Component({
   selector: 'app-event-portal',
@@ -22,7 +35,7 @@ type PriceMode = 'highest-units' | 'total-gold';
             <!-- Portal Header -->
             <div class="portal-header">
               <div class="portal-title">
-                <span class="portal-icon">{{ event.type === 'shop' ? '🏪' : '💰' }}</span>
+                <i class="portal-icon app-icon i-currency"></i>
                 <h1>{{ event.name }}</h1>
               </div>
 
@@ -44,7 +57,6 @@ type PriceMode = 'highest-units' | 'total-gold';
               <div class="shop-portal-content">
                 @if (asShop(event).deals.length === 0) {
                   <div class="empty-portal">
-                    <span class="empty-icon">🏚️</span>
                     <p>Dieser Shop hat momentan keine Angebote</p>
                   </div>
                 } @else {
@@ -56,33 +68,37 @@ type PriceMode = 'highest-units' | 'total-gold';
 
                         <div class="deal-header-portal">
                           <h3>
-                            @if (deal.isReverseDeal) {
-                              <span class="reverse-icon" title="Shop kauft an">⬅️</span>
-                            }
+                            <i class="app-icon {{ dealIcon(deal) }}"></i>
                             {{ deal.name }}
                           </h3>
                           @if (deal.quantity !== undefined) {
                             <span class="deal-stock-badge">{{ deal.quantity - deal.sold }}/{{ deal.quantity }}</span>
                           }
                         </div>
+                        <span class="deal-kind">{{ dealKind(deal) }}</span>
 
-                        @if (deal.description) {
+                        @if (dealText(deal)) {
                           <p class="deal-description-portal">
                             @if (deal.identified === false) {
                               <em class="unknown-effect">Unbekannter Effekt</em>
                             } @else {
-                              {{ deal.description }}
+                              {{ dealText(deal) }}
                             }
                           </p>
                         }
 
-                        @if (deal.item || deal.rune || deal.spell || deal.skill) {
-                          <button class="inspect-btn" (click)="inspectDeal(deal)">🔍 Details ansehen</button>
+                        @if (hasDetails(deal)) {
+                          <button class="inspect-btn" (click)="inspectDeal(deal)">Details ansehen</button>
                         }
 
                         <div class="deal-footer">
                           <div class="deal-price-large">
-                            @if (deal.price) {
+                            @if (deal.customPrice) {
+                              <span class="custom-price">{{ formatCustom(deal.customPrice, getBuyQuantity(event.id, i)) }}</span>
+                              @if (deal.isNegotiable) {
+                                <span class="negotiable-badge">Verhandelbar</span>
+                              }
+                            } @else if (deal.price) {
                               <div class="coin-display">
                                 @for (coin of getPriceCoinParts(deal); track coin.type) {
                                   <span class="coin-pill" [style.border-color]="coin.color">
@@ -95,7 +111,7 @@ type PriceMode = 'highest-units' | 'total-gold';
                                 <span class="price-gold-ref">({{ formatAsGold(deal.price) }})</span>
                               }
                               @if (deal.isNegotiable) {
-                                <span class="negotiable-badge" title="Verhandelbar">🤝</span>
+                                <span class="negotiable-badge">Verhandelbar</span>
                               }
                             } @else {
                               <span class="price-negotiable">Verhandelbar</span>
@@ -103,25 +119,31 @@ type PriceMode = 'highest-units' | 'total-gold';
                           </div>
 
                           <div class="deal-actions-portal">
-                            <input type="number"
-                                   [value]="getBuyQuantity(event.id, i)"
-                                   (input)="setBuyQuantity(event.id, i, $any($event.target).valueAsNumber)"
-                                   min="1"
-                                   [max]="getMaxBuyable(deal)"
-                                   class="quantity-input-portal">
+                            @if (getMaxBuyable(deal) > 1) {
+                              <input type="number"
+                                     [value]="getBuyQuantity(event.id, i)"
+                                     (input)="setBuyQuantity(event.id, i, $any($event.target).valueAsNumber)"
+                                     min="1"
+                                     [max]="getMaxBuyable(deal)"
+                                     class="quantity-input-portal">
+                            }
                             <button class="buy-btn-portal"
                                     (click)="buyItem(event.id, i, deal)"
-                                    [disabled]="!deal.price || !canAfford(deal, getBuyQuantity(event.id, i)) || (deal.quantity !== undefined && deal.sold >= deal.quantity)">
+                                    [disabled]="!canBuy(deal, getBuyQuantity(event.id, i))">
                               @if (deal.isReverseDeal) {
-                                @if (deal.price) { <span class="btn-text">Verkaufen</span> } @else { <span class="btn-text">Anbieten</span> }
+                                @if (hasFixedPrice(deal)) { <span class="btn-text">Verkaufen</span> } @else { <span class="btn-text">Anbieten</span> }
                               } @else {
-                                @if (deal.price) { <span class="btn-text">Kaufen</span> } @else { <span class="btn-text">Verhandeln</span> }
+                                @if (hasFixedPrice(deal)) { <span class="btn-text">Kaufen</span> } @else { <span class="btn-text">Verhandeln</span> }
                               }
                             </button>
                           </div>
 
-                          @if (deal.price && !deal.isReverseDeal && !canAfford(deal, getBuyQuantity(event.id, i))) {
-                            <div class="not-enough-gold-portal">⚠️ Nicht genug Geld!</div>
+                          @if (knowsKnowledge(deal)) {
+                            <div class="deal-note-portal">Bereits bekannt</div>
+                          } @else if (deal.customPrice && !deal.isReverseDeal) {
+                            <div class="deal-note-portal">Bezahlung bitte selbst abziehen</div>
+                          } @else if (!deal.isReverseDeal && !canAfford(deal, getBuyQuantity(event.id, i))) {
+                            <div class="not-enough-gold-portal">Nicht genug Geld!</div>
                           }
                         </div>
                       </div>
@@ -159,7 +181,6 @@ type PriceMode = 'highest-units' | 'total-gold';
             <div class="inspect-body">
               @if (inspectedDeal.identified === false) {
                 <div class="unknown-item-info">
-                  <span class="unknown-icon">❓</span>
                   <p>Dieser Gegenstand ist nicht identifiziert.</p>
                   <p class="unknown-sub">Eigenschaften und Effekte sind unbekannt.</p>
                 </div>
@@ -167,50 +188,31 @@ type PriceMode = 'highest-units' | 'total-gold';
                 @if (inspectedDeal.description) {
                   <p class="inspect-description">{{ inspectedDeal.description }}</p>
                 }
-                @if (inspectedDeal.item) {
+                @if (itemOf(inspectedDeal); as item) {
                   <div class="item-detail-grid">
-                    @if (inspectedDeal.item.weight !== undefined) {
-                      <div class="detail-row"><span class="detail-label">Gewicht:</span><span>{{ inspectedDeal.item.weight }}</span></div>
+                    @if (item.weight !== undefined) {
+                      <div class="detail-row"><span class="detail-label">Gewicht:</span><span>{{ item.weight }}</span></div>
                     }
-                    @if (inspectedDeal.item.itemType) {
-                      <div class="detail-row"><span class="detail-label">Typ:</span><span>{{ inspectedDeal.item.itemType }}</span></div>
+                    @if (item.itemType) {
+                      <div class="detail-row"><span class="detail-label">Typ:</span><span>{{ itemKind(item) }}</span></div>
                     }
-                    @if (inspectedDeal.item.efficiency !== undefined) {
-                      <div class="detail-row"><span class="detail-label">Effizienz:</span><span>{{ inspectedDeal.item.efficiency }}</span></div>
+                    @if (item.efficiency !== undefined) {
+                      <div class="detail-row"><span class="detail-label">Effizienz:</span><span>{{ item.efficiency }}</span></div>
                     }
-                    @if (inspectedDeal.item.stability !== undefined) {
-                      <div class="detail-row"><span class="detail-label">Stabilität:</span><span>{{ inspectedDeal.item.stability }}</span></div>
+                    @if (item.stability !== undefined) {
+                      <div class="detail-row"><span class="detail-label">Stabilität:</span><span>{{ item.stability }}</span></div>
                     }
-                    @if (inspectedDeal.item.primaryEffect) {
-                      <div class="detail-full"><p>{{ inspectedDeal.item.primaryEffect }}</p></div>
+                    @if (item.primaryEffect) {
+                      <div class="detail-full"><p>{{ item.primaryEffect }}</p></div>
                     }
-                    @if (inspectedDeal.item.description) {
-                      <div class="detail-full"><p>{{ inspectedDeal.item.description }}</p></div>
+                    @if (item.description) {
+                      <div class="detail-full"><p>{{ item.description }}</p></div>
                     }
                   </div>
-                }
-                @if (inspectedDeal.spell) {
+                } @else {
                   <div class="item-detail-grid">
-                    @if (inspectedDeal.spell.tags && inspectedDeal.spell.tags.length > 0) {
-                      <div class="detail-row"><span class="detail-label">Tags:</span><span>{{ inspectedDeal.spell.tags.join(', ') }}</span></div>
-                    }
-                    @if (inspectedDeal.spell.description) {
-                      <div class="detail-full"><p>{{ inspectedDeal.spell.description }}</p></div>
-                    }
-                  </div>
-                }
-                @if (inspectedDeal.rune) {
-                  <div class="item-detail-grid">
-                    @if (inspectedDeal.rune.description) {
-                      <div class="detail-full"><p>{{ inspectedDeal.rune.description }}</p></div>
-                    }
-                  </div>
-                }
-                @if (inspectedDeal.skill) {
-                  <div class="item-detail-grid">
-                    @if (inspectedDeal.skill.description) {
-                      <div class="detail-full"><p>{{ inspectedDeal.skill.description }}</p></div>
-                    }
+                    <div class="detail-row"><span class="detail-label">Art:</span><span>{{ dealKind(inspectedDeal) }}</span></div>
+                    <div class="detail-full preview-text">{{ contentPreview(inspectedDeal) }}</div>
                   </div>
                 }
               }
@@ -322,7 +324,8 @@ type PriceMode = 'highest-units' | 'total-gold';
     }
     .portal-title { display: flex; align-items: center; gap: 1.2rem; }
     .portal-icon {
-      font-size: 3.5rem;
+      font-size: 3rem;
+      color: #ffd700;
       filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
       animation: float 3s ease-in-out infinite;
     }
@@ -427,7 +430,15 @@ type PriceMode = 'highest-units' | 'total-gold';
     .reverse-icon { font-size:1.1rem; }
     .deal-stock-badge { background:rgba(255,255,255,0.18); padding:0.25rem 0.7rem; border-radius:18px; font-size:0.85rem; color:#fff; white-space:nowrap; }
 
-    .deal-description-portal { color:rgba(255,255,255,0.75); font-size:0.95rem; margin:0; line-height:1.4; }
+    .deal-kind { align-self:flex-start; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em;
+                 color:rgba(218,165,32,0.9); margin-top:-0.4rem; }
+    .deal-description-portal { color:rgba(255,255,255,0.75); font-size:0.95rem; margin:0; line-height:1.4; white-space:pre-line; }
+    .custom-price { color:#ffd700; font-weight:bold; font-size:1.05rem; }
+    .deal-note-portal {
+      text-align:center; color:rgba(255,255,255,0.7); font-size:0.9rem;
+      padding:0.4rem; background:rgba(255,255,255,0.06); border-radius:7px;
+    }
+    .preview-text { white-space:pre-line; }
     .unknown-effect { color:#777; font-size:0.85rem; }
 
     .inspect-btn {
@@ -471,7 +482,7 @@ type PriceMode = 'highest-units' | 'total-gold';
     .coin-val { color:white; }
     .price-gold-ref { color:rgba(255,255,255,0.5); font-size:0.8rem; }
     .price-negotiable { color:#4caf50; font-style:italic; font-size:0.9rem; }
-    .negotiable-badge { font-size:1.1rem; }
+    .negotiable-badge { color:#4caf50; font-size:0.8rem; font-style:italic; }
 
     .deal-actions-portal { display:flex; gap:0.8rem; align-items:center; }
     .quantity-input-portal {
@@ -558,8 +569,8 @@ export class EventPortalComponent implements OnInit {
   @Input() event: CurrentEvent | null = null;
   @Input() sheet!: CharacterSheet;
   @Output() close = new EventEmitter<void>();
-  @Output() patch = new EventEmitter<any>();
-  @Output() buyRequest = new EventEmitter<{ eventId: string; dealIndex: number; quantity: number; totalCostCopper: number }>();
+  /** Bezahlen, Vergeben und Bestand zählen erledigt der Bogen (`onBuyFromShop`). */
+  @Output() buyRequest = new EventEmitter<ShopBuyRequest>();
 
   buyQuantities = new Map<string, number>();
   inspectedDeal: ShopDeal | null = null;
@@ -619,33 +630,71 @@ export class EventPortalComponent implements OnInit {
   }
 
   getMaxBuyable(deal: ShopDeal): number {
-    if (deal.quantity === undefined) return 999;
-    return Math.max(0, deal.quantity - deal.sold);
+    return maxDealQuantity(deal);
   }
 
   canAfford(deal: ShopDeal, quantity: number): boolean {
-    if (!deal.price) return true;
-    if (deal.isReverseDeal) return true;
-    const totalCost = convertToCopper(deal.price) * quantity;
-    const currentCopper = convertToCopper(this.sheet?.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 });
-    return currentCopper >= totalCost;
+    return canAffordDeal(this.sheet?.currency, deal, quantity);
+  }
+
+  knowsKnowledge(deal: ShopDeal): boolean {
+    return knowsDealKnowledge(this.sheet, deal);
+  }
+
+  /** Nur mit festem Preis; Verhandlungssache läuft über die Spielleitung. */
+  canBuy(deal: ShopDeal, quantity: number): boolean {
+    return hasFixedPrice(deal)
+      && quantity >= 1 && quantity <= this.getMaxBuyable(deal)
+      && this.canAfford(deal, quantity)
+      && !this.knowsKnowledge(deal);
   }
 
   buyItem(eventId: string, dealIndex: number, deal: ShopDeal) {
-    if (!deal.price) return;
-
-    const quantity = this.getBuyQuantity(eventId, dealIndex);
-    const totalCostCopper = convertToCopper(deal.price) * quantity;
-
-    if (deal.isReverseDeal) {
-      this.addMoney(totalCostCopper);
-    } else {
-      this.deductMoney(totalCostCopper);
-      this.addItemToInventory(deal, quantity);
-    }
-
-    this.buyRequest.emit({ eventId, dealIndex, quantity, totalCostCopper });
+    const quantity = Math.min(this.getBuyQuantity(eventId, dealIndex), this.getMaxBuyable(deal));
+    if (!this.canBuy(deal, quantity)) return;
+    this.buyRequest.emit({ eventId, dealIndex, quantity });
     this.buyQuantities.delete(`${eventId}-${dealIndex}`);
+  }
+
+  // ── Anzeige ────────────────────────────────────────────────────────────────
+
+  readonly hasFixedPrice = hasFixedPrice;
+
+  dealIcon(deal: ShopDeal): string {
+    return deal.isReverseDeal ? 'i-currency' : dealCategory(deal).icon;
+  }
+
+  dealKind(deal: ShopDeal): string {
+    return deal.isReverseDeal ? 'Ankauf' : dealCategory(deal).label;
+  }
+
+  /** Ankäufe beschreiben sich in `reverseDescription` — das wurde bisher nie angezeigt. */
+  dealText(deal: ShopDeal): string {
+    return (deal.isReverseDeal ? deal.reverseDescription : deal.description) ?? '';
+  }
+
+  formatCustom(price: CustomPrice, quantity: number): string {
+    return formatCustomPrice(price, quantity);
+  }
+
+  hasDetails(deal: ShopDeal): boolean {
+    return !deal.isReverseDeal && dealContentData(deal) !== null;
+  }
+
+  itemOf(deal: ShopDeal): ItemBlock | null {
+    if (deal.item) return deal.item;
+    return deal.grant?.type === 'item' || deal.grant?.type === 'resource'
+      ? (deal.grant.data as ItemBlock)
+      : null;
+  }
+
+  itemKind(item: ItemBlock): string {
+    return kindLabel(item) || (item.itemType ?? '');
+  }
+
+  contentPreview(deal: ShopDeal): string {
+    const data = dealContentData(deal) as { name?: string } | null;
+    return previewText(data?.name ?? deal.name, data);
   }
 
   inspectDeal(deal: ShopDeal) {
@@ -654,37 +703,5 @@ export class EventPortalComponent implements OnInit {
 
   closeInspect() {
     this.inspectedDeal = null;
-  }
-
-  private deductMoney(copperAmount: number) {
-    const currency = { ...(this.sheet?.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 }) };
-    let totalCopper = Math.max(0, convertToCopper(currency) - copperAmount);
-    this.patch.emit({ path: '/currency', value: copperToCurrency(totalCopper) });
-  }
-
-  private addMoney(copperAmount: number) {
-    const currency = { ...(this.sheet?.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 }) };
-    let totalCopper = convertToCopper(currency) + copperAmount;
-    this.patch.emit({ path: '/currency', value: copperToCurrency(totalCopper) });
-  }
-
-  private addItemToInventory(deal: ShopDeal, quantity: number) {
-    for (let i = 0; i < quantity; i++) {
-      if (deal.item) {
-        this.patch.emit({ path: '/inventory/-', value: { ...deal.item } });
-      }
-      if (deal.rune) {
-        this.patch.emit({ path: '/runes/-', value: { ...deal.rune } });
-      }
-      if (deal.spell) {
-        this.patch.emit({ path: '/spells/-', value: { ...deal.spell } });
-      }
-      if (deal.skill) {
-        this.patch.emit({ path: '/skills/-', value: { ...deal.skill } });
-      }
-      if (deal.statusEffect) {
-        this.patch.emit({ path: '/activeStatusEffects/-', value: { ...deal.statusEffect } });
-      }
-    }
   }
 }

@@ -31,7 +31,6 @@
         [lootPools]="lootPools"
         [claiming]="claimingEntryId"
         [claimNotice]="claimNotice"
-        (buyRequest)="onBuyFromShop($event)"
         (claimRequest)="onClaimEventLoot($event)"
         (openPortalEvent)="onOpenPortal($event)"
         (patch)="store.applyPatch($any($event))">
@@ -472,7 +471,6 @@
     [event]="getPortalEvent()"
     [sheet]="store.sheetValue!"
     (close)="onClosePortal()"
-    (patch)="store.applyPatch($any($event))"
     (buyRequest)="onBuyFromShop($event)">
   </app-event-portal>
 }

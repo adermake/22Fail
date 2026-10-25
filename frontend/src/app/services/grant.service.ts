@@ -7,7 +7,7 @@ import { Currency } from '../model/currency-model';
 import { ActiveStatusEffect, StatusEffect } from '../model/status-effect.model';
 import { SoulBlock } from '../model/soul-block.model';
 import { canMerge, mergeStacks } from '../utils/item-stack.util';
-import { DeskEntry, KnowledgeKind, PendingGrant } from '../model/gm-desk.model';
+import { DeskEntry, KNOWLEDGE_SHEET_FIELD, PendingGrant } from '../model/gm-desk.model';
 
 /**
  * Der einzige Weg, auf dem ein Charakter etwas vom Spielleiter bekommt.
@@ -25,15 +25,6 @@ import { DeskEntry, KnowledgeKind, PendingGrant } from '../model/gm-desk.model';
 @Injectable({ providedIn: 'root' })
 export class GrantService {
   private characterSocket = inject(CharacterSocketService);
-
-  /** In welches Bogen-Feld eine Wissensart einsortiert wird. */
-  private static readonly KNOWLEDGE_FIELD: Record<KnowledgeKind, keyof CharacterSheet> = {
-    'material': 'knownMaterialIds',
-    'forge-trait': 'knownForgeTraitIds',
-    'ingredient': 'knownIngredientIds',
-    'extractor': 'knownExtractorIds',
-    'brew-trait': 'knownBrewTraitIds',
-  };
 
   // ── GM-Seite ───────────────────────────────────────────────────────────────
 
@@ -143,7 +134,7 @@ export class GrantService {
   private knowledgePatches(sheet: CharacterSheet, entry: DeskEntry): JsonPatch[] {
     const kind = entry.knowledgeKind;
     if (!kind) return [];
-    const field = GrantService.KNOWLEDGE_FIELD[kind];
+    const field = KNOWLEDGE_SHEET_FIELD[kind];
     const id = typeof entry.data === 'string'
       ? entry.data
       : (entry.data as { id?: string } | null)?.id ?? '';

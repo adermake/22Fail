@@ -118,6 +118,8 @@ Loot-Bündel gibt es nicht mehr — vorbereitete Beute ist der GM-Schreibtisch (
   - `isReverseDeal: true` → Shop kauft Items von Spielern
   - `identified?: boolean` → `false` = Spieler sehen "Unbekannter Effekt" statt Item-Details
   - Library Editor: Einzelne identified-Checkbox pro Deal + "Alle identifiziert" Bulk-Toggle
+  - Inhalt: `deal.grant = { category, type: GrantType, knowledgeKind?, data }` — alles, was der GM-Schreibtisch vergibt (Gegenstand, Rune, Zauber, Fähigkeit, Status, Material/Zutat/Extraktor als Ware, Material-/Schmiede-/Zutaten-/Extraktorwissen, Braumerkmal). Kein `grant` = Freitext-Deal, vergibt nichts. Alt-Deals mit `item`/`rune`/`spell`/`skill`/`statusEffect` werden weiter gelesen. Kategorien + Logik: `utils/shop-deal.util.ts` (+ spec)
+  - `customPrice: { amount, currency }` statt Cetris — wird NIE abgebucht/gutgeschrieben, der Spieler streicht die Währung selbst (Hinweis im Portal + Transaktions-Popup)
 
 ## GM-Schreibtisch (world/gm-desk)
 Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorbereitung ⟂ Bibliothek**.
@@ -286,7 +288,7 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
   - Spieler-Geldanzeige: Alle Münzwerte + Gesamt-Gold im Shop-Header
   - Item-Inspektion: Klick auf "Details ansehen" → Inspektions-Modal
     - `identified !== false`: zeigt Beschreibung/Stats; `identified === false`: "Unbekannter Effekt"
-  - Kauf-Logik: `deductMoney()`, `addMoney()`, `addItemToInventory()` senden Patches via `@Output() patch`
+  - Kauf-Logik: Portal emittiert nur `buyRequest { eventId, dealIndex, quantity }`; `SheetComponent.onBuyFromShop` bucht Cetris (`cetrisAfterDeal`), vergibt pro Stück über `GrantService.acceptPatches` (Stapel, Rohstoffe, Wissen, Status wie beim Loot) und zählt `deal.sold` hoch. Wissen max. 1×, bereits bekanntes gesperrt
   - `@Output() patch` → verdrahtet mit `store.applyPatch()` in sheet.component.html
 - **Transaction Popup**: transaction-popup.component (Slide-In, fade-out)
 - **Visual Feedback**: 
@@ -413,7 +415,7 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 ## Library-Editor (`library-editor/`)
 - **Dependency-Items**: `loadDependencyItems()` lädt Items von eigener Library und allen Dependencies. Wird auf `ngOnInit` + nach `saveLibrarySettings()` aufgerufen.
 - **Dependency-Reload-Button**: "↺ Abhängigkeiten neu laden" in Settings-Panel — erlaubt manuelles Reload. Zeigt Anzahl geladener Elemente.
-- **Shop Deal Editor**: `availableItems/Runes/Spells/Skills/StatusEffects` Signals — gefüllt von `loadDependencyItems`. Select-Dropdown zeigt alle verfügbaren Items aus Dependencies.
+- **Shop Deal Editor**: eigene Komponente `shop-deal-editor/` (Anlegen + Bearbeiten). Bekommt `dealAssets()` (alle `available*`-Signals nach Asset-Typ, gefüllt von `loadDependencyItems`), Kategorie-Chips + durchsuchbare Liste, Preis Cetris oder eigene Währung (Vorschläge aus dem Shop).
 
 ## Page Titles
 - `document.title` wird gesetzt in:

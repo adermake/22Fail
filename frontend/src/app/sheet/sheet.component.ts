@@ -40,15 +40,16 @@ import { JsonPatch } from '../model/json-patch.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { StatusBlock } from '../model/status-block.model';
 import { CurrentEvent, convertToCopper, copperToCurrency } from '../model/current-events.model';
+import { cetrisAfterDeal, dealCostCopper, dealGrantEntry, formatCustomPrice } from '../utils/shop-deal.util';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
 import { ActionExecution } from './action-macros/action-macros.component';
 import { RulebookComponent } from '../rulebook/rulebook.component';
 import { CurrentEventsViewComponent } from './current-events-view';
-import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
+import type { ClaimLootEvent } from './current-events-view';
 import { TransactionPopupComponent, Transaction } from './transaction-popup/transaction-popup.component';
-import { EventPortalComponent } from './event-portal/event-portal.component';
+import { EventPortalComponent, ShopBuyRequest } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
 import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.component';
 import { DamageCalculatorComponent } from '../world/damage-calculator/damage-calculator.component';
@@ -423,27 +424,41 @@ export class SheetComponent implements OnInit {
   /**
    * Handle buy from shop in current events
    */
-  onBuyFromShop(event: { eventId: string; dealIndex: number; quantity: number; totalCostCopper: number }) {
-    // Find the shop event and deal to get item name
-    const shopEvent = this.currentEvents.find(e => e.id === event.eventId && e.type === 'shop') as any;
-    const deal = shopEvent?.deals[event.dealIndex];
-    
-    // Create transaction popup
-    if (deal) {
-      const isReverse = deal.isReverseDeal;
-      this.addTransaction({
-        type: isReverse ? 'sell' : 'buy',
-        itemName: deal.name || 'Item',
-        quantity: event.quantity,
-        ...(isReverse 
-          ? { moneyGained: copperToCurrency(event.totalCostCopper) }
-          : { moneyLost: copperToCurrency(event.totalCostCopper) })
-      });
+  onBuyFromShop(event: ShopBuyRequest) {
+    const sheet = this.store.sheetValue;
+    const deal = this.currentEvents.find(e => e.id === event.eventId)?.deals[event.dealIndex];
+    if (!sheet || !deal) return;
+
+    // Cetris bucht der Handel selbst; eine eigene Währung zieht der Spieler von Hand ab.
+    const cetris = cetrisAfterDeal(sheet.currency, deal, event.quantity);
+    if (cetris) this.store.applyPatch({ path: '/currency', value: cetris });
+
+    // Vergeben wie Loot vom Schreibtisch — Stück für Stück gegen den jeweils aktuellen Bogen,
+    // damit Stapel und freie Fächer stimmen. Freitext und Ankauf vergeben nichts.
+    const entry = deal.isReverseDeal ? null : dealGrantEntry(deal);
+    if (entry) {
+      for (let i = 0; i < event.quantity; i++) {
+        for (const patch of this.grants.acceptPatches(this.store.sheetValue!, entry)) {
+          this.store.applyPatch(patch);
+        }
+      }
     }
-    
-    // Update the world's current events to reflect the purchase
-    // The item has already been added to inventory and money deducted by the component
-    // We need to update the shop's sold counter
+
+    const costCopper = dealCostCopper(deal, event.quantity);
+    const customNote = deal.customPrice
+      ? `${deal.isReverseDeal ? 'Selbst eintragen' : 'Selbst abziehen'}: ${formatCustomPrice(deal.customPrice, event.quantity)}`
+      : undefined;
+    this.addTransaction({
+      type: deal.isReverseDeal ? 'sell' : 'buy',
+      itemName: deal.name || 'Deal',
+      quantity: event.quantity,
+      ...(costCopper > 0 && (deal.isReverseDeal
+        ? { moneyGained: copperToCurrency(costCopper) }
+        : { moneyLost: copperToCurrency(costCopper) })),
+      note: customNote,
+    });
+
+    // Bestand des Handels hochzählen
     const updatedEvents = this.currentEvents.map(e => {
       if (e.id === event.eventId && e.type === 'shop') {
         const shop = { ...e } as any;

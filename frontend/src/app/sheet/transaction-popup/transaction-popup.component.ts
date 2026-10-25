@@ -9,6 +9,8 @@ export interface Transaction {
   quantity: number;
   moneyGained?: Currency;
   moneyLost?: Currency;
+  /** Zusatzzeile, z. B. eine eigene Währung, die der Spieler selbst abziehen muss. */
+  note?: string;
   timestamp: number;
 }
 
@@ -23,12 +25,10 @@ export interface Transaction {
              [class.fade-out]="shouldFadeOut(transaction)"
              [style.animation-delay]="getAnimationDelay(transaction) + 'ms'">
           <div class="transaction-icon">
-            @if (transaction.type === 'buy') {
-              🛒
-            } @else if (transaction.type === 'sell') {
-              💰
+            @if (transaction.type === 'claim') {
+              <i class="app-icon i-item"></i>
             } @else {
-              🎁
+              <i class="app-icon i-currency"></i>
             }
           </div>
           <div class="transaction-content">
@@ -53,6 +53,9 @@ export interface Transaction {
               <div class="money-gained">
                 + {{ formatCurrency(transaction.moneyGained) }}
               </div>
+            }
+            @if (transaction.note) {
+              <div class="transaction-note">{{ transaction.note }}</div>
             }
           </div>
         </div>
@@ -107,7 +110,8 @@ export interface Transaction {
     }
 
     .transaction-icon {
-      font-size: 2.5rem;
+      font-size: 2rem;
+      color: #ffd700;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
     }
 
@@ -142,6 +146,12 @@ export interface Transaction {
       color: #51cf66;
       font-weight: 600;
       font-size: 0.9rem;
+    }
+
+    .transaction-note {
+      color: #ffd43b;
+      font-weight: 600;
+      font-size: 0.85rem;
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

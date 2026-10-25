@@ -294,6 +294,27 @@
   font-size: 0.9rem;
 }
 
+.deal-card .icon-btn {
+  margin-left: 0.4rem;
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.deal-card .icon-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.deal-card .icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .icon-btn.delete {
   padding: 0.5rem;
   background: transparent;

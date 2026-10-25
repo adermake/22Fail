@@ -3,6 +3,7 @@ import { RuneBlock } from './rune-block.model';
 import { SpellBlock } from './spell-block-model';
 import { SkillBlock } from './skill-block.model';
 import { StatusEffect } from './status-effect.model';
+import { GrantType, KnowledgeKind } from './gm-desk.model';
 
 /**
  * Currency values for transactions
@@ -24,14 +25,46 @@ export interface LibraryItemRef {
 }
 
 /**
+ * Welche Art Ding ein Deal verkauft. Rohstoffe und Wissen teilen sich das Bibliotheks-Asset
+ * (`material` ist beides), deshalb eigene IDs statt des Asset-Typs. `text` vergibt nichts.
+ */
+export type DealCategoryId =
+  | 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'
+  | 'material' | 'ingredient' | 'extractor'
+  | 'material-knowledge' | 'forge-trait-knowledge' | 'ingredient-knowledge'
+  | 'extractor-knowledge' | 'brew-trait-knowledge'
+  | 'text';
+
+/**
+ * Was ein Deal beim Kauf vergibt — dieselben Typen wie der GM-Schreibtisch, damit der Kauf
+ * über `GrantService` läuft und nicht eine zweite Typ→Feld-Zuordnung braucht.
+ */
+export interface ShopDealGrant {
+  category: DealCategoryId;
+  type: GrantType;
+  knowledgeKind?: KnowledgeKind;
+  /** Das Bibliotheks-Asset, mit garantierter `id` (siehe `assetEntryId`). */
+  data: unknown;
+}
+
+/** Ein Preis in einer eigenen Währung ("3 Drachenschuppen"). Wird nie automatisch abgebucht. */
+export interface CustomPrice {
+  amount: number;
+  currency: string;
+}
+
+/**
  * A deal in a shop - can be a buy or sell offer
  */
 export interface ShopDeal {
   id: string;
   name: string;
   description?: string;
-  
-  // What the player gets (buy deal) or gives (sell deal)
+
+  /** Neue Deals: was der Kauf vergibt. Fehlt bei Freitext-Deals. */
+  grant?: ShopDealGrant;
+
+  // Alt-Deals: genau eines davon trägt den Inhalt. Neue Deals schreiben `grant`.
   item?: ItemBlock;
   rune?: RuneBlock;
   spell?: SpellBlock;
@@ -43,6 +76,8 @@ export interface ShopDeal {
   
   // Pricing
   price?: Currency; // undefined = "Verhandelbar" (negotiable)
+  /** Statt Cetris: eigene Währung. Hat Vorrang vor `price`; der Spieler zieht sie selbst ab. */
+  customPrice?: CustomPrice;
   isNegotiable: boolean;
   discount?: number; // Percentage discount (0-100) applied in world
   

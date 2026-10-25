@@ -540,162 +540,14 @@
                     <button class="add-btn" (click)="startAddingDealToShop()" [disabled]="addingDealToShop()">+ Deal</button>
                   </div>
 
-                  <!-- Add Deal UI -->
+                  <!-- Add / Edit Deal UI -->
                   @if (addingDealToShop()) {
-                    <div class="deal-creator">
-                      @if (!dealMode()) {
-                        <!-- Step 0: Select Deal Mode -->
-                        <div class="creator-header">
-                          <h5>Wähle Deal-Modus</h5>
-                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
-                        </div>
-                        <div class="mode-selector">
-                          <button class="mode-btn sell" (click)="selectDealMode('sell')">
-                            <span class="mode-icon">🛍️</span>
-                            <span class="mode-title">Handel Verkauft</span>
-                            <span class="mode-desc">Spieler kauft vom Handel</span>
-                          </button>
-                          <button class="mode-btn buy" (click)="selectDealMode('buy')">
-                            <span class="mode-icon">💰</span>
-                            <span class="mode-title">Handel Kauft An</span>
-                            <span class="mode-desc">Spieler verkauft an Handel</span>
-                          </button>
-                        </div>
-                      } @else if (dealMode() === 'sell' && !editingDealData()) {
-                        <!-- Step 1: Select Item Type (for sell mode) -->
-                        <div class="creator-header">
-                          <h5>Wähle Item-Typ</h5>
-                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
-                        </div>
-                        <div class="type-selector">
-                          <button class="type-btn" (click)="selectDealItemType('item')">📦 Item</button>
-                          <button class="type-btn" (click)="selectDealItemType('rune')">✨ Rune</button>
-                          <button class="type-btn" (click)="selectDealItemType('spell')">📖 Zauber</button>
-                          <button class="type-btn" (click)="selectDealItemType('skill')">⚔️ Talent</button>
-                          <button class="type-btn" (click)="selectDealItemType('status-effect')">🎭 Status</button>
-                        </div>
-                      } @else if (dealMode() === 'sell' && editingDealData()) {
-                        <!-- Step 2: Select Item & Configure Deal (sell mode) -->
-                        <div class="creator-header">
-                          <h5>Deal konfigurieren (Verkauf)</h5>
-                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
-                        </div>
-
-                        <!-- Item Selection -->
-                        <div class="form-group">
-                          <label>{{ selectedDealItemType() === 'item' ? 'Item' : selectedDealItemType() === 'rune' ? 'Rune' : selectedDealItemType() === 'spell' ? 'Zauber' : selectedDealItemType() === 'skill' ? 'Fertigkeit' : 'Status-Effekt' }} auswählen:</label>
-                          <select class="item-selector" (change)="onDealItemSelected($event)">
-                            <option value="">-- Auswählen --</option>
-                            @if (selectedDealItemType() === 'item') {
-                              @for (item of availableItems(); track item.id) {
-                                <option [selected]="selectedDealItemId() === item.id">{{ item.name }}</option>
-                              }
-                            }
-                            @if (selectedDealItemType() === 'rune') {
-                              @for (rune of availableRunes(); track rune.id) {
-                                <option [selected]="selectedDealItemId() === rune.id">{{ rune.name }}</option>
-                              }
-                            }
-                            @if (selectedDealItemType() === 'spell') {
-                              @for (spell of availableSpells(); track spell.id) {
-                                <option [selected]="selectedDealItemId() === spell.id">{{ spell.name }}</option>
-                              }
-                            }
-                            @if (selectedDealItemType() === 'skill') {
-                              @for (skill of availableSkills(); track skill.id) {
-                                <option [selected]="selectedDealItemId() === skill.id">{{ skill.name }}</option>
-                              }
-                            }
-                            @if (selectedDealItemType() === 'status-effect') {
-                              @for (status of availableStatusEffects(); track status.id) {
-                                <option [selected]="selectedDealItemId() === status.id">{{ status.name }}</option>
-                              }
-                            }
-                          </select>
-                        </div>
-
-                        @if (selectedDealItemId()) {
-                          <!-- Deal Configuration -->
-                          <div class="form-group">
-                            <label>Deal Name:</label>
-                            <input type="text" [(ngModel)]="editingDealData()!.name" placeholder="z.B. Schwert +1" />
-                          </div>
-
-                          <div class="form-group">
-                            <label>Preis:</label>
-                            <div class="currency-inputs">
-                              <input type="number" [(ngModel)]="editingDealData()!.price!.platinum" min="0" placeholder="0" />
-                              <span title="Platin-Cetris">PC</span>
-                              <input type="number" [(ngModel)]="editingDealData()!.price!.gold" min="0" placeholder="0" />
-                              <span title="Gold-Cetris">GC</span>
-                              <input type="number" [(ngModel)]="editingDealData()!.price!.silver" min="0" placeholder="0" />
-                              <span title="Silber-Cetris">SC</span>
-                              <input type="number" [(ngModel)]="editingDealData()!.price!.copper" min="0" placeholder="0" />
-                              <span title="Kupfer-Cetris">KC</span>
-                            </div>
-                          </div>
-
-                          <div class="form-group checkboxes">
-                            <label><input type="checkbox" [(ngModel)]="editingDealData()!.isNegotiable" /> Verhandelbar</label>
-                            <label><input type="checkbox" [checked]="editingDealData()!.identified !== false" (change)="editingDealData()!.identified = $any($event.target).checked" /> Identifiziert (Spieler sehen Details)</label>
-                          </div>
-
-                          <div class="form-group">
-                            <label>Bestand (leer = unbegrenzt):</label>
-                            <input type="number" [(ngModel)]="editingDealData()!.quantity" min="1" placeholder="Unbegrenzt" />
-                          </div>
-
-                          <div class="editor-actions">
-                            <button class="save-btn" (click)="saveDealToShop()">💾 Deal speichern</button>
-                            <button class="cancel-btn" (click)="cancelAddingDeal()">✕ Abbrechen</button>
-                          </div>
-                        }
-                      } @else if (dealMode() === 'buy') {
-                        <!-- Step 2: Configure Reverse Deal (buy mode) -->
-                        <div class="creator-header">
-                          <h5>Ankauf konfigurieren</h5>
-                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
-                        </div>
-
-                        <div class="form-group">
-                          <label>Ankauf-Titel:</label>
-                          <input type="text" [(ngModel)]="editingDealData()!.name" placeholder="z.B. Schwerter verschiedener Art" />
-                        </div>
-
-                        <div class="form-group">
-                          <label>Beschreibung (was der Shop ankauft):</label>
-                          <textarea 
-                            [(ngModel)]="editingDealData()!.reverseDescription" 
-                            rows="3" 
-                            placeholder="z.B. Beliebige Schwerter, egal welcher Qualität. Auch verzauberte Klingen."></textarea>
-                          <small class="hint">Diese Beschreibung sehen Spieler. Sei vage oder spezifisch nach Bedarf.</small>
-                        </div>
-
-                        <div class="form-group">
-                          <label>Ankaufspreis:</label>
-                          <div class="currency-inputs">
-                            <input type="number" [(ngModel)]="editingDealData()!.price!.platinum" min="0" placeholder="0" />
-                            <span title="Platin-Cetris">PC</span>
-                            <input type="number" [(ngModel)]="editingDealData()!.price!.gold" min="0" placeholder="0" />
-                            <span title="Gold-Cetris">GC</span>
-                            <input type="number" [(ngModel)]="editingDealData()!.price!.silver" min="0" placeholder="0" />
-                            <span title="Silber-Cetris">SC</span>
-                            <input type="number" [(ngModel)]="editingDealData()!.price!.copper" min="0" placeholder="0" />
-                            <span title="Kupfer-Cetris">KC</span>
-                          </div>
-                          <small class="hint">Preis, den der Shop pro Stück zahlt.</small>
-                        </div>
-
-                        <div class="form-group checkboxes">
-                          <label><input type="checkbox" [(ngModel)]="editingDealData()!.isNegotiable" /> Verhandelbar</label>
-                        </div>
-
-                        <div class="editor-actions">
-                          <button class="save-btn" (click)="saveDealToShop()">💾 Ankauf speichern</button>
-                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕ Abbrechen</button>
-                        </div>
-                      }
-                    </div>
+                    <app-shop-deal-editor
+                      [assets]="dealAssets()"
+                      [initial]="editingDeal()"
+                      [knownCurrencies]="shopCurrencies()"
+                      (save)="saveDealToShop($event)"
+                      (cancel)="cancelAddingDeal()" />
                   }
 
                   <!-- Existing Deals List -->
@@ -713,24 +565,24 @@
                       @for (deal of editingFile()!.data.deals; track deal.id) {
                         <div class="deal-card" [class.reverse]="deal.isReverseDeal">
                           <div class="deal-info">
-                            <span class="deal-icon">{{ getDealItemIcon(deal) }}</span>
+                            <i class="deal-icon app-icon {{ dealIcon(deal) }}"></i>
                             <div class="deal-details">
-                              <span class="deal-name">{{ getDealItemName(deal) }}</span>
+                              <span class="deal-name">{{ deal.name }}</span>
                               <div class="deal-meta">
+                                <span class="deal-badge" [class.reverse]="deal.isReverseDeal">{{ dealKind(deal) }}</span>
+                                @if (dealPrice(deal)) {
+                                  <span class="deal-price">{{ dealPrice(deal) }}</span>
+                                }
                                 @if (deal.isNegotiable) {
-                                  <span class="deal-badge negotiable">💬 Verhandelbar</span>
-                                } @else if (deal.price) {
-                                  <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
+                                  <span class="deal-badge negotiable">Verhandelbar</span>
                                 }
                                 @if (deal.quantity !== undefined) {
-                                  <span class="deal-stock">📦 {{ deal.quantity }}</span>
-                                }
-                                @if (deal.isReverseDeal) {
-                                  <span class="deal-badge reverse">⬅ Ankauf</span>
+                                  <span class="deal-stock">Bestand {{ deal.quantity }}</span>
                                 }
                               </div>
                             </div>
                           </div>
+                          <button class="icon-btn" (click)="startEditingDeal(deal)" [disabled]="!!addingDealToShop()" title="Bearbeiten"><i class="app-icon i-draw"></i></button>
                           <button class="icon-btn delete" (click)="removeDealFromShop(deal.id)" title="Entfernen">✕</button>
                         </div>
                       }
