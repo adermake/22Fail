@@ -301,8 +301,11 @@ export interface ShopBuyRequest {
 
     .portal-content {
       position: relative;
+      /* border-box: ohne das ist der Inhalt 100% + Padding breit und wird rechts abgeschnitten */
+      box-sizing: border-box;
       width: 100%; height: 100%;
-      padding: 2.5rem 3rem;
+      /* unten Platz für die feste Cetris-Anzeige, sonst verdeckt sie die letzte Reihe */
+      padding: 2.5rem 3rem 6rem;
       overflow-y: auto;
       z-index: 1;
     }
@@ -405,7 +408,7 @@ export interface ShopBuyRequest {
 
     .deals-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
       gap: 1.8rem;
       padding: 0.5rem;
     }
