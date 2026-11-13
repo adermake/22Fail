@@ -813,6 +813,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.panX = rect.width / 2 - c.x * this.scale;
     this.panY = rect.height / 2 - c.y * this.scale;
     this.scheduleRender();
+    // Tokens are DOM overlays positioned in the (OnPush) template. Mouse panning gets change
+    // detection for free from the grid's own events; this call comes from outside, so ask.
+    this.cdr.markForCheck();
   }
 
   private updateLayerVisibility(): void {

@@ -338,6 +338,7 @@
 }
 
 .timeline {
+  position: relative; /* anchor for the sliding-out ghosts of finished turns */
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem;
@@ -667,14 +668,17 @@
   align-items: center;
   gap: 8px;
   flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
+  position: relative; /* anchor for the sliding-out ghosts of finished turns */
+  /* Not a scroll container: with overflow:auto the browser's scroll anchoring shifted the bar
+     whenever "Zuletzt" appeared in front, pushing it (and part of the current box) off the left
+     edge. clip can't scroll at all; hidden is the fallback for old browsers. */
+  overflow: hidden;
+  overflow: clip;
   padding: 2px 0;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
 }
 
-.compact-timeline::-webkit-scrollbar { display: none; }
 
 .compact-group {
   display: flex;
@@ -705,10 +709,29 @@
 }
 
 .compact-section--past {
-  opacity: 0.45;
-  filter: grayscale(0.6);
   padding-right: 6px;
   border-right: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+/* Only the current turn is in colour. Everything else is greyed out — except the selected
+   tile and the one under the mouse, so selection stays readable. */
+.compact-section--past .compact-tile,
+.compact-section--upcoming .compact-tile {
+  filter: grayscale(1);
+  opacity: 0.5;
+  transition: filter 0.15s, opacity 0.15s, box-shadow 0.15s;
+}
+
+.compact-section--past .compact-tile {
+  opacity: 0.35;
+}
+
+.compact-section--past .compact-tile:hover,
+.compact-section--upcoming .compact-tile:hover,
+.compact-section--past .compact-tile--selected,
+.compact-section--upcoming .compact-tile--selected {
+  filter: none;
+  opacity: 1;
 }
 
 .compact-section--past:empty {

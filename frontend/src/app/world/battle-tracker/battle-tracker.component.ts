@@ -27,9 +27,12 @@ interface RadialMenuPosition {
 interface TileSnapshot {
   el: HTMLElement;
   rect: DOMRect;
+  /** Was shown greyed out (not the current turn) — the ghost keeps that look. */
+  greyed: boolean;
 }
 
 const TILE_ANIM_MS = 450;
+const MOVE_EASING = 'cubic-bezier(0.2, 0.7, 0.3, 1)';
 
 @Component({
   selector: 'app-battle-tracker',
@@ -152,7 +155,12 @@ export class BattleTracker implements OnInit, OnDestroy {
     if (!container) return result;
     container.querySelectorAll<HTMLElement>('[data-tile-id]').forEach(el => {
       const id = el.dataset['tileId'];
-      if (id) result.set(id, { el, rect: el.getBoundingClientRect() });
+      if (!id) return;
+      result.set(id, {
+        el,
+        rect: el.getBoundingClientRect(),
+        greyed: !!el.closest('.compact-section--past, .compact-section--upcoming'),
+      });
     });
     return result;
   }
@@ -189,34 +197,37 @@ export class BattleTracker implements OnInit, OnDestroy {
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       el.animate(
         [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-        { duration: TILE_ANIM_MS, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
+        { duration: TILE_ANIM_MS, easing: MOVE_EASING },
       );
     });
 
-    // Consumed turns: Angular already detached their elements. Re-show each one as a fixed
-    // ghost where it was and let it slide out to the left, so "this turn is over" is visible.
+    // Turns that left the bar: Angular already detached their elements. Put each one back
+    // inside the (clipping) bar where it was and let it keep sliding left, with the same
+    // timing as everything else, until the bar's edge swallows it.
+    const box = container.getBoundingClientRect();
     for (const [id, snap] of before) {
       if (seen.has(id)) continue;
       const ghost = snap.el;
       for (const a of ghost.getAnimations()) a.cancel();
+      // Not a tile any more: later captures must not pick the ghost up.
+      ghost.removeAttribute('data-tile-id');
       Object.assign(ghost.style, {
-        position: 'fixed',
-        left: `${snap.rect.left}px`,
-        top: `${snap.rect.top}px`,
+        position: 'absolute',
+        left: `${snap.rect.left - box.left + container.scrollLeft}px`,
+        top: `${snap.rect.top - box.top + container.scrollTop}px`,
         width: `${snap.rect.width}px`,
         height: `${snap.rect.height}px`,
         margin: '0',
         pointerEvents: 'none',
-        zIndex: '1000',
         boxSizing: 'border-box',
+        // Outside its section the greyscale rule no longer matches; keep the look it had.
+        ...(snap.greyed ? { filter: 'grayscale(1)', opacity: '0.35' } : {}),
       });
-      document.body.appendChild(ghost);
+      container.appendChild(ghost);
+      const exit = snap.rect.right - box.left + 8;
       const anim = ghost.animate(
-        [
-          { transform: 'none', opacity: 1 },
-          { transform: 'translateX(-40px) scale(0.85)', opacity: 0 },
-        ],
-        { duration: TILE_ANIM_MS, easing: 'ease-in', fill: 'forwards' },
+        [{ transform: 'none' }, { transform: `translateX(${-exit}px)` }],
+        { duration: TILE_ANIM_MS, easing: MOVE_EASING, fill: 'forwards' },
       );
       anim.onfinish = anim.oncancel = () => ghost.remove();
     }
