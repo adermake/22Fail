@@ -657,11 +657,15 @@
   border: none;
   padding: 0;
   display: flex;
+  /* The base .battle-tracker-container is a column. Inherited here, the timeline's flex:1 /
+     min-width:0 acted on the height, and align-items:center centred its full 30-tile width —
+     overflowing (and clipped) equally on BOTH sides, which hid "Zuletzt" and "Am Zug". */
+  flex-direction: row;
   align-items: center;
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  overflow: clip; /* hidden is still scrollable (scroll anchoring); clip is not */
+  overflow: clip;
 }
 
 .compact-timeline {
