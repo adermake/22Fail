@@ -463,12 +463,14 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       @if (activeTab() === 'aussehen') {
         <div class="aussehen-tab">
 
-          <!-- Rename -->
-          <div class="section-header">📛 Name</div>
-          <div class="aussehen-row">
-            <input class="fx-input name-input" [(ngModel)]="localName" placeholder="Token-Name" />
-            <button class="action-btn" (click)="saveName()">Speichern</button>
-          </div>
+          <!-- Rename — not for a player looking at an NSC whose name is still hidden. -->
+          @if (!nameHiddenForViewer(token)) {
+            <div class="section-header">📛 Name</div>
+            <div class="aussehen-row">
+              <input class="fx-input name-input" [(ngModel)]="localName" placeholder="Token-Name" />
+              <button class="action-btn" (click)="saveName()">Speichern</button>
+            </div>
+          }
 
           <!-- Scale -->
           <div class="section-header"><span class="app-icon i-ruler"></span> Skalierung</div>
@@ -550,7 +552,7 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
           </button>
           @if (showDrawCanvas()) {
             <app-token-draw-editor
-              [title]="token.name"
+              [title]="headerName(token)"
               [initialImage]="token.customPortraitData ?? null"
               [originalSrc]="drawOriginalSrc"
               (save)="saveDrawCanvas($event)"
@@ -1840,9 +1842,12 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   /** Header name: players read "Unbekannt" for an NSC whose name the GM hasn't revealed. */
   headerName(token: Token): string {
-    return !this.isGM && !this.canViewStats && isTokenNameHidden(token)
-      ? hiddenTokenLabel(token)
-      : tokenLabel(token);
+    return this.nameHiddenForViewer(token) ? hiddenTokenLabel(token) : tokenLabel(token);
+  }
+
+  /** Is this token's real name hidden from whoever is looking at the panel? */
+  nameHiddenForViewer(token: Token): boolean {
+    return !this.isGM && !this.canViewStats && isTokenNameHidden(token);
   }
 
   /** Die Cetris am Token als Text, leer wenn keine. */
@@ -2707,7 +2712,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   // ============================================================
 
   saveName(): void {
-    if (!this.token || !this.localName.trim()) return;
+    if (!this.token || !this.localName.trim() || this.nameHiddenForViewer(this.token)) return;
     this.tokenUpdate.emit({ name: this.localName.trim() });
   }
 
