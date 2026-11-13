@@ -154,6 +154,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
       }
       this.viewingCharacterIds.set(set);
     });
+
+    // Keep the battle tracker's names/portraits/speeds in step with tokens and sheets (renames,
+    // new images, NSC edits). The engine ignores pushes that change nothing, so token moves are
+    // cheap. Deferred: the push re-renders the tracker, which must not happen mid-effect.
+    effect(() => {
+      this.enrichedTokens();
+      this.worldCharacters();
+      this.npcStatblocks();
+      this.allSummons();
+      untracked(() => queueMicrotask(() => this.pushSpeedsToBattleEngine()));
+    });
   }
 
   @ViewChild(LobbyGridComponent) gridComponent?: LobbyGridComponent;
@@ -894,13 +905,28 @@ export class LobbyComponent implements OnInit, OnDestroy {
    * re-order the turn timeline instead of being frozen at load-time values.
    */
   private pushSpeedsToBattleEngine(): void {
-    this.battleEngine.setAvailableCharacters(this.worldCharacters().map(c => ({
+    const players = this.worldCharacters().map(c => ({
       id: c.id,
       name: c.sheet.name,
       portrait: c.sheet.portrait,
       // Effective speed includes armor/encumbrance penalties and effectActive modifiers.
       speed: this.trueStats.calculateEffectiveSpeed(c.sheet),
-    })));
+    }));
+    // NSC tokens of the open map, too. Before, they only reached the engine via
+    // registerCharacter() when joining combat — and the next push (page load, any character
+    // patch) wiped them, so the tracker fell back to the saved name without a portrait, and
+    // renames/new images never showed up.
+    const playerIds = new Set(players.map(p => p.id));
+    const npcs = this.enrichedTokens()
+      .filter(t => t.isQuickToken && t.statblockId && !playerIds.has(t.characterId))
+      .map(t => ({
+        id: t.characterId,
+        // Mit Kennzeichnung, damit fünf Kultisten im Tracker unterscheidbar bleiben.
+        name: tokenLabel(t),
+        portrait: t.portrait,
+        speed: this.statblockForToken(t)?.speed ?? 10,
+      }));
+    this.battleEngine.setAvailableCharacters([...players, ...npcs]);
   }
 
   // ============================================

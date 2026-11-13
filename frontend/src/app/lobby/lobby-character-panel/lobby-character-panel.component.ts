@@ -123,30 +123,37 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       } @else {
         <div class="token-portrait-placeholder">{{ (token.name || '?').charAt(0).toUpperCase() }}</div>
       }
-      @if (editMode()) {
-        <input class="token-name-input" type="text" [value]="token.name" title="Name"
-               (change)="editName($event)" (keydown.enter)="$any($event.target).blur()" />
-      } @else {
-        <span class="token-name">{{ tokenLabel(token) }}</span>
-      }
-      @if (npcEditable) {
-        <button class="npc-reroll-btn" [class.active]="editMode()" (click)="toggleEditMode()"
-                [title]="editMode() ? 'Bearbeiten beenden' : 'Werte bearbeiten — Name, Grundwerte, Effektivität, Stabilität, Reaktion, Bewegung'">
-          <span class="app-icon i-draw"></span>
-        </button>
-      }
-      @if (npcRollable && npc && !editMode()) {
-        <label class="npc-level" title="Level — eine Änderung würfelt das NSC auf diesem Level neu">
-          <span>Lv</span>
-          <input class="npc-level-input" type="number" min="1" [value]="npc.level"
-                 (change)="onNpcLevelInput($event)" (keydown.enter)="$any($event.target).blur()" />
-        </label>
-        <button class="npc-reroll-btn" (click)="npcRoll.emit({})"
-                title="NSC neu würfeln — Werte, Ausrüstung und Beute">
-          <span class="app-icon i-sync"></span>
-        </button>
-      }
-      <button class="deselect-btn" (click)="deselect.emit()" title="Auswahl aufheben">✕</button>
+      <!-- Name gets the full width (wraps, never "…"); GM controls sit on their own row below.
+           No close button: deselecting the token is how you clear the panel. -->
+      <div class="token-header-main">
+        @if (editMode()) {
+          <input class="token-name-input" type="text" [value]="token.name" title="Name"
+                 (change)="editName($event)" (keydown.enter)="$any($event.target).blur()" />
+        } @else {
+          <span class="token-name">{{ tokenLabel(token) }}</span>
+        }
+        @if (npcEditable || (npcRollable && npc)) {
+          <div class="token-header-actions">
+            @if (npcEditable) {
+              <button class="npc-reroll-btn" [class.active]="editMode()" (click)="toggleEditMode()"
+                      [title]="editMode() ? 'Bearbeiten beenden' : 'Werte bearbeiten — Name, Grundwerte, Effektivität, Stabilität, Reaktion, Bewegung'">
+                <span class="app-icon i-draw"></span>
+              </button>
+            }
+            @if (npcRollable && npc && !editMode()) {
+              <label class="npc-level" title="Level — eine Änderung würfelt das NSC auf diesem Level neu">
+                <span>Lv</span>
+                <input class="npc-level-input" type="number" min="1" [value]="npc.level"
+                       (change)="onNpcLevelInput($event)" (keydown.enter)="$any($event.target).blur()" />
+              </label>
+              <button class="npc-reroll-btn" (click)="npcRoll.emit({})"
+                      title="NSC neu würfeln — Werte, Ausrüstung und Beute">
+                <span class="app-icon i-sync"></span>
+              </button>
+            }
+          </div>
+        }
+      </div>
     </div>
 
     @if (!canViewStats) {
@@ -791,6 +798,7 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       font-size: 0.9rem;
     }
     .token-portrait {
+      flex-shrink: 0;
       width: 36px;
       height: 36px;
       border-radius: 50%;
@@ -811,31 +819,27 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       border: 2px solid #4b5563;
       flex-shrink: 0;
     }
-    .token-name {
+    .token-header-main {
       flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .token-name {
       font-size: 14px;
       font-weight: 700;
+      line-height: 1.25;
       color: #f1f5f9;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      /* Full name, wrapped if needed — never cut off. */
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
-    .deselect-btn {
-      background: none;
-      border: 1px solid #374151;
-      color: #94a3b8;
-      border-radius: 4px;
-      width: 24px;
-      height: 24px;
-      cursor: pointer;
-      font-size: 12px;
+    .token-header-actions {
       display: flex;
       align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background 0.15s, color 0.15s;
+      gap: 6px;
     }
-    .deselect-btn:hover { background: #374151; color: #ef4444; }
     .npc-level { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: #94a3b8; }
     .npc-level-input {
       width: 42px; padding: 2px 4px; text-align: center;
@@ -1574,7 +1578,6 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   /** Edit mode changed one NSC value — with what the gear gives, so a geared value becomes a bonus. */
   @Output() npcEdit = new EventEmitter<{ edit: NpcEdit; gear: NpcGearValues }>();
   @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
-  @Output() deselect = new EventEmitter<void>();
   @Output() requestTokenDraw = new EventEmitter<string>(); // Emits tokenId
   @Output() requestLinkedTokenPlacement = new EventEmitter<{ parentId: string; type: LinkedTokenType; name: string }>();
   @Output() tokenChildDetach = new EventEmitter<{ childId: string }>();

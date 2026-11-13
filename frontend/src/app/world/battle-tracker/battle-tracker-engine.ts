@@ -323,6 +323,8 @@ export class BattleTrackerEngine {
   // All characters available to add to battle (with their current stats)
   private allCharacters: Map<string, { id: string; name: string; portrait?: string; speed: number }> = new Map();
 
+  private availableSignature = '';
+
   // Characters currently in battle with their turn meter state
   private participants: Map<string, Participant> = new Map();
 
@@ -342,6 +344,12 @@ export class BattleTrackerEngine {
   }
 
   setAvailableCharacters(characters: { id: string; name: string; portrait?: string; speed?: number }[]): void {
+    // The lobby pushes on every token change (moves included); skip the re-render + prediction
+    // when nothing the tracker shows actually changed.
+    const signature = JSON.stringify(characters.map(c => [c.id, c.name, c.portrait, c.speed ?? 10]));
+    if (signature === this.availableSignature) return;
+    this.availableSignature = signature;
+
     this.allCharacters.clear();
     for (const char of characters) {
       this.allCharacters.set(char.id, {
@@ -394,7 +402,7 @@ export class BattleTrackerEngine {
       this.participants.set(bp.characterId, {
         characterId: bp.characterId,
         name: char?.name || bp.name,
-        portrait: char?.portrait,
+        portrait: char?.portrait ?? bp.portrait,
         speed: char?.speed || bp.speed,
         team: bp.team || 'blue',
         // Load turn meter from saved data (stored in turnFrequency for compatibility)
@@ -435,7 +443,7 @@ export class BattleTrackerEngine {
       this.participants.set(bp.characterId, {
         characterId: bp.characterId,
         name: char?.name || bp.name,
-        portrait: char?.portrait,
+        portrait: char?.portrait ?? bp.portrait,
         speed: char?.speed ?? bp.speed ?? 10,
         team: bp.team || 'blue',
         turnMeter: bp.turnFrequency ?? 0,
@@ -459,6 +467,10 @@ export class BattleTrackerEngine {
       battleParticipants.push({
         characterId: p.characterId,
         name: p.name,
+        // Fallback for clients that don't have this character/token loaded (NSC on another
+        // map, or before tokens arrive after a reload) — without it NSCs lost their image.
+        // Only image ids/URLs: an inline data: portrait would bloat every turn patch.
+        portrait: p.portrait && p.portrait.length < 512 ? p.portrait : undefined,
         team: p.team,
         speed: p.speed,
         // Store turn meter in turnFrequency field for compatibility
