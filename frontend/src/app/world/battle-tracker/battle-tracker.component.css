@@ -661,6 +661,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  overflow: clip; /* hidden is still scrollable (scroll anchoring); clip is not */
 }
 
 .compact-timeline {
@@ -668,6 +669,9 @@
   align-items: center;
   gap: 8px;
   flex: 1;
+  /* Without this a flex item is at least as wide as its content (all 30 tiles), so the
+     clipping happened in a parent instead — which shifted the bar and hid "Am Zug". */
+  min-width: 0;
   position: relative; /* anchor for the sliding-out ghosts of finished turns */
   /* Not a scroll container: with overflow:auto the browser's scroll anchoring shifted the bar
      whenever "Zuletzt" appeared in front, pushing it (and part of the current box) off the left

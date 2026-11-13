@@ -822,6 +822,7 @@
   border-bottom: 1px solid rgba(239, 68, 68, 0.3);
   flex-shrink: 0;
   overflow: hidden;
+  overflow: clip; /* never scrollable, so the tracker can't get shifted sideways */
   min-height: 42px;
 }
 
