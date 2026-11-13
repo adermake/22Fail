@@ -1,5 +1,5 @@
 <div class="lad" [class.collapsed]="collapsed" [attr.data-tick]="svc.tick()">
-  <div class="lad-head" [class.lad-blink]="blinking" (click)="onHeaderClick()">
+  <div class="lad-head">
     <button type="button" class="lad-collapse" (click)="toggleCollapsed(); $event.stopPropagation()"
             [title]="collapsed ? 'Ausklappen' : 'Einklappen'">{{ collapsed ? '▲' : '▼' }}</button>
     <span class="lad-title"><span class="app-icon i-spell"></span> Zauber &amp; F&auml;higkeiten</span>

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SkillBlock } from '../../model/skill-block.model';
@@ -23,10 +23,9 @@ const COLLAPSE_KEY = 'lobby:abilities-dock-collapsed';
 export class LobbyAbilitiesDockComponent {
   readonly svc = inject(LobbyTokenActionsService);
 
+  // No status-effect reminder here: it belongs to the status strip of the token on turn (it used
+  // to blink this dock too, which read as "something is wrong with my spells").
   @Input() canViewStats = true;
-  /** GM reminder blink; shown here too so it is visible while no token is selected. */
-  @Input() blinking = false;
-  @Output() dismissReminder = new EventEmitter<void>();
 
   collapsed = readCollapsed();
   filter: 'all' | 'skills' | 'spells' = 'all';
@@ -48,10 +47,6 @@ export class LobbyAbilitiesDockComponent {
   toggleCollapsed(): void {
     this.collapsed = !this.collapsed;
     try { localStorage.setItem(COLLAPSE_KEY, String(this.collapsed)); } catch { /* private mode */ }
-  }
-
-  onHeaderClick(): void {
-    if (this.blinking) this.dismissReminder.emit();
   }
 }
 

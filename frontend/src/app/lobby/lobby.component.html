@@ -118,6 +118,7 @@
         [readOnly]="true"
         [compactMode]="true"
         [effectReminderIds]="effectReminderCharacterIds()"
+        [wantsToActIds]="wantsToActIds()"
         [selectedCharacterId]="selectedPanelToken()?.characterId ?? null"
         (dismissEffectReminder)="dismissEffectReminder($event)"
         [allowRemove]="isGM()"
@@ -243,12 +244,33 @@
           </div>
         }
 
+        <!-- „Ich möchte was tun“: wer sich gemeldet hat, oben links über der Karte (SL + eigener
+             Spieler). Klick springt zum Token, ✓ erledigt die Meldung. -->
+        @if (wantsToActTokens().length) {
+          <div class="wants-act-stack" [class.below-strip]="showLobbyPanels() && selectedPanelToken() && selectedPanelCanView()">
+            @for (t of wantsToActTokens(); track t.id) {
+              <div class="wants-act-chip">
+                <button type="button" class="wants-act-main" (click)="focusWantsToAct(t)"
+                        [title]="visibleTokenName(t) + ' möchte etwas tun — zum Token springen'">
+                  <span class="wants-act-bang">!</span>
+                  @if (t.customPortraitData || t.portrait) {
+                    <img class="wants-act-portrait" [src]="(t.customPortraitData || t.portrait) | imageUrl" alt="" />
+                  }
+                  <span class="wants-act-name">{{ visibleTokenName(t) }}</span>
+                </button>
+                <button type="button" class="wants-act-done" (click)="clearWantsToAct(t)"
+                        [title]="isGM() ? 'Meldung erledigt' : 'Meldung zurücknehmen'">&#10003;</button>
+              </div>
+            }
+          </div>
+        }
+
         <!-- Status-Leiste schwebt über der Karte: sie verschiebt weder Karte noch Seitenpanels. -->
         @if (showLobbyPanels() && selectedPanelToken() && selectedPanelCanView()) {
           <app-lobby-status-strip
             class="lobby-status-strip"
-            [blinking]="statusBarBlinking()"
-            (dismissReminder)="statusBarBlinking.set(false)"
+            [reminder]="selectedTokenReminder()"
+            (dismissReminder)="dismissEffectReminder(selectedPanelToken()!.characterId)"
           />
         }
       </div>
@@ -283,8 +305,6 @@
     <app-lobby-abilities-dock
       class="lobby-abilities-dock"
       [canViewStats]="selectedPanelCanView()"
-      [blinking]="statusBarBlinking() && !selectedPanelToken()"
-      (dismissReminder)="statusBarBlinking.set(false)"
     />
   }
 </div>

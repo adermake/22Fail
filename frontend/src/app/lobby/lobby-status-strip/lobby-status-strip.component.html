@@ -1,5 +1,5 @@
 <div class="lss" [attr.data-tick]="svc.tick()"
-     [class.lss-blink]="blinking"
+     [class.lss-reminder]="reminder"
      (click)="onStripClick()"
      (contextmenu)="svc.onRightClickStatusArea($event)">
 
@@ -33,6 +33,11 @@
   </div>
 
   <div class="lss-actions" (click)="$event.stopPropagation()">
+    @if (reminder && svc.chainEffects.length === 0) {
+      <span class="lss-reminder-hint" title="Dieser Charakter ist am Zug und hat Status-Effekte">Am Zug &mdash; Effekte ausl&ouml;sen?</span>
+      <button type="button" class="lss-btn" (click)="dismissReminder.emit()"
+              title="Erinnerung für diesen Zug ausblenden, ohne die Effekte auszuführen">Erledigt</button>
+    }
     @if (svc.chainEffects.length > 0) {
       <span class="lss-progress">{{ svc.chainIndex + 1 }}/{{ svc.chainEffects.length }}</span>
       <button type="button" class="lss-btn primary" (click)="svc.executeNextInChain()"

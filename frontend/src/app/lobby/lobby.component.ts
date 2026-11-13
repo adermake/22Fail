@@ -46,6 +46,8 @@ import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
+import { NotificationService } from '../services/notification.service';
+import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
 import { LobbyCharacterPanelComponent } from './lobby-character-panel/lobby-character-panel.component';
@@ -80,6 +82,7 @@ const ROLL_HISTORY_LIMIT = 100;
     LobbyAbilitiesDockComponent,
     LobbyQuickNpcComponent,
     BattleTracker,
+    ImageUrlPipe,
   ],
   templateUrl: './lobby.component.html',
   styleUrls: ['./lobby.component.css'],
@@ -106,9 +109,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private weaponTypes = inject(WeaponTypeService);
   private tokenActions = inject(LobbyTokenActionsService);
   private auth = inject(AuthService);
+  private notifications = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
 
   constructor() {
+    // GM popup for new "Ich möchte was tun" requests.
+    effect(() => {
+      const tokens = this.wantsToActTokens();
+      untracked(() => this.announceWantsToAct(tokens));
+    });
+
     // Identity replaces the old ?gm / ?characterId URL params: GM = admin, and the characters
     // you may see/control are those whose controllerUserIds include you (recomputed as the
     // character list or your identity changes).
@@ -125,6 +135,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.tokenActions.tokenUpdate.subscribe(updates => this.onTokenResourceChange(updates)),
       this.tokenActions.sheetPatched.subscribe(event => this.onPanelSheetPatched(event)),
+      // Running a character's status effects answers the reminder for it.
+      this.tokenActions.effectsRun.subscribe(id => this.dismissEffectReminder(id)),
     );
     effect(() => {
       this.selectedTokenId();
@@ -308,8 +320,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   /** GM reminders: characters on turn with active status effects. */
   effectReminderCharacterIds = signal<Set<string>>(new Set());
+  /** Reminders dismissed THIS turn — reset whenever the turn changes. */
   dismissedEffectReminders = signal<Set<string>>(new Set());
-  statusBarBlinking = signal(false);
+  /** The selected token is on turn and still has status effects to run — the strip glows. */
+  selectedTokenReminder = computed(() => {
+    const token = this.selectedPanelToken();
+    return !!token && this.effectReminderCharacterIds().has(token.characterId);
+  });
   private lastTurnKey = '';
   selectedTokenId = signal<string | null>(null);
   pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
@@ -857,14 +874,53 @@ export class LobbyComponent implements OnInit, OnDestroy {
       next.delete(characterId);
       return next;
     });
-    if (this.effectReminderCharacterIds().size === 0) {
-      this.statusBarBlinking.set(false);
-    }
     this.cdr.markForCheck();
   }
 
   /** "Ich möchte was tun" is for the GM's eyes and the player's own — the same rule as the stats. */
   readonly canSeeWantsToAct = (token: Token): boolean => this.canViewTokenStats(token);
+
+  /** Tokens on the open map whose player pressed "Ich möchte was tun" (and this client may see). */
+  wantsToActTokens = computed(() =>
+    this.enrichedTokens().filter(t => t.wantsToAct && this.canSeeWantsToAct(t)));
+  wantsToActIds = computed(() => new Set(this.wantsToActTokens().map(t => t.characterId)));
+
+  /** Jump to a token that wants to act: select it and center the camera on it. */
+  focusWantsToAct(token: Token): void {
+    this.selectedTokenId.set(token.id);
+    this.gridComponent?.centerOnHex(token.position);
+    this.cdr.markForCheck();
+  }
+
+  /** Clear the request (GM: handled; player: taken back). */
+  clearWantsToAct(token: Token): void {
+    this.store.updateToken(token.id, { wantsToAct: undefined });
+  }
+
+  /** Token ids already announced — so only NEW requests pop a toast. Null until the first pass. */
+  private announcedWantsToAct: Set<string> | null = null;
+  private announcedWantsToActMap: string | null = null;
+
+  /** GM popup when a player newly presses "Ich möchte was tun" — the token glow alone was easy to miss. */
+  private announceWantsToAct(tokens: Token[]): void {
+    const ids = new Set(tokens.map(t => t.id));
+    const mapId = this.currentMapId();
+    // First pass and map switches only set the baseline: requests already standing there are
+    // shown by the chips, not re-announced.
+    if (this.announcedWantsToAct === null || mapId !== this.announcedWantsToActMap) {
+      this.announcedWantsToAct = ids;
+      this.announcedWantsToActMap = mapId;
+      return;
+    }
+    if (this.isGM()) {
+      for (const t of tokens) {
+        if (!this.announcedWantsToAct.has(t.id)) {
+          this.notifications.show(`${this.visibleTokenName(t)} möchte etwas tun`, 'warning', 6000);
+        }
+      }
+    }
+    this.announcedWantsToAct = ids;
+  }
 
   canViewTokenStats(token: Pick<Token, 'characterId' | 'statblockId'>): boolean {
     if (this.isGM()) return true;
@@ -1370,17 +1426,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const turnKey = turnIds.join('|');
     if (turnKey === this.lastTurnKey) return;
     this.lastTurnKey = turnKey;
+    // A new turn: last turn's dismissals no longer apply. (They used to pile up forever, so a
+    // character dismissed once was never reminded again.)
+    this.dismissedEffectReminders.set(new Set());
 
-    const eligible = turnIds.filter(
-      id => this.characterHasActiveEffects(id) && !this.dismissedEffectReminders().has(id)
-    );
+    const eligible = turnIds.filter(id => this.characterHasActiveEffects(id));
 
     const visible = this.isGM()
       ? eligible
       : eligible.filter(id => this.viewingCharacterIds().has(id));
 
     this.effectReminderCharacterIds.set(new Set(visible));
-    this.statusBarBlinking.set(visible.length > 0);
   }
 
   onTokenResourceChange(updates: Partial<Omit<Token, 'id'>>): void {

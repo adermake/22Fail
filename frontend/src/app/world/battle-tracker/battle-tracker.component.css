@@ -771,6 +771,25 @@
   padding-left: 2px;
 }
 
+/* "Ich möchte was tun" badge — top-left, so it never collides with the effect reminder (top-right). */
+.compact-wants-act {
+  position: absolute;
+  /* Inside the tile: the timeline clips at its edge, so anything poking out gets cut off. */
+  top: 1px;
+  left: 1px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
+  pointer-events: none;
+}
+
 /* Right-click menu on a tile (lobby, GM). */
 .tile-menu-backdrop {
   position: fixed;

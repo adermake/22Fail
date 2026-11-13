@@ -77,6 +77,16 @@ export class LobbyTokenActionsService implements OnDestroy {
   readonly sheetPatched = new EventEmitter<{ characterId: string; patch: any }>();
   /** A spell was picked to cast (id, or name when it has none) — the character panel opens the cast window. */
   readonly castRequest = new EventEmitter<string>();
+  /**
+   * Status effects of this character were executed (one, a chain, or all at once) — the lobby
+   * clears its "Status-Effekte auslösen?" reminder for it.
+   */
+  readonly effectsRun = new EventEmitter<string>();
+
+  private notifyEffectsRun(): void {
+    const id = this.token?.characterId;
+    if (id) this.effectsRun.emit(id);
+  }
 
   // ── Status effect state ───────────────────────────────────────────────────
   resolvedEffects = new Map<string, StatusEffect>();
@@ -635,6 +645,7 @@ export class LobbyTokenActionsService implements OnDestroy {
       this.lastRollResults.set(fx.id, this.mergeResults(allResults, stacks));
     }
     this.changeDuration(fx, -1);
+    this.notifyEffectsRun();
     setTimeout(() => {
       this.triggeringEffects.delete(fx.id);
       this.bump();
@@ -655,6 +666,7 @@ export class LobbyTokenActionsService implements OnDestroy {
     this.chainResourceLog = [];
     this.breakdownPopup = null;
     this.bump();
+    this.notifyEffectsRun();
     this.executeCurrentChainStep();
   }
 
@@ -726,6 +738,7 @@ export class LobbyTokenActionsService implements OnDestroy {
     this.chainResourceLog = [];
     this.breakdownPopup = null;
     this.resultAnchor = null;
+    this.notifyEffectsRun();
     this.runChainStepsFrom(0);
     this.chainStepDone = true;
     this.finalizeChain();

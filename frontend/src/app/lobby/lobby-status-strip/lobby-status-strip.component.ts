@@ -21,8 +21,11 @@ import { LobbyTokenActionsService } from '../lobby-token-actions.service';
 export class LobbyStatusStripComponent {
   readonly svc = inject(LobbyTokenActionsService);
 
-  /** GM reminder: someone on turn still has effects to run. */
-  @Input() blinking = false;
+  /**
+   * This token is on turn and still has status effects to run. The strip glows until they are run
+   * (the lobby clears it via `effectsRun`) or someone presses "Erledigt".
+   */
+  @Input() reminder = false;
   @Output() dismissReminder = new EventEmitter<void>();
 
   /** The chip under the mouse, with where its tooltip goes. */
@@ -38,7 +41,6 @@ export class LobbyStatusStripComponent {
   }
 
   onStripClick(): void {
-    if (this.blinking) this.dismissReminder.emit();
     this.svc.closeContextMenu();
   }
 

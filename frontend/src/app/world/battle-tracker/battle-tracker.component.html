@@ -16,6 +16,9 @@
           <span class="compact-tile-portrait compact-tile-initial">{{ tile.name.charAt(0) }}</span>
         }
         <span class="compact-tile-name">{{ tile.name }}</span>
+        @if (!past && wantsToActIds.has(tile.characterId)) {
+          <span class="compact-wants-act" title="Möchte etwas tun">!</span>
+        }
         @if (!past && effectReminderIds.has(tile.characterId)) {
           <button
             type="button"

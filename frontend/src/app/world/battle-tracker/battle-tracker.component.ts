@@ -52,6 +52,8 @@ export class BattleTracker implements OnInit, OnDestroy {
   @Input() readOnly = false; // View-only mode for lobby
   @Input() compactMode = false; // Compact top-bar mode for lobby
   @Input() effectReminderIds: Set<string> = new Set();
+  /** Characters whose player pressed "Ich möchte was tun" — a "!" badge on their tiles. */
+  @Input() wantsToActIds: Set<string> = new Set();
   @Input() selectedCharacterId: string | null = null;
   @Output() dismissEffectReminder = new EventEmitter<string>();
   @Output() tileSelect = new EventEmitter<string>();
