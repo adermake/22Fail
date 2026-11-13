@@ -653,6 +653,7 @@
 
 /* ── Compact mode (Kampfrunde bar) ─────────────────────────── */
 .battle-tracker-container.compact-mode {
+  --compact-tile-w: 54px;
   background: transparent;
   border: none;
   padding: 0;
@@ -700,12 +701,14 @@
 .compact-group.team-purple .compact-tile { border-color: rgba(155, 89, 182, 0.85); background: rgba(155, 89, 182, 0.2); }
 .compact-group.team-orange .compact-tile { border-color: rgba(230, 126, 34, 0.85); background: rgba(230, 126, 34, 0.2); }
 
-.compact-tile.team-blue { border-color: rgba(52, 152, 219, 0.95); }
-.compact-tile.team-red { border-color: rgba(231, 76, 60, 0.95); }
-.compact-tile.team-green { border-color: rgba(39, 174, 96, 0.95); }
-.compact-tile.team-yellow { border-color: rgba(241, 196, 15, 0.95); }
-.compact-tile.team-purple { border-color: rgba(155, 89, 182, 0.95); }
-.compact-tile.team-orange { border-color: rgba(230, 126, 34, 0.95); }
+/* Team colour on the tile itself (not only via its group), so a tile sliding out of the bar —
+   detached from its group — keeps its colour. */
+.compact-tile.team-blue { border-color: rgba(52, 152, 219, 0.95); background: rgba(52, 152, 219, 0.18); }
+.compact-tile.team-red { border-color: rgba(231, 76, 60, 0.95); background: rgba(231, 76, 60, 0.2); }
+.compact-tile.team-green { border-color: rgba(39, 174, 96, 0.95); background: rgba(39, 174, 96, 0.2); }
+.compact-tile.team-yellow { border-color: rgba(241, 196, 15, 0.95); background: rgba(241, 196, 15, 0.22); }
+.compact-tile.team-purple { border-color: rgba(155, 89, 182, 0.95); background: rgba(155, 89, 182, 0.2); }
+.compact-tile.team-orange { border-color: rgba(230, 126, 34, 0.95); background: rgba(230, 126, 34, 0.2); }
 
 /* Zuletzt | [Am Zug] | Danach. The current turn sits in an accent box (not yellow — that read
    as the "neutral" team colour); the finished turn is dimmed in front of it. */
@@ -716,22 +719,25 @@
   flex-shrink: 0;
 }
 
+/* Always room for exactly 3 tiles (RECENT_TURNS), right-aligned, so the "Am Zug" box sits at
+   the same x every turn — even at battle start when nothing has happened yet. */
 .compact-section--past {
+  width: calc(3 * var(--compact-tile-w) + 2 * 4px);
+  justify-content: flex-end;
   padding-right: 6px;
   border-right: 1px dashed rgba(255, 255, 255, 0.25);
 }
 
-/* Only the current turn is in colour. Everything else is greyed out — except the selected
-   tile and the one under the mouse, so selection stays readable. */
+/* Only the current turn is at full brightness. Everything else is darkened but keeps its team
+   colour, so you can still tell sides apart. The selected tile and the hovered one light up. */
 .compact-section--past .compact-tile,
 .compact-section--upcoming .compact-tile {
-  filter: grayscale(1);
-  opacity: 0.5;
-  transition: filter 0.15s, opacity 0.15s, box-shadow 0.15s;
+  filter: brightness(0.55) saturate(0.85);
+  transition: filter 0.15s, box-shadow 0.15s;
 }
 
 .compact-section--past .compact-tile {
-  opacity: 0.35;
+  filter: brightness(0.4) saturate(0.75);
 }
 
 .compact-section--past .compact-tile:hover,
@@ -739,11 +745,6 @@
 .compact-section--past .compact-tile--selected,
 .compact-section--upcoming .compact-tile--selected {
   filter: none;
-  opacity: 1;
-}
-
-.compact-section--past:empty {
-  display: none;
 }
 
 .compact-section--current {
@@ -832,7 +833,9 @@
   border-radius: 5px;
   border: 1px solid rgba(255,255,255,0.15);
   background: rgba(255,255,255,0.07);
-  min-width: 36px;
+  /* Fixed width keeps the "Zuletzt" slot (3 tiles) exact and the bar from jittering. */
+  box-sizing: border-box;
+  width: var(--compact-tile-w);
   cursor: pointer;
   transition: box-shadow 0.15s, transform 0.1s;
 }
@@ -867,7 +870,7 @@
   font-size: 0.6rem;
   color: #9ca3af;
   white-space: nowrap;
-  max-width: 50px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }

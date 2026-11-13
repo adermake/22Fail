@@ -3,7 +3,7 @@ import {
   TimelineParticipant,
   advanceTimeline,
   groupTiles,
-  pastTurnGroup,
+  recentTurnTiles,
   simulateTimeline,
   timelineDeviations,
 } from './battle-tracker-engine';
@@ -87,13 +87,19 @@ describe('Kampf-Zeitleiste', () => {
     expect(names(next).slice(0, 2)).toEqual(['X', 'B+C']);
   });
 
-  it('„Zuletzt“ zeigt genau die eben verbrauchte Gruppe, mit denselben Tile-IDs', () => {
-    let ps = randomBattle(5);
-    expect(pastTurnGroup(ps)).toBeNull();
-    for (let turn = 0; turn < 50; turn++) {
-      const { consumed, participants } = advanceTimeline(ps);
-      ps = participants;
-      expect(pastTurnGroup(ps)!.tiles.map(t => t.id), `Zug ${turn}`).toEqual(consumed.map(t => t.id));
+  it('„Zuletzt“ zeigt genau die letzten 3 verbrauchten Kacheln, mit denselben Tile-IDs', () => {
+    for (const seed of [5, 17, 123]) {
+      let ps = randomBattle(seed);
+      expect(recentTurnTiles(ps)).toEqual([]);
+      const history: string[] = [];
+      for (let turn = 0; turn < 200; turn++) {
+        const { consumed, participants } = advanceTimeline(ps);
+        ps = participants;
+        history.push(...consumed.map(t => t.id));
+        expect(recentTurnTiles(ps).map(t => t.id), `seed ${seed}, Zug ${turn}`).toEqual(
+          history.slice(-3),
+        );
+      }
     }
   });
 
@@ -141,8 +147,8 @@ describe('Kampf-Zeitleiste', () => {
         expect(viewer.getTiles().map(t => t.id), `seed ${seed}, Zug ${turn}`).toEqual(
           gm.getTiles().map(t => t.id),
         );
-        expect(viewer.getPastGroup()?.tiles.map(t => t.id)).toEqual(
-          gm.getPastGroup()?.tiles.map(t => t.id),
+        expect(viewer.getRecentTiles().map(t => t.id)).toEqual(
+          gm.getRecentTiles().map(t => t.id),
         );
       }
       expect(timelineDeviations, `seed ${seed}`).toEqual([]);

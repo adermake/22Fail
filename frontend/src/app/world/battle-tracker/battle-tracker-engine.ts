@@ -77,9 +77,18 @@ export interface TimelineParticipant {
   turnMeter: number;
   /** Turns already taken this battle. Gives tiles a stable identity across advances. */
   turnsTaken: number;
-  /** Position in the group that just finished ("Zuletzt" section); undefined if not in it. */
-  lastTurnIndex?: number;
+  /** This character's most recent turns (max RECENT_TURNS), for the "Zuletzt" section. */
+  recentTurns?: RecentTurn[];
 }
+
+/** A finished turn: `seq` orders turns battle-wide, `turn` is the character's absolute turn #. */
+export interface RecentTurn {
+  seq: number;
+  turn: number;
+}
+
+/** How many finished turns the "Zuletzt" section shows (fixed, so "Am Zug" never moves). */
+export const RECENT_TURNS = 3;
 
 type Participant = TimelineParticipant;
 
@@ -221,39 +230,51 @@ export function advanceTimeline(participants: readonly TimelineParticipant[]): {
   if (groups.length === 0) return { consumed: [], participants: participants.map(p => ({ ...p })) };
   const consumed = groups[0].tiles;
   const { meters } = simulateTimeline(participants, consumed.length);
-  const order = new Map(consumed.map((t, i) => [t.characterId, i]));
+  // Battle-wide sequence numbers continue after the newest one any participant remembers
+  // (a max, not a sum of turn counts, so removing someone can't make numbers go backwards).
+  let seq = 1 + Math.max(0, ...participants.flatMap(p => (p.recentTurns ?? []).map(r => r.seq)));
+  const acted = new Map<string, RecentTurn>();
+  for (const t of consumed) {
+    const p = participants.find(x => x.characterId === t.characterId)!;
+    acted.set(t.characterId, { seq: seq++, turn: p.turnsTaken + 1 });
+  }
   return {
     consumed,
-    participants: participants.map(p => ({
-      ...p,
-      turnMeter: Math.max(0, meters.get(p.characterId) ?? p.turnMeter),
-      turnsTaken: p.turnsTaken + (order.has(p.characterId) ? 1 : 0),
-      lastTurnIndex: order.get(p.characterId),
-    })),
+    participants: participants.map(p => {
+      const mine = acted.get(p.characterId);
+      return {
+        ...p,
+        turnMeter: Math.max(0, meters.get(p.characterId) ?? p.turnMeter),
+        turnsTaken: p.turnsTaken + (mine ? 1 : 0),
+        recentTurns: mine ? [...(p.recentTurns ?? []), mine].slice(-RECENT_TURNS) : p.recentTurns,
+      };
+    }),
   };
 }
 
 /**
- * The group that just finished, rebuilt from `lastTurnIndex`. Tile ids match the ids those
- * tiles had while they were the current group, so the UI can animate them into "Zuletzt".
+ * The last `count` finished turns across all participants, oldest first. Tile ids match the ids
+ * those tiles had while upcoming/current, so the UI animates them into "Zuletzt".
  */
-export function pastTurnGroup(participants: readonly TimelineParticipant[]): TurnGroup | null {
-  const acted = participants
-    .filter(p => p.lastTurnIndex !== undefined && p.turnsTaken > 0)
-    .sort((a, b) => a.lastTurnIndex! - b.lastTurnIndex!);
-  if (acted.length === 0) return null;
-  const tiles: TurnTile[] = acted.map(p => ({
-    id: tileId(p.characterId, p.turnsTaken),
-    characterId: p.characterId,
-    name: p.name,
-    portrait: p.portrait,
-    team: p.team,
-    speed: effectiveSpeed(p.speed),
-    turnNumber: 0,
-    simulationTick: 0,
-    meterAtTurn: p.turnMeter,
-  }));
-  return { id: `past_${tiles[0].id}`, tiles, team: tiles[0].team };
+export function recentTurnTiles(
+  participants: readonly TimelineParticipant[],
+  count = RECENT_TURNS,
+): TurnTile[] {
+  return participants
+    .flatMap(p => (p.recentTurns ?? []).map(r => ({ p, r })))
+    .sort((a, b) => a.r.seq - b.r.seq)
+    .slice(-count)
+    .map(({ p, r }) => ({
+      id: tileId(p.characterId, r.turn),
+      characterId: p.characterId,
+      name: p.name,
+      portrait: p.portrait,
+      team: p.team,
+      speed: effectiveSpeed(p.speed),
+      turnNumber: 0,
+      simulationTick: 0,
+      meterAtTurn: p.turnMeter,
+    }));
 }
 
 // ============================================
@@ -379,7 +400,7 @@ export class BattleTrackerEngine {
         // Load turn meter from saved data (stored in turnFrequency for compatibility)
         turnMeter: bp.turnFrequency ?? 0,
         turnsTaken: bp.currentTurn ?? 0,
-        lastTurnIndex: bp.lastTurnIndex ?? undefined,
+        recentTurns: bp.recentTurns,
       });
     }
 
@@ -419,7 +440,7 @@ export class BattleTrackerEngine {
         team: bp.team || 'blue',
         turnMeter: bp.turnFrequency ?? 0,
         turnsTaken: bp.currentTurn ?? 0,
-        lastTurnIndex: bp.lastTurnIndex ?? undefined,
+        recentTurns: bp.recentTurns,
       });
     }
 
@@ -446,8 +467,8 @@ export class BattleTrackerEngine {
         // Turns taken so far — gives timeline tiles a stable id on every client (animations,
         // deviation detector).
         currentTurn: p.turnsTaken,
-        // JSON drops undefined, so only members of the finished group carry it.
-        lastTurnIndex: p.lastTurnIndex,
+        // Saved in the same patch as the meters, so every client shows the same "Zuletzt".
+        recentTurns: p.recentTurns,
       });
     }
 
@@ -483,8 +504,8 @@ export class BattleTrackerEngine {
   }
 
   /** The group whose turn just ended, or null at battle start. */
-  getPastGroup(): TurnGroup | null {
-    return pastTurnGroup([...this.participants.values()]);
+  getRecentTiles(): TurnTile[] {
+    return recentTurnTiles([...this.participants.values()]);
   }
 
   /** Get flat tile list (for animations) */
@@ -807,7 +828,7 @@ export class BattleTrackerEngine {
   resetTurnMeters(): void {
     for (const p of this.participants.values()) {
       p.turnMeter = 0;
-      p.lastTurnIndex = undefined;
+      p.recentTurns = undefined;
     }
     this.expectReshuffle = true;
     this.notifyChange();

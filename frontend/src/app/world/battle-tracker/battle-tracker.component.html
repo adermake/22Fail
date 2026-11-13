@@ -32,10 +32,11 @@
       @if (timeline().length === 0) {
         <span class="compact-empty">Keine Teilnehmer</span>
       } @else {
+        <!-- Fixed width for 3 tiles (even when empty), right-aligned: "Am Zug" never moves. -->
         <div class="compact-section compact-section--past" title="Zuletzt am Zug">
-          @if (pastGroup(); as past) {
-            <div class="compact-group" [ngClass]="'team-' + past.team">
-              @for (tile of past.tiles; track tile.id) {
+          @for (group of pastGroups(); track group.id) {
+            <div class="compact-group" [ngClass]="'team-' + group.team">
+              @for (tile of group.tiles; track tile.id) {
                 <ng-container *ngTemplateOutlet="compactTile; context: { $implicit: tile, past: true }" />
               }
             </div>

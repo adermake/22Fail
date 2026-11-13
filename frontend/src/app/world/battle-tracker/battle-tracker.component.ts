@@ -15,7 +15,13 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BattleTrackerEngine, TurnGroup, TurnTile, BattleCharacter } from './battle-tracker-engine';
+import {
+  BattleTrackerEngine,
+  TurnGroup,
+  TurnTile,
+  BattleCharacter,
+  groupTiles,
+} from './battle-tracker-engine';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 interface RadialMenuPosition {
@@ -27,7 +33,7 @@ interface RadialMenuPosition {
 interface TileSnapshot {
   el: HTMLElement;
   rect: DOMRect;
-  /** Was shown greyed out (not the current turn) — the ghost keeps that look. */
+  /** Was shown darkened (not the current turn) — the ghost keeps that look. */
   greyed: boolean;
 }
 
@@ -58,8 +64,8 @@ export class BattleTracker implements OnInit, OnDestroy {
 
   // Reactive state
   timeline = signal<TurnGroup[]>([]);
-  /** The group whose turn just ended (compact "Zuletzt" section). */
-  pastGroup = signal<TurnGroup | null>(null);
+  /** The last RECENT_TURNS finished turns, grouped by team (compact "Zuletzt" section). */
+  pastGroups = signal<TurnGroup[]>([]);
   tileMenu = signal<{ x: number; y: number; tile: TurnTile } | null>(null);
   participants = signal<BattleCharacter[]>([]);
   allCharacters = signal<BattleCharacter[]>([]);
@@ -132,7 +138,7 @@ export class BattleTracker implements OnInit, OnDestroy {
 
   private refresh(): void {
     this.timeline.set(this.engine.getTimeline());
-    this.pastGroup.set(this.engine.getPastGroup());
+    this.pastGroups.set(groupTiles(this.engine.getRecentTiles()));
     const chars = this.engine.getCharacters();
     this.allCharacters.set(chars);
     this.participants.set(chars.filter(c => c.isInBattle));
@@ -221,7 +227,7 @@ export class BattleTracker implements OnInit, OnDestroy {
         pointerEvents: 'none',
         boxSizing: 'border-box',
         // Outside its section the greyscale rule no longer matches; keep the look it had.
-        ...(snap.greyed ? { filter: 'grayscale(1)', opacity: '0.35' } : {}),
+        ...(snap.greyed ? { filter: 'brightness(0.4) saturate(0.75)' } : {}),
       });
       container.appendChild(ghost);
       const exit = snap.rect.right - box.left + 8;
