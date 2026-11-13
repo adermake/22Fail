@@ -665,11 +665,13 @@
 .compact-timeline {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   flex: 1;
   overflow-x: auto;
   scrollbar-width: none;
   padding: 2px 0;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
 }
 
 .compact-timeline::-webkit-scrollbar { display: none; }
@@ -693,12 +695,101 @@
 .compact-tile.team-purple { border-color: rgba(155, 89, 182, 0.95); }
 .compact-tile.team-orange { border-color: rgba(230, 126, 34, 0.95); }
 
-/* Current turn: accent outline + glow on top of the team border. Not yellow — that read as
-   the "neutral"/yellow team colour. */
-.compact-group.first-group .compact-tile {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+/* Zuletzt | [Am Zug] | Danach. The current turn sits in an accent box (not yellow — that read
+   as the "neutral" team colour); the finished turn is dimmed in front of it. */
+.compact-section {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.compact-section--past {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  padding-right: 6px;
+  border-right: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+.compact-section--past:empty {
+  display: none;
+}
+
+.compact-section--current {
+  gap: 5px;
+  padding: 2px 5px 2px 2px;
+  border: 2px solid var(--accent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.compact-section-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.compact-section--upcoming {
+  padding-left: 2px;
+}
+
+/* Right-click menu on a tile (lobby, GM). */
+.tile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+}
+
+.tile-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 170px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+}
+
+.tile-menu-title {
+  padding: 4px 8px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0.7;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.tile-menu-item {
+  text-align: left;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tile-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tile-menu-item--danger {
+  color: #f87171;
+}
+
+.tile-menu-item--danger:hover {
+  background: rgba(239, 68, 68, 0.18);
 }
 
 .compact-tile {

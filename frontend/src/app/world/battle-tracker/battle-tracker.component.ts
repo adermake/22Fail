@@ -46,12 +46,18 @@ export class BattleTracker implements OnInit, OnDestroy {
   @Input() selectedCharacterId: string | null = null;
   @Output() dismissEffectReminder = new EventEmitter<string>();
   @Output() tileSelect = new EventEmitter<string>();
+  /** Compact mode: allow "Aus Kampf entfernen" via right-click (lobby: GM only). */
+  @Input() allowRemove = false;
+  @Output() tileRemove = new EventEmitter<string>();
   @ViewChild('timelineContainer') timelineRef!: ElementRef<HTMLElement>;
 
   private cdr = inject(ChangeDetectorRef);
 
   // Reactive state
   timeline = signal<TurnGroup[]>([]);
+  /** The group whose turn just ended (compact "Zuletzt" section). */
+  pastGroup = signal<TurnGroup | null>(null);
+  tileMenu = signal<{ x: number; y: number; tile: TurnTile } | null>(null);
   participants = signal<BattleCharacter[]>([]);
   allCharacters = signal<BattleCharacter[]>([]);
   currentTurnDisplay = signal<string | null>(null);
@@ -100,6 +106,7 @@ export class BattleTracker implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape')
   onEscapeKey(): void {
     this.closeRadialMenu();
+    this.closeTileMenu();
   }
 
   // ============================================
@@ -122,6 +129,7 @@ export class BattleTracker implements OnInit, OnDestroy {
 
   private refresh(): void {
     this.timeline.set(this.engine.getTimeline());
+    this.pastGroup.set(this.engine.getPastGroup());
     const chars = this.engine.getCharacters();
     this.allCharacters.set(chars);
     this.participants.set(chars.filter(c => c.isInBattle));
@@ -341,6 +349,26 @@ export class BattleTracker implements OnInit, OnDestroy {
   onCompactTileClick(event: MouseEvent, tile: TurnTile): void {
     if ((event.target as HTMLElement).closest('.compact-effect-reminder')) return;
     this.tileSelect.emit(tile.characterId);
+  }
+
+  onCompactTileContextMenu(event: MouseEvent, tile: TurnTile): void {
+    if (!this.allowRemove) return;
+    event.preventDefault();
+    event.stopPropagation();
+    // Keep the menu inside the viewport (it opens below/right of the cursor).
+    const x = Math.min(event.clientX, window.innerWidth - 190);
+    const y = Math.min(event.clientY, window.innerHeight - 90);
+    this.tileMenu.set({ x, y, tile });
+  }
+
+  closeTileMenu(): void {
+    this.tileMenu.set(null);
+  }
+
+  onTileMenuRemove(): void {
+    const menu = this.tileMenu();
+    if (menu) this.tileRemove.emit(menu.tile.characterId);
+    this.closeTileMenu();
   }
 
   closeRadialMenu(): void {

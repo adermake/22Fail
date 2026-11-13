@@ -825,6 +825,13 @@
   min-height: 42px;
 }
 
+/* The tracker fills everything up to the buttons on the right. */
+.kampfrunde-bar app-battle-tracker {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+
 .kampfrunde-label {
   font-size: 0.75rem;
   font-weight: 700;

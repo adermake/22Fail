@@ -117,7 +117,9 @@ export interface BattleParticipant {
   speed: number;
   turnFrequency: number; // Calculated based on speed
   nextTurnAt: number; // Used to determine turn order
-  currentTurn?: number; // The next turn number this character will take
+  currentTurn?: number; // Turns taken so far (battle tracker tile identity)
+  /** Position inside the turn group that just finished; absent if not part of it. */
+  lastTurnIndex?: number;
   portrait?: string; // Character portrait URL
   team?: string; // Team color for grouping (e.g., 'red', 'blue', 'green', 'yellow', 'purple')
   currentHealth?: number; // Current health points

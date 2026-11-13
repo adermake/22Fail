@@ -804,6 +804,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.panY = rect.height / 2;
   }
 
+  /** Jump the camera so `hex` sits in the middle of the view, keeping the zoom. */
+  centerOnHex(hex: HexCoord): void {
+    const container = this.container?.nativeElement;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const c = HexMath.hexToPixel(hex);
+    this.panX = rect.width / 2 - c.x * this.scale;
+    this.panY = rect.height / 2 - c.y * this.scale;
+    this.scheduleRender();
+  }
+
   private updateLayerVisibility(): void {
     // Draw layer visibility is handled per-layer in renderStrokes() — do not hide the whole canvas
     if (this.imageCanvas?.nativeElement) {

@@ -1279,12 +1279,22 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.selectedTokenId.set(tokenId);
   }
 
+  /** First click on a tracker tile selects the token; clicking it again centers the camera on it. */
   onBattleTrackerTileSelect(characterId: string): void {
     const token = this.enrichedTokens().find(t => t.characterId === characterId);
-    if (token) {
+    if (!token) return;
+    if (this.selectedTokenId() === token.id) {
+      this.gridComponent?.centerOnHex(token.position);
+    } else {
       this.selectedTokenId.set(token.id);
-      this.cdr.markForCheck();
     }
+    this.cdr.markForCheck();
+  }
+
+  /** Tracker tile context menu → "Aus Kampf entfernen" (GM only, gated in the tracker). */
+  onBattleTrackerTileRemove(characterId: string): void {
+    if (!this.isGM()) return;
+    this.battleEngine.removeCharacter(characterId);
   }
 
   private syncEffectRemindersForCurrentTurn(): void {

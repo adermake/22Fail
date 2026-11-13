@@ -77,6 +77,8 @@ export interface TimelineParticipant {
   turnMeter: number;
   /** Turns already taken this battle. Gives tiles a stable identity across advances. */
   turnsTaken: number;
+  /** Position in the group that just finished ("Zuletzt" section); undefined if not in it. */
+  lastTurnIndex?: number;
 }
 
 type Participant = TimelineParticipant;
@@ -95,7 +97,8 @@ interface SimState {
 // ============================================
 
 const TURN_METER_MAX = 1000;
-const TIMELINE_LENGTH = 15;
+/** Visible upcoming tiles. Generous: the lobby bar is wide and clips (with a fade) whatever doesn't fit. */
+const TIMELINE_LENGTH = 30;
 /** Base speed added to all characters to reduce speed variance impact */
 const BASE_SPEED = 25;
 /** How far ahead the deviation detector predicts. */
@@ -218,15 +221,39 @@ export function advanceTimeline(participants: readonly TimelineParticipant[]): {
   if (groups.length === 0) return { consumed: [], participants: participants.map(p => ({ ...p })) };
   const consumed = groups[0].tiles;
   const { meters } = simulateTimeline(participants, consumed.length);
-  const acted = new Set(consumed.map(t => t.characterId));
+  const order = new Map(consumed.map((t, i) => [t.characterId, i]));
   return {
     consumed,
     participants: participants.map(p => ({
       ...p,
       turnMeter: Math.max(0, meters.get(p.characterId) ?? p.turnMeter),
-      turnsTaken: p.turnsTaken + (acted.has(p.characterId) ? 1 : 0),
+      turnsTaken: p.turnsTaken + (order.has(p.characterId) ? 1 : 0),
+      lastTurnIndex: order.get(p.characterId),
     })),
   };
+}
+
+/**
+ * The group that just finished, rebuilt from `lastTurnIndex`. Tile ids match the ids those
+ * tiles had while they were the current group, so the UI can animate them into "Zuletzt".
+ */
+export function pastTurnGroup(participants: readonly TimelineParticipant[]): TurnGroup | null {
+  const acted = participants
+    .filter(p => p.lastTurnIndex !== undefined && p.turnsTaken > 0)
+    .sort((a, b) => a.lastTurnIndex! - b.lastTurnIndex!);
+  if (acted.length === 0) return null;
+  const tiles: TurnTile[] = acted.map(p => ({
+    id: tileId(p.characterId, p.turnsTaken),
+    characterId: p.characterId,
+    name: p.name,
+    portrait: p.portrait,
+    team: p.team,
+    speed: effectiveSpeed(p.speed),
+    turnNumber: 0,
+    simulationTick: 0,
+    meterAtTurn: p.turnMeter,
+  }));
+  return { id: `past_${tiles[0].id}`, tiles, team: tiles[0].team };
 }
 
 // ============================================
@@ -352,6 +379,7 @@ export class BattleTrackerEngine {
         // Load turn meter from saved data (stored in turnFrequency for compatibility)
         turnMeter: bp.turnFrequency ?? 0,
         turnsTaken: bp.currentTurn ?? 0,
+        lastTurnIndex: bp.lastTurnIndex ?? undefined,
       });
     }
 
@@ -391,6 +419,7 @@ export class BattleTrackerEngine {
         team: bp.team || 'blue',
         turnMeter: bp.turnFrequency ?? 0,
         turnsTaken: bp.currentTurn ?? 0,
+        lastTurnIndex: bp.lastTurnIndex ?? undefined,
       });
     }
 
@@ -417,6 +446,8 @@ export class BattleTrackerEngine {
         // Turns taken so far — gives timeline tiles a stable id on every client (animations,
         // deviation detector).
         currentTurn: p.turnsTaken,
+        // JSON drops undefined, so only members of the finished group carry it.
+        lastTurnIndex: p.lastTurnIndex,
       });
     }
 
@@ -449,6 +480,11 @@ export class BattleTrackerEngine {
   /** Get the timeline as groups for display */
   getTimeline(): TurnGroup[] {
     return groupTiles(this.simulate(TIMELINE_LENGTH).tiles);
+  }
+
+  /** The group whose turn just ended, or null at battle start. */
+  getPastGroup(): TurnGroup | null {
+    return pastTurnGroup([...this.participants.values()]);
   }
 
   /** Get flat tile list (for animations) */
@@ -771,6 +807,7 @@ export class BattleTrackerEngine {
   resetTurnMeters(): void {
     for (const p of this.participants.values()) {
       p.turnMeter = 0;
+      p.lastTurnIndex = undefined;
     }
     this.expectReshuffle = true;
     this.notifyChange();

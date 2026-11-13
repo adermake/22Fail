@@ -3,6 +3,7 @@ import {
   TimelineParticipant,
   advanceTimeline,
   groupTiles,
+  pastTurnGroup,
   simulateTimeline,
   timelineDeviations,
 } from './battle-tracker-engine';
@@ -86,6 +87,16 @@ describe('Kampf-Zeitleiste', () => {
     expect(names(next).slice(0, 2)).toEqual(['X', 'B+C']);
   });
 
+  it('„Zuletzt“ zeigt genau die eben verbrauchte Gruppe, mit denselben Tile-IDs', () => {
+    let ps = randomBattle(5);
+    expect(pastTurnGroup(ps)).toBeNull();
+    for (let turn = 0; turn < 50; turn++) {
+      const { consumed, participants } = advanceTimeline(ps);
+      ps = participants;
+      expect(pastTurnGroup(ps)!.tiles.map(t => t.id), `Zug ${turn}`).toEqual(consumed.map(t => t.id));
+    }
+  });
+
   it('Tile-IDs bleiben über einen Zug hinweg stabil (für Animation und Diagnose)', () => {
     const ps = randomBattle(42);
     const before = simulateTimeline(ps, 15).tiles;
@@ -129,6 +140,9 @@ describe('Kampf-Zeitleiste', () => {
         viewer.syncFromWorldStore();
         expect(viewer.getTiles().map(t => t.id), `seed ${seed}, Zug ${turn}`).toEqual(
           gm.getTiles().map(t => t.id),
+        );
+        expect(viewer.getPastGroup()?.tiles.map(t => t.id)).toEqual(
+          gm.getPastGroup()?.tiles.map(t => t.id),
         );
       }
       expect(timelineDeviations, `seed ${seed}`).toEqual([]);

@@ -1,39 +1,77 @@
 <div class="battle-tracker-container" [class.read-only]="readOnly" [class.compact-mode]="compactMode">
 
   @if (compactMode) {
-    <!-- Compact mode: just show timeline inline -->
+    <!-- Compact mode: Zuletzt | [Am Zug] | Danach -->
+    <ng-template #compactTile let-tile let-past="past">
+      <div class="compact-tile"
+        [attr.data-tile-id]="tile.id"
+        [ngClass]="'team-' + tile.team"
+        [class.compact-tile--selected]="selectedCharacterId === tile.characterId"
+        [title]="past ? tile.name + ' (zuletzt am Zug)' : tile.name"
+        (click)="onCompactTileClick($event, tile)"
+        (contextmenu)="onCompactTileContextMenu($event, tile)">
+        @if (tile.portrait) {
+          <img [src]="tile.portrait | imageUrl" [alt]="tile.name" class="compact-tile-portrait">
+        } @else {
+          <span class="compact-tile-portrait compact-tile-initial">{{ tile.name.charAt(0) }}</span>
+        }
+        <span class="compact-tile-name">{{ tile.name }}</span>
+        @if (!past && effectReminderIds.has(tile.characterId)) {
+          <button
+            type="button"
+            class="compact-effect-reminder"
+            title="Status-Effekte auslösen?"
+            (click)="dismissEffectReminder.emit(tile.characterId); $event.stopPropagation()">
+            <span class="app-icon i-status-effect"></span>
+          </button>
+        }
+      </div>
+    </ng-template>
+
     <div class="compact-timeline" #timelineContainer>
-      @for (group of timeline(); track trackGroup($index, group); let gIdx = $index) {
-        <div class="compact-group" [ngClass]="'team-' + group.team" [class.first-group]="gIdx === 0">
-          @for (tile of group.tiles; track trackTile($index, tile)) {
-            <div class="compact-tile"
-              [attr.data-tile-id]="tile.id"
-              [ngClass]="'team-' + tile.team"
-              [class.compact-tile--selected]="selectedCharacterId === tile.characterId"
-              (click)="onCompactTileClick($event, tile)">
-              @if (tile.portrait) {
-                <img [src]="tile.portrait | imageUrl" [alt]="tile.name" class="compact-tile-portrait">
-              } @else {
-                <span class="compact-tile-portrait compact-tile-initial">{{ tile.name.charAt(0) }}</span>
+      @if (timeline().length === 0) {
+        <span class="compact-empty">Keine Teilnehmer</span>
+      } @else {
+        <div class="compact-section compact-section--past" title="Zuletzt am Zug">
+          @if (pastGroup(); as past) {
+            <div class="compact-group" [ngClass]="'team-' + past.team">
+              @for (tile of past.tiles; track tile.id) {
+                <ng-container *ngTemplateOutlet="compactTile; context: { $implicit: tile, past: true }" />
               }
-              <span class="compact-tile-name">{{ tile.name }}</span>
-              @if (effectReminderIds.has(tile.characterId)) {
-                <button
-                  type="button"
-                  class="compact-effect-reminder"
-                  title="Status-Effekte auslösen?"
-                  (click)="dismissEffectReminder.emit(tile.characterId); $event.stopPropagation()">
-                  <span class="app-icon i-status-effect"></span>
-                </button>
+            </div>
+          }
+        </div>
+
+        <div class="compact-section compact-section--current" title="Am Zug">
+          <span class="compact-section-label">Am Zug</span>
+          <div class="compact-group first-group" [ngClass]="'team-' + timeline()[0].team">
+            @for (tile of timeline()[0].tiles; track tile.id) {
+              <ng-container *ngTemplateOutlet="compactTile; context: { $implicit: tile }" />
+            }
+          </div>
+        </div>
+
+        <div class="compact-section compact-section--upcoming">
+          @for (group of timeline().slice(1); track group.id) {
+            <div class="compact-group" [ngClass]="'team-' + group.team">
+              @for (tile of group.tiles; track tile.id) {
+                <ng-container *ngTemplateOutlet="compactTile; context: { $implicit: tile }" />
               }
             </div>
           }
         </div>
       }
-      @if (timeline().length === 0) {
-        <span class="compact-empty">Keine Teilnehmer</span>
-      }
     </div>
+
+    @if (tileMenu(); as menu) {
+      <div class="tile-menu-backdrop" (click)="closeTileMenu()" (contextmenu)="$event.preventDefault(); closeTileMenu()"></div>
+      <div class="tile-menu" [style.left.px]="menu.x" [style.top.px]="menu.y">
+        <div class="tile-menu-title">{{ menu.tile.name }}</div>
+        <button type="button" class="tile-menu-item tile-menu-item--danger" (click)="onTileMenuRemove()">
+          Aus Kampf entfernen
+        </button>
+      </div>
+    }
   } @else {
   <!-- Header -->
   <div class="battle-header">
