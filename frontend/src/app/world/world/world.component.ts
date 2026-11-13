@@ -562,7 +562,10 @@ export class WorldComponent implements OnInit, OnDestroy {
         this.applyJsonPatch(sheet, data.patch);
 
         if (data.patch.path.includes('speed') || data.patch.path === 'level') {
-          this.battleService.refreshBattleSpeeds();
+          // Local only: the engine reads live speeds. The old battleService.refreshBattleSpeeds()
+          // rewrote the whole battleParticipants array from this client's (possibly stale) copy,
+          // which could roll back turn meters the lobby had just advanced.
+          this.pushSpeedsToBattleEngine();
         }
 
         if (data.patch.path.includes('portrait')) {
@@ -634,19 +637,23 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.updateCharacterPortraits();
 
     // Update battle engine with available characters
+    this.pushSpeedsToBattleEngine();
+
+    // Re-sync battle state after available-character refresh.
+    this.battleEngine.syncFromWorldStore();
+
+    this.cdr.detectChanges();
+  }
+
+  private pushSpeedsToBattleEngine(): void {
     this.battleEngine.setAvailableCharacters(
       Array.from(this.partyCharacters.entries()).map(([id, sheet]) => ({
         id,
         name: sheet.name || id,
         portrait: sheet.portrait,
-        speed: this.battleService.calculateSpeed(sheet)
-      }))
+        speed: this.battleService.calculateSpeed(sheet),
+      })),
     );
-    
-    // Re-sync battle state after available-character refresh.
-    this.battleEngine.syncFromWorldStore();
-
-    this.cdr.detectChanges();
   }
 
   updateCharacterPortraits() {

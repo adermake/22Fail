@@ -220,6 +220,10 @@ Ersetzt die alte "Bibliothek" der World-View. Drei Spalten: **Porträts ⟂ Vorb
 - `setTurnStartCallback(ids)`: feuert nur auf dem Client, der „Nächster Zug" drückt → Zugbeginn-Effekte genau einmal (Zauber-Unterhalt, s. Zauberwirken).
 - `BattleTrackerEngine.currentTurnIdsFromSaved(world.battleParticipants)`: aktuelle Gruppe ohne laufenden Tracker — Blatt-Leuchten (lila = eigener Zug, gelb = Gruppenzug). `nextTurnAt` ist seit dem Meter-System immer 0, nicht verwenden.
 - Aktuelle Gruppe im Kompakt-Tracker: `--accent`-Umriss, nicht gelb (= Team Neutral).
+- Simulation/Advance sind reine Funktionen (`simulateTimeline`, `advanceTimeline`, `groupTiles`). Advance = dieselbe Simulation für genau die Kacheln der ersten Gruppe, **kein Kappen auf 999**: endet die Gruppe mitten in einem Tick, bleiben die Übrigen mit Meter ≥ 1000 „wartend“ und feuern in Tick 0 (ohne Tempo-Zuwachs). Das alte Kappen ließ schnellere Verbündete gelegentlich vorbeiziehen bzw. in die Gruppe springen.
+- Tile-ID = `characterId#absoluterZug`; Zähler persistiert in `BattleParticipant.currentTurn`. Stabil über Züge → FLIP-Animation (auch Lobby: Kacheln gleiten nach links, verbrauchte gleiten raus, neue rein).
+- Kampf-Diagnose: bei jeder Änderung werden 1000 Züge vorausgesagt; ändert sich die Folge ohne Teilnehmer-/Tempo-Änderung anders als „erste k Kacheln verbraucht“, `console.warn('[Kampf-Diagnose] …')` + Log in `window.__kampfDiagnose`. Manuelle Meter-Änderungen eines *anderen* Clients erscheinen dort ebenfalls.
+- `world-store` überspringt Echos pro Senden (Map Pfad → Ablaufzeiten), nicht per Set — sonst setzte das zweite Echo bei schnellem Klicken kurz den alten Stand zurück. Die Weltansicht schreibt bei Tempo-Änderungen nicht mehr `battleParticipants` (altes `refreshBattleSpeeds`), sondern füttert nur die Engine lokal.
 
 ### Raum-Mitgliedschaft & Reconnect
 - Socket.IO vergisst Räume beim Verbindungsabbruch. `CharacterSocketService` und `WorldSocketService` merken sich beigetretene Räume und treten bei jedem `connect` erneut bei; `CharacterSocketService.reconnected$` → Character-Store und Lobby laden Blätter neu (verpasste Patches).

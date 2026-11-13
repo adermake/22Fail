@@ -23,14 +23,13 @@ interface RadialMenuPosition {
   y: number;
 }
 
-/**
- * Animation tracking for FLIP animations
- */
-interface AnimationState {
-  previousPositions: Map<string, { x: number; y: number }>;
-  animatingIds: Set<string>;
-  isAnimating: boolean;
+/** A tile's element and on-screen rect just before a re-render (FLIP "first"). */
+interface TileSnapshot {
+  el: HTMLElement;
+  rect: DOMRect;
 }
+
+const TILE_ANIM_MS = 450;
 
 @Component({
   selector: 'app-battle-tracker',
@@ -81,13 +80,6 @@ export class BattleTracker implements OnInit, OnDestroy {
   // Turn meter max value
   readonly TURN_METER_MAX = 1000;
 
-  // Animation state
-  private animState: AnimationState = {
-    previousPositions: new Map(),
-    animatingIds: new Set(),
-    isAnimating: false,
-  };
-
   ngOnInit(): void {
     if (this.engine) {
       this.engine.setChangeCallback(() => this.onEngineChange());
@@ -115,30 +107,17 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   private onEngineChange(): void {
-    // Skip FLIP animations if we're dragging the meter OR in readOnly mode (lobby)
-    if (this.isDraggingMeter() || this.readOnly) {
+    // No animations while scrubbing a meter slider: every input event reshuffles the timeline.
+    if (this.isDraggingMeter()) {
       this.refresh();
       return;
     }
-    
-    // Record positions BEFORE refresh for FLIP animations
-    this.recordPositions();
-    
-    // Set animation lock
-    this.animState.isAnimating = true;
-    
-    // Update data
+
+    // FLIP: capture where every tile is on screen, let Angular re-render synchronously
+    // (refresh() runs detectChanges), then animate each tile from its old spot to its new one.
+    const before = this.captureTiles();
     this.refresh();
-    
-    // Schedule animation
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        this.animateTransitions();
-        setTimeout(() => {
-          this.animState.isAnimating = false;
-        }, 350);
-      });
-    });
+    this.animateFrom(before);
   }
 
   private refresh(): void {
@@ -154,94 +133,85 @@ export class BattleTracker implements OnInit, OnDestroy {
   // FLIP Animations
   // ============================================
 
-  private recordPositions(): void {
-    if (!this.timelineRef?.nativeElement) return;
-
-    const container = this.timelineRef.nativeElement;
-    this.animState.previousPositions.clear();
-
-    // Record tile positions
-    const tiles = container.querySelectorAll<HTMLElement>('[data-tile-id]');
-    tiles.forEach(el => {
+  /**
+   * Visual rect of every tile, keyed by its stable id (`characterId#absoluteTurn`). Measured
+   * with any running animation applied, so a click mid-animation continues from where the tile
+   * actually is instead of snapping.
+   */
+  private captureTiles(): Map<string, TileSnapshot> {
+    const result = new Map<string, TileSnapshot>();
+    const container = this.timelineRef?.nativeElement;
+    if (!container) return result;
+    container.querySelectorAll<HTMLElement>('[data-tile-id]').forEach(el => {
       const id = el.dataset['tileId'];
-      if (id) {
-        const rect = el.getBoundingClientRect();
-        this.animState.previousPositions.set(id, { x: rect.left, y: rect.top });
-      }
+      if (id) result.set(id, { el, rect: el.getBoundingClientRect() });
     });
+    return result;
   }
 
-  private animateTransitions(): void {
-    if (!this.timelineRef?.nativeElement) return;
+  private animateFrom(before: Map<string, TileSnapshot>): void {
+    const container = this.timelineRef?.nativeElement;
+    if (!container || typeof Element.prototype.animate !== 'function') return;
+    // First paint / remount: nothing to move from, so don't make the whole bar fly in.
+    if (before.size === 0) return;
 
-    const container = this.timelineRef.nativeElement;
-
-    // Animate tiles
-    const tiles = container.querySelectorAll<HTMLElement>('[data-tile-id]');
-    
-    tiles.forEach(el => {
+    const seen = new Set<string>();
+    container.querySelectorAll<HTMLElement>('[data-tile-id]').forEach(el => {
       const id = el.dataset['tileId'];
       if (!id) return;
+      seen.add(id);
+      for (const a of el.getAnimations()) a.cancel();
+      const rect = el.getBoundingClientRect();
+      const prev = before.get(id)?.rect;
 
-      const prevPos = this.animState.previousPositions.get(id);
-      const currentRect = el.getBoundingClientRect();
-      
-      if (!prevPos) {
-        // New tile - slide in from top
-        this.animateIn(el, id);
-      } else {
-        // Existing tile - slide to new position
-        this.animateMove(el, id, prevPos);
+      if (!prev) {
+        // Newly visible turn: slides in from the right end of the bar.
+        el.animate(
+          [
+            { transform: 'translateX(24px)', opacity: 0 },
+            { transform: 'none', opacity: 1 },
+          ],
+          { duration: TILE_ANIM_MS, easing: 'ease-out', delay: TILE_ANIM_MS * 0.4, fill: 'backwards' },
+        );
+        return;
       }
+
+      const dx = prev.left - rect.left;
+      const dy = prev.top - rect.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      el.animate(
+        [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+        { duration: TILE_ANIM_MS, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
+      );
     });
-  }
 
-  private animateIn(el: HTMLElement, id: string): void {
-    if (this.animState.animatingIds.has(id)) return;
-    this.animState.animatingIds.add(id);
-
-    el.style.transition = 'none';
-    el.style.transform = 'translateY(-40px)';
-    el.style.opacity = '0';
-
-    void el.offsetHeight; // Force reflow
-
-    el.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
-    el.style.transform = 'translateY(0)';
-    el.style.opacity = '1';
-
-    this.cleanupAfterAnimation(el, id, 350);
-  }
-
-  private animateMove(el: HTMLElement, id: string, prevPos: { x: number; y: number }): void {
-    const rect = el.getBoundingClientRect();
-    const deltaX = prevPos.x - rect.left;
-    const deltaY = prevPos.y - rect.top;
-
-    // Skip if movement is negligible
-    if (Math.abs(deltaX) < 2 && Math.abs(deltaY) < 2) return;
-
-    if (this.animState.animatingIds.has(id)) return;
-    this.animState.animatingIds.add(id);
-
-    el.style.transition = 'none';
-    el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-
-    void el.offsetHeight; // Force reflow
-
-    el.style.transition = 'transform 0.3s ease-out';
-    el.style.transform = 'translate(0, 0)';
-
-    this.cleanupAfterAnimation(el, id, 350);
-  }
-
-  private cleanupAfterAnimation(el: HTMLElement, id: string, timeout: number): void {
-    setTimeout(() => {
-      el.style.transition = '';
-      el.style.transform = '';
-      el.style.opacity = '';
-      this.animState.animatingIds.delete(id);
-    }, timeout);
+    // Consumed turns: Angular already detached their elements. Re-show each one as a fixed
+    // ghost where it was and let it slide out to the left, so "this turn is over" is visible.
+    for (const [id, snap] of before) {
+      if (seen.has(id)) continue;
+      const ghost = snap.el;
+      for (const a of ghost.getAnimations()) a.cancel();
+      Object.assign(ghost.style, {
+        position: 'fixed',
+        left: `${snap.rect.left}px`,
+        top: `${snap.rect.top}px`,
+        width: `${snap.rect.width}px`,
+        height: `${snap.rect.height}px`,
+        margin: '0',
+        pointerEvents: 'none',
+        zIndex: '1000',
+        boxSizing: 'border-box',
+      });
+      document.body.appendChild(ghost);
+      const anim = ghost.animate(
+        [
+          { transform: 'none', opacity: 1 },
+          { transform: 'translateX(-40px) scale(0.85)', opacity: 0 },
+        ],
+        { duration: TILE_ANIM_MS, easing: 'ease-in', fill: 'forwards' },
+      );
+      anim.onfinish = anim.oncancel = () => ghost.remove();
+    }
   }
 
   // ============================================
@@ -249,21 +219,15 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   onAddCharacter(characterId: string): void {
-    if (this.readOnly) return;
-    this.recordPositions();
-    this.engine.addCharacter(characterId);
+    if (this.readOnly) return;    this.engine.addCharacter(characterId);
   }
 
   onRemoveCharacter(characterId: string): void {
-    if (this.readOnly) return;
-    this.recordPositions();
-    this.engine.removeCharacter(characterId);
+    if (this.readOnly) return;    this.engine.removeCharacter(characterId);
   }
 
   onTeamChange(characterId: string, team: string): void {
-    if (this.readOnly) return;
-    this.recordPositions();
-    this.engine.setTeam(characterId, team);
+    if (this.readOnly) return;    this.engine.setTeam(characterId, team);
   }
 
   // ============================================
@@ -349,15 +313,11 @@ export class BattleTracker implements OnInit, OnDestroy {
 
   onTurnMeterChange(characterId: string, event: Event): void {
     if (this.readOnly) return;
-    const value = parseInt((event.target as HTMLInputElement).value, 10);
-    this.recordPositions();
-    this.engine.setTurnMeter(characterId, value);
+    const value = parseInt((event.target as HTMLInputElement).value, 10);    this.engine.setTurnMeter(characterId, value);
   }
 
   onResetTurnMeters(): void {
-    if (this.readOnly) return;
-    this.recordPositions();
-    this.engine.resetTurnMeters();
+    if (this.readOnly) return;    this.engine.resetTurnMeters();
   }
 
   // ============================================
@@ -394,17 +354,13 @@ export class BattleTracker implements OnInit, OnDestroy {
   }
 
   onRadialTeamSelect(team: string): void {
-    if (this.radialMenuCharId) {
-      this.recordPositions();
-      this.engine.setTeam(this.radialMenuCharId, team);
+    if (this.radialMenuCharId) {      this.engine.setTeam(this.radialMenuCharId, team);
     }
     this.closeRadialMenu();
   }
 
   onRadialRemove(): void {
-    if (this.radialMenuCharId) {
-      this.recordPositions();
-      this.engine.removeCharacter(this.radialMenuCharId);
+    if (this.radialMenuCharId) {      this.engine.removeCharacter(this.radialMenuCharId);
     }
     this.closeRadialMenu();
   }
@@ -415,15 +371,11 @@ export class BattleTracker implements OnInit, OnDestroy {
 
   onNextTurn(): void {
     if (this.readOnly) return;
-    if (this.animState.isAnimating) return;
-    
-    this.recordPositions();
     this.engine.nextTurn();
   }
 
   onResetBattle(): void {
     if (this.readOnly) return;
-    this.recordPositions();
     this.engine.resetBattle();
   }
 
@@ -443,12 +395,8 @@ export class BattleTracker implements OnInit, OnDestroy {
     return char.id;
   }
 
-  isAnimating(id: string): boolean {
-    return this.animState.animatingIds.has(id);
-  }
-
-  /** Get turn meter percentage for progress bar */
+  /** Get turn meter percentage for progress bar (a pending character can sit at >= 1000). */
   getTurnMeterPercent(char: BattleCharacter): number {
-    return (char.turnMeter / this.TURN_METER_MAX) * 100;
+    return Math.min(100, (char.turnMeter / this.TURN_METER_MAX) * 100);
   }
 }

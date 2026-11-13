@@ -6,6 +6,8 @@
  * - Every simulation tick, we add the character's speed to their turn meter
  * - When a character reaches >= 1000, they get a turn tile and their meter resets to (meter - 1000)
  * - If multiple characters reach 1000 in the same tick, the one with higher speed goes first
+ * - "Next Turn" may split a tick: whoever is still >= 1000 stays pending and acts at tick 0
+ *   of the next simulation, before any speed is added (see simulateTimeline)
  * - We simulate until we have 15 tiles in the timeline
  * 
  * Key Properties:
@@ -59,25 +61,30 @@ export interface BattleCharacter {
   turnMeter: number;
 }
 
-/** Internal participant state */
-interface Participant {
+/** Participant state as the simulation sees it. */
+export interface TimelineParticipant {
   characterId: string;
   name: string;
   portrait?: string;
   speed: number;
   team: string;
-  /** Current turn meter (0-999), persisted state */
+  /**
+   * Current turn meter. Normally 0-999, but may be >= 1000 when the previous turn group ended
+   * in the middle of a tick: those characters are "pending" and act first, before any further
+   * speed is added. Clamping them to 999 (the old behaviour) threw away their overshoot and
+   * let faster characters overtake them — the rare "ally suddenly joins the group" glitch.
+   */
   turnMeter: number;
+  /** Turns already taken this battle. Gives tiles a stable identity across advances. */
+  turnsTaken: number;
 }
+
+type Participant = TimelineParticipant;
 
 /** Simulation state for a character during timeline calculation */
 interface SimState {
-  characterId: string;
-  name: string;
-  portrait?: string;
+  p: TimelineParticipant;
   speed: number;
-  team: string;
-  /** Simulated turn meter (can exceed 1000 during calculation) */
   meter: number;
   /** How many turns this character has taken in this simulation */
   turnsTaken: number;
@@ -91,6 +98,166 @@ const TURN_METER_MAX = 1000;
 const TIMELINE_LENGTH = 15;
 /** Base speed added to all characters to reduce speed variance impact */
 const BASE_SPEED = 25;
+/** How far ahead the deviation detector predicts. */
+export const PREDICTION_LENGTH = 1000;
+
+// ============================================
+// Pure simulation
+// ============================================
+
+/** Effective per-tick meter gain. Floored at 1 so a huge speed malus can't stall the loop. */
+function effectiveSpeed(speed: number): number {
+  return Math.max(1, speed + BASE_SPEED);
+}
+
+/** Stable tile id: the n-th turn of this character in the whole battle. */
+export function tileId(characterId: string, absoluteTurn: number): string {
+  return `${characterId}#${absoluteTurn}`;
+}
+
+/**
+ * Simulate `count` upcoming turns from the given state. Returns the tiles and the meters right
+ * after the last emitted tile, which is exactly the state to persist after consuming them.
+ *
+ * Tick 0 has no speed added: it only releases characters still pending (meter >= 1000) from
+ * a tick that was split by the previous advance. Within a tick: higher speed first, then higher
+ * meter, then characterId so the order never depends on Map/array order.
+ */
+export function simulateTimeline(
+  participants: readonly TimelineParticipant[],
+  count: number,
+): { tiles: TurnTile[]; meters: Map<string, number> } {
+  const states: SimState[] = participants.map(p => ({
+    p,
+    speed: effectiveSpeed(p.speed),
+    meter: p.turnMeter,
+    turnsTaken: 0,
+  }));
+  const tiles: TurnTile[] = [];
+
+  if (states.length > 0 && count > 0) {
+    const minSpeed = Math.min(...states.map(s => s.speed));
+    // Enough ticks for every requested tile even if only the slowest character existed.
+    const maxTicks = Math.ceil(((count + 1) * TURN_METER_MAX) / minSpeed) + 1;
+
+    outer: for (let tick = 0; tick <= maxTicks; tick++) {
+      if (tick > 0) {
+        for (const s of states) s.meter += s.speed;
+      }
+
+      const triggered = states.filter(s => s.meter >= TURN_METER_MAX);
+      if (triggered.length === 0) continue;
+
+      triggered.sort((a, b) => {
+        if (b.speed !== a.speed) return b.speed - a.speed;
+        if (b.meter !== a.meter) return b.meter - a.meter;
+        return a.p.characterId < b.p.characterId ? -1 : a.p.characterId > b.p.characterId ? 1 : 0;
+      });
+
+      for (const s of triggered) {
+        s.turnsTaken++;
+        tiles.push({
+          id: tileId(s.p.characterId, s.p.turnsTaken + s.turnsTaken),
+          characterId: s.p.characterId,
+          name: s.p.name,
+          portrait: s.p.portrait,
+          team: s.p.team,
+          speed: s.speed,
+          turnNumber: s.turnsTaken,
+          simulationTick: tick,
+          meterAtTurn: s.meter,
+        });
+        s.meter -= TURN_METER_MAX;
+        if (tiles.length >= count) break outer;
+      }
+    }
+  }
+
+  const meters = new Map<string, number>();
+  for (const s of states) meters.set(s.p.characterId, s.meter);
+  return { tiles, meters };
+}
+
+/**
+ * Group tiles by team (adjacent tiles of same team, but different characters).
+ * Group ids derive from the first tile so they stay stable while the timeline shifts.
+ */
+export function groupTiles(tiles: readonly TurnTile[]): TurnGroup[] {
+  const groups: TurnGroup[] = [];
+  let current: TurnTile[] = [];
+  const chars = new Set<string>();
+
+  const flush = () => {
+    if (current.length === 0) return;
+    groups.push({ id: `g_${current[0].id}`, tiles: current, team: current[0].team });
+    current = [];
+    chars.clear();
+  };
+
+  for (const tile of tiles) {
+    if (current.length > 0 && (tile.team !== current[0].team || chars.has(tile.characterId))) {
+      flush();
+    }
+    current.push(tile);
+    chars.add(tile.characterId);
+  }
+  flush();
+  return groups;
+}
+
+/**
+ * Consume the first turn group. Replays the exact same simulation for that many tiles and keeps
+ * the resulting meters — no separate re-implementation that could drift from it, and no
+ * clamping, so characters left pending in a split tick keep their place.
+ */
+export function advanceTimeline(participants: readonly TimelineParticipant[]): {
+  consumed: TurnTile[];
+  participants: TimelineParticipant[];
+} {
+  const groups = groupTiles(simulateTimeline(participants, TIMELINE_LENGTH).tiles);
+  if (groups.length === 0) return { consumed: [], participants: participants.map(p => ({ ...p })) };
+  const consumed = groups[0].tiles;
+  const { meters } = simulateTimeline(participants, consumed.length);
+  const acted = new Set(consumed.map(t => t.characterId));
+  return {
+    consumed,
+    participants: participants.map(p => ({
+      ...p,
+      turnMeter: Math.max(0, meters.get(p.characterId) ?? p.turnMeter),
+      turnsTaken: p.turnsTaken + (acted.has(p.characterId) ? 1 : 0),
+    })),
+  };
+}
+
+// ============================================
+// Deviation detector
+// ============================================
+
+export interface TimelineDeviation {
+  time: string;
+  /** Index into the expected sequence where the first mismatch happened. */
+  mismatchAt: number;
+  /** How many tiles were consumed between the two predictions (0 = no advance). */
+  consumed: number;
+  expected: string[];
+  actual: string[];
+  before: { name: string; speed: number; meter: number; turnsTaken: number; team: string }[];
+  after: { name: string; speed: number; meter: number; turnsTaken: number; team: string }[];
+}
+
+interface PredictionSnapshot {
+  ids: string[];
+  names: Map<string, string>;
+  /** Tile counts at each group boundary of the visible timeline — valid advance sizes. */
+  groupBoundaries: Set<number>;
+  roster: string;
+  participants: TimelineDeviation['before'];
+}
+
+const DEVIATION_LOG_LIMIT = 50;
+/** Every unexplained timeline change, newest last. Also exposed as `window.__kampfDiagnose`. */
+export const timelineDeviations: TimelineDeviation[] = [];
+(globalThis as { __kampfDiagnose?: TimelineDeviation[] }).__kampfDiagnose = timelineDeviations;
 
 // ============================================
 // Engine
@@ -184,6 +351,7 @@ export class BattleTrackerEngine {
         team: bp.team || 'blue',
         // Load turn meter from saved data (stored in turnFrequency for compatibility)
         turnMeter: bp.turnFrequency ?? 0,
+        turnsTaken: bp.currentTurn ?? 0,
       });
     }
 
@@ -222,6 +390,7 @@ export class BattleTrackerEngine {
         speed: char?.speed ?? bp.speed ?? 10,
         team: bp.team || 'blue',
         turnMeter: bp.turnFrequency ?? 0,
+        turnsTaken: bp.currentTurn ?? 0,
       });
     }
 
@@ -245,7 +414,9 @@ export class BattleTrackerEngine {
         // Store turn meter in turnFrequency field for compatibility
         turnFrequency: p.turnMeter,
         nextTurnAt: 0, // Not used in new system
-        currentTurn: 0, // Not used in new system
+        // Turns taken so far — gives timeline tiles a stable id on every client (animations,
+        // deviation detector).
+        currentTurn: p.turnsTaken,
       });
     }
 
@@ -261,167 +432,14 @@ export class BattleTrackerEngine {
   // Core Simulation Logic
   // ============================================
 
-  /**
-   * Simulate the timeline from current turn meter states.
-   * Returns an array of TurnTiles representing the upcoming turns.
-   */
-  private simulateTimeline(): TurnTile[] {
-    if (this.participants.size === 0) return [];
-
-    // Initialize simulation state from current participants
-    // Add BASE_SPEED to all speeds to reduce variance impact
-    const simStates: SimState[] = [];
-    for (const [id, p] of this.participants) {
-      simStates.push({
-        characterId: p.characterId,
-        name: p.name,
-        portrait: p.portrait,
-        speed: p.speed + BASE_SPEED,
-        team: p.team,
-        meter: p.turnMeter,
-        turnsTaken: 0,
-      });
-    }
-
-    const tiles: TurnTile[] = [];
-    let tick = 0;
-    const maxTicks = 10000; // Safety limit
-
-    while (tiles.length < TIMELINE_LENGTH && tick < maxTicks) {
-      tick++;
-
-      // Add speed to all meters
-      for (const state of simStates) {
-        state.meter += state.speed;
-      }
-
-      // Find all characters who reached or exceeded TURN_METER_MAX
-      const triggered = simStates.filter(s => s.meter >= TURN_METER_MAX);
-
-      if (triggered.length === 0) continue;
-
-      // Sort by speed (higher first), then by current meter (higher first) for ties
-      triggered.sort((a, b) => {
-        if (b.speed !== a.speed) return b.speed - a.speed;
-        return b.meter - a.meter;
-      });
-
-      // Generate tiles for each triggered character
-      for (const state of triggered) {
-        state.turnsTaken++;
-        
-        tiles.push({
-          id: `${state.characterId}_tick${tick}_turn${state.turnsTaken}`,
-          characterId: state.characterId,
-          name: state.name,
-          portrait: state.portrait,
-          team: state.team,
-          speed: state.speed,
-          turnNumber: state.turnsTaken,
-          simulationTick: tick,
-          meterAtTurn: state.meter,
-        });
-
-        // Reset meter (keeping overshoot)
-        state.meter -= TURN_METER_MAX;
-
-        // Stop if we have enough tiles
-        if (tiles.length >= TIMELINE_LENGTH) break;
-      }
-    }
-
-    return tiles;
+  private simulate(count: number) {
+    return simulateTimeline([...this.participants.values()], count);
   }
 
-  /**
-   * Calculate the next turn meter state after the first turn (or group) completes.
-   * This advances the actual turn meters to the state where the next turn would happen.
-   */
+  /** Consume the first turn group (see advanceTimeline). */
   private advanceToNextTurn(): void {
-    if (this.participants.size === 0) return;
-
-    // Get current timeline
-    const timeline = this.simulateTimeline();
-    if (timeline.length === 0) return;
-
-    // Get the first group of tiles
-    const groups = this.groupTiles(timeline);
-    if (groups.length === 0) return;
-
-    const firstGroup = groups[0];
-    // Use the LAST tile's simulationTick in the group to advance past the entire group
-    const targetTick = firstGroup.tiles[firstGroup.tiles.length - 1].simulationTick;
-
-    // Simulate forward until we reach the target tick
-    // Use BASE_SPEED adjusted speed for consistency with simulation
-    for (const [id, p] of this.participants) {
-      let meter = p.turnMeter;
-      const effectiveSpeed = p.speed + BASE_SPEED;
-      
-      for (let tick = 1; tick <= targetTick; tick++) {
-        meter += effectiveSpeed;
-        
-        // Check if this character triggered in this tick (from any tile in the group)
-        const triggeredInTick = firstGroup.tiles.some(
-          t => t.characterId === id && t.simulationTick === tick
-        );
-        
-        if (triggeredInTick) {
-          meter -= TURN_METER_MAX;
-        }
-      }
-      
-      // Clamp to valid range
-      p.turnMeter = Math.max(0, Math.min(meter, TURN_METER_MAX - 1));
-    }
-  }
-
-  /**
-   * Group tiles by team (adjacent tiles of same team, but different characters).
-   */
-  private groupTiles(tiles: TurnTile[]): TurnGroup[] {
-    if (tiles.length === 0) return [];
-
-    const groups: TurnGroup[] = [];
-    let currentTiles: TurnTile[] = [];
-    let currentTeam: string | null = null;
-    let currentChars = new Set<string>();
-
-    for (const tile of tiles) {
-      // Should we start a new group?
-      const needNewGroup = 
-        currentTeam === null ||
-        tile.team !== currentTeam ||
-        currentChars.has(tile.characterId);
-
-      if (needNewGroup && currentTiles.length > 0) {
-        groups.push({
-          id: `group_${groups.length}`,
-          tiles: [...currentTiles],
-          team: currentTeam!,
-        });
-        currentTiles = [];
-        currentChars.clear();
-      }
-
-      if (needNewGroup) {
-        currentTeam = tile.team;
-      }
-
-      currentTiles.push(tile);
-      currentChars.add(tile.characterId);
-    }
-
-    // Last group
-    if (currentTiles.length > 0) {
-      groups.push({
-        id: `group_${groups.length}`,
-        tiles: [...currentTiles],
-        team: currentTeam!,
-      });
-    }
-
-    return groups;
+    const { participants } = advanceTimeline([...this.participants.values()]);
+    for (const p of participants) this.participants.set(p.characterId, p);
   }
 
   // ============================================
@@ -430,13 +448,101 @@ export class BattleTrackerEngine {
 
   /** Get the timeline as groups for display */
   getTimeline(): TurnGroup[] {
-    const tiles = this.simulateTimeline();
-    return this.groupTiles(tiles);
+    return groupTiles(this.simulate(TIMELINE_LENGTH).tiles);
   }
 
   /** Get flat tile list (for animations) */
   getTiles(): TurnTile[] {
-    return this.simulateTimeline();
+    return this.simulate(TIMELINE_LENGTH).tiles;
+  }
+
+  // ============================================
+  // Deviation detector
+  // ============================================
+
+  private lastPrediction: PredictionSnapshot | null = null;
+  /** Set by local edits that legitimately reshuffle the timeline (meter drag, reset). */
+  private expectReshuffle = false;
+
+  private snapshotParticipants(): TimelineDeviation['before'] {
+    return [...this.participants.values()].map(p => ({
+      name: p.name,
+      speed: p.speed,
+      meter: p.turnMeter,
+      turnsTaken: p.turnsTaken,
+      team: p.team,
+    }));
+  }
+
+  /**
+   * Predict the next PREDICTION_LENGTH turns and compare with the previous prediction. With an
+   * unchanged roster (same participants + speeds) the only legal change is "the first k tiles
+   * were consumed, k on a group boundary". Anything else is logged as a deviation.
+   * Roster/speed changes and local manual edits just reset the baseline.
+   */
+  private checkPrediction(): void {
+    const tiles = this.simulate(PREDICTION_LENGTH).tiles;
+    const roster = [...this.participants.values()]
+      .map(p => `${p.characterId}:${p.speed}`)
+      .sort()
+      .join('|');
+    const groupBoundaries = new Set<number>([0]);
+    let acc = 0;
+    for (const g of groupTiles(tiles)) {
+      acc += g.tiles.length;
+      groupBoundaries.add(acc);
+    }
+    const next: PredictionSnapshot = {
+      ids: tiles.map(t => t.id),
+      names: new Map(tiles.map(t => [t.id, t.name])),
+      groupBoundaries,
+      roster,
+      participants: this.snapshotParticipants(),
+    };
+
+    const prev = this.lastPrediction;
+    this.lastPrediction = next;
+    const reshuffle = this.expectReshuffle;
+    this.expectReshuffle = false;
+    if (!prev || reshuffle || prev.roster !== roster || prev.ids.length === 0) return;
+
+    const k = next.ids.length > 0 ? prev.ids.indexOf(next.ids[0]) : -1;
+    let mismatchAt = -1;
+    if (k < 0 || !prev.groupBoundaries.has(k)) {
+      mismatchAt = 0;
+    } else {
+      const overlap = Math.min(prev.ids.length - k, next.ids.length);
+      for (let i = 0; i < overlap; i++) {
+        if (prev.ids[k + i] !== next.ids[i]) {
+          mismatchAt = i;
+          break;
+        }
+      }
+    }
+    if (mismatchAt < 0) return;
+
+    const base = Math.max(0, k);
+    const from = Math.max(0, mismatchAt - 3);
+    const name = (snap: PredictionSnapshot, id: string | undefined) =>
+      id === undefined ? '-' : `${snap.names.get(id) ?? '?'}(${id.split('#')[1]})`;
+    const deviation: TimelineDeviation = {
+      time: new Date().toISOString(),
+      mismatchAt,
+      consumed: k,
+      expected: prev.ids.slice(base + from, base + from + 12).map(id => name(prev, id)),
+      actual: next.ids.slice(from, from + 12).map(id => name(next, id)),
+      before: prev.participants,
+      after: next.participants,
+    };
+    timelineDeviations.push(deviation);
+    if (timelineDeviations.length > DEVIATION_LOG_LIMIT) timelineDeviations.shift();
+    console.warn(
+      `[Kampf-Diagnose] Zeitleiste weicht ab (Index ${mismatchAt}, ${k} Züge verbraucht).\n` +
+        `  erwartet: ${deviation.expected.join(' → ')}\n` +
+        `  tatsächlich: ${deviation.actual.join(' → ')}\n` +
+        `  Alle Abweichungen: window.__kampfDiagnose`,
+      deviation,
+    );
   }
 
   /** Get characters for the character list */
@@ -523,6 +629,7 @@ export class BattleTrackerEngine {
         speed: bp.speed ?? 10,
         team: bp.team || 'blue',
         turnMeter: bp.turnFrequency ?? 0,
+        turnsTaken: bp.currentTurn ?? 0,
       });
     }
     return engine.getCurrentTurnCharacterIds();
@@ -576,6 +683,7 @@ export class BattleTrackerEngine {
       // Random start so equal-speed combatants don't tick in lockstep and clump into
       // one big group turn every cycle. Same speed keeps the offset stable afterwards.
       turnMeter: Math.floor(Math.random() * TURN_METER_MAX),
+      turnsTaken: 0,
     });
 
     this.notifyChange();
@@ -606,6 +714,7 @@ export class BattleTrackerEngine {
 
     // Clamp to valid range
     participant.turnMeter = Math.max(0, Math.min(value, TURN_METER_MAX - 1));
+    this.expectReshuffle = true;
     this.notifyChange();
     this.saveToWorldStore();
   }
@@ -618,6 +727,7 @@ export class BattleTrackerEngine {
     // Clamp to valid range
     participant.turnMeter = Math.max(0, Math.min(value, TURN_METER_MAX - 1));
     // Only update local state, no save - that's handled by saveTurnMeter
+    this.expectReshuffle = true;
     this.notifyChange();
   }
 
@@ -662,6 +772,7 @@ export class BattleTrackerEngine {
     for (const p of this.participants.values()) {
       p.turnMeter = 0;
     }
+    this.expectReshuffle = true;
     this.notifyChange();
     this.saveToWorldStore();
   }
@@ -671,6 +782,7 @@ export class BattleTrackerEngine {
   // ============================================
 
   private notifyChange(): void {
+    this.checkPrediction();
     if (this.onChange) {
       this.onChange();
     }

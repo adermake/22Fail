@@ -2,11 +2,12 @@
 
   @if (compactMode) {
     <!-- Compact mode: just show timeline inline -->
-    <div class="compact-timeline">
+    <div class="compact-timeline" #timelineContainer>
       @for (group of timeline(); track trackGroup($index, group); let gIdx = $index) {
         <div class="compact-group" [ngClass]="'team-' + group.team" [class.first-group]="gIdx === 0">
           @for (tile of group.tiles; track trackTile($index, tile)) {
             <div class="compact-tile"
+              [attr.data-tile-id]="tile.id"
               [ngClass]="'team-' + tile.team"
               [class.compact-tile--selected]="selectedCharacterId === tile.characterId"
               (click)="onCompactTileClick($event, tile)">
@@ -181,7 +182,6 @@
               <div 
                 class="tile"
                 [attr.data-tile-id]="tile.id"
-                [class.animating]="isAnimating(tile.id)"
                 [ngClass]="'team-' + tile.team"
                 (click)="onTileClick($event, tile)"
             >

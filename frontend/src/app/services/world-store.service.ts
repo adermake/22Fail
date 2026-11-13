@@ -16,7 +16,14 @@ export class WorldStoreService {
   world$ = this.worldSubject.asObservable();
 
   worldName!: string;
-  private pendingPatchPaths = new Set<string>();
+  /**
+   * Own patches still waiting for their server echo: path -> expiry timestamps, one per send.
+   * A Set only remembered "some patch on this path is pending", so two quick patches on the same
+   * path (spamming "Nächster Zug") skipped the first echo and APPLIED the second one later —
+   * briefly rolling local state back to an older value.
+   */
+  private pendingEchoes = new Map<string, number[]>();
+  private static readonly ECHO_TIMEOUT_MS = 5000;
 
   get worldValue(): WorldData | null {
     return this.worldSubject.value;
@@ -31,9 +38,8 @@ export class WorldStoreService {
       if (!world) return;
 
       // Skip if this is an echo of our own patch
-      if (this.pendingPatchPaths.has(patch.path)) {
+      if (this.consumePendingEcho(patch.path)) {
         console.log('[WORLD STORE] Skipping echo of own patch:', patch.path);
-        this.pendingPatchPaths.delete(patch.path);
         return;
       }
 
@@ -204,12 +210,24 @@ export class WorldStoreService {
       this.worldSubject.next({ ...world });
     }
 
-    // Mark this patch path as pending so we can skip the echo from server
-    this.pendingPatchPaths.add(patch.path);
-    // Clear after 5 seconds in case the echo never arrives
-    setTimeout(() => this.pendingPatchPaths.delete(patch.path), 5000);
+    // Expect exactly one echo per send; entries expire in case the echo never arrives.
+    const pending = this.pendingEchoes.get(patch.path) ?? [];
+    pending.push(Date.now() + WorldStoreService.ECHO_TIMEOUT_MS);
+    this.pendingEchoes.set(patch.path, pending);
 
     this.socket.sendPatch(this.worldName, patch);
+  }
+
+  /** True (and one pending entry used up) if this incoming patch is the echo of our own send. */
+  private consumePendingEcho(path: string): boolean {
+    const pending = this.pendingEchoes.get(path);
+    if (!pending) return false;
+    const now = Date.now();
+    while (pending.length > 0 && pending[0] < now) pending.shift();
+    const isEcho = pending.length > 0;
+    if (isEcho) pending.shift();
+    if (pending.length === 0) this.pendingEchoes.delete(path);
+    return isEcho;
   }
 
   private applyJsonPatch(target: any, patch: JsonPatch) {
