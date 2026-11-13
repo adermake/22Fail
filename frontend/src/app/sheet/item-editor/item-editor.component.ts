@@ -15,7 +15,7 @@ import { ForgedTraitRecord } from '../../model/forging.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock, generateSpellId } from '../../model/spell-block-model';
 import { canCarryInscription, inscriptionSlots, usedInscriptionSlots } from '../../utils/spell-medium.util';
-import { spellVoraussetzung } from '../../utils/spell-costs.util';
+import { spellHaltbarkeitsKosten } from '../../utils/spell-costs.util';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
@@ -504,13 +504,13 @@ export class ItemEditorComponent implements OnInit {
   }
 
   /**
-   * What one cast of this spell costs the ITEM's Haltbarkeit — the spell's Voraussetzung.
+   * What one cast of this spell costs the ITEM's Haltbarkeit — all its stat requirements added up.
    *
    * There is no per-inscription Haltbarkeit: the material wears out, so every spell written on this
    * item draws down the item's own pool.
    */
   inscriptionCost(spell: SpellBlock): number {
-    return spellVoraussetzung(spell, []);
+    return spellHaltbarkeitsKosten(spell, []);
   }
 
   /** Only material with Haltbarkeit can carry a spell — there has to be something to wear down. */

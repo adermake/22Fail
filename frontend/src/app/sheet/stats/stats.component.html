@@ -50,12 +50,30 @@
       <div class="derived-item">
         <span class="derived-name formula-label" [title]="movementTooltip">Bewegung</span>
         <span class="derived-val">{{ movementSpeed }}</span>
+        <span class="derived-bonus-lbl">+Bonus</span>
+        <input class="derived-bonus-in" type="number"
+               [ngModel]="sheet.bewegungBonus || 0"
+               (ngModelChange)="updateDerivedBonus('bewegungBonus', $event)" />
       </div>
       <div class="derived-sep">|</div>
       <div class="derived-item">
         <span class="derived-name formula-label"
-              title="Waffenlose Effektivitaet = Basis-Staerke der Rasse / 2">Waffenlos&nbsp;Eff.</span>
+              title="Waffenlose Effektivität = Basis-Stärke der Rasse − 5, plus Bonus">Waffenlos&nbsp;Eff.</span>
         <span class="derived-val">{{ unarmedEffectiveness }}</span>
+        <span class="derived-bonus-lbl">+Bonus</span>
+        <input class="derived-bonus-in" type="number"
+               [ngModel]="sheet.waffenlosBonus || 0"
+               (ngModelChange)="updateDerivedBonus('waffenlosBonus', $event)" />
+      </div>
+      <div class="derived-sep">|</div>
+      <div class="derived-item">
+        <span class="derived-name formula-label"
+              title="Stabilität (Verteidigung) = Stabilität der Ausrüstung ÷ 5, plus Effekte, Fähigkeiten und Bonus">Stabilität</span>
+        <span class="derived-val">{{ stability }}</span>
+        <span class="derived-bonus-lbl">+Bonus</span>
+        <input class="derived-bonus-in" type="number"
+               [ngModel]="sheet.stabilitaetBonus || 0"
+               (ngModelChange)="updateDerivedBonus('stabilitaetBonus', $event)" />
       </div>
     </div>
     

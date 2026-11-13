@@ -35,7 +35,9 @@ import { applyStacking } from '../utils/status-stacking.utils';
 import { lockBodyScroll, unlockBodyScroll } from '../utils/scroll-lock.util';
 import { StatBlock } from '../model/stat-block.model';
 import { RuneBlock } from '../model/rune-block.model';
-import { committedFokus, spellFokusCost, spellManaCost } from '../utils/spell-costs.util';
+import {
+  committedFokus, spellBaseCosts, spellFokusCost, spellManaCost,
+} from '../utils/spell-costs.util';
 
 /** Stack cap for statuses created by giveStatus(...) — effectively "always stackable". */
 const GIVEN_STATUS_MAX_STACKS = 99;
@@ -1438,6 +1440,17 @@ export class LobbyTokenActionsService implements OnDestroy {
       resourceChip('mana', spellManaCost(spell, this.learnedRunes)),
       resourceChip('fokus', spellFokusCost(spell, this.learnedRunes)),
     ].filter((c): c is CostChip => !!c);
+  }
+
+  /**
+   * Zauberstärke for the dock card — the same number the cast window shows. Stored wins; a spell
+   * without one falls back to its rune-graph estimate (same precedence as the costs).
+   * `'komplex'` when one number can't express it, null when the spell has none.
+   */
+  spellEffektivitaet(spell: SpellBlock): number | 'komplex' | null {
+    if (spell.effektivitaetKomplex) return 'komplex';
+    const value = spell.effektivitaet || spellBaseCosts(spell, this.learnedRunes).effektivitaet;
+    return value > 0 ? Math.round(value * 10) / 10 : null;
   }
 
   /** Text form for `title` attributes. */

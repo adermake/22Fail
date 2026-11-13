@@ -108,7 +108,9 @@ export interface CharacterSheet {
   // Derived stat bonuses
   grundbonusBonus?: number;       // Extra added to Grundbonus (⌊Level/5⌋ + ⌊Wille/5⌋)
   reaktionswertBonus?: number;    // Extra added to Reaktion (10 − ⌊Wille/5⌋ − ⌊Level/5⌋)
-  bewegungBonus?: number;         // Extra added to Bewegung (⌊8 + Geschw./4⌋) — NSC edit mode
+  bewegungBonus?: number;         // Extra added to Bewegung (⌊8 + Geschw./4⌋) — sheet +Bonus / NSC edit mode
+  waffenlosBonus?: number;        // Extra added to Waffenlose Effektivität (sheet +Bonus)
+  stabilitaetBonus?: number;      // Extra added to Stabilität/Verteidigung (sheet +Bonus)
   // Backstory
   backstory?: string;             // Character background story (supports simple markdown)
   // Active / Sustained Skills & Spells

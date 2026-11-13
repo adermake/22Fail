@@ -2,7 +2,6 @@ import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CardComponent } from '../../shared/card/card.component';
 import { StatComponent } from '../stat/stat.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
-import { unarmedEffectiveness } from '../../model/race.model';
 import { FormsModule } from '@angular/forms';
 import { JsonPatch } from '../../model/json-patch.model';
 import { TrueStatsService } from '../../services/true-stats.service';
@@ -53,9 +52,14 @@ export class StatsComponent {
     return this.trueStats.calculateReaktionswert(this.sheet);
   }
 
-  /** Waffenlose Effektivitaet: the race's BASE strength halved (the value the race was created with). */
+  /** Waffenlose Effektivität: the race's BASE strength − 5, plus the sheet's bonus. */
   get unarmedEffectiveness(): number {
-    return unarmedEffectiveness(this.sheet.strength?.base ?? 0);
+    return this.trueStats.calculateUnarmedEffectiveness(this.sheet);
+  }
+
+  /** Stabilität (Verteidigung) incl. the sheet's bonus — the same value the lobby uses. */
+  get stability(): number {
+    return this.trueStats.calculateTotalStability(this.sheet);
   }
 
   get grundbonusTooltip(): string {
@@ -84,8 +88,12 @@ export class StatsComponent {
     this.patch.emit({ path: 'freeStatPointsBonus', value: newValue });
   }
 
-  updateDerivedBonus(field: 'grundbonusBonus' | 'reaktionswertBonus', value: number): void {
-    this.patch.emit({ path: field, value: value });
+  /** Quick manual boosts — players can bump these without configuring a skill. */
+  updateDerivedBonus(
+    field: 'grundbonusBonus' | 'reaktionswertBonus' | 'bewegungBonus' | 'waffenlosBonus' | 'stabilitaetBonus',
+    value: number,
+  ): void {
+    this.patch.emit({ path: field, value: Number(value) || 0 });
   }
 
   ngOnInit() {

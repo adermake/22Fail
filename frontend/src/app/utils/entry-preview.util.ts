@@ -118,3 +118,21 @@ export function stackCount(data: unknown): number {
 export function tokenLabel(token: { name: string; tag?: string }): string {
   return token.tag ? `${token.name} ${token.tag}` : token.name;
 }
+
+/** What players read instead of an NSC's name until the GM reveals it. */
+export const HIDDEN_TOKEN_NAME = 'Unbekannt';
+
+/**
+ * Is this token's name hidden from players? NSC tokens (quick tokens) are, until the GM presses
+ * "Name zeigen" (`nameRevealed`). Player-character tokens never are. Callers still have to let the
+ * GM and the token's own controller through (`canViewTokenStats` in the lobby) — this is only the
+ * token's own state. Hidden in the UI, not secret on the wire (like `wantsToAct`).
+ */
+export function isTokenNameHidden(token: { isQuickToken?: boolean; nameRevealed?: boolean }): boolean {
+  return !!token.isQuickToken && !token.nameRevealed;
+}
+
+/** The label players see for a hidden NSC — keeps the Kennzeichnung so "Unbekannt 1/2" stay apart. */
+export function hiddenTokenLabel(token: { tag?: string }): string {
+  return token.tag ? `${HIDDEN_TOKEN_NAME} ${token.tag}` : HIDDEN_TOKEN_NAME;
+}

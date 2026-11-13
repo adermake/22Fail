@@ -128,6 +128,11 @@ export interface Token {
    * Wird beim Ablegen automatisch hochgezählt, lässt sich aber frei überschreiben.
    */
   tag?: string;
+  /**
+   * NSC names are hidden from players by default ("Unbekannt"); the GM reveals them per token.
+   * Only meaningful for quick tokens — see `isTokenNameHidden`.
+   */
+  nameRevealed?: boolean;
   currentHealth?: number; // Per-token HP override (undefined = use sheet value)
   currentMana?: number;   // Per-token Mana override
   currentEnergy?: number; // Per-token Energy override

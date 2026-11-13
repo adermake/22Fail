@@ -37,7 +37,7 @@ import { isItemEquipped, isWieldedWeapon } from '../../utils/equip-slot.utils';
 import { constructWeapons, isConstruct, rawStatResolver } from '../../utils/construct.util';
 import { applyStability } from '../../utils/stability.util';
 import { JsonPatch } from '../../model/json-patch.model';
-import { tokenLabel } from '../../utils/entry-preview.util';
+import { hiddenTokenLabel, isTokenNameHidden, tokenLabel } from '../../utils/entry-preview.util';
 import { committedFokus } from '../../utils/spell-costs.util';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LobbyTokenActionsService } from '../lobby-token-actions.service';
@@ -121,7 +121,7 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
       @if (token.portrait) {
         <img class="token-portrait" [src]="token.portrait | imageUrl" alt="" />
       } @else {
-        <div class="token-portrait-placeholder">{{ (token.name || '?').charAt(0).toUpperCase() }}</div>
+        <div class="token-portrait-placeholder">{{ (headerName(token) || '?').charAt(0).toUpperCase() }}</div>
       }
       <!-- Name gets the full width (wraps, never "…"); GM controls sit on their own row below.
            No close button: deselecting the token is how you clear the panel. -->
@@ -130,10 +130,18 @@ const PANEL_TAB_KEY = 'lobby:panel-tab';
           <input class="token-name-input" type="text" [value]="token.name" title="Name"
                  (change)="editName($event)" (keydown.enter)="$any($event.target).blur()" />
         } @else {
-          <span class="token-name">{{ tokenLabel(token) }}</span>
+          <span class="token-name">{{ headerName(token) }}</span>
         }
-        @if (npcEditable || (npcRollable && npc)) {
+        @if (npcEditable || (npcRollable && npc) || (isGM && token.isQuickToken)) {
           <div class="token-header-actions">
+            @if (isGM && token.isQuickToken) {
+              <!-- NSC names are hidden from players until revealed here. -->
+              <button class="npc-reroll-btn" [class.active]="token.nameRevealed"
+                      (click)="tokenUpdate.emit({ nameRevealed: !token.nameRevealed })"
+                      [title]="token.nameRevealed ? 'Spieler sehen den Namen — klicken zum Verbergen' : 'Name ist für Spieler verborgen („Unbekannt“) — klicken zum Aufdecken'">
+                <span class="app-icon" [class.i-visibility-on]="token.nameRevealed" [class.i-visibility-off]="!token.nameRevealed"></span>
+              </button>
+            }
             @if (npcEditable) {
               <button class="npc-reroll-btn" [class.active]="editMode()" (click)="toggleEditMode()"
                       [title]="editMode() ? 'Bearbeiten beenden' : 'Werte bearbeiten — Name, Grundwerte, Effektivität, Stabilität, Reaktion, Bewegung'">
@@ -1829,6 +1837,13 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   /** Name samt Kennzeichnung ("Kultist 2") — sonst sehen alle gleichnamigen Token gleich aus. */
   tokenLabel = tokenLabel;
+
+  /** Header name: players read "Unbekannt" for an NSC whose name the GM hasn't revealed. */
+  headerName(token: Token): string {
+    return !this.isGM && !this.canViewStats && isTokenNameHidden(token)
+      ? hiddenTokenLabel(token)
+      : tokenLabel(token);
+  }
 
   /** Die Cetris am Token als Text, leer wenn keine. */
   get tokenPurse(): string {

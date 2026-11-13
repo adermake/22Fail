@@ -127,3 +127,5 @@
 .lad-cost-chip { display: inline-flex; align-items: center; gap: 3px; }
 .lad-cost-chip .app-icon { width: 11px; height: 11px; background-color: currentColor; }
 .lad-cost-rd { opacity: 0.75; }
+/* Zauberstärke — same blue as the cast window's Effektivität chip. */
+.lad-cost-chip--eff { color: var(--eff-color); font-weight: 700; }

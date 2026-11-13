@@ -5,7 +5,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
-import { spellVoraussetzung } from '../../utils/spell-costs.util';
+import { spellHaltbarkeitsKosten } from '../../utils/spell-costs.util';
 import {
   InscribableItem, buildInscription, inscribableItems, inscriptionSlots, itemDurability,
   itemMaxDurability, usedInscriptionSlots,
@@ -42,7 +42,7 @@ export class SpellInscribeDialogComponent {
 
   /** What one cast will cost the chosen material's Haltbarkeit. */
   get costPerCast(): number {
-    return spellVoraussetzung(this.spell, this.learnedRunes);
+    return spellHaltbarkeitsKosten(this.spell, this.learnedRunes);
   }
 
   /** The material's Haltbarkeit, which casting wears down. */

@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { StatBlock } from '../model/stat-block.model';
+import { unarmedEffectiveness } from '../model/race.model';
 import { LibraryStoreService } from './library-store.service';
 import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model';
 import { FormulaType } from '../model/formula-type.enum';
@@ -627,8 +628,18 @@ export class TrueStatsService {
       .reduce((sum, i) => sum + this.resolveItemStat(sheet, i, 'stability'), 0);
     const core = Math.floor(equip / 5)
       + this.getStatusModifierTotal(sheet, 'stability')
-      + this.getSkillItemModifierTotal(sheet, 'stability');
+      + this.getSkillItemModifierTotal(sheet, 'stability')
+      // Quick manual boost from the sheet ("+Bonus" next to Stabilität) — no skill needed.
+      + (sheet.stabilitaetBonus || 0);
     return Math.max(0, Math.round(this.applyEffectPipeline(sheet, 'stability', core)));
+  }
+
+  /**
+   * Waffenlose Effektivität: the race's BASE strength − 5 (see `unarmedEffectiveness`), plus the
+   * sheet's quick manual bonus.
+   */
+  calculateUnarmedEffectiveness(sheet: CharacterSheet): number {
+    return unarmedEffectiveness(sheet.strength?.base ?? 0) + (sheet.waffenlosBonus || 0);
   }
 
   /** Public: apply the effectActive pipeline for `target` on top of a caller-computed core. */
@@ -1026,12 +1037,10 @@ export class TrueStatsService {
     const eff = this.calculateEffectiveSpeed(sheet);
     const mov = this.calculateMovementSpeed(sheet);
     const bewegung = this.getStatusModifierTotal(sheet, 'bewegung');
+    const bonus = sheet.bewegungBonus || 0;
+    const term = (v: number, label: string) => (v ? ` ${v > 0 ? '+' : '−'} ${Math.abs(v)} (${label})` : '');
     const base = `⌊8 + Effektive Geschw. / 4⌋\nEffektive Geschw.: ${eff}\n= ⌊8 + ${eff} / 4⌋`;
-    if (bewegung) {
-      const sign = bewegung > 0 ? '+' : '−';
-      return `${base} ${sign} ${Math.abs(bewegung)} (Bewegung) = ${mov}`;
-    }
-    return `${base} = ${mov}`;
+    return `${base}${term(bewegung, 'Bewegung')}${term(bonus, 'Bonus')} = ${mov}`;
   }
 
   getFokusFormulaTooltip(sheet: CharacterSheet): string {

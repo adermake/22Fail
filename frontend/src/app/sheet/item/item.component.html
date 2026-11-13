@@ -334,7 +334,7 @@
         <!-- Eingeschriebene Zauber: this item is their Medium. Read-only — casting happens in the
              Wirkfenster, so there is exactly one place a spell can be cast from.
              No Haltbarkeit shown per spell: they all wear down this item's own Haltbarkeit, which
-             the bar above already displays. Each cast costs that spell's Voraussetzung. -->
+             the bar above already displays. Each cast costs that spell's stat requirements, summed. -->
         @if (item.embeddedSpells && item.embeddedSpells.length > 0) {
           <div class="inscribed-section">
             <span class="inscribed-label">Eingeschriebene Zauber</span>

@@ -480,7 +480,7 @@
           
           <!-- Einschreibe-Plätze: how many Zauber this material can carry at once. The Haltbarkeit
                they consume is the item's own (Eigenschaften-Tab) — each cast costs the spell's
-               Voraussetzung, so several spells on one item share the same pool. -->
+               stat requirements summed, so several spells on one item share the same pool. -->
           <div class="inscription-slots">
             <label for="inscriptionSlots">Einschreibe-Pl&auml;tze</label>
             <input id="inscriptionSlots" type="number" min="0" placeholder="1"
@@ -507,7 +507,7 @@
                     @if (spell.tags && spell.tags.length > 0) {
                       <span class="attached-tags">{{ spell.tags.join(', ') }}</span>
                     }
-                    <!-- Cost per cast against the ITEM's Haltbarkeit (the spell's Voraussetzung). -->
+                    <!-- Cost per cast against the ITEM's Haltbarkeit (stat requirements summed). -->
                     <span class="inscription-dur">
                       Haltbarkeit je Wirkung: &minus;{{ inscriptionCost(spell) }}
                     </span>

@@ -325,6 +325,26 @@ export class BattleTrackerEngine {
 
   private availableSignature = '';
 
+  /**
+   * Shown instead of the saved name for participants this client has no character/token for (an
+   * NSC on another map). The lobby sets it for players so hidden NSC names don't leak; null = the
+   * saved name (GM, world view).
+   */
+  private unknownParticipantName: string | null = null;
+  /** Names as last loaded from the world — a client that hides names must not save its labels. */
+  private persistedNames = new Map<string, string>();
+
+  setUnknownParticipantName(name: string | null): void {
+    if (name === this.unknownParticipantName) return;
+    this.unknownParticipantName = name;
+    this.syncFromWorldStore();
+  }
+
+  private participantName(char: { name: string } | undefined, bp: BattleParticipant): string {
+    this.persistedNames.set(bp.characterId, bp.name);
+    return char?.name || this.unknownParticipantName || bp.name;
+  }
+
   // Characters currently in battle with their turn meter state
   private participants: Map<string, Participant> = new Map();
 
@@ -346,7 +366,18 @@ export class BattleTrackerEngine {
   setAvailableCharacters(characters: { id: string; name: string; portrait?: string; speed?: number }[]): void {
     // The lobby pushes on every token change (moves included); skip the re-render + prediction
     // when nothing the tracker shows actually changed.
-    const signature = JSON.stringify(characters.map(c => [c.id, c.name, c.portrait, c.speed ?? 10]));
+    // Portraits can be big data: URLs (drawn token images) — hash them instead of copying them
+    // into the signature on every token move. (Not length + tail: every PNG ends in the same
+    // IEND bytes, so a redraw of equal length would go unnoticed.)
+    const portraitKey = (p?: string) => {
+      if (!p) return '';
+      let h = 5381;
+      for (let i = 0; i < p.length; i++) h = ((h << 5) + h + p.charCodeAt(i)) | 0;
+      return `${p.length}:${h}`;
+    };
+    const signature = JSON.stringify(
+      characters.map(c => [c.id, c.name, portraitKey(c.portrait), c.speed ?? 10]),
+    );
     if (signature === this.availableSignature) return;
     this.availableSignature = signature;
 
@@ -401,7 +432,7 @@ export class BattleTrackerEngine {
       const char = this.allCharacters.get(bp.characterId);
       this.participants.set(bp.characterId, {
         characterId: bp.characterId,
-        name: char?.name || bp.name,
+        name: this.participantName(char, bp),
         portrait: char?.portrait ?? bp.portrait,
         speed: char?.speed || bp.speed,
         team: bp.team || 'blue',
@@ -442,7 +473,7 @@ export class BattleTrackerEngine {
       const char = this.allCharacters.get(bp.characterId);
       this.participants.set(bp.characterId, {
         characterId: bp.characterId,
-        name: char?.name || bp.name,
+        name: this.participantName(char, bp),
         portrait: char?.portrait ?? bp.portrait,
         speed: char?.speed ?? bp.speed ?? 10,
         team: bp.team || 'blue',
@@ -466,7 +497,10 @@ export class BattleTrackerEngine {
     for (const [id, p] of this.participants) {
       battleParticipants.push({
         characterId: p.characterId,
-        name: p.name,
+        // A client that hides NSC names holds "Unbekannt" labels — keep the real saved name.
+        name: this.unknownParticipantName !== null
+          ? (this.persistedNames.get(p.characterId) ?? p.name)
+          : p.name,
         // Fallback for clients that don't have this character/token loaded (NSC on another
         // map, or before tokens arrive after a reload) — without it NSCs lost their image.
         // Only image ids/URLs: an inline data: portrait would bloat every turn patch.

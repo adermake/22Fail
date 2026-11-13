@@ -105,7 +105,7 @@ Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen b
 Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
 :::
 :::card{title="Haltbarkeitsverbrauch" color=#ef9533}
-Ein Zauber beschädigt das Medium, auf dem er steht. **Die Haltbarkeit gehört dem Gegenstand** — der Zauber bestimmt nur, wie viel davon eine Wirkung kostet, nämlich seine Voraussetzung.
+Ein Zauber beschädigt das Medium, auf dem er steht. **Die Haltbarkeit gehört dem Gegenstand** — der Zauber bestimmt nur, wie viel davon eine Wirkung kostet, nämlich **alle seine Stat-Anforderungen zusammengezählt**. Ein Zauber, der Intelligenz 12 und Geschick 4 verlangt, kostet je Wirkung 16 Haltbarkeit.
 
 Damit teilen sich alle Zauber auf einem Gegenstand denselben Vorrat: ein Buch mit drei Zaubern nutzt sich dreimal so schnell ab. Wie oft ein Zauber benutzt werden kann, hängt also am Material, nicht am Zauber.
 
@@ -118,7 +118,7 @@ Ein kaputter Zauber ist nicht mehr verwendbar und das Material kann nicht mehr v
 Wenn ein Zauber in Ausrüstung eingraviert ist und diese kaputtgeht, ist auch der Zauber kaputt. Selbst wenn sie repariert wird ist der Zauber nicht mehr verwendbar.
 :::
 :::note{type=info}
-Der Verbrauch skaliert mit: ein langsam gewirkter Zauber senkt seine Voraussetzung und kostet entsprechend weniger Haltbarkeit, eine hochskalierte Rune dagegen mehr.
+Der Verbrauch skaliert mit: ein langsam gewirkter Zauber senkt seine Anforderungen und kostet entsprechend weniger Haltbarkeit, eine hochskalierte Rune dagegen mehr.
 :::
 :::
 :::note{type=tip}
@@ -172,7 +172,7 @@ Du formst die Runen ohne Hilfsmittel in der Luft um dich herum. Der Zauber ist j
 ### Einschreiben
 Einen gelernten oder verinnerlichten Zauber kannst du auf ein mitgeführtes Material schreiben. Jedes Material hat eine begrenzte Anzahl an Plätzen: eine Schriftrolle trägt in der Regel einen Zauber, ein gebundenes Buch mehrere. Wie viele es sind, legt der Spielleiter je Gegenstand fest.
 
-Beschreiben lässt sich nur Material, das eine **Haltbarkeit** hat — es muss etwas da sein, das der Zauber abnutzen kann. Wie viele Wirkungen darin stecken, ergibt sich aus der Haltbarkeit des Gegenstands geteilt durch die [Voraussetzung](zauber#zauber) des Zaubers.
+Beschreiben lässt sich nur Material, das eine **Haltbarkeit** hat — es muss etwas da sein, das der Zauber abnutzen kann. Wie viele Wirkungen darin stecken, ergibt sich aus der Haltbarkeit des Gegenstands geteilt durch die zusammengezählten Stat-Anforderungen des Zaubers (siehe [Haltbarkeitsverbrauch](zauber#zauber)).
 
 :::note{type=info}
 Ein Medium zählt, solange du es bei dir trägst — ausgerüstet oder im Inventar. Eine Schriftrolle braucht keinen Ausrüstungsplatz.

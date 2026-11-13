@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CastingSpellEntry, SpellBlock } from '../model/spell-block-model';
 import {
-  committedFokus, spellFokusCost, spellHaltbarkeitsKosten, spellManaCost, spellVoraussetzung,
+  committedFokus, spellAnforderungsSumme, spellFokusCost, spellHaltbarkeitsKosten, spellManaCost,
+  spellVoraussetzung,
 } from './spell-costs.util';
 
 const spell = (partial: Partial<SpellBlock>): SpellBlock => ({ name: 'Zauber', ...partial }) as SpellBlock;
@@ -41,9 +42,16 @@ describe('Voraussetzung', () => {
 });
 
 describe('Haltbarkeitsverbrauch', () => {
-  it('burns the full Voraussetzung at cast level 0', () => {
+  it('burns the full requirement at cast level 0', () => {
     const s = spell({ statRequirements: { intelligence: 5 } });
     expect(spellHaltbarkeitsKosten(s, [])).toBe(5);
+  });
+
+  it('burns ALL stat requirements added up, not just the heaviest', () => {
+    const s = spell({ statRequirements: { intelligence: 12, dexterity: 4 } });
+    expect(spellAnforderungsSumme(s, [])).toBe(16);
+    expect(spellHaltbarkeitsKosten(s, [])).toBe(16);
+    expect(spellHaltbarkeitsKosten(s, [], 100, 1)).toBe(8);
   });
 
   it('halves at cast level 100 and doubles at Skalierung 2', () => {

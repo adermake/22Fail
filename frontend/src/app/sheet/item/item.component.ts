@@ -5,7 +5,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ItemBlock, ItemCounter } from '../../model/item-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
-import { spellVoraussetzung } from '../../utils/spell-costs.util';
+import { spellHaltbarkeitsKosten } from '../../utils/spell-costs.util';
 import { getEquipSlot } from '../../utils/equip-slot.utils';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -142,7 +142,7 @@ export class ItemComponent implements OnChanges {
 
   /** What one cast of this spell costs the item, at cast level 0 and Skalierung 1. */
   inscriptionCost(spell: SpellBlock): number {
-    return spellVoraussetzung(spell, this.learnedRunes);
+    return spellHaltbarkeitsKosten(spell, this.learnedRunes);
   }
 
   private get learnedRunes(): RuneBlock[] {

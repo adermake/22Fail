@@ -84,16 +84,22 @@
               <span class="lad-name">{{ spell.name }}</span>
               @if (!hasMedium) { <span class="lad-nomedium">Medium fehlt</span> }
               @if (spell.description) { <span class="lad-desc">{{ spell.description }}</span> }
-              @if (svc.spellCostChips(spell); as chips) {
-                @if (chips.length) {
-                  <span class="lad-cost">
-                    @for (chip of chips; track chip.icon) {
-                      <span class="lad-cost-chip" [title]="chip.label">
-                        <span class="app-icon {{ chip.icon }}"></span>{{ chip.amount }}
-                      </span>
-                    }
-                  </span>
-                }
+              @let eff = svc.spellEffektivitaet(spell);
+              @let chips = svc.spellCostChips(spell);
+              @if (eff !== null || chips.length) {
+                <span class="lad-cost">
+                  @if (eff !== null) {
+                    <span class="lad-cost-chip lad-cost-chip--eff"
+                          [title]="eff === 'komplex' ? 'Zauberstärke lässt sich nicht vollständig durch eine Zahl ausdrücken' : 'Zauberstärke (Effektivität)'">
+                      <span class="app-icon i-effektivity"></span>{{ eff }}
+                    </span>
+                  }
+                  @for (chip of chips; track chip.icon) {
+                    <span class="lad-cost-chip" [title]="chip.label">
+                      <span class="app-icon {{ chip.icon }}"></span>{{ chip.amount }}
+                    </span>
+                  }
+                </span>
               }
             </button>
           }

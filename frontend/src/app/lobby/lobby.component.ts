@@ -23,7 +23,9 @@ import { TextureService } from '../services/texture.service';
 import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { LibraryStoreService } from '../services/library-store.service';
-import { tokenLabel } from '../utils/entry-preview.util';
+import {
+  HIDDEN_TOKEN_NAME, hiddenTokenLabel, isTokenNameHidden, tokenLabel,
+} from '../utils/entry-preview.util';
 import { DEFAULT_WORLD_CLOCK, formatWorldClock, shiftFantasyClock } from '../utils/world-clock.util';
 import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
 import { AuthService } from '../services/auth.service';
@@ -163,7 +165,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
       this.worldCharacters();
       this.npcStatblocks();
       this.allSummons();
-      untracked(() => queueMicrotask(() => this.pushSpeedsToBattleEngine()));
+      // Hidden NSC names depend on who is looking.
+      const gm = this.isGM();
+      this.viewingCharacterIds();
+      untracked(() => queueMicrotask(() => {
+        // Participants with no token on the open map (NSC on another map) only have their saved
+        // name — players get "Unbekannt" for those instead.
+        this.battleEngine.setUnknownParticipantName(gm ? null : HIDDEN_TOKEN_NAME);
+        this.pushSpeedsToBattleEngine();
+      }));
     });
   }
 
@@ -490,9 +500,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     // Subscribe to dice roll events
     this.subscriptions.push(
-      this.worldSocket.diceRoll$.subscribe((roll) => {
-        console.log('[Lobby] Received dice roll:', roll);
-        
+      this.worldSocket.diceRoll$.subscribe((incoming) => {
+        console.log('[Lobby] Received dice roll:', incoming);
+        // Players must not learn a hidden NSC's name from its rolls.
+        const roll = {
+          ...incoming,
+          characterName: this.visibleNameForCharacterId(incoming.characterId, incoming.characterName),
+        };
+
         // Add to history (newest first, keep last 100 — the cap drops the OLDEST entries).
         this.rollHistory.update(history => {
           const updated = [roll, ...history];
@@ -866,6 +881,24 @@ export class LobbyComponent implements OnInit, OnDestroy {
     return false;
   }
 
+  /** The token's name as THIS client may see it: hidden NSC names read "Unbekannt" for players. */
+  visibleTokenName(token: Token): string {
+    return isTokenNameHidden(token) && !this.canViewTokenStats(token)
+      ? hiddenTokenLabel(token)
+      : tokenLabel(token);
+  }
+
+  /**
+   * Name for something that only carries a characterId (dice rolls). An NSC on another map can't be
+   * checked, so for players it stays hidden — revealing is per token on the open map.
+   */
+  private visibleNameForCharacterId(characterId: string, name: string): string {
+    if (this.isGM() || this.worldCharacters().some(c => c.id === characterId)) return name;
+    const token = this.enrichedTokens().find(t => t.characterId === characterId);
+    if (token) return this.visibleTokenName(token);
+    return characterId.startsWith('npc-') || characterId.startsWith('quick-') ? HIDDEN_TOKEN_NAME : name;
+  }
+
   private characterHasActiveEffects(characterId: string): boolean {
     const char = this.worldCharacters().find(c => c.id === characterId);
     if (char?.sheet.activeStatusEffects?.length) return true;
@@ -905,10 +938,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
    * re-order the turn timeline instead of being frozen at load-time values.
    */
   private pushSpeedsToBattleEngine(): void {
+    const tokens = this.enrichedTokens();
+    // The tracker shows what the map shows: a drawn/uploaded token image (customPortraitData)
+    // overrides the portrait, for NSCs and player tokens alike.
+    const drawn = new Map<string, string>();
+    for (const t of tokens) if (t.customPortraitData) drawn.set(t.characterId, t.customPortraitData);
+
     const players = this.worldCharacters().map(c => ({
       id: c.id,
       name: c.sheet.name,
-      portrait: c.sheet.portrait,
+      portrait: drawn.get(c.id) || c.sheet.portrait,
       // Effective speed includes armor/encumbrance penalties and effectActive modifiers.
       speed: this.trueStats.calculateEffectiveSpeed(c.sheet),
     }));
@@ -917,13 +956,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // patch) wiped them, so the tracker fell back to the saved name without a portrait, and
     // renames/new images never showed up.
     const playerIds = new Set(players.map(p => p.id));
-    const npcs = this.enrichedTokens()
+    const npcs = tokens
       .filter(t => t.isQuickToken && t.statblockId && !playerIds.has(t.characterId))
       .map(t => ({
         id: t.characterId,
-        // Mit Kennzeichnung, damit fünf Kultisten im Tracker unterscheidbar bleiben.
-        name: tokenLabel(t),
-        portrait: t.portrait,
+        // Mit Kennzeichnung, damit fünf Kultisten im Tracker unterscheidbar bleiben — und für
+        // Spieler „Unbekannt“, solange der SL den Namen nicht aufgedeckt hat.
+        name: this.visibleTokenName(t),
+        portrait: t.customPortraitData || t.portrait,
         speed: this.statblockForToken(t)?.speed ?? 10,
       }));
     this.battleEngine.setAvailableCharacters([...players, ...npcs]);
@@ -1283,8 +1323,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
       const speed = this.statblockForToken(token)?.speed ?? 10;
       this.battleEngine.registerCharacter(token.characterId, {
         // Mit Kennzeichnung, damit fünf Kultisten im Tracker unterscheidbar bleiben.
-        name: tokenLabel(token),
-        portrait: token.portrait,
+        name: this.visibleTokenName(token),
+        portrait: token.customPortraitData || token.portrait,
         speed,
       });
     }

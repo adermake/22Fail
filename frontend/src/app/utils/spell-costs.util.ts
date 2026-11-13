@@ -55,7 +55,8 @@ export function committedFokus(
 }
 
 /**
- * Voraussetzung — the spell's single gating number, and what a cast burns off its Medium.
+ * Voraussetzung — the spell's single gating number. (Haltbarkeit burn uses the SUM of all stat
+ * requirements instead, see `spellAnforderungsSumme`.)
  *
  * The model stores requirements per stat, but the ruleset speaks of one Voraussetzung: "die
  * Mindestanforderung für den gewählten Stat (meist Intelligenz)". The heaviest stat is that number;
@@ -76,9 +77,24 @@ export function spellVoraussetzung(spell: SpellBlock, runes: readonly RuneBlock[
   return max;
 }
 
-/** Haltbarkeit one cast burns off its Medium: Voraussetzung × castFactor × Skalierung. */
+/**
+ * All stat requirements added up — what a cast burns off its Medium. A spell demanding INT 12 and
+ * GES 4 wears the material by 16: every stat it draws on strains the medium (user's rule,
+ * 2026-11-13; before, only the heaviest stat counted).
+ *
+ * Stored wins, with the rune-graph estimate as fallback — same precedence as `spellBaseCosts`.
+ */
+export function spellAnforderungsSumme(spell: SpellBlock, runes: readonly RuneBlock[]): number {
+  const sum = (reqs: Partial<SpellStatRequirements> | undefined) =>
+    STAT_KEYS.reduce((acc, key) => acc + Math.max(0, reqs?.[key] ?? 0), 0);
+  const stored = sum(spell.statRequirements);
+  if (stored > 0 || !spell.graph) return stored;
+  return sum(calculateSpellCost(spell.graph, [...runes]).statRequirements);
+}
+
+/** Haltbarkeit one cast burns off its Medium: Σ Anforderungen × castFactor × Skalierung. */
 export function spellHaltbarkeitsKosten(
   spell: SpellBlock, runes: readonly RuneBlock[], castLevel = 0, skalierung = 1,
 ): number {
-  return haltbarkeitsKosten(spellVoraussetzung(spell, runes), castLevel, skalierung);
+  return haltbarkeitsKosten(spellAnforderungsSumme(spell, runes), castLevel, skalierung);
 }
